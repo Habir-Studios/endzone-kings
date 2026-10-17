@@ -1,25 +1,25 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792279913';
-import * as Form from './form.js?v=1792279913';
-import { watchSim } from './simview.js?v=1792279913';
-import { bracketHTML } from './bracket.js?v=1792279913';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792279913';
-import { Renderer } from './render.js?v=1792279913';
-import { Sfx } from './audio.js?v=1792279913';
-import { Auth } from './auth.js?v=1792279913';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792279913';
-import { getRoster, teamOvr } from './teams.js?v=1792279913';
-import * as Season from './season.js?v=1792279913';
-import * as Fr from './franchise.js?v=1792279913';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792279913';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792279913';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792279913';
-import * as UTm from './ut.js?v=1792279913';
-import { initCreator, renderCreator } from './creator.js?v=1792279913';
-import { filmCapture, filmSave } from './social.js?v=1792279913';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792279913';
-import { portraitURL } from './faces.js?v=1792279913';
-import { logoURL, clearLogoCache } from './logos.js?v=1792279913';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792280007';
+import * as Form from './form.js?v=1792280007';
+import { watchSim } from './simview.js?v=1792280007';
+import { bracketHTML } from './bracket.js?v=1792280007';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792280007';
+import { Renderer } from './render.js?v=1792280007';
+import { Sfx } from './audio.js?v=1792280007';
+import { Auth } from './auth.js?v=1792280007';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792280007';
+import { getRoster, teamOvr } from './teams.js?v=1792280007';
+import * as Season from './season.js?v=1792280007';
+import * as Fr from './franchise.js?v=1792280007';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792280007';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792280007';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792280007';
+import * as UTm from './ut.js?v=1792280007';
+import { initCreator, renderCreator } from './creator.js?v=1792280007';
+import { filmCapture, filmSave } from './social.js?v=1792280007';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792280007';
+import { portraitURL } from './faces.js?v=1792280007';
+import { logoURL, clearLogoCache } from './logos.js?v=1792280007';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -665,10 +665,11 @@ function chargeNeed(n) {
 }
 function startCharge(n, code) {
   if (st.charge) return;
-  st.charge = { n, code, t0: performance.now() };
+  st.charge = { n, code, t0: performance.now(), pw: 0, last: performance.now() };
   sfx.play('ui');
 }
-function chargePw() { return st.charge ? Math.min(1.4, (performance.now() - st.charge.t0) / 1000 / CHARGE_T) : 0; }
+// the bar fills faster when the QB is on the run, so timing a throw on the move is harder
+function chargePw() { const c = st.charge; if (!c) return 0; const now = performance.now(), dt = Math.min(0.1, (now - c.last) / 1000); c.last = now; const mv = (st.snap && st.snap.qbs) ? st.snap.qbs[1] : 0; c.pw = Math.min(1.4, c.pw + dt / CHARGE_T * (1 + 0.8 * mv)); return c.pw; }
 function releaseCharge() {
   const c = st.charge; if (!c) return;
   const pw = chargePw(); st.charge = null;
@@ -683,11 +684,12 @@ function renderThrowMeter() {
   const pw = chargePw(), need = chargeNeed(c.n);
   if (pw >= 1.4) return releaseCharge();
   el.classList.add('on');
-  const pct = v => (v / 1.4 * 100).toFixed(1) + '%';
-  el.querySelector('.tm-zone').style.left = pct(Math.max(0, need - 0.14)); el.querySelector('.tm-zone').style.width = pct(0.34);
+  const pct = v => (v / 1.4 * 100).toFixed(1) + '%', q = S.qbs || [0, 0], W = 1 - 0.55 * q[0];   // pressure shrinks the green box
+  el.querySelector('.tm-zone').style.left = pct(Math.max(0, need - 0.14 * W)); el.querySelector('.tm-zone').style.width = pct(0.34 * W);
   const f = el.querySelector('.tm-fill'); f.style.width = pct(pw);
-  f.style.background = pw < need - 0.14 ? '#60a5fa' : pw <= need + 0.2 ? '#22c55e' : '#ef4444';
-  el.querySelector('span').textContent = `${c.n} · ${pw < 0.45 ? 'touch' : pw > 0.9 ? 'bullet' : 'firm'}`;
+  f.style.background = pw < need - 0.14 * W ? '#60a5fa' : pw <= need + 0.2 * W ? '#22c55e' : '#ef4444';
+  el.classList.toggle('heat', q[0] > 0.35); el.classList.toggle('run', q[1] > 0.3);
+  el.querySelector('span').textContent = `${c.n} · ${pw < 0.45 ? 'touch' : pw > 0.9 ? 'bullet' : 'firm'}${q[0] > 0.35 ? ' · UNDER PRESSURE' : ''}${q[1] > 0.3 ? ' · ON THE RUN' : ''}`;
 }
 
 function pushEv(ev) { if (st.mode === 'guest') { st.peer && st.peer.send({ t: 'ev', ev }, true); } else evq.push(ev); }

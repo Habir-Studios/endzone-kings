@@ -1610,3 +1610,5 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .so-find { flex: 1 1 260px; max-width: 360px; margin-left: auto; }
 .so-tabs .ut-tab { font-size: 18px; padding: 10px 14px; }
 @media (max-width: 700px) { .so-tabs .ut-tab, .ut-tab { font-size: 15px; padding: 9px 10px; } }
+#throw-meter.heat .tm-zone { box-shadow: 0 0 0 2px #ff5a5a inset; }
+#throw-meter.heat span, #throw-meter.run span { color: #ffb36b; }

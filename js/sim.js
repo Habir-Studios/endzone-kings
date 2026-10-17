@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792279913';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792280007';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792279913';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792280007';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -787,6 +787,13 @@ function leadPoint(from, r, speed) {
 }
 
 // how hard a throw to a receiver this far away should be (0..1), shared with the HUD meter
+// how much heat the QB is under (0 = clean pocket, 1 = about to get hit) and how fast he's moving (0 = set, 1 = full sprint)
+export function qbState(g, qb) {
+  let near = 99; for (const d of g.players) if (d.team !== qb.team && !(d.fallen > 0) && d.engagedBy < 0) near = Math.min(near, hyp(d.x - qb.x, d.z - qb.z));
+  return { pr: clamp((4.2 - near) / 3, 0, 1), mv: clamp((hyp(qb.vx || 0, qb.vz || 0) - 2.5) / 4.5, 0, 1) };
+}
+// the perfect window shrinks under pressure (up to about half)
+export const throwWindow = pr => 1 - 0.55 * clamp(pr, 0, 1);
 export function throwNeed(D) { return clamp(0.22 + Math.min(D, 45) / 45 * 0.68, 0.25, 0.9); }
 function throwBall(g, qb, r, err, pw) {
   const P = g.play;
@@ -803,12 +810,12 @@ function throwBall(g, qb, r, err, pw) {
   const a = g.rng() * Math.PI * 2, e = err * (0.6 + Math.min(D0, 45) / 11) * Math.sqrt(g.rng());
   let tx = L.x + Math.cos(a) * e, tz = L.z + Math.sin(a) * e;
   if (human) {
-    const off = pw - need, ux = (L.x - qb.x) / (hyp(L.x - qb.x, L.z - qb.z) || 1), uz = (L.z - qb.z) / (hyp(L.x - qb.x, L.z - qb.z) || 1);
+    const W = throwWindow(qbState(g, qb).pr), off = pw - need, ux = (L.x - qb.x) / (hyp(L.x - qb.x, L.z - qb.z) || 1), uz = (L.z - qb.z) / (hyp(L.x - qb.x, L.z - qb.z) || 1);
     let depth = 0;
-    if (off > 0.2) depth = (off - 0.2) * 24;            // too much juice: sails over his head
-    else if (off < -0.14) depth = (off + 0.14) * 30;    // not enough: dies short, defenders undercut it
+    if (off > 0.2 * W) depth = (off - 0.2 * W) * 24;            // too much juice: sails over his head
+    else if (off < -0.14 * W) depth = (off + 0.14 * W) * 30;    // not enough: dies short, defenders undercut it
     tx += ux * depth; tz += uz * depth;
-    g.flash = Math.abs(off) <= 0.12 ? { text: 'PERFECT THROW', until: 0.7 } : depth > 2.5 ? { text: 'OVERTHROWN', until: 0.8 } : depth < -2.5 ? { text: 'UNDERTHROWN', until: 0.8 } : g.flash;
+    g.flash = Math.abs(off) <= 0.12 * W ? { text: 'PERFECT THROW', until: 0.7 } : depth > 2.5 ? { text: 'OVERTHROWN', until: 0.8 } : depth < -2.5 ? { text: 'UNDERTHROWN', until: 0.8 } : g.flash;
   }
   { const W = g.opts.wind; if (W && W.mph) { const T0 = hyp(tx - qb.x, tz - qb.z) / speed, k = W.mph / 20 * T0 * T0 * 1.4 * (bullet > 0.9 ? 0.7 : 1); tx += Math.sin(W.dir) * k; tz += Math.cos(W.dir) * k * 0.6; } }   // wind pushes the ball, floaters most
   const D = hyp(tx - qb.x, tz - qb.z);
@@ -2365,6 +2372,7 @@ export function snapshot(g) {
     op: g.offPlay, dp: g.defPlay, dc: g.defChosen, pc: Math.ceil(Math.max(0, g.playClock)),
     off: P.off, plos: r2(P.los ?? g.losZ), pbx: r2(P.bx ?? g.ballX), pty: P.type, thr: !!P.thrown,
     canThrow: canThrow(g),
+    qbs: canThrow(g) && g.ball.carrier >= 0 && g.players[g.ball.carrier] ? (() => { const q = qbState(g, g.players[g.ball.carrier]); return [r2(q.pr), r2(q.mv)]; })() : null,
     ctrl: g.ctrl.slice(), teams: g.opts.teams, humans: g.opts.humans, diff: g.opts.difficulty,
     msg: g.msg ? { text: g.msg.text, sub: g.msg.sub, big: !!g.msg.big, pen: !!g.msg.pen } : null,
     fl: g.play && g.play.flag && g.phase === 'live' ? [r2(g.play.flag.x), r2(g.play.flag.z)] : (g.lastFlag && g.phase === 'dead' ? g.lastFlag : null),

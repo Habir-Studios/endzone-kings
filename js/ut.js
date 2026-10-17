@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792278521';
-import { grade, nextForm, decay, formed } from './form.js?v=1792278521';
+import { TEAMS } from './teams.js?v=1792278575';
+import { grade, nextForm, decay, formed } from './form.js?v=1792278575';
 
 export const TIERS = [
   // mv = what the market pays. Kept well under what packs cost, so buying packs to resell always loses coins
@@ -238,11 +238,12 @@ export const MAX_LISTINGS = 5;
 export const LIST_TIMES = [[10, '10 min'], [30, '30 min'], [60, '1 hour']];
 export const marketSlot = (t = Date.now()) => Math.floor(t / MARKET_SLOT_MS);
 // 15 cards for sale this half hour, the same for everyone
-export function marketListings(slot = marketSlot()) {
-  const r = rng(slot * 97 + 13), out = [];
-  // good cards are rare: most batches are bronze and silver; an Elite shows up now and then, a Kings card almost never
+// every player gets their own market (seeded by who you are), so a good card is pure luck, not a batch everyone sees
+export function marketListings(slot = marketSlot(), salt = 0) {
+  const r = rng((slot * 97 + 13) ^ (salt >>> 0)), out = [];
+  // each listing rolls on its own: 1.5% Elite, 0.15% Kings
   for (let i = 0; i < 15; i++) {
-    const tier = pickTier([52, 34, 12.5, 1.4, 0.1], r), id = makeId(tier, (r() * 8) | 0, (r() * 1e7) | 0);
+    const tier = pickTier([52, 34, 12.35, 1.5, 0.15], r), id = makeId(tier, (r() * 8) | 0, (r() * 1e7) | 0);
     out.push({ k: slot + ':' + i, id, price: r50(marketValue(id) * (tier >= 3 ? 1.15 + r() * 0.35 : 0.95 + r() * 0.35)) });   // and they cost a premium
   }
   return out;

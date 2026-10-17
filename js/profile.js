@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792278521';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792278575';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -443,7 +443,7 @@ export class Profile {
   fpClaimAll() { const out = { coins: 0, packs: [] }; for (let t = 1; t <= this.fpTier; t++) { if (this.p.fp.got.includes(t)) continue; const rw = fpReward(t); this.p.fp.got.push(t); this.p.coins += rw.coins || 0; this.p.tp = (this.p.tp || 0) + 15; out.coins += rw.coins || 0; if (rw.pack) { this.addPack(rw.pack); out.packs.push(rw.pack); } } this.save(); return out; }
 
   // ---------------- market ----------------
-  get market() { const M = this.p.ut.mk, slot = marketSlot(); if (M.slot !== slot) { M.slot = slot; M.bought = []; } return { slot, items: marketListings(slot).filter(l => !M.bought.includes(l.k)), mine: M.list }; }
+  get market() { const M = this.p.ut.mk, slot = marketSlot(); if (M.slot !== slot) { M.slot = slot; M.bought = []; } return { slot, items: marketListings(slot, hashStr(this.key)).filter(l => !M.bought.includes(l.k)), mine: M.list }; }
   marketBuy(k) {
     const m = this.market, l = m.items.find(x => x.k === k); if (!l) return 'Someone already bought that player';
     if (this.p.coins < l.price) return `You need ${(l.price - this.p.coins).toLocaleString()} more coins`;

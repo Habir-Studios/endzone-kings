@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD } from './profile.js?v=1792205915';
-import * as UT from './ut.js?v=1792205915';
-import { portraitURL } from './faces.js?v=1792205915';
-import { TEAMS } from './teams.js?v=1792205915';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792207431';
+import * as UT from './ut.js?v=1792207431';
+import { portraitURL } from './faces.js?v=1792207431';
+import { TEAMS } from './teams.js?v=1792207431';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -195,6 +195,7 @@ function openPack(k) {
   }));
   $('#packopen').classList.remove('hidden');
   C.sfx.play('whistle');
+  setTimeout(packAchToast, 1500);
 }
 
 function renderPlay(P) {
@@ -260,8 +261,34 @@ export function renderProgress() {
   $('#prog-career').innerHTML = `<h3 class="h3">Career</h3><div class="career">
     <div><b>${fmt(p.games)}</b><small>Games</small></div><div><b>${fmt(p.wins)}</b><small>Wins</small></div><div><b>${p.games ? Math.round(p.wins / p.games * 100) : 0}%</b><small>Win rate</small></div>
     <div><b>${fmt(p.tds)}</b><small>Touchdowns</small></div><div><b>${p.bestStreak}</b><small>Best win streak</small></div><div><b>${rankInfo(p.rpBest).name}</b><small>Best rank</small></div>
-    <div><b>${U.cards.length}</b><small>UT players</small></div><div><b>${U.opened}</b><small>Packs opened</small></div></div>`;
+    <div><b>${U.cards.length}</b><small>UT players</small></div><div><b>${U.opened}</b><small>Packs opened</small></div><div><b>${p.drill.best || 0}</b><small>Drill best</small></div></div>`;
+  const got = ACH.filter(a => p.ach[a.k]).length;
+  $('#prog-ach').innerHTML = `<h3 class="h3">Achievements <span class="note">${got} of ${ACH.length}</span></h3><div class="ach-grid">${ACH.map(a => `<div class="ach ${p.ach[a.k] ? 'got' : ''}"><i>${p.ach[a.k] ? '✓' : '?'}</i><div><b>${a.n}</b><small>${a.d}. ${fmt(a.c)} coins</small></div></div>`).join('')}</div>`;
   refreshChip();
+}
+
+// ---------------- celebrations, achievements, drill ----------------
+export const CELS = [[-1, 'Random', 0], [0, 'Jump', 0], [1, 'Dance', 0], [2, 'Flex', 0], [3, 'Point up', 0], [4, 'Spin', 0], [5, 'Take a bow', 5], [6, 'Moonwalk', 15]];
+export const celUnlocked = lvl => CELS.filter(c => (lvl || 1) >= c[2]).map(c => c[0]);
+export function unlockAch(ev) { const P = profile(); if (!P || (C.Auth.user && C.Auth.user.kind === 'guest')) return; const got = P.unlock(ev); for (const a of got) C.toast(`Achievement unlocked: ${a.n}! +${fmt(a.c)} coins`, 3500); }
+export function packAchToast() { const P = profile(); if (P && P.lastAch) { for (const a of P.lastAch) C.toast(`Achievement unlocked: ${a.n}! +${fmt(a.c)} coins`, 3500); P.lastAch = null; } }
+export function renderDrillBoard(el) {
+  const P = profile();
+  let dev = []; try { dev = JSON.parse(localStorage.getItem('ek_drill_board') || '[]'); } catch (_) {}
+  const me = C.Auth.user ? C.Auth.user.name : '';
+  const row = (r, i) => `<div class="row ${r.name === me ? 'me' : ''}"><span>${i + 1}</span><span>${C.escapeHtml(r.name || me)} <small class="note">${(TEAMS[r.team] || TEAMS[0]).abbr}, ${C.DIFFICULTIES[r.diff ?? 1] || ''}</small></span><b>${r.pts}</b></div>`;
+  el.innerHTML = `<h4>Your best: ${P ? P.p.drill.best || 0 : 0} points</h4><h4>Top scores on this device</h4>${dev.length ? dev.map(row).join('') : '<p class="note">No runs yet. Set the first score.</p>'}`;
+}
+export function drillRewardsHTML(pts, diff, team) {
+  const P = profile(); if (!P) return '';
+  const out = P.awardDrill(pts, diff, team, C.Auth.user ? C.Auth.user.name : 'You');
+  const lines = out.lines.map(l => `<span>${l.label}</span><span>+${fmt(l.c)}</span><span>+${fmt(l.x)} XP</span>`).join('');
+  const extra = [];
+  if (out.best && pts) extra.push(`<span class="up">New personal best: ${pts} points!</span>`);
+  for (const lv of out.levels) extra.push(`<span class="up">Level up! You're level ${lv.lvl}: +${fmt(lv.coins)} coins${lv.pack ? `, ${UT.packByKey(lv.pack).name}` : ''}</span>`);
+  for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);
+  return `<div class="gr-head"><b>Rewards</b><span class="coins-pill"><i class="coin"></i>${fmt(P.p.coins)}</span></div>
+    <div class="gr-lines">${lines}<span class="gr-tot">Total</span><span class="gr-tot">+${fmt(out.coins)}</span><span class="gr-tot">+${fmt(out.xp)} XP</span></div>${extra.length ? `<div class="gr-extra">${extra.join('')}</div>` : ''}`;
 }
 
 // ---------------- post-game ----------------
@@ -274,6 +301,7 @@ export function awardGame(r) {
   if (out.drp) extra.push(`<span class="${out.drp > 0 ? 'up' : 'down'}">${out.drp > 0 ? '+' : ''}${out.drp} RP, ${out.rank.name}${out.rank.span ? ` (${out.rank.into}/100)` : ''}</span>`);
   for (const pr of out.promos) extra.push(`<span class="up">Promoted to ${pr.div}! +${fmt(pr.coins)} coins and a ${UT.packByKey(pr.pack).name}</span>`);
   for (const d of out.done) extra.push(`<span class="up">Challenge done: ${d.d}. Claim it in Progress.</span>`);
+  for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);
   return `<div class="gr-head"><b>Rewards</b><span class="coins-pill"><i class="coin"></i>${fmt(P.p.coins)}</span></div>
     <div class="gr-lines">${lines}<span class="gr-tot">Total</span><span class="gr-tot">+${fmt(out.coins)}</span><span class="gr-tot">+${fmt(out.xp)} XP</span></div>
     ${extra.length ? `<div class="gr-extra">${extra.join('')}</div>` : ''}`;

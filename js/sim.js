@@ -4,14 +4,14 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792205915';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792207431';
 export { TEAMS };
 
 export const OFF_ROLES = ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB'];
 export const DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
 export const RECEIVERS = ['WR1', 'WR2', 'RB']; // keys 1,2,3
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792205915';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792207431';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -74,7 +74,10 @@ export function createGame(opts = {}) {
     rosters: [0, 1].map(k => cleanRoster(opts.rosters && opts.rosters[k])),
     weather: WEATHERS.includes(opts.weather) ? opts.weather : 'clear',
     tod: TODS.includes(opts.tod) ? opts.tod : 'night',
-    halftime: opts.halftime ?? 12,
+    halftime: opts.practice || opts.drill ? 0 : (opts.halftime ?? 12),
+    practice: opts.practice === 'off' || opts.practice === 'def' ? opts.practice : null,
+    drill: !!opts.drill,
+    cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 6 ? v : -1; }),
   };
   const rng = mulberry(o.seed);
   const first = rng() < 0.5 ? 0 : 1;
@@ -89,12 +92,16 @@ export function createGame(opts = {}) {
     ctrl: [-1, -1], play: null, playId: 0, runoff: 0,
     msg: null, flash: null, events: [], kick: null, winner: -1,
     stats: [mkStats(), mkStats()],
-    custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
+    custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
   };
-  g.losZ = zOf(first, 25);
+  if (o.practice) { g.poss = o.practice === 'off' ? 0 : 1; g.firstReceiver = g.poss; }
+  if (o.drill) { g.poss = 0; g.firstReceiver = 0; g.quarter = 4; }
+  g.losZ = zOf(g.poss, 25);
   setFirstDown(g);
   setupPlay(g);
-  g.msg = { text: 'KICKOFF', sub: TEAMS[o.teams[first]].name + ' ball', until: 2.2 };
+  g.msg = o.practice ? { text: 'PRACTICE', sub: o.practice === 'off' ? 'Run any play you want · no clock' : 'Defend any play · no clock', until: 2.4 }
+    : o.drill ? { text: 'TWO-MINUTE DRILL', sub: 'Score as much as you can · every drive starts at the 25', until: 2.6 }
+    : { text: 'KICKOFF', sub: TEAMS[o.teams[g.poss]].name + ' ball', until: 2.2 };
   return g;
 }
 
@@ -128,6 +135,15 @@ function cleanRoster(r) {
   }
   return out;
 }
+// momentum: +100 means team 0 owns the game, -100 means team 1 does. Swings on big plays, settles between plays.
+function mom(g, team, amt) {
+  if (g.opts.practice) return;
+  const before = g.mom;
+  g.mom = clamp(g.mom + (team === 0 ? amt : -amt), -100, 100);
+  if (Math.abs(g.mom) >= 70 && Math.abs(before) < 70) { g.events.push('momentum'); if (!g.flash) g.flash = { text: `${TEAMS[g.opts.teams[g.mom > 0 ? 0 : 1]].abbr} HAS THE MOMENTUM`, until: 1.6 }; }
+}
+const momOf = (g, team) => (team === 0 ? g.mom : -g.mom);
+function highlight(g, text, sub, team) { if (!g.opts.practice) g.hl.push({ q: g.quarter, clk: Math.ceil(g.clock), text, sub: sub || '', team }); if (g.hl.length > 24) g.hl.shift(); }
 export const rosterFor = (g, team) => g.opts.rosters[team] || getRoster(g.opts.teams[team]);
 function pst(g, p) {
   const k = p.team + ':' + p.role;
@@ -150,7 +166,7 @@ function makePlayer(g, id, team, unit, role, x, z) {
   const d = dirOf(g.poss);
   const faceOff = d > 0 ? 0 : Math.PI;
   return {
-    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.88 + rt.spd / 100 * 0.15) * (g.opts.weather === 'snow' ? 0.95 : 1), rt,
+    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.88 + rt.spd / 100 * 0.15) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1), rt,
     x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI,
     stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
     engagedBy: -1, blockOn: -1, shedCd: 0, svx: 0, svz: 0,
@@ -178,7 +194,7 @@ function setupPlay(g) {
   g.ctrl = [-1, -1];
   g.ctrl[off] = 0; // QB
   g.ctrl[def] = byRole(g, 'LB').id;
-  g.kick = null; g.celebrate = -1; g.lastFlag = null;
+  g.kick = null; g.celebrate = -1; g.lastFlag = null; g.hot = {}; g.mom *= 0.94;
   g.playId++;
   if (!g.opts.humans[off]) cpuCallOffense(g);
   if (!g.opts.humans[def]) { g.defPlay = cpuCallDefense(g); g.defChosen = true; }
@@ -286,7 +302,14 @@ function handleEvent(g, team, ev) {
         if (pl.id === 'xp' && !isPat) return;
         if ((pl.id === 'fg' && (!canFG(g) || isPat)) || (pl.id === 'punt' && isPat)) return;
         if ((pl.id === 'fakepunt' || pl.id === 'fakefg') && isPat) return;
+        if (g.offPlay !== pl.id) g.hot = {};
         g.offPlay = pl.id; alignOffense(g);
+      } else if (ev.t === 'hot' && g.offPlay) {
+        const pl = getPlay(g, team, g.offPlay);
+        if (pl && pl.type === 'pass' && !g.play.isPat && ['WR1', 'WR2', 'RB'].includes(ev.role)) {
+          const r = hotRoute(pl.form || 'gun', ev.role, ev.kind);
+          if (r === null) g.hot[ev.role] = []; else if (r) g.hot[ev.role] = r;
+        }
       } else if (ev.t === 'snap' && g.offPlay && g.phaseT > 0.6) {
         snap(g);
       }
@@ -393,7 +416,7 @@ const PEN = {
 };
 export const PENALTY_NAMES = Object.fromEntries(Object.entries(PEN).map(([k, v]) => [k, v.name]));
 function throwFlag(g, type, who, z) {
-  const P = g.play; if (!P || P.flag || P.isPat || g.phase !== 'live') return;
+  const P = g.play; if (!P || P.flag || P.isPat || g.phase !== 'live' || g.opts.practice) return;
   P.flag = { type, on: who.team, num: who.num, name: who.rt.name, z: z ?? who.z, x: who.x };
   g.flash = { text: 'FLAG ON THE PLAY', until: 1.4 };
   g.events.push('flag');
@@ -419,6 +442,7 @@ function presnapFoul(g, type, offender) {
   g.events.push('flag', 'whistle');
 }
 const FOUL_RATE = 1; // overall penalty frequency multiplier
+const fouls = g => (g.opts.practice ? 0 : 1);
 // returns true when the flag decided how the play ended (so the caller should stop)
 function enforceFlag(g, endP, turnover, td) {
   const P = g.play, F = P.flag; if (!F || P.isPat) return false;
@@ -448,13 +472,33 @@ function enforceFlag(g, endP, turnover, td) {
   return true;
 }
 
+// quick route changes at the line: in-breaking, out-breaking, go, curl; the back can flat, wheel or stay in to block
+export const HOT_KINDS = { WR: ['go', 'in', 'out', 'curl'], RB: ['wheel', 'flat', 'block', 'curl'] };
+function hotRoute(form, role, kind) {
+  const f = FORMS[form] || FORMS.gun; const [sx, sz] = f[role] || [0, 0];
+  const inside = sx === 0 ? 1 : -Math.sign(sx);
+  if (role === 'RB') {
+    const side = sx >= 0 ? 1 : -1;
+    if (kind === 'block') return null;
+    if (kind === 'flat') return [[sx + side * 4, sz + 2], [sx + side * 12, 1]];
+    if (kind === 'wheel') return [[sx + side * 7, sz + 3], [sx + side * 11, 6], [sx + side * 11, 26]];
+    if (kind === 'curl') return [[sx + side * 1, 3], [sx + side * 1, 6, 'stop']];
+    return undefined;
+  }
+  if (kind === 'go') return [[sx, 8], [sx + inside * 1, 30]];
+  if (kind === 'in') return [[sx, 2], [sx + inside * 8, 9], [sx + inside * 14, 12]];
+  if (kind === 'out') return [[sx, 7], [sx - inside * 6, 7]];
+  if (kind === 'curl') return [[sx, 11], [sx + inside * 1.5, 8.5, 'stop']];
+  return undefined;
+}
+
 function snap(g) {
   const P = g.play;
   if (g.offPlay === 'punt' || g.offPlay === 'fg' || g.offPlay === 'xp') { startKick(g, g.offPlay); return; }
-  if (g.pat < 0) {
+  if (g.pat < 0 && !g.opts.practice) {
     const r = g.rng();
-    if (r < 0.012 * FOUL_RATE) return presnapFoul(g, 'fs', g.players[1 + ((g.rng() * 3) | 0)]);
-    if (r < 0.022 * FOUL_RATE) return presnapFoul(g, 'offside', g.players[7 + ((g.rng() * 3) | 0)]);
+    if (r < 0.012 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'fs', g.players[1 + ((g.rng() * 3) | 0)]);
+    if (r < 0.022 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'offside', g.players[7 + ((g.rng() * 3) | 0)]);
   }
   const play = getPlay(g, g.poss, g.offPlay);
   P.type = play.type; P.playDef = play; P.snapT = g.t;
@@ -466,6 +510,7 @@ function snap(g) {
   for (const p of g.players) {
     p.x = p.hx; p.z = p.hz;
     if (play.routes[p.role]) { p.route = play.routes[p.role]; p.ri = 0; }
+    if (g.hot[p.role]) { if (g.hot[p.role].length) { p.route = g.hot[p.role]; p.ri = 0; } else p.route = null; }
     if (p.role === 'QB' && play.qbPath) { p.route = play.qbPath; p.ri = 0; }
   }
   // defensive assignments from the called coverage
@@ -579,7 +624,7 @@ function updateKick(g, dt) {
       g.msg = k.result === 'touchback' ? { text: 'TOUCHBACK', sub: `${k.yds} yd punt`, until: 2 } : { text: 'PUNT', sub: `${k.yds} yards`, until: 2 };
       sudden(g);
     } else if (k.good) {
-      score(g, off, 3);
+      score(g, off, 3); mom(g, off, 7); highlight(g, 'FIELD GOAL', `${k.dist} yards`, off);
       g.msg = { text: 'IT’S GOOD!', sub: `${k.dist} yd field goal`, until: 2.6, big: true };
       g.events.push('score');
       kickoffTo(g, 1 - off);
@@ -633,7 +678,7 @@ export function step(g, dt, inputs = [{}, {}]) {
 }
 
 function updatePresnap(g, dt, inputs) {
-  g.playClock -= dt;
+  if (!g.opts.practice) g.playClock -= dt;
   const off = g.poss, def = 1 - off;
   for (const p of g.players) {
     if (g.opts.humans[def] && g.ctrl[def] === p.id) continue;
@@ -667,6 +712,19 @@ function updatePresnap(g, dt, inputs) {
 }
 
 function nextPlay(g) {
+  if (g.opts.practice) {
+    const side = g.opts.practice === 'off' ? 0 : 1;
+    g.clock = g.opts.quarterLen; g.runoff = 0; g.pat = -1; g.score = [0, 0];
+    const p = prog(side, g.losZ);
+    if (g.poss !== side || p >= 99 || p <= 1 || g.down > 4) { g.poss = side; g.losZ = zOf(side, 25); g.ballX = 0; setFirstDown(g); }
+    g.phase = 'presnap'; g.phaseT = 0; setupPlay(g); return;
+  }
+  if (g.opts.drill) {
+    if (g.runoff) { g.clock = Math.max(0, g.clock - Math.min(g.runoff, 6)); g.runoff = 0; }
+    if (g.clock <= 0 && g.pat < 0) return endGame(g);
+    if (g.poss !== 0 && g.pat < 0) { g.poss = 0; g.losZ = zOf(0, 25); g.ballX = 0; setFirstDown(g); }
+    g.phase = 'presnap'; g.phaseT = 0; setupPlay(g); return;
+  }
   if (g.runoff) { g.clock = Math.max(0, g.clock - g.runoff); g.runoff = 0; }
   if (g.otScored) return endGame(g);
   if (g.clock <= 0 && g.pat < 0) {
@@ -825,10 +883,11 @@ function updateLive(g, dt, inputs) {
         if (g.rng() < brk) {
           d.stun = 0.85; d.fallen = 0.85; d.tackleCd = 1.2; d.dive = 0;
           c2.vx *= 0.6; c2.vz *= 0.6;
-          g.events.push('brokentackle');
+          g.events.push('brokentackle'); mom(g, ct, 3);
           g.flash = { text: 'BROKEN TACKLE', until: 1.0 };
         } else {
-          c2.fallen = 3; d.fallen = 3;
+          c2.fallen = 3; d.fallen = 3; d.wrapAt = g.t; c2.hitAt = g.t;
+          { const fx = Math.sin(c2.face), fz = Math.cos(c2.face); c2.fallBack = ((d.x - c2.x) * fx + (d.z - c2.z) * fz) > 0.2 ? 1 : 0; }
           // tackler wraps up: drive him into the carrier
           const ux = c2.x - d.x, uz = c2.z - d.z, ul = hyp(ux, uz) || 1;
           d.vx = ux / ul * 3 + c2.vx * 0.5; d.vz = uz / ul * 3 + c2.vz * 0.5; d.face = Math.atan2(ux, uz);
@@ -839,7 +898,7 @@ function updateLive(g, dt, inputs) {
       }
     }
   }
-  if (!P.isPat) g.clock = Math.max(0, g.clock - dt);
+  if (!P.isPat && !g.opts.practice) g.clock = Math.max(0, g.clock - dt);
 }
 
 function assistIdle(g, p, carrier) {
@@ -987,6 +1046,7 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
       return seek(p, t.x, t.z, 0.9);
     }
     if (isOL) return passBlock(g, p, qb);
+    if (P.type === 'pass' && g.hot[p.role]) { if (!g.hot[p.role].length) return p.role === 'RB' ? passBlock(g, p, qb) : stalk(g, p); if (p.route) return { ...routeMove(g, p), s: ai + 0.04 }; }
     if (pd.block && pd.block.includes(p.role) && P.type === 'pass') {
       if (p.role === 'RB') { if (p.route && p.ri < p.route.length) return { ...routeMove(g, p), s: ai }; return passBlock(g, p, qb); }
       return stalk(g, p);
@@ -1226,7 +1286,7 @@ function zoneMove(g, p, s) {
   return seek(p, tx, tz, s, 0.8);
 }
 
-const wxHands = g => g.opts.weather === 'rain' ? 0.93 : g.opts.weather === 'snow' ? 0.96 : 1;
+const wxHands = g => (g.opts.weather === 'rain' ? 0.93 : g.opts.weather === 'snow' ? 0.96 : 1) * (g.play && momOf(g, g.play.off) >= 60 ? 1.03 : 1);
 // ---------------- pass resolution ----------------
 function resolveBall(g) {
   const b = g.ball, P = g.play, cfg = g.cfg;
@@ -1279,7 +1339,7 @@ function resolveBall(g) {
   }
   if (outcome === 'catch') {
     b.state = 'held'; b.carrier = ro.id;
-    P.catchZ = ro.z;
+    P.catchZ = ro.z; ro.caughtAt = g.t;
     g.stats[offTeam].comp++; pst(g, ro).rec++;
     if (g.opts.humans[offTeam]) g.ctrl[offTeam] = ro.id;
     g.events.push('catch');
@@ -1291,7 +1351,7 @@ function resolveBall(g) {
     b.state = 'held'; b.carrier = rd.id;
     P.turnover = true; P.recognized = true;
     g.poss = rd.team;
-    g.stats[offTeam].ints++; pst(g, rd).int++;
+    g.stats[offTeam].ints++; pst(g, rd).int++; mom(g, rd.team, 18); highlight(g, 'INTERCEPTION', rd.rt.name, rd.team);
     if (g.opts.humans[rd.team]) g.ctrl[rd.team] = rd.id;
     if (g.opts.humans[offTeam]) {
       // control nearest player to the interceptor
@@ -1327,6 +1387,7 @@ function touchdown(g, c) {
   }
   score(g, t, 6);
   g.stats[t].tds++;
+  mom(g, t, P.turnover ? 30 : 24); highlight(g, P.turnover ? 'PICK SIX' : 'TOUCHDOWN', `${c.rt.name}${P.thrown && !P.turnover ? ' catch' : ' run'}`, t);
   addYards(g, c, prog(t, zOf(t, 100)));
   if (!P.turnover) { pst(g, c).td++; if (P.thrown) pst(g, g.players[0]).ptd++; } else pst(g, c).td++;
   g.msg = { text: 'TOUCHDOWN!', sub: `${c.rt.name} · ${TEAMS[g.opts.teams[t]].name}`, until: 3.2, big: true, team: t };
@@ -1348,7 +1409,7 @@ function endPlay(g, kind, c, tackler, note) {
   const P = g.play;
   g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.1; g.runoff = 0;
   g.events.push('whistle');
-  if (!P.isPat && kind === 'tackle' && tackler && c && c.team === P.off && !P.flag && g.rng() < 0.012 * FOUL_RATE) throwFlag2(g, 'mask', tackler, c.z);
+  if (!P.isPat && !g.opts.practice && kind === 'tackle' && tackler && c && c.team === P.off && !P.flag && g.rng() < 0.012 * FOUL_RATE) throwFlag2(g, 'mask', tackler, c.z);
   if (P.flag && !P.isPat) {
     const endP = kind === 'incomplete' ? null : (c && c.team === P.off ? prog(P.off, c.z) : null);
     if (enforceFlag(g, endP, !!P.turnover, false)) return;
@@ -1391,12 +1452,13 @@ function endPlay(g, kind, c, tackler, note) {
   addYards(g, c, p);
   const gained = Math.round(p - prog(ct, P.los));
   const sack = c.id === 0 && P.type === 'pass' && !P.thrown && !P.crossed && kind === 'tackle';
-  if (sack) g.stats[1 - ct].sacks++;
+  if (sack) { g.stats[1 - ct].sacks++; mom(g, 1 - ct, 9); if (tackler) highlight(g, 'SACK', tackler.rt.name, 1 - ct); }
+  if (gained >= 20) { mom(g, ct, 10); highlight(g, `${gained}-YARD ${P.thrown ? 'CATCH' : 'RUN'}`, c.rt.name, ct); }
   if (tackler && kind === 'tackle') { pst(g, tackler).tk++; if (sack) pst(g, tackler).sk++; }
   g.losZ = zOf(ct, spot);
   if (p >= prog(ct, g.fdZ)) {
     setFirstDown(g);
-    g.stats[ct].firstDowns++;
+    g.stats[ct].firstDowns++; mom(g, ct, 3);
     g.msg = { text: 'FIRST DOWN', sub: `${c.rt.name} +${Math.max(0, gained)} yds`, until: 1.9 };
     g.events.push('firstdown');
   } else {
@@ -1414,7 +1476,7 @@ function throwFlag2(g, type, who, z) { const P = g.play; P.flag = { type, on: wh
 function checkDowns(g) {
   if (g.down > 4) {
     g.poss = 1 - g.poss; g.ballX = clamp(g.ballX, -7, 7); setFirstDown(g);
-    g.msg = { text: 'TURNOVER ON DOWNS', sub: '', until: 2.2 };
+    g.msg = { text: 'TURNOVER ON DOWNS', sub: '', until: 2.2 }; mom(g, g.poss, 14);
     g.runoff = 0;
   } else {
     const fd = prog(g.poss, g.fdZ), p = prog(g.poss, g.losZ);
@@ -1441,7 +1503,8 @@ export function snapshot(g) {
       r2(hyp(p.vx, p.vz)), (p.fallen > 0 ? 1 : 0) | (p.dive > 0 ? 2 : 0) | (p.juke > 0 ? 4 : 0) | (p.engagedBy >= 0 || p.blockOn >= 0 && g.players[p.blockOn] && g.players[p.blockOn].engagedBy === p.id ? 8 : 0)
         | (p.throwAt !== undefined && g.t - p.throwAt < 0.5 && g.phase === 'live' ? 16 : 0) | (reaching(g, p) ? 32 : 0)
         | (g.phase === 'dead' && g.celebrate === p.team ? 64 : 0) | (p.scorer && g.phase === 'dead' ? 128 : 0)
-        | (p.spin > 0 ? 256 : 0) | (p.stiff > 0 ? 512 : 0) | (p.hurdle > 0 ? 1024 : 0) | (p.playBall > 0 ? 2048 : 0) | (p.press > 0 ? 4096 : 0),
+        | (p.spin > 0 ? 256 : 0) | (p.stiff > 0 ? 512 : 0) | (p.hurdle > 0 ? 1024 : 0) | (p.playBall > 0 ? 2048 : 0) | (p.press > 0 ? 4096 : 0)
+        | (p.wrapAt !== undefined && g.t - p.wrapAt < 1.2 ? 8192 : 0) | (p.caughtAt !== undefined && g.t - p.caughtAt < 0.5 ? 16384 : 0) | (p.fallBack ? 32768 : 0),
       r2(p.stam), r2(p.size), p.rt.name, POS_LABEL[p.role], r2(p.moveCd), p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num)]),
     b: [r2(g.ball.x), r2(g.ball.y), r2(g.ball.z), g.ball.state === 'air' ? 1 : g.ball.state === 'kick' ? 2 : 0,
       g.ball.state === 'air' && !g.ball.auto ? [r2(g.ball.tx), r2(g.ball.tz)] : null, g.ball.carrier ?? -1],
@@ -1450,9 +1513,10 @@ export function snapshot(g) {
     can4: g.down === 4 ? { fg: canFG(g), fgd: fgDistance(g) } : null,
     sp: { fg: canFG(g), fgd: fgDistance(g), pat: g.pat === g.poss },
     pat: g.pat, form: g.form,
-    opDef: g.phase === 'presnap' && g.offPlay ? (() => { const q = getPlay(g, g.poss, g.offPlay); return q && q.routes ? { form: q.form, routes: q.routes, qbPath: q.qbPath || null } : null; })() : null,
+    opDef: g.phase === 'presnap' && g.offPlay ? (() => { const q = getPlay(g, g.poss, g.offPlay); return q && q.routes ? { form: q.form, routes: Object.fromEntries(Object.entries({ ...q.routes, ...g.hot }).filter(([, v]) => v && v.length)), qbPath: q.qbPath || null, hot: Object.keys(g.hot), type: q.type } : null; })() : null,
     bT: g.ball.state === 'air' && !g.ball.auto ? r2(g.ball.T - g.ball.t) : -1,
-    wx: g.opts.weather, tod: g.opts.tod,
+    wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
+    hls: g.phase === 'gameover' ? g.hl : null,
     hr: g.phase === 'half' ? g.halfReady.slice() : null, hl: g.opts.halftime,
     ps: g.phase === 'half' || g.phase === 'gameover' ? Object.values(g.ps) : null,
   };

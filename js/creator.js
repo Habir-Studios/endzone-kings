@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Play Creator: draw your own offense, defense and special teams plays.
 // Plays save on this device (localStorage 'ek_custom_plays') and show up under "My Plays" in every game, online too.
-import { FORMS, cleanCustom } from './playbook.js?v=1792205915';
+import { FORMS, cleanCustom } from './playbook.js?v=1792207431';
 
 let C = null;
 const KEY = 'ek_custom_plays', MAX = 24;
@@ -143,7 +143,7 @@ function save() {
   const i = mine.findIndex(p => p.id === out.id);
   if (i >= 0) mine[i] = out; else mine.push(out);
   store(mine);
-  C.sfx.play('firstdown');
+  C.sfx.play('firstdown'); if (C.unlockAch) C.unlockAch('creator');
   msg(`Saved "${name}". It's in the My Plays tab when you call a play.`);
   ed = fresh(side); C.$('#cr-name').value = '';
   opts(); draw(); list();

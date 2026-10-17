@@ -18,6 +18,9 @@ Endzone Kings is a 3D arcade football game that runs right in your browser. Ther
 - **Public lobby and chat:** host a game anyone can join, or share a code. Press T to chat during online games.
 - **Play Creator:** draw your own offense, defense and special teams plays and call them in any game.
 - **Game day:** rain, snow, fog, day, dusk or night games, a halftime show with stats and leaders, and referees who throw flags for holding, pass interference, false starts, offsides, roughing and facemasks.
+- **Practice & Drills:** no-clock practice for offense or defense, plus a two-minute drill with a leaderboard.
+- **Instant replay, hot routes and momentum:** rewatch any play with R, change routes at the line with H, and ride the momentum meter.
+- **Player of the Game, highlights, 24 achievements and custom TD celebrations.**
 - **Rosters:** browse every team and player rating.
 - **Accounts:** sign up and log in with the game's own accounts, not Google sign-in. Guests get Quick Play; a free account unlocks everything else and saves your progress.
 - **Controls for any device:** keyboard and mouse on a computer, an on-screen joystick and buttons on phones and tablets.

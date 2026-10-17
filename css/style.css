@@ -736,3 +736,60 @@ button.ucard:hover { transform: translateY(-3px); }
 .in-logo { width: 96px; height: 96px; flex: 0 0 auto; filter: drop-shadow(0 8px 16px rgba(0,0,0,.5)); }
 .ht-score .tm img { width: 54px; height: 54px; }
 @media (max-width: 640px) { .in-logo { width: 60px; height: 60px; } .ht-score .tm img { width: 36px; height: 36px; } .sb-logo { width: 26px; height: 26px; } }
+
+/* =====================================================================
+   DROP 3
+   ===================================================================== */
+.t-modes { --tc1: #3a2a0c; --tc2: #0d1430; --accent: #fb923c; }
+.set-cel { display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-weight: 600; color: var(--steel); }
+.seg.wrap { flex-wrap: wrap; } .seg.wrap button { flex: 1 1 28%; }
+.seg button:disabled { opacity: .35; cursor: not-allowed; }
+.board { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.board h4 { margin: 6px 0 2px; font-family: var(--display); font-weight: 900; font-size: 18px; text-transform: uppercase; color: var(--gold-hi); }
+.board .row { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 5px 8px; font-size: 14px; background: rgba(5,8,22,.5); }
+.board .row b { font-family: var(--display); font-weight: 900; font-size: 18px; color: var(--gold-hi); }
+.board .row.me { box-shadow: inset 3px 0 0 var(--gold); }
+/* momentum meter (sits just above the scorebug) */
+.mom { position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; font-family: var(--display); font-weight: 800; font-size: 13px; text-transform: uppercase; color: var(--steel); pointer-events: none; transition: opacity .25s; }
+.mom-bar { position: relative; width: 220px; height: 8px; background: rgba(5,8,22,.75); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.mom-bar i { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: var(--mc, var(--gold)); transition: left .4s, width .4s; box-shadow: 0 0 10px var(--mc, var(--gold)); }
+.mom-bar b { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: #fff; transform: translateX(-1px); }
+#hud.pc-open .mom, #hud.half-open .mom, #hud.practice .mom { opacity: 0; }
+#hud .stam { bottom: 96px; } #hud .me-label { bottom: 106px; }
+/* hot routes */
+.hot { position: absolute; right: 16px; top: 72px; width: 260px; padding: 12px; background: rgba(10,16,36,.94); border-top: 3px solid var(--gold); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); }
+.hot h4 { margin: 0 0 8px; font-family: var(--display); font-weight: 900; font-size: 20px; text-transform: uppercase; }
+.hot .who, .hot .kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px; }
+.hot .kinds { grid-template-columns: repeat(2, 1fr); }
+.hot button { padding: 7px 6px; font-weight: 700; font-size: 14px; background: rgba(5,8,22,.7); border: 1px solid var(--line); color: var(--chalk); border-left: 3px solid var(--rc, var(--line-2)); }
+.hot button.on { background: rgba(80,58,8,.7); border-color: var(--gold); }
+.hot button kbd { margin-right: 6px; }
+.hot small { display: block; color: var(--steel); font-size: 12px; }
+.pc-hotbtn { margin-left: 10px; }
+/* replay */
+.replay-badge { position: absolute; left: 16px; top: 16px; display: flex; align-items: center; gap: 12px; padding: 8px 14px; background: rgba(10,16,36,.9); border-left: 4px solid var(--siren); }
+.replay-badge b { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 26px; text-transform: uppercase; color: #fff; }
+.replay-badge b::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 10px; border-radius: 50%; background: var(--siren); vertical-align: 3px; animation: pbpulse .6s infinite alternate; }
+.replay-badge span { color: var(--steel); font-size: 13px; font-weight: 600; }
+#hud.replaying > *:not(#replay-badge) { opacity: 0 !important; pointer-events: none !important; }
+/* player of the game + highlights */
+.go-potg:empty, .go-hl:empty { display: none; }
+.go-potg { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center; margin-top: 4px; padding: 10px 12px; text-align: left; background: linear-gradient(90deg, rgba(80,58,8,.55), rgba(5,8,22,.5)); border-left: 3px solid var(--gold); }
+.go-potg img { width: 76px; height: 76px; }
+.go-potg small { color: var(--gold-hi); font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; }
+.go-potg b { display: block; font-family: var(--display); font-weight: 900; font-size: 26px; line-height: 1; text-transform: uppercase; }
+.go-potg span { color: var(--steel); font-size: 14px; }
+.go-hl { margin-top: 6px; text-align: left; font-size: 14px; }
+.go-hl h4 { margin: 0 0 4px; font-family: var(--display); font-weight: 900; font-size: 18px; text-transform: uppercase; }
+.go-hl div { display: grid; grid-template-columns: 70px 1fr; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+.go-hl div span { color: var(--steel); font-weight: 600; }
+.go-hl div b { font-weight: 700; } .go-hl div em { font-style: normal; color: var(--steel); }
+/* achievements */
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 8px; }
+.ach { display: grid; grid-template-columns: 38px 1fr; gap: 10px; align-items: center; padding: 10px; background: rgba(5,8,22,.45); opacity: .5; }
+.ach.got { opacity: 1; box-shadow: inset 3px 0 0 var(--gold); }
+.ach i { width: 38px; height: 38px; display: grid; place-items: center; font-style: normal; font-family: var(--display); font-weight: 900; font-size: 18px; color: #241500; background: linear-gradient(160deg, var(--gold-hi), var(--gold-deep)); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.ach:not(.got) i { background: #2a3366; color: var(--steel); }
+.ach b { display: block; font-size: 14px; } .ach small { color: var(--steel); font-size: 12px; line-height: 1.3; }
+@media (max-width: 640px) { .hot { right: 8px; left: 8px; width: auto; top: 60px; } .mom-bar { width: 150px; } }
+.go-hl div span:first-child { white-space: nowrap; }

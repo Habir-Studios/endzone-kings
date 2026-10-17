@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792205915">
+  <link rel="stylesheet" href="css/style.css?v=1792207431">
 </head>
 <body>
   <canvas id="gl"></canvas>
@@ -103,12 +103,13 @@
         <button class="tile t-online" data-go="online" id="online-btn"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M13.5 2 4 13.5h6.5L9 22l11-12.5h-6.8z"/></svg></i><span class="tl-k">Online 1v1</span><small>Play a friend with a game code</small></button>
         <button class="tile t-progress" data-go="progress"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 16.9 6.1 20l1.2-6.5L2.5 8.9 9.1 8z"/></svg></i><span class="tl-k">Progress</span><small id="tile-prog-sub">Level, rank and challenges</small></button>
         <button class="tile t-creator" data-go="creator"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zm2 2v12h14V6zm2 9.5L9.5 12 12 14l4-5 1.5 1.2L12.3 17 9.6 14.8 8.2 16.6zM7 8h3v2H7z"/></svg></i><span class="tl-k">Play Creator</span><small>Draw your own plays</small></button>
+        <button class="tile t-modes" data-go="modes"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 3h2v5.4l3.6 2.1-1 1.7L11 13.6z"/></svg></i><span class="tl-k">Practice &amp; Drills</span><small>Practice plays or beat the two-minute drill</small></button>
         <button class="tile t-rosters" data-go="rosters"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M9 2h6v2h4v18H5V4h4zm1 2v1.5h4V4zM8 9v2h2V9zm4 0v2h4V9zm-4 4v2h2v-2zm4 0v2h4v-2zm-4 4v2h2v-2zm4 0v2h4v-2z"/></svg></i><span class="tl-k">Rosters</span><small>Every player on all 32 teams</small></button>
         <button class="tile t-howto" data-go="howto"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 6h10a5 5 0 0 1 4.9 6l-1.1 5.2a2.6 2.6 0 0 1-4.5 1.2L14 16h-4l-2.3 2.4a2.6 2.6 0 0 1-4.5-1.2L2.1 12A5 5 0 0 1 7 6zm0 3v1.5H5.5V12H7v1.5h1.5V12H10v-1.5H8.5V9zm9.5.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm-2.2 2.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/></svg></i><span class="tl-k">How to Play</span><small>Controls, moves and tips</small></button>
         <button class="tile wide t-settings" data-go="settings"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M10.2 2h3.6l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.8 3.1-2 1.7c.1.6.1 1.2 0 1.8l2 1.7-1.8 3.1-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.6l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.8-3.1 2-1.7a6 6 0 0 1 0-1.8l-2-1.7 1.8-3.1 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></i><span class="tl-k">Settings</span><small>Sound, announcer, camera, graphics and controls</small></button>
       </nav>
     </div>
-    <footer class="foot">© <span id="yr"></span> Habir Studios. Endzone Kings v2.0 <button class="link foot-link" data-go="about">About the game</button></footer>
+    <footer class="foot">© <span id="yr"></span> Habir Studios. Endzone Kings v2.1 <button class="link foot-link" data-go="about">About the game</button></footer>
   </section>
 
   <!-- ===================== PLAY NOW SETUP ===================== -->
@@ -256,6 +257,8 @@
               <li><span class="kk"><kbd>M</kbd></span><span>Mute</span></li>
               <li><span class="kk"><kbd>Esc</kbd></span><span>Pause, controls and settings</span></li>
               <li><span class="kk"><kbd>T</kbd></span><span>Chat in online games</span></li>
+              <li><span class="kk"><kbd>R</kbd></span><span>Instant replay between plays</span></li>
+              <li><span class="kk"><kbd>H</kbd></span><span>Hot route a receiver at the line</span></li>
             </ul>
           </div>
         </div>
@@ -291,17 +294,47 @@
           <li><b>Ultimate Team:</b> open packs of player cards, build your own squad, train your players and take them into games, online too.</li>
           <li><b>Online 1v1:</b> host a game in the public lobby or send a friend a code. Chat with <kbd>T</kbd>.</li>
           <li><b>Play Creator:</b> draw your own offense, defense and special teams plays and call them in any game.</li>
+          <li><b>Practice &amp; Drills:</b> practice offense or defense with no clock, or see how many points you can put up in the two-minute drill and chase the leaderboard.</li>
           <li><b>Rosters:</b> look up every player's ratings on all 32 teams.</li>
         </ul>
         <p>It plays with a keyboard and mouse on a computer, and with an on-screen joystick and buttons on a phone or tablet.</p>
         <h3>Game day</h3>
-        <p>Every game can be played in clear skies, rain, snow or fog, during the day, at dusk or under the lights. Rain makes the ball slippery and snow slows everyone down. At the half you get a halftime show with team stats and each side's leaders. Referees are on the field and throw flags for holding, pass interference, false starts, offsides, roughing the passer and facemasks.</p>
+        <p>Every game can be played in clear skies, rain, snow or fog, during the day, at dusk or under the lights. Rain makes the ball slippery and snow slows everyone down. At the half you get a halftime show with team stats and each side's leaders. Referees are on the field and throw flags for holding, pass interference, false starts, offsides, roughing the passer and facemasks. Big plays swing the momentum meter, and the team that owns it plays a step faster. Between plays you can watch an instant replay, and every game ends with a Player of the Game and the night's highlights.</p>
+        <h3>At the line</h3>
+        <p>After you pick a pass play, press H to change any receiver's route on the spot: send him deep, cut him inside, break him out or sit him down. You can keep the running back in to block too. Pick your own touchdown celebration in Settings, with more unlocking as you level up.</p>
         <h3>The grind</h3>
-        <p>Every game you play pays coins and XP. Level up for coin bonuses and free packs, climb ranked divisions from Bronze to Kings, and knock out daily and weekly challenges for big rewards. Coins only come from playing. Nothing in Endzone Kings costs real money.</p>
+        <p>Every game you play pays coins and XP. Level up for coin bonuses and free packs, climb ranked divisions from Bronze to Kings, knock out daily and weekly challenges for big rewards, and unlock 24 achievements. Coins only come from playing. Nothing in Endzone Kings costs real money.</p>
         <h3>Your account</h3>
         <p>Endzone Kings has its own sign-up and log-in, so you don't need a Google account. Guests can jump into Quick Play against the CPU. A free account unlocks everything else: Ultimate Team, coins, levels, ranked, challenges, Season, online games and the Play Creator. Your progress follows you to any device.</p>
-        <p class="credit">Created by Habir Studios. Endzone Kings v2.0.</p>
+        <p class="credit">Created by Habir Studios. Endzone Kings v2.1.</p>
         <div class="actions"><button class="btn primary" data-go="back">Back</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PRACTICE + DRILLS ===================== -->
+  <section id="modes" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title sm">Practice &amp; Drills</h2>
+      <div class="panel">
+        <div class="team-pick inline" id="tp-modes"><small>Your team</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
+        <div class="two-col">
+          <div class="box">
+            <h3>Practice</h3>
+            <p class="note">No clock, no score, no penalties. Run the same situation as many times as you want. Every drive starts at the 25.</p>
+            <label class="mini">Practice<div class="seg" id="seg-pside"></div></label>
+            <label class="mini">Difficulty<div class="seg" id="seg-pdiff"></div></label>
+            <button class="btn primary" id="go-practice">Start practice</button>
+          </div>
+          <div class="box">
+            <h3>Two-minute drill</h3>
+            <p class="note">Two minutes on the clock. Score as much as you can. Every drive starts at your 25, and you keep getting the ball back.</p>
+            <label class="mini">Difficulty<div class="seg" id="seg-ddiff"></div></label>
+            <button class="btn primary" id="go-drill">Start the drill</button>
+            <div class="board" id="drill-board"></div>
+          </div>
+        </div>
+        <div class="actions"><button class="btn" data-go="menu">Back</button></div>
       </div>
     </div>
   </section>
@@ -342,6 +375,7 @@
         <div class="panel prog-ch" id="prog-weekly"></div>
         <div class="panel prog-wide" id="prog-track"></div>
         <div class="panel prog-wide" id="prog-career"></div>
+        <div class="panel prog-wide" id="prog-ach"></div>
       </div>
       <div class="actions"><button class="btn" data-go="menu">Back</button></div>
     </div>
@@ -381,6 +415,7 @@
         <label>Camera<div class="seg" id="seg-cam"></div></label>
         <label>Graphics<div class="seg" id="seg-gfx"></div></label>
         <label>Touch controls<div class="seg" id="seg-touch"></div></label>
+        <div class="set-cel"><span>Touchdown celebration</span><div class="seg wrap" id="seg-cel"></div><small class="note" id="cel-note"></small></div>
         <div class="actions"><button class="btn primary" data-go="back">Done</button></div>
       </div>
     </div>
@@ -396,6 +431,9 @@
       <div class="sb-spot" id="sb-spot">Own 25</div>
       <div class="sb-pc" id="sb-pc">20</div>
     </div>
+    <div class="mom" id="mom" aria-label="Momentum"><span>Momentum</span><div class="mom-bar"><i id="mom-fill"></i><b></b></div></div>
+    <div class="hot hidden" id="hot"></div>
+    <div class="replay-badge hidden" id="replay-badge"><b>Replay</b><span><kbd>Space</kbd> skip</span></div>
     <div class="stam"><i id="stam-bar"></i></div>
     <div id="me-label" class="me-label"></div>
     <div id="banner" class="banner" aria-live="polite"><b></b><small></small></div>
@@ -432,6 +470,7 @@
       <button class="btn primary" id="resume">Resume</button>
       <button class="btn" id="p-howto">Controls</button>
       <button class="btn" id="p-settings">Settings</button>
+      <button class="btn hidden" id="p-replay">Instant replay</button>
       <button class="btn" id="p-cam">Camera: <span id="p-cam-l"></span></button>
       <button class="btn hidden" id="p-chat">Mute chat</button>
       <button class="btn danger" id="quit">Quit game</button>
@@ -444,6 +483,8 @@
       <div class="go-score" id="go-score"></div>
       <table class="go-stats" id="go-stats"></table>
       <p class="note" id="go-rec"></p>
+      <div id="go-potg" class="go-potg"></div>
+      <div id="go-hl" class="go-hl"></div>
       <div id="go-rewards" class="go-rewards"></div>
       <div class="actions"><button class="btn" id="go-menu">Main menu</button><button class="btn primary" id="go-again">Play again</button></div>
     </div>
@@ -473,6 +514,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792205915"></script>
+  <script type="module" src="js/main.js?v=1792207431"></script>
 </body>
 </html>

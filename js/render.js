@@ -6,9 +6,9 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792205915';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792205915';
-import { drawLogo } from './logos.js?v=1792205915';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792207431';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792207431';
+import { drawLogo } from './logos.js?v=1792207431';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -806,7 +806,7 @@ export class Renderer {
       const [team, isOff, role, num, x, z, face, spd, flags, , size] = p;
       const m = this.getMesh(team, isOff ? 'off' : 'def', role, num, size, p[14], p[11]);
       used.add(m);
-      m.root.visible = true; m.blob.visible = true;
+      m.root.visible = true; m.blob.visible = true; m.side = team;
       m.root.position.set(x, 0, z);
       m.root.rotation.y = face;
       m.blob.position.set(x, 0.015, z);
@@ -877,6 +877,7 @@ export class Renderer {
     const j = m.j;
     const fallen = flags & 1, diving = flags & 2, juking = flags & 4, engaged = flags & 8, throwing = flags & 16, reaching = flags & 32, celebrating = flags & 64, scorer = flags & 128;
     const spinning = flags & 256, stiffing = flags & 512, hurdling = flags & 1024, leaping = flags & 2048, pressing = flags & 4096;
+    const wrapping = flags & 8192, catching = flags & 16384, fallBack = flags & 32768;
     const run = Math.min(1, spd / 8.5), sprint = Math.max(0, (spd - 6.5) / 2.5);
     // stride gets longer (not just faster) as speed goes up
     m.phase += dt * (2.4 + spd * 1.15);
@@ -931,11 +932,38 @@ export class Renderer {
     if (hurdling) { m.hurT = (m.hurT || 0) + dt; const k = Math.min(1, m.hurT / 0.5); jump = Math.sin(k * Math.PI) * 0.85; lh[0] = -1.5; lk[0] = 0.3; lh[1] = 0.7; lk[1] = 1.5; lean = 0.55; as[0] = 0.6; as[1] = -0.8; } else m.hurT = 0;
     if (leaping) { m.leapT = (m.leapT || 0) + dt; const k = Math.min(1, m.leapT / 0.6); jump = Math.sin(k * Math.PI) * 0.75; as[0] = as[1] = -3.0; ae[0] = ae[1] = 0.15; az[0] = 0.25; az[1] = -0.25; lean = -0.1; lk[0] = 0.3 + (1 - Math.sin(k * Math.PI)) * 0.4; lk[1] = 0.9 * Math.sin(k * Math.PI) + 0.2; headX = 0.4; } else m.leapT = 0;
     if (spinning) { m.spinT = (m.spinT || 0) + dt; drop += 0.08; as[0] = as[1] = -0.2; az[0] = 0.9; az[1] = -0.9; } else m.spinT = 0;
-    if (diving) { fall = 0.85; as[0] = as[1] = -2.9; ae[0] = ae[1] = 0.45; az[0] = -0.2; az[1] = 0.2; lh[0] = lh[1] = 0.45; lk[0] = lk[1] = 0.25; headX = 0.5; }
-    if (fallen) { fall = 1; as[0] = as[1] = -2.4; ae[0] = ae[1] = 0.35; lh[0] = 0.25; lh[1] = -0.1; lk[0] = 0.5; lk[1] = 0.2; drop = 0; headX = 0.3; }
+    let fallR = 0;
+    if (catching && !fallen) {
+      // secure it: hands come down from the ball and tuck it into the chest
+      m.catchT = (m.catchT || 0) + dt; const k = Math.min(1, m.catchT / 0.35), e = k * k * (3 - 2 * k);
+      as[0] = lerp(-2.6, -0.45, e); as[1] = lerp(-2.6, -0.35, e); ae[0] = lerp(0.3, 2.1, e); ae[1] = lerp(0.3, 2.0, e); az[0] = lerp(0.15, 0.4, e); az[1] = lerp(-0.15, -0.3, e);
+      drop += 0.1 * (1 - e); lean = Math.max(lean, 0.22); headX = 0.45 * (1 - e) + 0.1;
+    } else m.catchT = 0;
+    if (diving) {
+      // launch, lay out flat with arms reaching, then skid
+      m.diveT = (m.diveT || 0) + dt; const k = Math.min(1, m.diveT / 0.32);
+      fall = 0.4 + 0.6 * k; jump = Math.sin(Math.min(1, m.diveT / 0.4) * Math.PI) * 0.3; fallR = 7;
+      as[0] = as[1] = -3.05; ae[0] = ae[1] = 0.12; az[0] = -0.1; az[1] = 0.1;
+      lh[0] = 0.3 + 0.3 * k; lh[1] = 0.15 + 0.3 * k; lk[0] = 0.12; lk[1] = 0.45 * (1 - k) + 0.15; headX = 0.7;
+    } else m.diveT = 0;
+    if (fallen) {
+      m.downT = (m.downT || 0) + dt; const k = Math.min(1, m.downT / 0.55), e = k * k;
+      fall = Math.max(fall, 0.25 + 0.75 * e); fallR = 6 + 6 * k;
+      // knees buckle first, arms fly out, then he settles on the turf
+      lk[0] = lerp(1.2, 0.5, k); lk[1] = lerp(0.9, 0.2, k); lh[0] = lerp(-0.4, 0.25, k); lh[1] = lerp(-0.1, -0.1, k);
+      as[0] = lerp(-1.2, -2.4, k); as[1] = hasBall ? -0.3 : lerp(-0.6, -2.3, k); ae[0] = 0.4; ae[1] = hasBall ? 1.9 : 0.4; az[0] = lerp(0.9, 0.2, k); az[1] = hasBall ? 0.28 : lerp(-0.9, -0.2, k);
+      drop = 0; headX = fallBack ? -0.3 : 0.3; roll = Math.sin(m.celT * 3) * 0.08 * (1 - k);
+    } else m.downT = 0;
+    if (wrapping) {
+      // tackler: wrap both arms around the ball carrier and drive through him to the ground
+      m.wrapT = (m.wrapT || 0) + dt; const k = Math.min(1, m.wrapT / 0.5);
+      fall = 0.45 + 0.55 * k; fallR = 8;
+      as[0] = as[1] = -1.4; ae[0] = ae[1] = 1.75; az[0] = -0.7; az[1] = 0.7;
+      lh[0] = 0.55; lh[1] = -0.35 + 0.5 * k; lk[0] = 0.5; lk[1] = 1.0 - 0.6 * k; headX = 0.2; twist = 0.3;
+    } else m.wrapT = 0;
     if (celebrating && !fallen) {
       m.celT += dt;
-      const c = m.celT, kind = scorer ? (m.cel % 5) : (m.cel % 2 ? 0 : 1);
+      const c = m.celT, pick = S.cel ? S.cel[m.side] : -1, kind = scorer ? (pick >= 0 ? pick : m.cel % 5) : (m.cel % 2 ? 0 : 1);
       if (kind === 0) { // jump and pump the fists
         const b = Math.abs(Math.sin(c * (scorer ? 6 : 5))); jump = b * (scorer ? 0.55 : 0.3);
         as[0] = as[1] = -2.8 + Math.sin(c * 9) * 0.25; ae[0] = ae[1] = 0.3; lean = 0; twist = Math.sin(c * 3) * 0.3; lk[0] = lk[1] = 0.3 + (1 - b) * 0.6; lh[0] = lh[1] = -(1 - b) * 0.3;
@@ -946,13 +974,19 @@ export class Renderer {
         as[0] = as[1] = -1.55; az[0] = 1.25; az[1] = -1.25; ae[0] = ae[1] = 2.2 + Math.sin(c * 6) * 0.15; lean = -0.12; drop = 0.08; lk[0] = lk[1] = 0.45;
       } else if (kind === 3) { // point to the sky
         as[1] = -3.0; ae[1] = 0.05; az[1] = -0.2; as[0] = 0.2; ae[0] = 0.6; lean = -0.2; headX = 0.6; twist = Math.sin(c * 1.5) * 0.2;
-      } else { // spin hop
+      } else if (kind === 4) { // spin hop
         jump = Math.abs(Math.sin(c * 4)) * 0.4; m.spinT = (c % 1.6) < 0.55 ? (c % 1.6) : 0; as[0] = as[1] = -2.5; ae[0] = ae[1] = 0.5; lk[0] = lk[1] = 0.5;
+      } else if (kind === 5) { // take a bow
+        const b = Math.min(1, (c % 2.4) / 0.6) * (1 - Math.max(0, ((c % 2.4) - 1.6) / 0.8));
+        lean = 1.05 * b; as[0] = -0.6; az[0] = 0.45; ae[0] = 2.1; as[1] = 0.35 + b * 0.4; az[1] = -1.2; ae[1] = 0.2; lh[0] = -0.2 * b; lk[0] = lk[1] = 0.15; headX = -0.3 * b;
+      } else { // moonwalk-style heel slide
+        const s1 = Math.sin(c * 6); lk[0] = 0.25 + Math.max(0, s1) * 0.9; lk[1] = 0.25 + Math.max(0, -s1) * 0.9; lh[0] = 0.15 - Math.max(0, s1) * 0.2; lh[1] = 0.15 - Math.max(0, -s1) * 0.2;
+        lean = -0.12; as[0] = -0.3 + s1 * 0.3; as[1] = -0.3 - s1 * 0.3; ae[0] = ae[1] = 1.3; roll = s1 * 0.05; twist = s1 * 0.12;
       }
     }
-    const R = fallen || diving ? 9 : 16;
+    const R = fallR || (fallen || diving ? 9 : 16);
     j.lean = damp(j.lean, lean, 10, dt); j.roll = damp(j.roll, roll, 10, dt); j.drop = damp(j.drop, drop, 10, dt);
-    j.fall = damp(j.fall, fall, fall ? 8 : 4, dt); j.twist = damp(j.twist, twist, 14, dt); j.jump = damp(j.jump, jump, 20, dt);
+    j.fall = damp(j.fall, fall, fall ? (fallR || 8) : 4, dt); j.fdir = damp(j.fdir ?? 1, fallBack ? -1 : 1, 12, dt); j.twist = damp(j.twist, twist, 14, dt); j.jump = damp(j.jump, jump, 20, dt);
     j.hipTwist = damp(j.hipTwist, hipTwist, 14, dt); j.headX = damp(j.headX, headX, 8, dt);
     for (let k = 0; k < 2; k++) {
       j.lh[k] = damp(j.lh[k], lh[k], R, dt); j.lk[k] = damp(j.lk[k], lk[k], R, dt);
@@ -960,9 +994,9 @@ export class Renderer {
     }
     const bob = run > 0.05 ? Math.abs(Math.cos(ph)) * (0.05 + 0.04 * run) : 0;
     m.body.position.y = 1.0 - j.drop - j.fall * 0.62 + bob + j.jump;
-    m.body.position.z = -j.fall * 0.15;
+    m.body.position.z = -j.fall * 0.15 * j.fdir;
     const spinA = m.spinT ? Math.min(1, m.spinT / 0.55) * Math.PI * 2 : 0;
-    m.body.rotation.set(j.fall * 1.42, spinA + j.hipTwist, j.roll);
+    m.body.rotation.set(j.fall * 1.42 * j.fdir, spinA + j.hipTwist, j.roll);
     m.torso.rotation.set(j.lean * (1 - j.fall * 0.7), j.twist - j.hipTwist, 0);
     for (let k = 0; k < 2; k++) {
       m.legs[k].hip.rotation.x = j.lh[k] - j.lean * 0.55 * (1 - j.fall);

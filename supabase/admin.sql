@@ -124,6 +124,10 @@ begin
     xpm = xpm + least(greatest(coalesce((s->>'xpm')::int, 0), 0), 12),
     punts = punts + least(greatest(coalesce((s->>'punts')::int, 0), 0), 15),
     punt_yds = punt_yds + least(greatest(coalesce((s->>'puntYds')::int, 0), 0), 1000),
+    ut_games = ut_games + case when coalesce((s->>'ut')::int, 0) = 1 then 1 else 0 end,
+    ut_wins = ut_wins + case when coalesce((s->>'ut')::int, 0) = 1 and s->>'res' = 'W' then 1 else 0 end,
+    ut_tds = ut_tds + case when coalesce((s->>'ut')::int, 0) = 1 then least(greatest(tds, 0), 16) else 0 end,
+    ut_pts = ut_pts + case when coalesce((s->>'ut')::int, 0) = 1 then least(greatest(coalesce((s->>'pts')::int, 0), 0), 120) else 0 end,
     last_game = now(), updated_at = now()
   where id = uid;
 end $$;

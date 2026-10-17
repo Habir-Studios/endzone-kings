@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792257794';
-import { Renderer } from './render.js?v=1792257794';
-import { Sfx } from './audio.js?v=1792257794';
-import { Auth } from './auth.js?v=1792257794';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792257794';
-import { getRoster, teamOvr } from './teams.js?v=1792257794';
-import * as Season from './season.js?v=1792257794';
-import * as Fr from './franchise.js?v=1792257794';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792257794';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792257794';
-import * as UTm from './ut.js?v=1792257794';
-import { initCreator, renderCreator } from './creator.js?v=1792257794';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792257794';
-import { portraitURL } from './faces.js?v=1792257794';
-import { logoURL, clearLogoCache } from './logos.js?v=1792257794';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792257986';
+import { Renderer } from './render.js?v=1792257986';
+import { Sfx } from './audio.js?v=1792257986';
+import { Auth } from './auth.js?v=1792257986';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792257986';
+import { getRoster, teamOvr } from './teams.js?v=1792257986';
+import * as Season from './season.js?v=1792257986';
+import * as Fr from './franchise.js?v=1792257986';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792257986';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792257986';
+import * as UTm from './ut.js?v=1792257986';
+import { initCreator, renderCreator } from './creator.js?v=1792257986';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792257986';
+import { portraitURL } from './faces.js?v=1792257986';
+import { logoURL, clearLogoCache } from './logos.js?v=1792257986';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -820,6 +820,15 @@ function highlightsHTML(S) {
   return `<h4>Highlights</h4>${h.map(x => `<div><span>${x.q >= 5 ? 'OT' : 'Q' + x.q} ${fmtClock(x.clk)}</span><span><b>${escapeHtml(x.text)}</b> <em>${escapeHtml(x.sub)}, ${TEAMS[S.teams[x.team]].abbr}</em></span></div>`).join('')}`;
 }
 const NO_REWARDS_HTML = '<div class="gr-head"><b>Rewards</b></div><p class="note">Games against the CPU in Quick Play, Season and practice are just for fun: no coins, XP, rank or leaderboard stats. Play <b>Online 1v1</b>, <b>Ultimate Team</b> or <b>Franchise</b> to earn them.</p>';
+// opponent rage quit mid-game: you get the win, the XP and the rank points (no leaderboard stats, the game wasn't finished)
+function forfeitWin() {
+  const S = st.snap;
+  if (!S || st.rewarded || isGuest() || st.mode === 'spec' || !(st.mode === 'host' || st.mode === 'guest') || S.mode !== 'game') return;
+  if ((performance.now() - (st.startedAt || performance.now())) / 1000 < 45) return;   // left during the intro: no free wins
+  st.rewarded = true;
+  const me = st.local, other = 1 - me;
+  try { awardGame({ mode: 'online', ut: !!st.ut, res: 'W', diff: 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: S.st[me], opp: S.st[other] }); setTimeout(() => toast('Your opponent quit. You get the win, XP and rank points.', 3500), 600); } catch (e) { console.warn(e); }
+}
 function showGameOver(S) {
   st.overShown = true;
   const me = st.local, other = 1 - me;
@@ -874,7 +883,7 @@ function showGameOver(S) {
   if (!st.statsPosted && paid && !isGuest()) {
     st.statsPosted = true;
     const P = profile();
-    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : '') });
+    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : ''), ut: !!st.ut, pts: S.sc[me] });
     if (P && P.tampered) { P.tampered = false; P.p.tampered = 0; P.save(); }
   }
   if (!st.rewarded) {
@@ -1327,7 +1336,7 @@ function wirePeer(peer, role) {
   peer.on('close', (why) => {
     if (peer._done) return; peer._done = true; peer.close();
     if (st.peer !== peer) return;
-    if (st.playing && !st.overShown) { toast(why || 'Opponent left'); leaveGame(); }
+    if (st.playing && !st.overShown) { forfeitWin(); toast(why || 'Opponent left'); leaveGame(); }
     else if (st.playing) toast('Opponent left');
     st.peer = null;
     if (!st.playing && st.screen === 'online') { onlineMsg(why || 'Disconnected', true); resetOnlineUI(); }

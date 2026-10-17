@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792257794';
+import { TEAMS } from './teams.js?v=1792257986';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -15,6 +15,7 @@ export const BOARDS = {
   Offense: [['pass_yds', 'Passing yards'], ['pass_td', 'Passing TDs'], ['rush_yds', 'Rushing yards'], ['rush_td', 'Rushing TDs'], ['rec_yds', 'Receiving yards'], ['rec', 'Receptions'], ['rec_td', 'Receiving TDs']],
   Defense: [['tackles', 'Tackles'], ['sacks', 'Sacks'], ['ints', 'Interceptions']],
   'Special teams': [['fgm', 'Field goals made'], ['fg_long', 'Longest field goal'], ['xpm', 'Extra points'], ['punt_yds', 'Punting yards']],
+  'Ultimate Team': [['ut_wins', 'UT wins'], ['ut_games', 'UT games'], ['ut_tds', 'UT touchdowns'], ['ut_pts', 'UT points scored']],
 };
 const ALL_COLS = Object.values(BOARDS).flat().map(c => c[0]);
 const colName = k => (Object.values(BOARDS).flat().find(c => c[0] === k) || [k, k])[1];
@@ -80,7 +81,7 @@ export function renderSocial() {
 function renderBoards() {
   const pane = C.$('#so-pane');
   pane.innerHTML = `<div class="lb-cats">${Object.entries(BOARDS).map(([g, cols]) => `<div class="lb-group"><small>${g}</small><div class="seg">${cols.map(([k, n]) => `<button type="button" data-col="${k}" class="${k === boardCat ? 'on' : ''}">${n}</button>`).join('')}</div></div>`).join('')}</div>
-    <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second. Only online 1v1 games count.</span></div>
+    <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second. Online 1v1, Ultimate Team and Franchise games count.</span></div>
     <ol class="lb-list" id="lb-list"><li class="mb-empty">Loading…</li></ol>`;
   C.$$('[data-col]', pane).forEach(b => b.onclick = () => { boardCat = b.dataset.col; C.sfx.play('ui'); renderBoards(); });
   loadBoard(boardCat, false);
@@ -93,7 +94,7 @@ async function loadBoard(col, quiet) {
   if (quiet && key === boardRows.key) return;
   boardRows = data || []; boardRows.key = key;
   const mine = me() ? me().id : '';
-  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish an online 1v1 to get on it.</li>';
+  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish an online 1v1, Ultimate Team or Franchise game to get on it.</li>';
   C.$$('[data-pid]', el).forEach(li => li.onclick = () => openProfile(li.dataset.pid));
 }
 
@@ -332,7 +333,7 @@ export async function postGameStats(r) {
   for (const p of mine) { if (!p.td) continue; if ((p.rec || 0) > 0 && (p.recy || 0) >= (p.ry || 0)) retd += p.td; else rtd += p.td; }
   const s = { name: me().name, res: r.res, py: sum('py'), ptd: sum('ptd'), ry: sum('ry'), rtd, rec: sum('rec'), recy: sum('recy'), retd, tk: sum('tk'), sk: sum('sk'), int: sum('int'),
     fgm: ts.fgm || 0, fga: ts.fga || 0, fgl: ts.fgl || 0, xpm: ts.xpm || 0, punts: ts.punts || 0, puntYds: ts.puntYds || 0,
-    secs: Math.round(r.secs || 0), qlen: r.qlen || 120, ac: r.ac || 0, acWhy: String(r.acWhy || '').slice(0, 120) };
+    secs: Math.round(r.secs || 0), qlen: r.qlen || 120, ac: r.ac || 0, acWhy: String(r.acWhy || '').slice(0, 120), ut: r.ut ? 1 : 0, pts: r.pts || 0 };
   if (isBanned()) return;
   try {
     await db().from('ek_players').upsert({ id: me().id, name: me().name, lvl: r.lvl || 1, rp: r.rp || 0 }, { onConflict: 'id' });

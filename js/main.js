@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792265988';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792265988';
-import { Renderer } from './render.js?v=1792265988';
-import { Sfx } from './audio.js?v=1792265988';
-import { Auth } from './auth.js?v=1792265988';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792265988';
-import { getRoster, teamOvr } from './teams.js?v=1792265988';
-import * as Season from './season.js?v=1792265988';
-import * as Fr from './franchise.js?v=1792265988';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792265988';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792265988';
-import * as UTm from './ut.js?v=1792265988';
-import { initCreator, renderCreator } from './creator.js?v=1792265988';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792265988';
-import { portraitURL } from './faces.js?v=1792265988';
-import { logoURL, clearLogoCache } from './logos.js?v=1792265988';
+import { askYes } from './ui.js?v=1792266000';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266000';
+import { Renderer } from './render.js?v=1792266000';
+import { Sfx } from './audio.js?v=1792266000';
+import { Auth } from './auth.js?v=1792266000';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266000';
+import { getRoster, teamOvr } from './teams.js?v=1792266000';
+import * as Season from './season.js?v=1792266000';
+import * as Fr from './franchise.js?v=1792266000';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266000';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266000';
+import * as UTm from './ut.js?v=1792266000';
+import { initCreator, renderCreator } from './creator.js?v=1792266000';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266000';
+import { portraitURL } from './faces.js?v=1792266000';
+import { logoURL, clearLogoCache } from './logos.js?v=1792266000';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -401,7 +401,7 @@ $('#go-drill').addEventListener('click', () => startCPU({ teams: [SET.team, rand
 function renderSettings() {
   $('#set-vol').value = SET.vol; $('#set-music').value = SET.music;
   seg($('#seg-adapt'), [['on', 'On'], ['off', 'Off']], SET.adapt === 'off' ? 'off' : 'on', v => { SET.adapt = v; saveSet(); toast(v === 'off' ? 'The CPU stays at the difficulty you pick' : 'The CPU adapts to how you play'); });
-  seg($('#seg-notif'), [['on', 'On'], ['off', 'Blocked']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications blocked: no pop-ups or badges' : 'Notifications on'); });
+  seg($('#seg-notif'), [['on', 'On'], ['off', 'Mute']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications muted: no pop-ups or badges, they still show in the bell' : 'Notifications on'); });
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
   seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });

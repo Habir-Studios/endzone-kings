@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792250812';
+import { TEAMS } from './teams.js?v=1792250937';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -78,7 +78,7 @@ export function renderSocial() {
 function renderBoards() {
   const pane = C.$('#so-pane');
   pane.innerHTML = `<div class="lb-cats">${Object.entries(BOARDS).map(([g, cols]) => `<div class="lb-group"><small>${g}</small><div class="seg">${cols.map(([k, n]) => `<button type="button" data-col="${k}" class="${k === boardCat ? 'on' : ''}">${n}</button>`).join('')}</div></div>`).join('')}</div>
-    <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second</span></div>
+    <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second. Only online 1v1 games count.</span></div>
     <ol class="lb-list" id="lb-list"><li class="mb-empty">Loading…</li></ol>`;
   C.$$('[data-col]', pane).forEach(b => b.onclick = () => { boardCat = b.dataset.col; C.sfx.play('ui'); renderBoards(); });
   loadBoard(boardCat, false);
@@ -91,7 +91,7 @@ async function loadBoard(col, quiet) {
   if (quiet && key === boardRows.key) return;
   boardRows = data || []; boardRows.key = key;
   const mine = me() ? me().id : '';
-  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish a game to get on it.</li>';
+  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish an online 1v1 to get on it.</li>';
   C.$$('[data-pid]', el).forEach(li => li.onclick = () => openProfile(li.dataset.pid));
 }
 
@@ -119,7 +119,7 @@ async function openProfile(id) {
     D.from('ek_clips').select('id,title,teams,secs,views,created_at').eq('owner', id).order('created_at', { ascending: false }).limit(30),
     me() && me().id !== id ? D.from('ek_follows').select('follower').eq('follower', me().id).eq('followee', id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
-  if (!p) { pane.innerHTML = id === (me() && me().id) ? '<p class="note">Your profile shows up after your first finished game. Go play one!</p>' : '<p class="note">That player doesn’t exist.</p>'; return; }
+  if (!p) { pane.innerHTML = id === (me() && me().id) ? '<p class="note">Your profile shows up after your first finished online 1v1. Go play one!</p>' : '<p class="note">That player doesn’t exist.</p>'; return; }
   const mine = me() && me().id === id, fol = !!(iFollow && iFollow.data), t = TEAMS[p.team] || TEAMS[0];
   const stat = (n, v) => `<div><b>${v}</b><small>${n}</small></div>`;
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';

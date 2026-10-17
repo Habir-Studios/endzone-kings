@@ -79,7 +79,7 @@ function press(i) {
     presnapDef: { 1: 'KeyQ', 4: 'KeyZ', 5: 'KeyX', 8: 'KeyV' },
     pass: { 8: 'KeyV', 0: 'Digit1', 1: 'Digit2', 2: 'Digit3', 3: 'Digit4', 5: 'Digit5' },
     carry: { 8: 'KeyV', 1: 'KeyE', 3: 'KeyF', 0: 'KeyR', 2: 'KeyX', 4: 'KeyG', 5: 'KeyB' },
-    air: { 3: 'KeyE', 1: 'KeyQ', 0: 'KeyE' },
+    air: { 3: 'KeyE', 1: 'KeyQ', 0: 'KeyE', 2: 'KeyX' },
     def: { 8: 'KeyV', 2: 'Space', 0: 'Space', 1: 'KeyQ', 3: 'KeyE', 5: 'KeyH' },
     kick: { 0: 'Space' },
     half: { 0: 'Space' },

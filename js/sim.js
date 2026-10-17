@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792256229';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792256402';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792256229';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792256402';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -413,6 +413,14 @@ function handleEvent(g, team, ev) {
       let dx = carrier.x - me.x, dz = carrier.z - me.z; const l = hyp(dx, dz) || 1;
       dx /= l; dz /= l;
       me.dive = 0.45; me.hit = 0; me.vx = dx * 9.5; me.vz = dz * 9.5; me.face = Math.atan2(dx, dz);
+      g.events.push('dive');
+    }
+  } else if (ev.t === 'rdive') {
+    // receiver lays out for the ball: big reach, but time it so you're still in the air when it gets there
+    if (me && team === P.off && b.state === 'air' && !b.auto && RECEIVERS.includes(me.role) && me.dive <= 0 && me.stun <= 0 && me.fallen <= 0) {
+      let dx = b.tx - me.x, dz = b.tz - me.z; const l = hyp(dx, dz) || 1; dx /= l; dz /= l;
+      const sp = Math.max(8, hyp(me.vx, me.vz) + 2.5);
+      me.dive = 0.55; me.rdive = 0.55; me.hit = 0; me.vx = dx * sp; me.vz = dz * sp; me.face = Math.atan2(dx, dz);
       g.events.push('dive');
     }
   } else if (ev.t === 'hitstick') {
@@ -1092,6 +1100,7 @@ function updateLive(g, dt, inputs) {
   for (const p of g.players) {
     p.stun = Math.max(0, p.stun - dt); p.juke = Math.max(0, p.juke - dt); p.jukeCd = Math.max(0, p.jukeCd - dt);
     p.tackleCd = Math.max(0, p.tackleCd - dt); p.shedCd = Math.max(0, p.shedCd - dt);
+    if (p.rdive > 0) p.rdive -= dt;
     if (p.dive > 0) { p.dive -= dt; if (p.dive <= 0) { p.stun = p.hit > 0 ? 1.25 : 0.75; p.fallen = p.stun; p.hit = 0; } }   // whiffed hit stick = longer on the ground
     if (p.fallen > 0 && p.stun <= 0) p.fallen = 0;
     p.spin = Math.max(0, p.spin - dt); p.stiff = Math.max(0, p.stiff - dt); p.truck = Math.max(0, (p.truck || 0) - dt); p.hurdle = Math.max(0, p.hurdle - dt);
@@ -1798,7 +1807,7 @@ function resolveBall(g) {
   let ro = null, dO = 1e9, rd = null, dD = 1e9;
   for (const p of g.players) {
     if (p.stun > 0 && p.dive <= 0) continue;
-    const dd = hyp(p.x - L.x, p.z - L.z) - (p.playBall > 0 ? 0.8 : 0);   // jumping extends your reach
+    const dd = hyp(p.x - L.x, p.z - L.z) - (p.playBall > 0 ? 0.8 : 0) - (p.rdive > 0 && p.dive > 0 ? 1.4 : 0);   // jumping or laying out extends your reach
     if (p.team === offTeam) { if (RECEIVERS.includes(p.role) && dd < dO) { dO = dd; ro = p; } }
     else if (dd < dD) { dD = dd; rd = p; }
   }
@@ -1858,6 +1867,8 @@ function resolveBall(g) {
   if ((outcome === 'catch' || outcome === 'int') && (() => { const q = outcome === 'catch' ? ro : rd; return q && (Math.abs(q.x) > HALF_W - 0.15 || prog(q.team === offTeam ? offTeam : 1 - offTeam, q.z) > 109.9); })()) {
     outcome = 'inc'; g.flash = { text: 'OUT OF BOUNDS', until: 1.2 };
   }
+  if (outcome === 'catch' && ro.rdive > 0 && ro.dive > 0) diving = true;   // you laid out for it
+  if (outcome !== 'catch' && ro && ro.rdive > 0 && ro.dive > 0 && !g.flash) g.flash = { text: 'CAN\'T REEL IT IN', until: 1.0 };
   if (outcome === 'catch') {
     b.state = 'held'; b.carrier = ro.id;
     P.catchZ = ro.z; ro.caughtAt = g.t;

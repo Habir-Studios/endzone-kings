@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792256229';
+import { CONFIG } from './config.js?v=1792256402';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 

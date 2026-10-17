@@ -1,9 +1,9 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { askYes } from './ui.js?v=1792265295';
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792265295';
-import * as Season from './season.js?v=1792265295';
+import { askYes, askPick } from './ui.js?v=1792265425';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792265425';
+import * as Season from './season.js?v=1792265425';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -54,7 +54,7 @@ export function newFranchise(team) {
   for (const role of r.order) { const p = fromRoster(F, role, r.players[role]); F.players[p.id] = p; F.starters[role] = p.id; }
   // a few backups so injuries and retirements don't leave holes
   for (const g of ['QB', 'HB', 'WR', 'OL', 'DL', 'LB', 'CB', 'S']) { const p = mkPlayer(F, g, rnd(60, 70), 22 + ((Math.random() * 6) | 0)); F.players[p.id] = p; F.bench.push(p.id); }
-  F.season = Season.newSeason(team);
+  F.season = Season.newSeason(team, undefined, 2026);
   save(F);
   return F;
 }
@@ -229,7 +229,7 @@ export function startNextSeason(F) {
     if (p.age >= 34 && Math.random() < (p.age - 32) * 0.25) { notes.push(`${p.first} ${p.last} retired`); F.log.unshift(`${F.year}: ${p.first} ${p.last} retired at ${p.age}`); release(F, p.id); }
   }
   fillHoles(F);
-  F.season = Season.newSeason(F.team);
+  F.season = Season.newSeason(F.team, undefined, F.year);
   F.phase = 'season';
   save(F);
   return notes;
@@ -278,23 +278,24 @@ function hubTab(F) {
   const S = F.season, g = Season.userGame(S);
   const st = S.standings[F.team];
   const opp = g ? (g.home === F.team ? g.away : g.home) : -1;
-  pane.innerHTML = `<div class="fr-next">${g ? `<div><small>${S.phase === 'regular' ? `Week ${S.week + 1} of ${Season.WEEKS}` : S.phase === 'semis' ? 'Playoff semifinal' : 'Kings Bowl'}</small><h3>${g.home === F.team ? 'vs' : 'at'} ${TEAMS[opp].city}</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Opponent ${C.teamOvr(opp)} OVR.</p></div>
+  const bye = Season.onBye && Season.onBye(S);
+  pane.innerHTML = `<div class="fr-next">${bye ? `<div><small>${Season.phaseLabel(S)}</small><h3>Bye week</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Rest up, the rest of the league plays.</p></div><div class="cr-btns"><button class="btn primary big" id="fr-sim">Next week</button></div>` : g ? `<div><small>${Season.phaseLabel(S)}</small><h3>${g.home === F.team ? 'vs' : 'at'} ${TEAMS[opp].city}</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Opponent ${C.teamOvr(opp)} OVR.</p></div>
       <div class="cr-btns"><button class="btn primary big" id="fr-play">Play game</button><button class="btn" id="fr-sim">Simulate</button></div>` : `<p class="note">${S.eliminated ? 'Your season is over.' : 'Season complete.'}</p>`}</div>
     <h3 class="store-h">Recent moves</h3><ul class="fr-log">${F.log.slice(0, 8).map(l => `<li>${esc(l)}</li>`).join('') || '<li>Nothing yet. Go win some games.</li>'}</ul>`;
   const pb = C.$('#fr-play'); if (pb) pb.onclick = () => { const ros = simRoster(F); if (!ros) return C.toast('Your lineup has holes'); C.startCPU({ teams: [F.team, opp], rosters: [ros, null], franchise: true }); };
-  const sb = C.$('#fr-sim'); if (sb) sb.onclick = () => { const m = simWeek(F); if (m) C.toast(`${m[0] > m[1] ? 'Won' : m[0] < m[1] ? 'Lost' : 'Tied'} ${m[0]}-${m[1]}`); renderFranchise(); };
+  const sb = C.$('#fr-sim'); if (sb) sb.onclick = () => { const m = simWeek(F); if (m) C.toast(`${m[0] > m[1] ? 'Won' : m[0] < m[1] ? 'Lost' : 'Tied'} ${m[0]}-${m[1]}`); else C.toast('Bye week done'); renderFranchise(); };
 }
 function pRow(p, extra = '') { const dv = p.hidden ? `projected ${devName(p.proj || p.dev)} (?)` : devName(p.dev) + (p.tag === 'sleeper' ? ' · SLEEPER' : p.tag === 'bust' ? ' · BUST' : ''); return `<div class="fr-p"><span class="fr-ovr">${p.ovr}</span><div><b>${esc(p.first)} ${esc(p.last)}</b><small>${p.group}, age ${p.age}, ${dv}, $${p.sal.toFixed(2)}M x ${Math.max(0, p.yrs)} yr${p.yrs === 1 ? '' : 's'}</small></div>${extra}</div>`; }
 function rosterTab(F) {
   const pane = C.$('#fr-pane'), order = getRoster(F.team).order;
   pane.innerHTML = `<h3 class="store-h">Starters</h3><div class="fr-list">${order.map(role => { const p = F.players[F.starters[role]]; return p ? `<div class="fr-slot"><small>${POS_LABEL[role] || role}</small>${pRow(p, `<div class="fr-xp" title="XP to next point"><i style="width:${Math.min(100, p.xp / xpNeed(p) * 100)}%"></i></div><button class="btn sm" data-sw="${role}">Swap</button>`)}</div>` : `<div class="fr-slot"><small>${role}</small><p class="note">Empty</p></div>`; }).join('')}</div>
     <h3 class="store-h">Bench (${F.bench.length} of ${BENCH_MAX})</h3><div class="fr-list">${F.bench.map(id => F.players[id]).filter(Boolean).sort((a, b) => b.ovr - a.ovr).map(p => pRow(p, `<button class="btn sm danger" data-cut="${p.id}">Release</button>`)).join('') || '<p class="note">No backups.</p>'}</div>`;
-  C.$$('[data-sw]', pane).forEach(b => b.onclick = () => {
+  C.$$('[data-sw]', pane).forEach(b => b.onclick = async () => {
     const role = b.dataset.sw, g = GROUP(role), opts = F.bench.map(id => F.players[id]).filter(p => p && p.group === g);
     if (!opts.length) return C.toast(`No ${g} on your bench`);
     const best = opts.sort((a, b) => b.ovr - a.ovr);
-    const choice = prompt(`Swap in who?\n${best.map((p, i) => `${i + 1}. ${p.first} ${p.last} (${p.ovr})`).join('\n')}`, '1'); if (!choice) return;
-    const p = best[(+choice || 1) - 1]; if (!p) return;
+    const pid = await askPick('Swap in who?', best.map(p => [p.id, `${p.first} ${p.last} (${p.ovr} OVR)`])); if (pid === null) return;
+    const p = best.find(x => x.id === pid); if (!p) return;
     const e = swap(F, role, p.id); if (e) C.toast(e); else { C.toast(`${p.last} is starting`); renderFranchise(); }
   });
   C.$$('[data-cut]', pane).forEach(b => b.onclick = async () => { const p = F.players[+b.dataset.cut]; if (!(await askYes(`Release ${p.first} ${p.last}? His salary comes off your cap.`, 'Release'))) return; release(F, p.id); renderFranchise(); });

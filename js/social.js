@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792265295';
-import { TEAMS } from './teams.js?v=1792265295';
+import { askYes } from './ui.js?v=1792265425';
+import { TEAMS } from './teams.js?v=1792265425';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -132,7 +132,7 @@ async function openProfile(id) {
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
       <div class="pf-id"><h3>${esc(p.name)}</h3><small>Level ${p.lvl}, ${t.city} fan</small>
-        <div class="pf-recs">${[['Overall', p.wins, p.losses, 0], ['Online 1v1', p.on_w, p.on_l, p.on_t], ['Ultimate Team', p.ut_wins, p.ut_l, p.ut_t], ['Franchise', p.fr_w, p.fr_l, p.fr_t]].map(([n, w, l, tt]) => `<span><small>${n}</small><b>${fmt(w || 0)}-${fmt(l || 0)}${tt ? '-' + fmt(tt) : ''}</b></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
+        <div class="pf-recs">${[['Overall', p.wins, p.losses, 0], ['Online 1v1', p.on_w, p.on_l, p.on_t], ['Ultimate Team', p.ut_wins, p.ut_l, p.ut_t]].map(([n, w, l, tt]) => `<span><small>${n}</small><b>${fmt(w || 0)}-${fmt(l || 0)}${tt ? '-' + fmt(tt) : ''}</b></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
     </div>

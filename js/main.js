@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792265295';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792265295';
-import { Renderer } from './render.js?v=1792265295';
-import { Sfx } from './audio.js?v=1792265295';
-import { Auth } from './auth.js?v=1792265295';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792265295';
-import { getRoster, teamOvr } from './teams.js?v=1792265295';
-import * as Season from './season.js?v=1792265295';
-import * as Fr from './franchise.js?v=1792265295';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792265295';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792265295';
-import * as UTm from './ut.js?v=1792265295';
-import { initCreator, renderCreator } from './creator.js?v=1792265295';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792265295';
-import { portraitURL } from './faces.js?v=1792265295';
-import { logoURL, clearLogoCache } from './logos.js?v=1792265295';
+import { askYes } from './ui.js?v=1792265425';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792265425';
+import { Renderer } from './render.js?v=1792265425';
+import { Sfx } from './audio.js?v=1792265425';
+import { Auth } from './auth.js?v=1792265425';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792265425';
+import { getRoster, teamOvr } from './teams.js?v=1792265425';
+import * as Season from './season.js?v=1792265425';
+import * as Fr from './franchise.js?v=1792265425';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792265425';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792265425';
+import * as UTm from './ut.js?v=1792265425';
+import { initCreator, renderCreator } from './creator.js?v=1792265425';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792265425';
+import { portraitURL } from './faces.js?v=1792265425';
+import { logoURL, clearLogoCache } from './logos.js?v=1792265425';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -279,14 +279,18 @@ function renderSeason() {
   $('#hub-team').innerHTML = `<img class="hb-logo" alt="" src="${logoURL(me, 136)}"><div><b>${t.city}</b><span>${rec.w}-${rec.l}${rec.t ? '-' + rec.t : ''} record, ${teamOvr(me)} OVR</span></div>`;
   const g = Season.userGame(S);
   const nx = $('#hub-next');
-  if (S.phase === 'done') {
+  if (S.phase !== 'done' && !g) {
+    nx.innerHTML = `<small>${Season.phaseLabel(S)}</small><b>Bye week</b><span>Rest up. The rest of the league plays this week.</span>`;
+    $('#season-play').classList.add('hidden'); $('#season-sim').classList.remove('hidden'); $('#season-sim').textContent = 'Next week';
+    $('#season-quit').textContent = 'Abandon season';
+  } else if (S.phase === 'done') {
     const champ = TEAMS[S.champion];
     nx.innerHTML = S.champion === me ? `<small>SEASON COMPLETE</small><b>🏆 Kings Bowl Champions!</b>` : `<small>SEASON COMPLETE</small><b>${champ.city} won the Kings Bowl</b><span>${S.eliminated ? 'You missed out this year.' : ''}</span>`;
     $('#season-play').classList.add('hidden'); $('#season-sim').classList.add('hidden');
     $('#season-quit').textContent = 'Start new season';
   } else {
     const opp = g.home === me ? g.away : g.home, o = TEAMS[opp];
-    const label = S.phase === 'regular' ? `Week ${S.week + 1} of ${Season.WEEKS}` : S.phase === 'semis' ? 'Playoff semifinal' : 'The Kings Bowl';
+    const label = Season.phaseLabel(S); $('#season-sim').textContent = 'Simulate';
     nx.innerHTML = `<small>${label}</small><b>${g.home === me ? 'vs' : '@'} ${o.city}</b><span><i class="dot" style="background:${o.jersey}"></i>${o.abbr}, ${teamOvr(opp)} OVR, ${S.standings[opp].w}-${S.standings[opp].l}</span>`;
     $('#season-play').classList.remove('hidden'); $('#season-sim').classList.remove('hidden');
     $('#season-quit').textContent = 'Abandon season';
@@ -294,17 +298,30 @@ function renderSeason() {
   // schedule
   const rows = [];
   S.weeks.forEach((wk, i) => {
-    const x = wk.find(q => q.home === me || q.away === me), opp = x.home === me ? x.away : x.home;
+    const x = wk.find(q => q.home === me || q.away === me);
+    if (!x) { rows.push(`<div class="sr ${i === S.week && S.phase === 'regular' ? 'cur' : ''}"><span>W${i + 1}</span><b class="note">Bye week</b></div>`); return; }
+    const opp = x.home === me ? x.away : x.home;
     const mine = x.home === me ? [x.hs, x.as] : [x.as, x.hs];
     const res = mine[0] === null ? '' : mine[0] > mine[1] ? `<em class="w">W ${mine[0]}-${mine[1]}</em>` : mine[0] < mine[1] ? `<em class="l">L ${mine[0]}-${mine[1]}</em>` : `<em>T ${mine[0]}-${mine[1]}</em>`;
     rows.push(`<div class="sr ${i === S.week && S.phase === 'regular' ? 'cur' : ''}"><span>W${i + 1}</span><i class="dot" style="background:${TEAMS[opp].jersey}"></i><b>${x.home === me ? 'vs' : '@'} ${TEAMS[opp].city}</b>${res}</div>`);
   });
   if (S.playoffs) {
     const P = S.playoffs;
-    const pg = (lbl, x) => x ? `<div class="sr po"><span>${lbl}</span><b>${TEAMS[x.away].abbr} @ ${TEAMS[x.home].abbr}</b>${x.hs !== null ? `<em>${x.as}-${x.hs}</em>` : ''}</div>` : '';
-    rows.push(pg('SEMI', P.semis[0]) + pg('SEMI', P.semis[1]) + pg('BOWL', P.final));
+    const pg = (lbl, x) => x ? `<div class="sr po ${x.home === me || x.away === me ? 'cur' : ''}"><span>${lbl}</span><b>${TEAMS[x.away].abbr} @ ${TEAMS[x.home].abbr}</b>${x.hs !== null ? `<em>${x.as}-${x.hs}</em>` : ''}</div>` : '';
+    if (P.rounds) { const L = { wildcard: 'WC', divisional: 'DIV', conference: 'CONF', final: 'BOWL' }; for (const k of ['wildcard', 'divisional', 'conference', 'final']) for (const x of P.rounds[k] || []) rows.push(pg(L[k], x)); }
+    else rows.push(pg('SEMI', P.semis[0]) + pg('SEMI', P.semis[1]) + pg('BOWL', P.final));
   }
   $('#sched').innerHTML = rows.join('');
+  if (S.v === 2) {
+    // NFL standings: by division; division winners plus 3 wild cards per conference make it
+    $('#stand-h').textContent = S.phase === 'regular' ? 'Standings (division winners + 3 wild cards per conference make the playoffs)' : 'Final standings';
+    const seeds = S.playoffs ? S.playoffs.seeds : [...Season.seeds(S, 'AFC'), ...Season.seeds(S, 'NFC')];
+    $('#stand').innerHTML = Season.divisionTables(S).map(D => `<tr class="div-h"><th colspan="7">${D.div}</th></tr>` + D.rows.map(r => {
+      const sd = seeds.indexOf(r.team), seed = sd < 0 ? '' : (sd % 7) + 1;
+      return `<tr class="${r.team === me ? 'me' : ''}"><td>${seed ? `<small class="seed">${seed}</small>` : ''}</td><td><i class="dot" style="background:${TEAMS[r.team].jersey}"></i>${TEAMS[r.team].city}</td><td>${r.w}</td><td>${r.l}</td><td>${r.t}</td><td>${r.pf}</td><td>${r.pa}</td></tr>`;
+    }).join('')).join('');
+    return;
+  }
   const tb = Season.table(S);
   $('#stand-h').textContent = S.phase === 'regular' ? 'Standings (top 4 make the playoffs)' : 'Final standings';
   $('#stand').innerHTML = '<tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>PF</th><th>PA</th></tr>' + tb.map((r, i) =>
@@ -314,7 +331,7 @@ $('#season-start').addEventListener('click', () => { if (seasonPick < 0) return;
 $('#season-sim').addEventListener('click', () => {
   const S = loadSeason(); if (!S) return;
   const r = Season.simMyGame(S); saveSeason(S); renderSeason();
-  if (r) toast(r[0] > r[1] ? `Simmed: W ${r[0]}-${r[1]}` : r[0] < r[1] ? `Simmed: L ${r[0]}-${r[1]}` : `Simmed: T ${r[0]}-${r[1]}`);
+  if (r) toast(r[0] > r[1] ? `Simmed: W ${r[0]}-${r[1]}` : r[0] < r[1] ? `Simmed: L ${r[0]}-${r[1]}` : `Simmed: T ${r[0]}-${r[1]}`); else if (S.phase !== 'done') toast('Bye week done');
 });
 $('#season-play').addEventListener('click', () => {
   const S = loadSeason(); if (!S) return;

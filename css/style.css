@@ -1145,3 +1145,6 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .notif-btn { position: fixed; left: 16px; right: auto; top: 16px; }
 .notif-panel { position: fixed; left: 16px; right: auto; top: 70px; }
 @media (max-width: 700px) { .notif-btn { top: auto; bottom: 16px; } .notif-panel { top: auto; bottom: 70px; } }
+
+#stand .div-h th { text-align: left; padding-top: 10px; font-size: 12px; letter-spacing: .04em; color: var(--gold, #f6c445); }
+#stand .seed { display: inline-grid; place-items: center; width: 18px; height: 18px; background: var(--gold, #f6c445); color: #241500; font-weight: 900; font-size: 11px; }

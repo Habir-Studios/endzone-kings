@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792265425';
-import { TEAMS } from './teams.js?v=1792265425';
+import { askYes } from './ui.js?v=1792265618';
+import { TEAMS } from './teams.js?v=1792265618';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -120,7 +120,7 @@ async function openProfile(id) {
     D.from('ek_players').select('*').eq('id', id).maybeSingle(),
     D.from('ek_follows').select('*', { count: 'exact', head: true }).eq('followee', id),
     D.from('ek_follows').select('*', { count: 'exact', head: true }).eq('follower', id),
-    D.from('ek_clips').select('id,title,teams,secs,views,created_at').eq('owner', id).order('created_at', { ascending: false }).limit(30),
+    D.from('ek_clips').select('id,title,teams,secs,views,created_at,vs').eq('owner', id).order('created_at', { ascending: false }).limit(30),
     me() && me().id !== id ? D.from('ek_follows').select('follower').eq('follower', me().id).eq('followee', id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   if (!p) { if (id === (me() && me().id)) { profileMade = false; await ensureProfile(); return openProfile(id); } pane.innerHTML = '<p class="note">That player doesn’t exist.</p>'; return; }
@@ -179,7 +179,7 @@ function clipCards(list, mine, owner) {
   if (!list.length) return `<p class="note">${mine ? 'No clips yet. Pause during a game or open the game summary and hit “Clip last play”.' : 'No clips yet.'}</p>`;
   return list.map(c => { const a = TEAMS[(c.teams || [])[0]] || TEAMS[0], b = TEAMS[(c.teams || [])[1]] || TEAMS[1];
     return `<div class="clip" data-clip="${c.id}" style="--c:${a.jersey};--c2:${b.jersey}"><button class="clip-play" type="button" aria-label="Play clip"><span>▶</span></button>
-      <div class="clip-txt"><b>${esc(c.title)}</b><small>${owner ? esc(owner) + ', ' : c.owner_name ? esc(c.owner_name) + ', ' : ''}${a.abbr} vs ${b.abbr}, ${fmt(c.views)} views, ${ago(c.created_at)}</small></div>
+      <div class="clip-txt"><b>${esc(c.title)}</b><small>${owner ? esc(owner) + ', ' : c.owner_name ? esc(c.owner_name) + ', ' : ''}${a.abbr} vs ${b.abbr}${c.vs ? `, against ${esc(c.vs)}` : ''}, ${fmt(c.views)} views, ${ago(c.created_at)}</small></div>
       <button class="btn sm ghost" data-like="${c.id}" type="button">♥ <span class="clip-like-n">0</span></button>${mine ? `<button class="btn sm ghost" data-del="${c.id}">Delete</button>` : ''}</div>`; }).join('');
 }
 async function toggleLike(id) {
@@ -214,8 +214,8 @@ async function renderFeed() {
   let ids = null;
   if (me()) { const { data } = await D.from('ek_follows').select('followee').eq('follower', me().id).limit(500); ids = (data || []).map(r => r.followee); }
   const fetch = async (q) => { const { data } = await q.order('created_at', { ascending: false }).limit(24); return data || []; };
-  const base = () => D.from('ek_clips').select('id,owner,title,teams,secs,views,created_at');
-  const [mine, recent, top] = await Promise.all([ids && ids.length ? fetch(base().in('owner', ids)) : [], fetch(base()), D.from('ek_clips').select('id,owner,title,teams,secs,views,created_at').order('views', { ascending: false }).limit(12).then(r => r.data || [])]);
+  const base = () => D.from('ek_clips').select('id,owner,title,teams,secs,views,created_at,vs');
+  const [mine, recent, top] = await Promise.all([ids && ids.length ? fetch(base().in('owner', ids)) : [], fetch(base()), D.from('ek_clips').select('id,owner,title,teams,secs,views,created_at,vs').order('views', { ascending: false }).limit(12).then(r => r.data || [])]);
   const owners = [...new Set([...mine, ...recent, ...top].map(c => c.owner))];
   const names = {};
   if (owners.length) { const { data } = await D.from('ek_players').select('id,name').in('id', owners); for (const r of data || []) names[r.id] = r.name; }
@@ -288,7 +288,10 @@ export async function saveClip(rec) {
     const data = await packFrames(frames);
     if (data.length > 600000) { C.toast('That play is too long to clip'); return; }
     const secs = frames.reduce((a, f) => a + f.dt, 0);
-    const { error } = await db().from('ek_clips').insert({ owner: me().id, title: t, teams: frames[0].s.teams, secs: +secs.toFixed(1), data });
+    const online = C.st.mode === 'host' || C.st.mode === 'guest';
+    const vs = online && C.st.names ? String(C.st.names[1 - C.st.local] || '').slice(0, 20) : C.st.mode === 'cpu' ? 'CPU' : '';
+    let { error } = await db().from('ek_clips').insert({ owner: me().id, title: t, teams: frames[0].s.teams, secs: +secs.toFixed(1), data, vs });
+    if (error && /vs/.test(error.message)) ({ error } = await db().from('ek_clips').insert({ owner: me().id, title: t, teams: frames[0].s.teams, secs: +secs.toFixed(1), data }));
     if (error) C.toast(error.message.includes('limit') ? 'You have 30 clips. Delete one from your profile first.' : 'Clip upload failed: ' + error.message);
     else { C.toast('Clipped last play: posted to your profile ✓', 3000); C.sfx.play('firstdown'); }
   } catch (e) { console.warn(e); C.toast('Clip upload failed: ' + (e && e.message || e)); }
@@ -298,19 +301,19 @@ export async function saveClip(rec) {
 let lastClip = null, clipBack = null;
 async function watchClip(id) {
   C.toast('Loading clip…');
-  const { data, error } = await db().from('ek_clips').select('id,title,owner,teams,data').eq('id', id).maybeSingle();
+  const { data, error } = await db().from('ek_clips').select('id,title,owner,teams,data,vs').eq('id', id).maybeSingle();
   if (error || !data) { C.toast('Couldn’t load that clip'); return; }
   let frames; try { frames = await unpackFrames(data.data); } catch (_) { C.toast('That clip is damaged'); return; }
   db().rpc('ek_clip_view', { cid: id }).then(() => {}, () => {});
   const { data: o } = await db().from('ek_players').select('name').eq('id', data.owner).maybeSingle();
-  playFrames(frames, { id, title: data.title, by: o ? o.name : 'Player' });
+  playFrames(frames, { id, title: data.title, by: o ? o.name : 'Player', vs: data.vs || '' });
 }
 function playFrames(frames, meta) {
   lastClip = { frames, meta };
   { const lb = C.$('#clip-like'); if (lb) { lb.classList.toggle('hidden', !meta.id); lb.classList.remove('on'); lb.onclick = async () => { const r = await toggleLike(meta.id); if (r !== null) { lb.classList.toggle('on', r); C.toast(r ? 'Liked' : 'Like removed'); } }; if (meta.id && me()) db().from('ek_clip_likes').select('clip_id').eq('clip_id', meta.id).eq('user_id', me().id).maybeSingle().then(({ data }) => lb.classList.toggle('on', !!data)); } }
   clipBack = C.screen();
   C.playClip(frames);
-  C.$('#clip-title').textContent = meta.title; C.$('#clip-by').textContent = 'by ' + meta.by;
+  C.$('#clip-title').textContent = meta.title; C.$('#clip-by').textContent = 'by ' + meta.by + (meta.vs ? ` vs ${meta.vs}` : '');
   C.$('#clipbar').classList.remove('hidden');
 }
 function closeClip() {

@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792265425';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792265425';
-import { drawLogo } from './logos.js?v=1792265425';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792265425';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792265618';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792265618';
+import { drawLogo } from './logos.js?v=1792265618';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792265618';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -616,6 +616,10 @@ export class Renderer {
     for (let i = -2; i <= 2; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.025, 0.018), laceMat); l.position.set(0, 0.175, i * 0.04); this.ball.add(l); }
     this.ball.castShadow = true;
     this.scene.add(this.ball);
+    // clips/replays: a glow around the ball that shows through players, so you can always find it
+    const glowTex = canvasTex(64, 64, (c) => { const g = c.createRadialGradient(32, 32, 4, 32, 32, 32); g.addColorStop(0, 'rgba(255,230,120,0.95)'); g.addColorStop(0.45, 'rgba(255,200,60,0.45)'); g.addColorStop(1, 'rgba(255,200,60,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); });
+    this.ballGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, depthTest: false, transparent: true, toneMapped: false }));
+    this.ballGlow.scale.set(1.6, 1.6, 1); this.ballGlow.renderOrder = 11; this.ballGlow.visible = false; this.scene.add(this.ballGlow);
   }
 
   buildMarkers() {
@@ -988,6 +992,7 @@ export class Renderer {
     const [bx, by, bz, bstate, tgt, bc] = S.b;
     this.ball.position.set(bx, by, bz);
     { const sc = this.ballBoost ? 1.9 : 1; if (this.ball.scale.x !== sc) this.ball.scale.setScalar(sc); }   // easier to follow in clips
+    this.ballGlow.visible = !!this.ballBoost; if (this.ballBoost) { this.ballGlow.position.set(bx, by, bz); const p = 1.5 + Math.sin(this.time * 6) * 0.15; this.ballGlow.scale.set(p, p, 1); }
     if (bstate === 1 || bstate === 2 || bstate === 3) {
       this.ball.rotation.z += dt * 20;
       const dx = (this._pbx !== undefined ? bx - this._pbx : 0), dz = (this._pbz !== undefined ? bz - this._pbz : 0), dy = by - (this._pby ?? by);

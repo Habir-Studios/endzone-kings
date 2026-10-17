@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792265618';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792265731';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -202,7 +202,8 @@ export class Profile {
     const P = this.p; this.refreshChallenges();
     const lines = [];
     const len = Math.max(0.5, Math.min(1.5, (r.qlen || 120) / 120));
-    const diffMul = r.mode === 'online' ? 1.5 : [0.7, 1, 1.35, 1.75][r.diff ?? 1] || 1;
+    // harder difficulty pays a lot more, especially in Ultimate Team
+    const diffMul = r.mode === 'online' ? 1.5 : (r.ut ? [0.55, 1, 1.6, 2.4] : [0.7, 1, 1.35, 1.75])[r.diff ?? 1] || 1;
     const add = (label, c, x) => { if (c || x) lines.push({ label, c: Math.round(c * len * diffMul * (r.ut ? 1.2 : 1)), x: Math.round(x * len) }); };
     add('Game played', 120, 160);
     if (r.res === 'W') add('Win', 180, 160); else if (r.res === 'T') add('Tie', 60, 60);
@@ -212,12 +213,22 @@ export class Profile {
     if (r.res === 'W' && r.me.ints === 0) add('No turnovers', 60, 50);
     if (r.res === 'W' && r.sc[1] === 0) add('Shutout', 120, 100);
     if (r.res === 'W' && r.sc[0] - r.sc[1] >= 21) add('Blowout', 80, 60);
+    // Ultimate Team pays for big plays and big games
+    if (r.ut) {
+      const opp = r.opp || {}, me = r.me || {};
+      if ((opp.ints || 0) >= 2) add('Ball hawk (2+ picks)', 90, 40);
+      if ((me.sacks || 0) >= 3) add('Pass rush (3+ sacks)', 70, 30);
+      if ((me.passYds || 0) >= 250) add('Air raid (250+ pass yds)', 80, 30);
+      if ((me.rushYds || 0) >= 120) add('Ground and pound (120+ rush yds)', 70, 30);
+      if ((opp.passYds || 0) + (opp.rushYds || 0) < 200) add('Lockdown D (under 200 yds allowed)', 110, 40);
+      if ((me.tds || 0) >= 5) add('Scoring machine (5+ TDs)', 120, 50);
+    }
     if (r.res === 'W' && P.streak >= 1) add(`Win streak (${P.streak + 1})`, Math.min(5, P.streak) * 30, Math.min(5, P.streak) * 20);
     let coins = lines.reduce((s, l) => s + l.c, 0), xp = lines.reduce((s, l) => s + l.x, 0);
     P.coins += coins; P.games++; P.tds += r.me.tds || 0;
     // Training Points: every rewarded game earns some, Ultimate Team games earn the most
     // Training Points: Ultimate Team pays the most, Franchise pays some
-    const tp = r.ut ? Math.round((15 + (r.res === 'W' ? 15 : 0) + (r.me.tds || 0) * 2) * len) : r.mode === 'franchise' ? Math.round((10 + (r.res === 'W' ? 10 : 0) + (r.me.tds || 0) * 2) * len) : 0;
+    const tp = r.ut ? Math.round((15 + (r.res === 'W' ? 15 : 0) + (r.me.tds || 0) * 2 + ((r.opp && r.opp.ints) || 0) * 5 + (r.me.sacks || 0) * 3) * len * (r.mode === 'online' ? 1.3 : [0.6, 1, 1.5, 2.1][r.diff ?? 1] || 1)) : r.mode === 'franchise' ? Math.round((10 + (r.res === 'W' ? 10 : 0) + (r.me.tds || 0) * 2) * len) : 0;
     // rival strength in Ultimate Team climbs with your wins against the CPU
     if (r.ut && r.mode !== 'online' && P.ut) P.ut.rw = Math.max(0, (P.ut.rw || 0) + (r.res === 'W' ? 1 : r.res === 'L' ? -0.5 : 0));
     P.tp = (P.tp || 0) + tp;

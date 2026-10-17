@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792265618';
+import { TEAMS } from './teams.js?v=1792265731';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
@@ -96,31 +96,31 @@ export const ABILITIES = {
 };
 export const XFACTORS = { QB: 'Field General', HB: 'Freight Train', WR: 'Double Me', TE: 'Red Zone Threat', OL: 'Fortress', DL: 'Unstoppable Force', LB: 'Heat Seeker', CB: 'Lockdown', S: 'No Fly Zone' };
 export const abilityOf = (group, k) => (ABILITIES[group] || []).find(a => a.k === k) || null;
-export const TP_ABILITY = [0, 0, 120, 200, 300];   // gold and up
-export const TP_XFACTOR = 500;                     // Kings and Ultimate Legends only
+export const TP_ABILITY = [0, 0, 170, 280, 420];   // gold and up
+export const TP_XFACTOR = 700;                     // Kings and Ultimate Legends only
 export const quicksell = inst => { const c = owned(inst); return Math.round(TIERS[c.tier].qs * (1 + (c.ovr - TIERS[c.tier].lo) * 0.06) + (inst.b || 0) * TIERS[c.tier].train * 0.25); };
 // training costs Training Points (earned by playing and quickselling), not coins
-export const TP_TRAIN = [12, 25, 50, 100, 200];
+export const TP_TRAIN = [16, 34, 68, 135, 270];
 export const TP_QS = [5, 12, 30, 80, 200];   // quickselling is the main way to earn TP
 export const trainCost = inst => { const c = card(inst.id); const b = inst.b || 0; return b >= MAX_BOOST[c.tier] ? 0 : TP_TRAIN[c.tier] * (b + 1); };
 export const quicksellTp = inst => Math.round((TP_QS[card(inst.id).tier] || 0) * (inst.x ? 2 : 1) + (inst.b || 0) * 4);
 
 // ---------------- packs ----------------
 export const PACKS = [
-  { key: 'bronze', name: 'Rookie Rush Pack', art: ['Rookie', 'Rush'], stars: 1, cost: 750, n: 5, w: [85, 14, 1, 0, 0], guar: 0, blurb: '5 players, mostly bronze. Fill out the depth chart.' },
-  { key: 'silver', name: 'Blitz Pack', art: ['Blitz', 'Box'], stars: 2, cost: 2250, n: 5, w: [35, 55, 10, 0, 0], guar: 1, blurb: '5 players, at least 1 silver' },
-  { key: 'gold', name: 'Prime Time Pack', art: ['Prime', 'Time'], stars: 3, cost: 5500, n: 5, w: [0, 45, 50, 5, 0], guar: 2, blurb: '5 players, at least 1 gold' },
-  { key: 'elite', name: 'Showtime Pack', art: ['Show', 'Time'], stars: 4, cost: 15000, n: 5, w: [0, 0, 70, 27, 3], guar: 3, blurb: '5 players, at least 1 elite. Small shot at a Kings card' },
-  { key: 'kings', name: 'Crown Vault', art: ['Crown', 'Vault'], stars: 5, cost: 40000, n: 3, w: [0, 0, 0, 70, 30], guar: 4, blurb: '3 players, 1 Kings card guaranteed' },
+  { key: 'bronze', name: 'Rookie Rush Pack', art: ['Rookie', 'Rush'], stars: 1, cost: 1100, n: 5, w: [85, 14, 1, 0, 0], guar: 0, blurb: '5 players, mostly bronze. Fill out the depth chart.' },
+  { key: 'silver', name: 'Blitz Pack', art: ['Blitz', 'Box'], stars: 2, cost: 3200, n: 5, w: [35, 55, 10, 0, 0], guar: 1, blurb: '5 players, at least 1 silver' },
+  { key: 'gold', name: 'Prime Time Pack', art: ['Prime', 'Time'], stars: 3, cost: 7800, n: 5, w: [0, 45, 50, 5, 0], guar: 2, blurb: '5 players, at least 1 gold' },
+  { key: 'elite', name: 'Showtime Pack', art: ['Show', 'Time'], stars: 4, cost: 21000, n: 5, w: [0, 0, 70, 27, 3], guar: 3, blurb: '5 players, at least 1 elite. Small shot at a Kings card' },
+  { key: 'kings', name: 'Crown Vault', art: ['Crown', 'Vault'], stars: 5, cost: 56000, n: 3, w: [0, 0, 0, 70, 30], guar: 4, blurb: '3 players, 1 Kings card guaranteed' },
   // themed and risk packs
-  { key: 'boom', name: 'Boom or Bust Pack', art: ['Boom', 'or Bust'], stars: 2, cost: 1200, n: 4, w: [90, 7, 1.6, 1, 0.4], guar: 0, blurb: 'Cheap and risky. Usually junk, tiny shot at an Elite or Kings card' },
-  { key: 'cyclone', name: 'Cyclone Pack', art: ['Cyclone', ''], stars: 3, cost: 4000, n: 5, w: [60, 35, 5, 0, 0], guar: 0, groups: ['WR', 'CB', 'HB'], special: { x: 'cyclone', chance: 0.06, tier: 4, groups: ['WR', 'CB', 'HB'] }, blurb: 'Fast WRs, CBs and backs. Rare shot at a 98-speed Cyclone star' },
-  { key: 'blizzard', name: 'Sub-Zero Blizzard', art: ['Sub-Zero', 'Blizzard'], stars: 3, cost: 4500, n: 5, w: [55, 38, 7, 0, 0], guar: 0, groups: ['DL', 'DL', 'LB', 'CB', 'S'], special: { x: 'frost', chance: 0.06, tier: 4, groups: ['CB', 'S'] }, blurb: 'Defense pack. Rare shot at a Cold-Blooded lockdown corner or safety' },
-  { key: 'venom', name: 'Venom Spike Pack', art: ['Venom', 'Spike'], stars: 3, cost: 4500, n: 5, w: [55, 38, 7, 0, 0], guar: 0, groups: ['LB', 'S', 'DL'], special: { x: 'venom', chance: 0.06, tier: 3, groups: ['LB', 'S'] }, blurb: 'Hard hitters. Rare shot at a Venom safety or linebacker who forces fumbles' },
-  { key: 'supernova', name: 'Supernova Pack', art: ['Super', 'nova'], stars: 4, cost: 7000, n: 1, w: [100, 0, 0, 0, 0], guar: 0, nova: true, blurb: 'Most of the time: 1 bronze player and 150 TP. 15% of the time it explodes into 3 Elite players' },
-  { key: 'vortex', name: 'Vortex Chaos Pack', art: ['Vortex', 'Chaos'], stars: 4, cost: 8000, n: 3, w: [20, 20, 20, 20, 20], guar: 0, blurb: 'Pure chaos. Every tier has the same odds, bronze to Kings' },
-  { key: 'legends', name: 'Ultimate Legends Pack', art: ['Ultimate', 'Legends'], stars: 5, cost: 60000, n: 3, w: [0, 0, 0, 80, 20], guar: 3, special: { x: 'legend', chance: 1, tier: 4, guaranteed: true }, blurb: '3 players, 1 Ultimate Legend guaranteed: an all-time great of the league' },
-  { key: 'camp', name: 'Training Camp Pack', art: ['Training', 'Camp'], stars: 3, cost: 0, tpCost: 350, n: 4, w: [0, 60, 35, 5, 0], guar: 2, blurb: 'Bought with Training Points. 4 players, at least 1 gold' },
+  { key: 'boom', name: 'Boom or Bust Pack', art: ['Boom', 'or Bust'], stars: 2, cost: 1700, n: 4, w: [90, 7, 1.6, 1, 0.4], guar: 0, blurb: 'Cheap and risky. Usually junk, tiny shot at an Elite or Kings card' },
+  { key: 'cyclone', name: 'Cyclone Pack', art: ['Cyclone', ''], stars: 3, cost: 5800, n: 5, w: [60, 35, 5, 0, 0], guar: 0, groups: ['WR', 'CB', 'HB'], special: { x: 'cyclone', chance: 0.06, tier: 4, groups: ['WR', 'CB', 'HB'] }, blurb: 'Fast WRs, CBs and backs. Rare shot at a 98-speed Cyclone star' },
+  { key: 'blizzard', name: 'Sub-Zero Blizzard', art: ['Sub-Zero', 'Blizzard'], stars: 3, cost: 6400, n: 5, w: [55, 38, 7, 0, 0], guar: 0, groups: ['DL', 'DL', 'LB', 'CB', 'S'], special: { x: 'frost', chance: 0.06, tier: 4, groups: ['CB', 'S'] }, blurb: 'Defense pack. Rare shot at a Cold-Blooded lockdown corner or safety' },
+  { key: 'venom', name: 'Venom Spike Pack', art: ['Venom', 'Spike'], stars: 3, cost: 6400, n: 5, w: [55, 38, 7, 0, 0], guar: 0, groups: ['LB', 'S', 'DL'], special: { x: 'venom', chance: 0.06, tier: 3, groups: ['LB', 'S'] }, blurb: 'Hard hitters. Rare shot at a Venom safety or linebacker who forces fumbles' },
+  { key: 'supernova', name: 'Supernova Pack', art: ['Super', 'nova'], stars: 4, cost: 9800, n: 1, w: [100, 0, 0, 0, 0], guar: 0, nova: true, blurb: 'Most of the time: 1 bronze player and 150 TP. 15% of the time it explodes into 3 Elite players' },
+  { key: 'vortex', name: 'Vortex Chaos Pack', art: ['Vortex', 'Chaos'], stars: 4, cost: 11500, n: 3, w: [20, 20, 20, 20, 20], guar: 0, blurb: 'Pure chaos. Every tier has the same odds, bronze to Kings' },
+  { key: 'legends', name: 'Ultimate Legends Pack', art: ['Ultimate', 'Legends'], stars: 5, cost: 85000, n: 3, w: [0, 0, 0, 80, 20], guar: 3, special: { x: 'legend', chance: 1, tier: 4, guaranteed: true }, blurb: '3 players, 1 Ultimate Legend guaranteed: an all-time great of the league' },
+  { key: 'camp', name: 'Training Camp Pack', art: ['Training', 'Camp'], stars: 3, cost: 0, tpCost: 480, n: 4, w: [0, 60, 35, 5, 0], guar: 2, blurb: 'Bought with Training Points. 4 players, at least 1 gold' },
 ];
 export const packByKey = k => PACKS.find(p => p.key === k);
 function pickTier(w, r) { const tot = w.reduce((a, b) => a + b, 0); let x = r() * tot; for (let i = 0; i < w.length; i++) { x -= w[i]; if (x <= 0) return i; } return 0; }

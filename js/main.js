@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792255900';
-import { Renderer } from './render.js?v=1792255900';
-import { Sfx } from './audio.js?v=1792255900';
-import { Auth } from './auth.js?v=1792255900';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792255900';
-import { getRoster, teamOvr } from './teams.js?v=1792255900';
-import * as Season from './season.js?v=1792255900';
-import * as Fr from './franchise.js?v=1792255900';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792255900';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792255900';
-import * as UTm from './ut.js?v=1792255900';
-import { initCreator, renderCreator } from './creator.js?v=1792255900';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792255900';
-import { portraitURL } from './faces.js?v=1792255900';
-import { logoURL, clearLogoCache } from './logos.js?v=1792255900';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792256229';
+import { Renderer } from './render.js?v=1792256229';
+import { Sfx } from './audio.js?v=1792256229';
+import { Auth } from './auth.js?v=1792256229';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792256229';
+import { getRoster, teamOvr } from './teams.js?v=1792256229';
+import * as Season from './season.js?v=1792256229';
+import * as Fr from './franchise.js?v=1792256229';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792256229';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792256229';
+import * as UTm from './ut.js?v=1792256229';
+import { initCreator, renderCreator } from './creator.js?v=1792256229';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792256229';
+import { portraitURL } from './faces.js?v=1792256229';
+import { logoURL, clearLogoCache } from './logos.js?v=1792256229';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -582,7 +582,12 @@ function keyToEvent(k) {
   const digit = k.startsWith('Digit') ? +k.slice(5) : k.startsWith('Numpad') ? +k.slice(6) : 0;
   if (S.ph === 'half') return k === 'Space' || k === 'Enter' ? { t: 'ready' } : null;
   if (S.ph === 'kickset') return onOff && (k === 'Space' || k === 'Enter') ? { t: 'kick' } : null;
-  if (k === 'KeyV' && (S.ph === 'presnap' || S.ph === 'dead')) return (S.to || [0, 0])[me] > 0 ? { t: 'timeout' } : (toast('No timeouts left'), null);
+  if (k === 'KeyV' && (S.ph === 'presnap' || S.ph === 'dead' || S.ph === 'live')) {
+    if (!((S.to || [0, 0])[me] > 0)) { toast('No timeouts left'); return null; }
+    if (S.mode === 'practice') return null;
+    if (S.ph === 'live') toast('Timeout called: the clock stops when this play ends', 1600);
+    return { t: 'timeout' };
+  }
   if (S.ph === 'presnap') {
     if (k === 'KeyZ') { switchTab(-1); return null; }
     if (k === 'KeyX') { switchTab(1); return null; }

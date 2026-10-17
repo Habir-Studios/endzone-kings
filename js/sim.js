@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792255900';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792256229';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792255900';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792256229';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -318,11 +318,10 @@ function handleEvent(g, team, ev) {
   if (ev.t === 'custom') { const c = cleanCustom(ev.def); if (c) g.custom[team][c.id] = c; return; }
   if (g.phase === 'half') { if (ev.t === 'snap' || ev.t === 'ready') g.halfReady[team] = true; return; }
   if (g.phase === 'kickset') { if (team === g.poss && (ev.t === 'kick' || ev.t === 'snap')) advanceKick(g); return; }
-  if (ev.t === 'timeout' && (g.phase === 'presnap' || g.phase === 'dead') && g.to[team] > 0 && !g.opts.practice && g.timeoutCd <= 0) {
-    g.to[team]--; g.timeoutCd = 3;
-    if (g.phase === 'dead') g.runoff = 0; else { g.runBudget = 0; g.playClock = 25; }   // the game clock stops
-    g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[team]].name} · ${g.to[team]} left`, until: 2 };
-    g.events.push('whistle');
+  if (ev.t === 'timeout' && g.to[team] > 0 && !g.opts.practice && g.timeoutCd <= 0) {
+    // during a play you can't stop it, but the timeout is called the moment the whistle blows (no clock runs off)
+    if (g.phase === 'live' || g.phase === 'kick') { (g.toQ || (g.toQ = [false, false]))[team] = true; return; }
+    if (g.phase === 'presnap' || g.phase === 'dead') callTimeout(g, team);
     return;
   }
   if (g.phase === 'presnap') {
@@ -344,7 +343,7 @@ function handleEvent(g, team, ev) {
           const r = hotRoute(pl.form || 'gun', ev.role, ev.kind);
           if (r === null) g.hot[ev.role] = []; else if (r) g.hot[ev.role] = r;
         }
-      } else if (ev.t === 'snap' && g.offPlay && g.phaseT > 0.6) {
+      } else if (ev.t === 'snap' && g.offPlay && g.phaseT > 0.6 && !(g.toHold > 0)) {
         if (g.opts.humans[1 - team] && !g.defChosen) { if (!g.flash) g.flash = { text: 'WAITING FOR THE DEFENSE', until: 1.2 }; }   // both sides call a play first
         else snap(g);
       }
@@ -934,6 +933,7 @@ function stepInner(g, dt, inputs) {
   if (g.phase === 'live') return updateLive(g, dt, inputs);
   if (g.phase === 'kick') return updateKick(g, dt);
   if (g.phase === 'dead') {
+    if (g.toQ && g.phaseT > 0.6) for (let t = 0; t < 2; t++) if (g.toQ[t]) { g.toQ[t] = false; if (g.to[t] > 0 && g.pat < 0) callTimeout(g, t); }
     if (g.flagNote && g.msg) { g.msg.sub = (g.msg.sub ? g.msg.sub + ' · ' : '') + g.flagNote; g.flagNote = null; }
     for (const p of g.players) { p.vx *= Math.max(0, 1 - dt * 4); p.vz *= Math.max(0, 1 - dt * 4); p.x += p.vx * dt; p.z += p.vz * dt; }
     separate(g, 1);
@@ -943,6 +943,7 @@ function stepInner(g, dt, inputs) {
 }
 
 function updatePresnap(g, dt, inputs) {
+  if (g.toHold > 0) { g.toHold -= dt; return; }   // timeout stoppage
   if (!g.opts.practice) g.playClock -= dt;
   // after a play that ended in bounds the game clock keeps running until the snap (up to the usual runoff).
   // Snapping fast saves time; a timeout stops it.
@@ -987,6 +988,21 @@ function updatePresnap(g, dt, inputs) {
   }
 }
 
+// Madden-style timeout: the game clock freezes, the play clock resets, both sides get a breather and the team that
+// called it can pick a different play
+function callTimeout(g, team) {
+  if (g.to[team] <= 0) return;
+  g.to[team]--; g.timeoutCd = 3; if (g.toQ) g.toQ[team] = false;
+  g.runoff = 0; g.runBudget = 0; g.playClock = 25;
+  if (g.phase === 'presnap') {
+    g.phaseT = 0; g.cadence = 0; g.cpuSnapAt = 5 + g.rng() * 2;
+    if (g.opts.humans[team] && team === g.poss) { g.offPlay = null; g.hot = {}; }
+    if (g.opts.humans[team] && team !== g.poss) g.defChosen = false;
+  }
+  g.toHold = 2.5;   // nobody snaps during the stoppage
+  g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[team]].name} · ${g.to[team]} left · clock stopped`, until: 2.5 };
+  g.events.push('whistle');
+}
 function cpuTimeout(g) {
   for (let t = 0; t < 2; t++) {
     if (g.opts.humans[t] || g.to[t] <= 0 || g.opts.practice || g.opts.drill) continue;

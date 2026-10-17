@@ -77,10 +77,10 @@ function press(i) {
   const map = {
     presnapOff: { 0: 'Space', 3: 'KeyH', 4: 'KeyZ', 5: 'KeyX', 8: 'KeyV', 12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight', 1: 'Escape' },
     presnapDef: { 1: 'KeyQ', 4: 'KeyZ', 5: 'KeyX', 8: 'KeyV' },
-    pass: { 0: 'Digit1', 1: 'Digit2', 2: 'Digit3', 3: 'Digit4', 5: 'Digit5' },
-    carry: { 1: 'KeyE', 3: 'KeyF', 0: 'KeyR', 2: 'KeyX', 4: 'KeyG', 5: 'KeyB' },
+    pass: { 8: 'KeyV', 0: 'Digit1', 1: 'Digit2', 2: 'Digit3', 3: 'Digit4', 5: 'Digit5' },
+    carry: { 8: 'KeyV', 1: 'KeyE', 3: 'KeyF', 0: 'KeyR', 2: 'KeyX', 4: 'KeyG', 5: 'KeyB' },
     air: { 3: 'KeyE', 1: 'KeyQ', 0: 'KeyE' },
-    def: { 2: 'Space', 0: 'Space', 1: 'KeyQ', 3: 'KeyE', 5: 'KeyH' },
+    def: { 8: 'KeyV', 2: 'Space', 0: 'Space', 1: 'KeyQ', 3: 'KeyE', 5: 'KeyH' },
     kick: { 0: 'Space' },
     half: { 0: 'Space' },
     replay: { 0: 'Space', 1: 'Escape' },

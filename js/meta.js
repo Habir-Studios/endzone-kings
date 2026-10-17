@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792269144';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792269144';
-import * as UT from './ut.js?v=1792269144';
-import { portraitURL } from './faces.js?v=1792269144';
-import { TEAMS } from './teams.js?v=1792269144';
+import { askYes } from './ui.js?v=1792269171';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792269171';
+import * as UT from './ut.js?v=1792269171';
+import { portraitURL } from './faces.js?v=1792269171';
+import { TEAMS } from './teams.js?v=1792269171';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -619,10 +619,10 @@ export function awardGame(r) {
   for (const pr of out.promos) extra.push(`<span class="up">Promoted to ${pr.div}! +${fmt(pr.coins)} coins and a ${UT.packByKey(pr.pack).name}</span>`);
   for (const d of out.done) extra.push(`<span class="up">Challenge done: ${d.d}. Claim it in Progress.</span>`);
   if (out.solo) extra.push(out.solo.ok ? `<span class="up">Solo beaten: ${out.solo.n}! +${rewardText(out.solo.give)}</span>` : `<span class="down">Solo not beaten: ${out.solo.d}. Try it again from Solos.</span>`);
-  if (out.tp) extra.push(`<span class="up">+${fmt(out.tp)} Training Points (${fmt(P.p.tp || 0)} total). Spend them upgrading players in Ultimate Team</span>`);
   if (out.fp) extra.push(`<span class="up">+${fmt(out.fp)} Field Pass XP${out.fpTiers ? `, ${out.fpTiers} new tier${out.fpTiers > 1 ? 's' : ''} to claim` : ''}</span>`);
   for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);
-  return `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="coin"></i>${fmt(P.p.coins)}</span></div>
+  return `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="coin"></i>${fmt(P.p.coins)} <i class="tp-ic">TP</i>${fmt(P.p.tp || 0)}</span></div>
+    ${out.tp ? `<div class="gr-tp"><i class="tp-ic">TP</i><b>+${fmt(out.tp)} Training Points</b><small>Spend them upgrading players in Ultimate Team</small></div>` : ''}
     <div class="gr-lines">${lines}<span class="gr-tot">Total</span><span class="gr-tot">+${fmt(out.coins)}</span><span class="gr-tot">+${fmt(out.xp)} XP</span></div>
     ${extra.length ? `<div class="gr-extra">${extra.join('')}</div>` : ''}`;
 }

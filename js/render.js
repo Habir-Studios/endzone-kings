@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792264871';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792264871';
-import { drawLogo } from './logos.js?v=1792264871';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792264871';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792264917';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792264917';
+import { drawLogo } from './logos.js?v=1792264917';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792264917';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1327,9 +1327,12 @@ export class Renderer {
       if (bstate === 1 && tgt && S.poss === local) { fx = (me[4] * 0.4 + tgt[0] * 0.6); fz = me[5] * 0.4 + tgt[1] * 0.6 - 3 * s; }   // ball in the air: swing toward the catch
       else { fx = me[4]; fz = me[5]; }
     }
-    // glide, don't snap: when control jumps to another player (throw, switch) a fast follow made the whole team look like it lurched
-    const jump = Math.hypot(fx - this.focus.x, fz - this.focus.z);
-    const k = 1 - Math.exp(-dt * (bstate === 2 ? 2.2 : this.camMode === 'player' ? (jump > 8 ? 1.6 : 3.2) : (jump > 10 ? 2 : 3.2)));
+    // locked on the guy you control; only when control jumps to someone else (throw, switch) does it take a quick glide over
+    const cid = local >= 0 && S.ctrl ? S.ctrl[local] : -1;
+    if (cid !== this._lastCtrl) { if (this._lastCtrl !== undefined) this._switchT = 0.45; this._lastCtrl = cid; }
+    this._switchT = Math.max(0, (this._switchT || 0) - dt);
+    const rate = bstate === 2 ? 2.2 : this.camMode === 'player' ? (this._switchT > 0 ? 5 : 12) : (this._switchT > 0 ? 3 : 4.5);
+    const k = 1 - Math.exp(-dt * rate);
     this.focus.x += (fx - this.focus.x) * k; this.focus.z += (fz - this.focus.z) * k;
     let px, py, pz, lx, ly, lz;
     if (this.camMode === 'broadcast') {
@@ -1344,14 +1347,14 @@ export class Renderer {
       const close = this.camMode === 'player' && !kicking && !celebrate;
       if (close) {
         // third-person, right over your player's shoulders, looking down the field
-        px = this.focus.x * 0.96; py = (portrait ? 7 : 4.6) * zoom; pz = this.focus.z - (portrait ? 11 : 8.5) * s * zoom;
-        lx = this.focus.x; ly = 1.6; lz = this.focus.z + 11 * s;
+        px = this.focus.x * 0.96; py = (portrait ? 7 : 4.8) * zoom; pz = this.focus.z - (portrait ? 11 : 8.5) * s * zoom;
+        lx = this.focus.x; ly = 1.2; lz = this.focus.z + 5.5 * s;   // your player sits in the middle of the shot, a little field ahead of him
       } else {
         px = this.focus.x * 0.93; py = (portrait ? 12 : (kicking ? 6.5 : 7.4)) * zoom; pz = this.focus.z - (portrait ? 15.5 : (kicking ? 11 : 12.5)) * s * zoom;
         lx = this.focus.x; ly = celebrate ? 1.5 : 1.1; lz = this.focus.z + (kicking ? 30 : 10 + (this.userZoom - 1) * 6) * s;
       }
     }
-    const kp = 1 - Math.exp(-dt * 5);
+    const kp = 1 - Math.exp(-dt * (this.camMode === 'player' ? 10 : 5));
     this.camPos.x += (px - this.camPos.x) * kp; this.camPos.y += (py - this.camPos.y) * kp; this.camPos.z += (pz - this.camPos.z) * kp;
     if (!this._camInit) { this.camPos.set(px, py, pz); this._camInit = true; }
     this.cam.position.copy(this.camPos);

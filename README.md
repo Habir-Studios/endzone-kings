@@ -1,18 +1,25 @@
 # 🏈 ENDZONE KINGS
 ### A Habir Studios game
 
-3D arcade football in your browser. Play the CPU, run a full season, or go 1v1 online with your friends.
-Free to host on GitHub Pages. No downloads, no installs.
+**▶ Play it free: https://hussainz2.github.io/endzone-kings/**
 
-**What's in it**
-- Full 3D night-game stadium: packed crowd that jumps on big plays, light rigs, jumbotrons, LED ribbon boards
-- 32-team league (teams go by city, Retro Bowl style) with 448 generated players. Ratings really matter: fast guys are fast, good QBs are accurate, good tacklers don't miss
-- **Play Now**: pick any two teams and three difficulty levels
-- **Season**: 14-week schedule, live standings, top-4 playoffs, and the Kings Bowl
-- **Online 1v1**: send your friend a 5-letter code and play live
-- **Rosters**: browse every team and player rating
-- Accounts with sign up / log in (your own, not Google sign-in) and your win-loss record saved
-- Play-by-play announcer, crowd chants, air horns, pad hits, menu music. All generated in the browser, no sound files
+Endzone Kings is a 3D arcade football game that runs right in your browser. There's nothing to download, nothing to install and nothing to pay for. It's built to feel like a primetime broadcast: a packed stadium under the lights, a crowd that goes wild on big plays, a play-by-play announcer and a TV-style scoreboard.
+
+## What's in it
+- **A full 3D night-game stadium:** a packed crowd that jumps on big plays, light rigs, jumbotrons and LED ribbon boards.
+- **A 32-team league:** teams go by their city, Retro Bowl style, with 448 made-up players. Ratings really matter: fast guys are fast, good QBs are accurate, and good tacklers don't miss.
+- **Team playbooks:** every team has its own offense and defense built around a coaching style, plus a signature play. You get quick passes, deep shots, runs, play action, screens, special teams, man, zone and blitzes.
+- **Real football moves:** throw to receivers with 1, 2 or 3. Juke, spin, stiff-arm and hurdle after the catch. Jump routes and play the ball on defense. Field goals, punts, fakes, extra points, two-point tries and sudden-death overtime are all in.
+- **Play Now:** pick any two teams and a difficulty.
+- **Season:** a 14-week schedule, live standings, a top-4 playoff and the Kings Bowl.
+- **Online 1v1:** send your friend a 5-letter code and play live.
+- **Rosters:** browse every team and player rating.
+- **Accounts:** sign up and log in with the game's own accounts, not Google sign-in. Your win-loss record is saved.
+- **Controls for any device:** keyboard and mouse on a computer, an on-screen joystick and buttons on phones and tablets.
+- **Sound made in the browser:** play-by-play announcer, crowd chants, air horns, pad hits and menu music, with no sound files.
+
+## Coming soon
+Ultimate Team with packs you open using coins you earn in the game (never real money), a Play Creator, weather and day or night games, a halftime show, player levels, ranked divisions, daily and weekly challenges, a public lobby and in-game chat.
 
 ---
 

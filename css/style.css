@@ -401,3 +401,11 @@ kbd, .mouse { display: inline-block; min-width: 26px; padding: 3px 7px; text-ali
 #pc-hint { display: flex; gap: 12px; flex-wrap: wrap; }
 #pc-hint span { display: inline-flex; align-items: center; gap: 5px; }
 #pc-hint kbd { padding: 1px 6px; font-size: 12px; }
+.foot-link { margin-left: 10px; font-size: 13px; color: var(--steel); pointer-events: auto; }
+.about h3 { margin: 22px 0 6px; font-family: var(--display); font-weight: 900; font-size: 26px; text-transform: uppercase; color: var(--gold); }
+.about p { margin: 0 0 10px; font-size: 16px; line-height: 1.55; color: #d6dcf0; max-width: 68ch; }
+.about .lead { margin-top: 14px; font-size: 18px; color: var(--chalk); }
+.about-list { margin: 0 0 10px; padding-left: 18px; line-height: 1.55; color: #d6dcf0; }
+.about-list li { margin-bottom: 4px; }
+.about-list b { color: var(--chalk); }
+.about .credit { margin-top: 18px; color: var(--steel); font-size: 14px; }

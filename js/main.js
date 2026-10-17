@@ -1,22 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792272270';
-import * as Form from './form.js?v=1792272270';
-import { watchSim } from './simview.js?v=1792272270';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792272270';
-import { Renderer } from './render.js?v=1792272270';
-import { Sfx } from './audio.js?v=1792272270';
-import { Auth } from './auth.js?v=1792272270';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792272270';
-import { getRoster, teamOvr } from './teams.js?v=1792272270';
-import * as Season from './season.js?v=1792272270';
-import * as Fr from './franchise.js?v=1792272270';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792272270';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792272270';
-import * as UTm from './ut.js?v=1792272270';
-import { initCreator, renderCreator } from './creator.js?v=1792272270';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792272270';
-import { portraitURL } from './faces.js?v=1792272270';
-import { logoURL, clearLogoCache } from './logos.js?v=1792272270';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792272477';
+import * as Form from './form.js?v=1792272477';
+import { watchSim } from './simview.js?v=1792272477';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792272477';
+import { Renderer } from './render.js?v=1792272477';
+import { Sfx } from './audio.js?v=1792272477';
+import { Auth } from './auth.js?v=1792272477';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792272477';
+import { getRoster, teamOvr } from './teams.js?v=1792272477';
+import * as Season from './season.js?v=1792272477';
+import * as Fr from './franchise.js?v=1792272477';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792272477';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792272477';
+import * as UTm from './ut.js?v=1792272477';
+import { initCreator, renderCreator } from './creator.js?v=1792272477';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792272477';
+import { portraitURL } from './faces.js?v=1792272477';
+import { logoURL, clearLogoCache } from './logos.js?v=1792272477';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -258,7 +258,8 @@ function refreshProfile() {
   $('#pc-name').textContent = u.name;
   $('#pc-avatar').textContent = u.name[0].toUpperCase();
   { const R2 = u.recs, f = (w, l, t) => `${w || 0}W-${l || 0}L${t ? '-' + t + 'T' : ''}`;
-    $('#pc-rec').textContent = u.kind === 'guest' ? 'Guest' : R2 ? `Overall ${f(u.wins, u.losses)} · Online ${f(R2.on_w, R2.on_l, R2.on_t)} · UT ${f(R2.ut_wins, R2.ut_l, R2.ut_t)}` : f(u.wins, u.losses, u.ties); }
+    const box = (n, w, l, t) => `<span class="rec-mini"><small>${n}</small><span class="rec-nums"><i><b>${w || 0}</b><em>W</em></i><i class="dash">-</i><i><b>${l || 0}</b><em>L</em></i>${t ? `<i class="dash">-</i><i><b>${t}</b><em>T</em></i>` : ''}</span></span>`;
+    $('#pc-rec').innerHTML = u.kind === 'guest' ? 'Guest' : R2 ? box('Overall', u.wins, u.losses) + box('Online', R2.on_w, R2.on_l, R2.on_t) + box('UT', R2.ut_wins, R2.ut_l, R2.ut_t) : box('Record', u.wins, u.losses, u.ties); void f; }
   $('#logout').textContent = u.kind === 'guest' ? 'Sign in' : 'Log out';
   const guest = isGuest() && !LOCALNET;
   $('.pc-meta').classList.toggle('hidden', guest);

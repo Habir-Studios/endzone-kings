@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792256402';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792257129';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792256402';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792257129';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -184,7 +184,7 @@ function makePlayer0(g, id, team, unit, role, x, z) {
   const d = dirOf(g.poss);
   const faceOff = d > 0 ? 0 : Math.PI;
   return {
-    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.88 + rt.spd / 100 * 0.15) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1), rt,
+    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.70 + Math.min(rt.spd, 99) / 100 * 0.39) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1), rt,
     x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI, max0: 0,
     stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, truck: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
     engagedBy: -1, blockOn: -1, shedCd: 0, svx: 0, svz: 0,
@@ -1350,7 +1350,7 @@ function applyMove(g, p, w, dt) {
   if (p.playBall > 0 && p.unit === 'def') spd *= 1.04;
   if (p.unit === 'def' && g.opts.humans[p.team] && g.ctrl[p.team] === p.id) spd *= 1.04;   // you're the quickest guy on your defense
   const tvx = (w.x || 0) * spd, tvz = (w.z || 0) * spd;
-  const acc = (p.size > 1.15 ? 13 : 20) * dt * (p.juke > 0 ? 0.3 : 1) * (p.spin > 0 ? 0.6 : 1);
+  const acc = (p.size > 1.15 ? 13 : 20) * dt * (0.82 + Math.min(p.rt.spd, 99) / 100 * 0.25) * (p.juke > 0 ? 0.3 : 1) * (p.spin > 0 ? 0.6 : 1);
   let dvx = tvx - p.vx, dvz = tvz - p.vz; const dl = hyp(dvx, dvz);
   if (dl > acc) { dvx *= acc / dl; dvz *= acc / dl; }
   p.vx += dvx; p.vz += dvz;

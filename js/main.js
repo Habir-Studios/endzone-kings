@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792252804';
-import { Renderer } from './render.js?v=1792252804';
-import { Sfx } from './audio.js?v=1792252804';
-import { Auth } from './auth.js?v=1792252804';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792252804';
-import { getRoster, teamOvr } from './teams.js?v=1792252804';
-import * as Season from './season.js?v=1792252804';
-import * as Fr from './franchise.js?v=1792252804';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792252804';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792252804';
-import * as UTm from './ut.js?v=1792252804';
-import { initCreator, renderCreator } from './creator.js?v=1792252804';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792252804';
-import { portraitURL } from './faces.js?v=1792252804';
-import { logoURL, clearLogoCache } from './logos.js?v=1792252804';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792253797';
+import { Renderer } from './render.js?v=1792253797';
+import { Sfx } from './audio.js?v=1792253797';
+import { Auth } from './auth.js?v=1792253797';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792253797';
+import { getRoster, teamOvr } from './teams.js?v=1792253797';
+import * as Season from './season.js?v=1792253797';
+import * as Fr from './franchise.js?v=1792253797';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792253797';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792253797';
+import * as UTm from './ut.js?v=1792253797';
+import { initCreator, renderCreator } from './creator.js?v=1792253797';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792253797';
+import { portraitURL } from './faces.js?v=1792253797';
+import { logoURL, clearLogoCache } from './logos.js?v=1792253797';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -358,7 +358,7 @@ function enterGame() {
   st.screen = 'game';
   $('#hud').classList.remove('hidden');
   $('#gameover').classList.add('hidden'); $('#pause').classList.add('hidden');
-  st.playing = true; st.paused = false; st.acc = 0; st.overShown = false; st.resultSaved = false; st.seasonSaved = false; st.rewarded = false; st.statsPosted = false; st.halfSaid = false; st.startedAt = performance.now();
+  st.playing = true; st.paused = false; st.acc = 0; st.overShown = false; st.resultSaved = false; st.seasonSaved = false; st.rewarded = false; st.statsPosted = false; st.halfSaid = false; st.startedAt = performance.now(); crash.resets = 0;
   R.snapCamera(); hudCache = {};
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   canvas.focus();
@@ -769,6 +769,7 @@ function highlightsHTML(S) {
   const h = (S.hls || []).slice(-6).reverse(); if (!h.length) return '';
   return `<h4>Highlights</h4>${h.map(x => `<div><span>${x.q >= 5 ? 'OT' : 'Q' + x.q} ${fmtClock(x.clk)}</span><span><b>${escapeHtml(x.text)}</b> <em>${escapeHtml(x.sub)}, ${TEAMS[S.teams[x.team]].abbr}</em></span></div>`).join('')}`;
 }
+const NO_REWARDS_HTML = '<div class="gr-head"><b>Rewards</b></div><p class="note">Games against the CPU in Quick Play, Season and practice are just for fun: no coins, XP, rank or leaderboard stats. Play <b>Online 1v1</b>, <b>Ultimate Team</b> or <b>Franchise</b> to earn them.</p>';
 function showGameOver(S) {
   st.overShown = true;
   const me = st.local, other = 1 - me;
@@ -779,7 +780,7 @@ function showGameOver(S) {
     $('#go-res').textContent = 'DRILL OVER'; $('#go-res').className = 'go-res win';
     $('#go-score').innerHTML = `${S.sc[0]} <small style="font-size:24px">POINTS</small>`;
     $('#go-stats').innerHTML = ''; $('#go-rec').textContent = '';
-    if (!st.rewarded) { st.rewarded = true; $('#go-rewards').innerHTML = isGuest() && !LOCALNET ? '' : drillRewardsHTML(S.sc[0], SET.diff, S.teams[0]); }
+    if (!st.rewarded) { st.rewarded = true; $('#go-rewards').innerHTML = NO_REWARDS_HTML; }
     $('#go-again').textContent = 'Run it again';
     $('#gameover').classList.remove('hidden'); sfx.play(S.sc[0] ? 'td' : 'final');
     return;
@@ -816,7 +817,11 @@ function showGameOver(S) {
     }
   }
   if (!st.rewarded && isGuest() && !LOCALNET) { st.rewarded = true; $('#go-rewards').innerHTML = '<div class="gr-head"><b>Rewards</b></div><p class="note">Guests don\'t earn coins, XP or rank. <button class="link" id="go-signup">Make a free account</button> and this game would have paid out.</p>'; setTimeout(() => { const b = $('#go-signup'); if (b) b.onclick = () => lockPrompt(''); }); }
-  if (!st.statsPosted && S.mode === 'game' && (st.mode === 'host' || st.mode === 'guest') && !isGuest()) {   // leaderboards only count real online 1v1s
+  // like Madden: coins, XP, rank and leaderboard stats come from Online 1v1, Ultimate Team and Franchise. Quick Play,
+  // Season, practice and drills against the CPU are just for fun.
+  const paid = S.mode === 'game' && (st.mode === 'host' || st.mode === 'guest' || st.ut || st.franchiseGame);
+  if (!st.rewarded && !paid && !isGuest()) { st.rewarded = true; $('#go-rewards').innerHTML = NO_REWARDS_HTML; }
+  if (!st.statsPosted && paid && !isGuest()) {
     st.statsPosted = true;
     const P = profile();
     postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : '') });
@@ -826,7 +831,7 @@ function showGameOver(S) {
     st.rewarded = true;
     const mine = S.st[me], theirs = S.st[other];
     try {
-      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.seasonGame ? 'season' : 'cpu') : 'online', ut: !!st.ut, solo: st.solo, res, diff: st.mode === 'cpu' ? (st.game && st.game.opts && st.game.opts.difficulty != null ? st.game.opts.difficulty : SET.diff) : 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
+      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.franchiseGame ? 'franchise' : st.ut ? 'ut' : 'cpu') : 'online', ut: !!st.ut, solo: st.solo, res, diff: st.mode === 'cpu' ? (st.game && st.game.opts && st.game.opts.difficulty != null ? st.game.opts.difficulty : SET.diff) : 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
     } catch (e) { console.warn(e); $('#go-rewards').innerHTML = ''; }
   }
   $('#gameover').classList.remove('hidden');
@@ -1272,7 +1277,7 @@ function wirePeer(peer, role) {
     st.peer = null;
     if (!st.playing && st.screen === 'online') { onlineMsg(why || 'Disconnected', true); resetOnlineUI(); }
   });
-  peer.on('message', (m) => role === 'host' ? hostRx(m) : guestRx(m));
+  peer.on('message', (m) => { try { role === 'host' ? hostRx(m) : guestRx(m); } catch (e) { console.warn('bad net message', e); } });
 }
 function resetOnlineUI() { $('#online-main').classList.remove('hidden'); $('#online-wait').classList.add('hidden'); if (st.peer) { st.peer.close(); st.peer = null; } if (lobby) lobby.untrack(); }
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1381,7 +1386,7 @@ setInterval(() => {
   const now = performance.now(), dt = Math.min(1, (now - last) / 1000); last = now;
   if (st.introOn) endIntro();
   let n = Math.min(60, Math.round(dt / DT));
-  for (let i = 0; i < n; i++) { step(st.game, DT, [{}, { mx: st.remote.mx, mz: st.remote.mz, sprint: st.remote.sprint, ev: i === 0 ? st.remote.ev : [] }]); if (i === 0) st.remote.ev = []; for (const e of drainEvents(st.game)) st.netEv.push(e); }
+  try { for (let i = 0; i < n; i++) { step(st.game, DT, [{}, { mx: st.remote.mx, mz: st.remote.mz, sprint: st.remote.sprint, ev: i === 0 ? st.remote.ev : [] }]); if (i === 0) st.remote.ev = []; for (const e of drainEvents(st.game)) st.netEv.push(e); } } catch (e) { onFrameError(e); return; }
   st.snap = snapshot(st.game);
   if (st.peer) { st.peer.send({ t: 's', s: st.snap, e: st.netEv }, false); specPush(st.netEv); st.netEv = []; }
 }, 100);
@@ -1400,8 +1405,28 @@ function watchFps(dt) {
     toast(SET.gfx === 'low' ? 'Switched to faster graphics so the game runs smoother' : 'Switched to Chromebook graphics so the game runs smoother', 3000);
   }
 }
+// crash guard: an error in one frame never kills the game. Repeated errors reset the play; if that keeps failing,
+// the game ends cleanly and you're back at the menu instead of a frozen screen.
+const crash = { n: 0, t: 0, resets: 0 };
+function onFrameError(e) {
+  console.error('frame error', e);
+  const now = performance.now();
+  if (now - crash.t > 4000) { crash.n = 0; crash.t = now; }
+  crash.n++;
+  if (crash.n < 20) return;
+  crash.n = 0; crash.t = now;
+  if (st.playing && st.game && crash.resets < 3) { crash.resets++; recover(st.game); hudCache = {}; toast('Something glitched, so the play was reset', 2500); return; }
+  if (st.playing) { crash.resets = 0; try { leaveGame(); } catch (_) { show('menu'); } toast('The game hit an error and was ended. Sorry about that.', 4000); }
+}
+window.addEventListener('error', (e) => console.warn('uncaught', e.message));
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); toast('Graphics were reset by your browser, recovering…', 3000); });
+canvas.addEventListener('webglcontextrestored', () => { try { R.resize(); } catch (_) {} toast('Graphics back', 1500); });
+window.addEventListener('unhandledrejection', (e) => console.warn('unhandled promise', e.reason));
 function frame(now) {
   requestAnimationFrame(frame);
+  try { frameBody(now); } catch (e) { onFrameError(e); }
+}
+function frameBody(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   watchFps(dt);
   if (st.playing) {

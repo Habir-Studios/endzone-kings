@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792252804';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792252804';
-import { drawLogo } from './logos.js?v=1792252804';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792252804';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792253797';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792253797';
+import { drawLogo } from './logos.js?v=1792253797';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792253797';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -844,7 +844,25 @@ export class Renderer {
     return m;
   }
 
-  clearPlayers() { for (const m of this.pmeshes.values()) { this.scene.remove(m.root); this.scene.remove(m.blob); } this.pmeshes.clear(); }
+  // free everything a player owned (geometry, face/number/name textures) so long sessions don't run out of memory
+  clearPlayers() {
+    const sharedGeo = new Set([...Object.values(this._geo || {}), ...(this._shellGeo || []), this._shellLite].filter(Boolean));
+    const keepMaps = new Set([this._fab, this._blobTex, ...Object.values(this._hd || {}).map(m => m && m.map)].filter(Boolean));
+    const keepMats = new Set([this._liner, this._visor, this._towel, ...Object.values(this._hd || {})].filter(Boolean));
+    for (const tm of Object.values(this._tm || {})) for (const mt of Object.values(tm)) keepMats.add(mt);
+    const done = new Set();
+    const free = (o) => {
+      if (o.geometry && !sharedGeo.has(o.geometry) && !done.has(o.geometry)) { done.add(o.geometry); o.geometry.dispose(); }
+      const mt = o.material;
+      if (mt && !Array.isArray(mt) && !keepMats.has(mt) && !done.has(mt)) {
+        done.add(mt);
+        if (mt.map && !keepMaps.has(mt.map) && !done.has(mt.map)) { done.add(mt.map); mt.map.dispose(); }
+        mt.dispose();   // (a shared material that gets disposed is simply rebuilt the next time it's drawn)
+      }
+    };
+    for (const m of this.pmeshes.values()) { this.scene.remove(m.root); this.scene.remove(m.blob); m.root.traverse(free); free(m.blob); }
+    this.pmeshes.clear();
+  }
 
   setTeams(teams) {
     if (this.teams && this.teams[0] === teams[0] && this.teams[1] === teams[1]) return;
@@ -1204,7 +1222,9 @@ export class Renderer {
   }
 
   buildRoutes(S, local, show) {
-    while (this.routeGroup.children.length) { const c = this.routeGroup.children.pop(); c.geometry.dispose(); }
+    const mats = new Set();
+    while (this.routeGroup.children.length) { const c = this.routeGroup.children.pop(); c.geometry.dispose(); if (c.material) mats.add(c.material); }
+    for (const m of mats) m.dispose();
     if (!show) return;
     const play = S.opDef;
     const d = S.poss === 0 ? 1 : -1;

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792267925';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792268508';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792267925';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792268508';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -115,7 +115,7 @@ export function createGame(opts = {}) {
     losZ: 0, ballX: 0, fdZ: 0, down: 1, togo: 10,
     offPlay: null, defPlay: null, defChosen: false, playClock: 20,
     players: [], ball: { state: 'held', carrier: 1, x: 0, y: 0.3, z: 0 },
-    ctrl: [-1, -1], play: null, playId: 0, runoff: 0, inj: [{}, {}], injLog: [], fat: [{}, {}], injAsk: [null, null],
+    ctrl: [-1, -1], play: null, playId: 0, runoff: 0, inj: [{}, {}], injLog: [], fat: [{}, {}], injAsk: [null, null], depth: [{}, {}], bench: [{}, {}], subAsk: [null, null], subAskT: [0, 0], benchV: 0,
     msg: null, flash: null, events: [], kick: null, winner: -1,
     stats: [mkStats(), mkStats()],
     custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], to: [3, 3], lastRunoff: 0, books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
@@ -195,37 +195,86 @@ const INJURIES = [
   ['Shoulder sprain', 'game', 0], ['Concussion protocol', 'game', 0], ['High ankle sprain', 'weeks', 2], ['Hamstring strain', 'weeks', 3], ['Turf toe', 'weeks', 2], ['Broken hand', 'weeks', 4],
 ];
 const INJ_W = [16, 12, 14, 12, 10, 8, 6, 7, 6, 5, 4];
-function backupFor(rt, role) {
+const BK_FIRST = ['Tavon', 'Keon', 'Rashad', 'Micah', 'Dillon', 'Booker', 'Sterling', 'Montez', 'Jarvis', 'Quinton', 'Desmond', 'Garrett', 'Ahmad', 'Fletcher', 'Ronnie', 'Vince', 'Yusuf', 'Kendall', 'Terrell', 'Bo'];
+const BK_LAST = ['Hollis', 'Pruitt', 'Okafor', 'Blanton', 'Varner', 'Mabry', 'Kessler', 'Duvall', 'Tillman', 'Ashby', 'Greer', 'Lusk', 'Fontenot', 'Ruffin', 'Steele', 'Whitlock', 'Crain', 'Odom', 'Pettis', 'Gaines'];
+// two backups per spot (2nd and 3rd string), built off the starter so the drop-off makes sense
+function makeBench(g, team, role) {
+  const base = rosterFor(g, team).players[role];
+  let h = (g.opts.teams[team] + 1) * 7919 + team * 131; for (const c of role) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const r = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
   const k = ['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'];
-  const b = { ...rt, first: 'Backup', last: (ROSTER[role] ? role : 'Sub'), name: `Backup ${role}`, num: (rt.num + 37) % 100, face: (rt.face || 7) ^ 0x5bd1, ovr: Math.max(50, (rt.ovr || 70) - 9) };
-  for (const x of k) b[x] = Math.max(40, (rt[x] || 60) - 9);
-  return b;
+  return [1, 2].map(n => {
+    const drop = n === 1 ? 4 + r() * 6 : 9 + r() * 7, first = BK_FIRST[(r() * BK_FIRST.length) | 0], last = BK_LAST[(r() * BK_LAST.length) | 0];
+    const b = { ...base, first, last, name: `${first[0]}. ${last}`, num: (base.num + 17 * n + ((r() * 9) | 0)) % 100, face: ((base.face || 7) ^ (0x5bd1 * n)) >>> 0, ovr: Math.max(45, Math.round((base.ovr || 70) - drop)), depth: n };
+    for (const x of k) b[x] = Math.max(38, Math.round((base[x] || 60) - drop + (r() - 0.5) * 6));   // a backup can be faster or better at one thing
+    return b;
+  });
+}
+export function benchFor(g, team, role) { return g.bench[team][role] || (g.bench[team][role] = makeBench(g, team, role)); }
+const fatKey = (g, team, role) => { const d = g.depth[team][role] || 0; return d ? `${role}#${d}` : role; };
+function starterOut(g, team, role) { const j = g.inj[team][role]; return !!(j && !j.ready && (j.out !== 'plays' || j.plays > 0)) || !!(j && j.ready); }
+// who can take this spot right now: 0 = starter, 1/2 = backups
+function canPlay(g, team, role, d) { if (d === 0) return !starterOut(g, team, role) || !!(g.inj[team][role] && g.inj[team][role].ready); const b = benchFor(g, team, role)[d - 1]; return !!b && !b.hurt; }
+function bestHealthy(g, team, role) { for (const d of [1, 2]) if (canPlay(g, team, role, d)) return d; return 1; }
+function refreshSpot(g, team, role) {
+  if (g.phase !== 'presnap' && g.phase !== 'dead') return;
+  const i = g.players.findIndex(p => p.team === team && p.role === role); if (i < 0) return;
+  const p = g.players[i], fresh = makePlayer(g, p.id, p.team, p.unit, p.role, p.x, p.z); fresh.hx = p.hx; fresh.hz = p.hz; g.players[i] = fresh;
+}
+function setDepth(g, team, role, d) {
+  g.depth[team][role] = d; g.benchV++;
+  if (d === 0) { const j = g.inj[team][role]; if (j && j.ready) delete g.inj[team][role]; }
+  if (g.subAsk[team] === role) g.subAsk[team] = null;
+  if (d === 0 && g.injAsk[team] === role) g.injAsk[team] = null;
+  refreshSpot(g, team, role);
+}
+// the guy who got hurt is off the field: the human picks his replacement, the CPU takes the best one
+function needSub(g, team, role) {
+  const d = bestHealthy(g, team, role); g.depth[team][role] = d; g.benchV++;
+  if (g.opts.humans[team]) { g.subAsk[team] = role; g.subAskT[team] = g.t; }
+}
+export function benchReport(g) {
+  const out = [{}, {}];
+  for (let t = 0; t < 2; t++) for (const role of Object.keys(ROSTER)) { if (!rosterFor(g, t).players[role]) continue; const st0 = rosterFor(g, t).players[role]; out[t][role] = [[st0.name, st0.ovr, st0.num, 0], ...benchFor(g, t, role).map(b => [b.name, b.ovr, b.num, b.hurt || 0])]; }
+  return out;
 }
 export function injuryReport(g) {
   const out = [];
-  for (let t = 0; t < 2; t++) for (const [role, j] of Object.entries(g.inj[t])) out.push({ team: t, role, name: j.name, kind: j.kind, out: j.out, plays: j.plays, ready: !!j.ready, sub: !!j.sub });
+  for (let t = 0; t < 2; t++) for (const [role, j] of Object.entries(g.inj[t])) out.push({ team: t, role, name: j.name, kind: j.kind, out: j.out, plays: j.plays, ready: !!j.ready, sub: !!j.sub, depth: g.depth[t][role] || 0 });
   return out;
 }
 function injure(g, p, power) {
-  if (g.opts.practice || g.opts.drill || g.inj[p.team][p.role]) return;
-  const base = 0.0045 * (1 + (g.fat[p.team][p.role] || 0) * 1.5) * power;
+  if (g.opts.practice || g.opts.drill) return;
+  const dep = g.depth[p.team][p.role] || 0;
+  if (dep === 0 && g.inj[p.team][p.role] && !g.inj[p.team][p.role].ready) return;
+  const base = 0.0045 * (1 + (g.fat[p.team][fatKey(g, p.team, p.role)] || 0) * 1.5) * power;
   if (g.rng() > base) return;
   let x = g.rng() * INJ_W.reduce((a, b) => a + b, 0), i = 0; while (x > INJ_W[i]) { x -= INJ_W[i]; i++; }
-  const [kind, out, n] = INJURIES[i], name = rosterFor(g, p.team).players[p.role].name || p.rt.name;
+  const [kind, out, n] = INJURIES[i];
+  if (dep > 0) {   // a backup went down: he's done for the day, pick someone else
+    const b = benchFor(g, p.team, p.role)[dep - 1]; b.hurt = kind;
+    g.flash = { text: `INJURY: ${b.name}`, until: 2.2 }; g.events.push('injury');
+    needSub(g, p.team, p.role);
+    g.msgInj = { team: p.team, text: `${b.name} is hurt (${kind}) and out for the game.${g.opts.humans[p.team] ? ' Pick who goes in.' : ''}` };
+    return;
+  }
+  const name = rosterFor(g, p.team).players[p.role].name || p.rt.name;
   g.inj[p.team][p.role] = { name, kind, out, plays: out === 'plays' ? n : 0, weeks: out === 'weeks' ? n : 0 };
   g.injLog.push({ team: p.team, role: p.role, name, kind, out, weeks: out === 'weeks' ? n : 0 });
   g.flash = { text: `INJURY: ${name}`, until: 2.2 }; g.events.push('injury');
-  g.msgInj = { team: p.team, text: `${name} is hurt (${kind}). ${out === 'plays' ? `Out for a few plays.` : out === 'game' ? 'Out for the game.' : `Out for the game, about ${n} weeks.`} A backup is in.` };
+  needSub(g, p.team, p.role);
+  g.msgInj = { team: p.team, text: `${name} is hurt (${kind}). ${out === 'plays' ? `Out for a few plays.` : out === 'game' ? 'Out for the game.' : `Out for the game, about ${n} weeks.`}${g.opts.humans[p.team] ? ' Pick who goes in.' : ' A backup is in.'}` };
 }
 function makePlayer0(g, id, team, unit, role, x, z) {
   const r = ROSTER[role];
-  const j = g.inj && g.inj[team][role];
   const base = rosterFor(g, team).players[role];
-  const rt = j ? (j.bk || (j.bk = backupFor(base, role))) : base;   // an injured or resting starter: his backup plays
+  let dep = (g.depth && g.depth[team][role]) || 0;
+  if (dep === 0 && g.inj && starterOut(g, team, role) && !(g.inj[team][role] && g.inj[team][role].ready)) dep = g.depth[team][role] = bestHealthy(g, team, role);
+  const rt = dep && base ? benchFor(g, team, role)[dep - 1] : base;   // whoever's on the depth chart for this spot
   const d = dirOf(g.poss);
   const faceOff = d > 0 ? 0 : Math.PI;
   return {
-    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.70 + Math.min(rt.spd, 99) / 100 * 0.39) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1) * (1 - Math.min(0.6, (g.fat && g.fat[team][role]) || 0) * 0.12), rt,
+    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.70 + Math.min(rt.spd, 99) / 100 * 0.39) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1) * (1 - Math.min(0.6, (g.fat && g.fat[team][fatKey(g, team, role)]) || 0) * 0.12), rt,
     x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI, max0: 0,
     stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, truck: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
     engagedBy: -1, blockOn: -1, shedCd: 0, svx: 0, svz: 0,
@@ -358,13 +407,14 @@ function handleEvent(g, team, ev) {
   const P = g.play;
   if (ev.t === 'custom') { const c = cleanCustom(ev.def); if (c) g.custom[team][c.id] = c; return; }
   // injured player cleared to return: put him back in or keep him out
-  if (ev.t === 'injback' && typeof ev.role === 'string') { const j = g.inj[team][ev.role]; if (j && j.ready) { if (ev.back) delete g.inj[team][ev.role]; else { j.ready = false; j.sub = true; } } if (g.injAsk[team] === ev.role) g.injAsk[team] = null; return; }
-  // manual subs (between plays): sub a tired starter out, or bring him back
-  if (ev.t === 'sub' && typeof ev.role === 'string' && ROSTER[ev.role] && g.phase !== 'live') {
-    const j = g.inj[team][ev.role];
-    if (ev.out && !j) { const nm = rosterFor(g, team).players[ev.role].name; g.inj[team][ev.role] = { name: nm, kind: 'Resting', out: 'plays', plays: 0, sub: true }; }
-    else if (!ev.out && j && (j.sub || j.ready) && j.out === 'plays') delete g.inj[team][ev.role];
-    if (g.phase === 'presnap') { const roleIdx = g.players.findIndex(p => p.team === team && p.role === ev.role); if (roleIdx >= 0) { const p = g.players[roleIdx]; const fresh = makePlayer(g, p.id, p.team, p.unit, p.role, p.x, p.z); fresh.hx = p.hx; fresh.hz = p.hz; g.players[roleIdx] = fresh; } }
+  if (ev.t === 'injback' && typeof ev.role === 'string') { const j = g.inj[team][ev.role]; if (j && j.ready) { if (ev.back && g.phase !== 'live') setDepth(g, team, ev.role, 0); else if (!ev.back) { j.ready = false; j.sub = true; } } if (g.injAsk[team] === ev.role) g.injAsk[team] = null; return; }
+  // depth chart (between plays): put any healthy guy at a spot — starter or either backup
+  if (ev.t === 'sub' && typeof ev.role === 'string' && ROSTER[ev.role] && g.phase !== 'live' && rosterFor(g, team).players[ev.role]) {
+    const d = +ev.pick;
+    if ((d === 0 || d === 1 || d === 2) && canPlay(g, team, ev.role, d)) {
+      if (d === 0) { const j = g.inj[team][ev.role]; if (j && j.sub && j.out === 'plays' && j.plays <= 0) delete g.inj[team][ev.role]; }
+      setDepth(g, team, ev.role, d);
+    }
     return;
   }
   // pick a touchdown celebration while you're celebrating
@@ -397,7 +447,10 @@ function handleEvent(g, team, ev) {
           if (r === null) g.hot[ev.role] = []; else if (r) g.hot[ev.role] = r;
         }
       } else if (ev.t === 'snap' && g.offPlay && g.phaseT > 0.6 && !(g.toHold > 0)) {
-        if (g.opts.humans[1 - team] && !g.defChosen) { if (!g.flash) g.flash = { text: 'WAITING FOR THE DEFENSE', until: 1.2 }; }   // both sides call a play first
+        for (let t = 0; t < 2; t++) if (g.subAsk[t] && g.t - g.subAskT[t] > 20) { setDepth(g, t, g.subAsk[t], g.depth[t][g.subAsk[t]] || bestHealthy(g, t, g.subAsk[t])); }   // nobody picked in 20s: keep the guy who's in
+        if (g.subAsk[team]) { g.flash = { text: 'PICK A SUB FIRST', until: 1.2 }; }
+        else if (g.subAsk[1 - team]) { if (!g.flash) g.flash = { text: 'WAITING ON A SUB', until: 1.2 }; }
+        else if (g.opts.humans[1 - team] && !g.defChosen) { if (!g.flash) g.flash = { text: 'WAITING FOR THE DEFENSE', until: 1.2 }; }   // both sides call a play first
         else snap(g);
       }
     } else {
@@ -1107,12 +1160,15 @@ function wearAndTear(g) {
   for (let t = 0; t < 2; t++) {
     const onField = new Set(g.players.filter(p => p.team === t).map(p => p.role));
     for (const role of Object.keys(ROSTER)) {
-      const j = g.inj[t][role], rest = j && (j.sub || j.out !== 'plays' || j.plays > 0 || j.ready);
-      const f = g.fat[t][role] || 0;
-      g.fat[t][role] = rest || !onField.has(role) ? Math.max(0, f - 0.12) : Math.min(1, f + (role === 'RB' || role.startsWith('DL') ? 0.045 : 0.025));
+      const j = g.inj[t][role], playing = fatKey(g, t, role);
+      for (const key of [role, `${role}#1`, `${role}#2`]) {
+        const f = g.fat[t][key] || 0;
+        if (!f && key !== playing) continue;
+        g.fat[t][key] = key !== playing || !onField.has(role) ? Math.max(0, f - 0.12) : Math.min(1, f + (role === 'RB' || role.startsWith('DL') ? 0.045 : 0.025));
+      }
       if (j && j.out === 'plays' && !j.sub && j.plays > 0) {
         j.plays--;
-        if (j.plays <= 0) { if (g.opts.humans[t]) { j.ready = true; g.injAsk[t] = role; } else delete g.inj[t][role]; }   // CPU puts him right back
+        if (j.plays <= 0) { if (g.opts.humans[t]) { j.ready = true; g.injAsk[t] = role; } else { delete g.inj[t][role]; g.depth[t][role] = 0; } }   // CPU puts him right back
       }
     }
   }
@@ -2232,7 +2288,8 @@ export function snapshot(g) {
     bT: g.ball.state === 'air' && !g.ball.auto ? r2(g.ball.T - g.ball.t) : -1,
     ks: g.phase === 'kickset' && g.ks ? { type: g.ks.type, stage: g.ks.stage, m: r2(g.ks.m), aim: r2(g.ks.aim), power: r2(g.ks.power), fd: g.ks.fd, maxR: r2(g.ks.maxR), sweet: KICK_SWEET } : null,
     to: g.to.slice(), pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
-    inj: injuryReport(g), injAsk: g.injAsk.slice(), fat: g.fat, msgInj: g.msgInj || null,
+    inj: injuryReport(g), injAsk: g.injAsk.slice(), depth: g.depth, subAsk: g.subAsk.slice(), bv: g.benchV,
+    bench: (g.snapN = (g.snapN || 0) + 1) % 45 === 1 || g.benchSent !== g.benchV ? (g.benchSent = g.benchV, benchReport(g)) : undefined, fat: g.fat, msgInj: g.msgInj || null,
     wind: g.opts.wind, wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
     hls: g.phase === 'gameover' ? g.hl : null,
     hr: g.phase === 'half' ? g.halfReady.slice() : null, hl: g.opts.halftime,

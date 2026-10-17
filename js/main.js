@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792267925';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792267925';
-import { Renderer } from './render.js?v=1792267925';
-import { Sfx } from './audio.js?v=1792267925';
-import { Auth } from './auth.js?v=1792267925';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792267925';
-import { getRoster, teamOvr } from './teams.js?v=1792267925';
-import * as Season from './season.js?v=1792267925';
-import * as Fr from './franchise.js?v=1792267925';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792267925';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792267925';
-import * as UTm from './ut.js?v=1792267925';
-import { initCreator, renderCreator } from './creator.js?v=1792267925';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792267925';
-import { portraitURL } from './faces.js?v=1792267925';
-import { logoURL, clearLogoCache } from './logos.js?v=1792267925';
+import { askYes } from './ui.js?v=1792268508';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792268508';
+import { Renderer } from './render.js?v=1792268508';
+import { Sfx } from './audio.js?v=1792268508';
+import { Auth } from './auth.js?v=1792268508';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792268508';
+import { getRoster, teamOvr } from './teams.js?v=1792268508';
+import * as Season from './season.js?v=1792268508';
+import * as Fr from './franchise.js?v=1792268508';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792268508';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792268508';
+import * as UTm from './ut.js?v=1792268508';
+import { initCreator, renderCreator } from './creator.js?v=1792268508';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792268508';
+import { portraitURL } from './faces.js?v=1792268508';
+import { logoURL, clearLogoCache } from './logos.js?v=1792268508';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -506,7 +506,7 @@ function leaveGame() {
   stopSpec();
   if (st.mode === 'spec') st.mode = 'cpu';
   $('#hud').classList.remove('spec');
-  st.playing = false; st.game = null; st.snap = null; st.guestBuf = [];
+  st.playing = false; st.game = null; st.snap = null; st.guestBuf = []; st.bench = null;
   if (st.peer) { st.peer.close(); st.peer = null; }
   $('#hud').classList.add('hidden'); $('#pause').classList.add('hidden'); $('#gameover').classList.add('hidden');
   for (const m of R.pmeshes.values()) { m.root.visible = false; m.blob.visible = false; }
@@ -903,30 +903,39 @@ function togglePause(force) {
 $('#pause-btn').addEventListener('click', () => togglePause());
 $('#resume').addEventListener('click', () => togglePause(false));
 $('#p-howto').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('howto'); });
-// subs & injuries (pause menu)
-function renderSubs() {
-  const S = st.snap; if (!S) return;
-  const me = st.local, inj = Object.fromEntries((S.inj || []).filter(j => j.team === me).map(j => [j.role, j]));
-  const fat = (S.fat && S.fat[me]) || {}, live = S.ph === 'live';
-  const rows = S.pl.filter(p => p[0] === me).map(p => p[2]).filter((r, i, a) => a.indexOf(r) === i);
-  const body = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'DL1', 'DL4', 'DL2', 'DL3', 'LB2', 'LB', 'LB3', 'CB1', 'CB2', 'S', 'SS'].map(role => {
-    const j = inj[role], f = Math.round((fat[role] || 0) * 100), name = j ? j.name : (st.game ? (st.game.opts.rosters && st.game.opts.rosters[me] ? st.game.opts.rosters[me].players[role] : null) : null);
-    const pl = S.pl.find(q => q[0] === me && q[2] === role), label = j ? j.name : (pl && pl[11]) || role;
-    const status = j ? (j.kind === 'Resting' ? 'Resting on the sideline' : j.out === 'plays' ? (j.ready ? `${j.kind}, cleared to return` : j.sub ? `${j.kind}, kept out` : `${j.kind}, back in ${j.plays} play${j.plays === 1 ? '' : 's'}`) : j.out === 'game' ? `${j.kind}, out for the game` : `${j.kind}, out for the game (weeks)`) : 'Playing';
-    const can = !live && (!j || (j.out === 'plays' && (j.sub || j.ready)));
-    const btn = !j ? `<button class="btn sm" data-subout="${role}" ${can ? '' : 'disabled'}>Sub out</button>` : (j.out === 'plays' && (j.sub || j.ready)) ? `<button class="btn sm primary" data-subin="${role}" ${can ? '' : 'disabled'}>Put back in</button>` : '';
-    void name;
-    return `<div class="sub-row ${j ? 'hurt' : ''}"><span class="sub-pos">${role}</span><div><b>${escapeHtml(label)}</b><small>${status}</small></div><i class="fat" title="Fatigue ${f}%"><i style="width:${f}%;background:${f > 60 ? '#ff5a5a' : f > 35 ? '#f6c445' : '#22c55e'}"></i></i>${btn}</div>`;
+// subs & injuries (pause menu): a depth chart — put any healthy guy at any spot between plays
+const SUB_ROLES = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'DL1', 'DL4', 'DL2', 'DL3', 'LB2', 'LB', 'LB3', 'CB1', 'CB2', 'S', 'SS'];
+function subRow(S, role, focus) {
+  const me = st.local, j = (S.inj || []).find(x => x.team === me && x.role === role), full = (st.bench && st.bench[me] && st.bench[me][role]) || [], bench = full.slice(1), s0 = full[0];
+  const fat = (S.fat && S.fat[me]) || {}, dep = (S.depth && S.depth[me] && S.depth[me][role]) || 0, live = S.ph === 'live';
+  const pl = S.pl.find(q => q[0] === me && q[2] === role);
+  const starterName = j ? j.name : (s0 && s0[0]) || (dep === 0 && pl && pl[11]) || role;
+  const opts = [[starterName, s0 ? s0[1] : '', 0, j && !j.ready && !(j.sub && j.out === 'plays') ? j.kind : 0], ...bench.map((b, i) => [b[0], b[1], i + 1, b[3]])];
+  const chips = opts.map(([nm, ovr, d, hurt]) => {
+    const f = Math.round((fat[d ? `${role}#${d}` : role] || 0) * 100), on = d === dep;
+    const tag = d === 0 ? 'Starter' : d === 1 ? '2nd string' : '3rd string';
+    const why = hurt ? `Hurt: ${hurt}` : f > 0 ? `Tired ${f}%` : 'Fresh';
+    return `<button class="sub-chip ${on ? 'on' : ''} ${hurt ? 'hurt' : ''}" data-role="${role}" data-pick="${d}" ${on || hurt || live ? 'disabled' : ''} type="button"><small>${tag}</small><b>${escapeHtml(String(nm))}</b><span>${ovr ? ovr + ' OVR · ' : ''}${why}</span><i class="fat"><i style="width:${f}%;background:${f > 60 ? '#ff5a5a' : f > 35 ? '#f6c445' : '#22c55e'}"></i></i></button>`;
   }).join('');
-  void rows;
-  const el = document.getElementById('subs-dlg') || Object.assign(document.createElement('div'), { id: 'subs-dlg', className: 'modal' });
-  el.innerHTML = `<div class="panel subs-panel"><h3>Subs &amp; injuries</h3><p class="note">Tired players slow down and get hurt more. Sub someone out and his backup plays until you put him back in. ${live ? 'You can sub between plays.' : ''}</p><div class="sub-list">${body}</div><button class="btn" id="subs-x" type="button">Done</button></div>`;
-  el.classList.remove('hidden'); if (!el.parentNode) document.body.appendChild(el);
-  $('#subs-x').onclick = () => el.classList.add('hidden');
-  $$('[data-subout]', el).forEach(b => b.onclick = () => { pushEv({ t: 'sub', role: b.dataset.subout, out: true }); setTimeout(renderSubs, 120); });
-  $$('[data-subin]', el).forEach(b => b.onclick = () => { pushEv({ t: 'sub', role: b.dataset.subin, out: false }); pushEv({ t: 'injback', role: b.dataset.subin, back: true }); setTimeout(renderSubs, 120); });
+  return `<div class="sub-row2 ${focus ? 'focus' : ''}"><span class="sub-pos">${role}</span><div class="sub-chips">${chips}</div></div>`;
 }
-$('#p-subs').addEventListener('click', renderSubs);
+function renderSubs(only) {
+  const S = st.snap; if (!S) return;
+  const me = st.local, ask = S.subAsk && S.subAsk[me], live = S.ph === 'live';
+  const roles = only ? [only] : ask ? [ask, ...SUB_ROLES.filter(r => r !== ask)] : SUB_ROLES;
+  const el = document.getElementById('subs-dlg') || Object.assign(document.createElement('div'), { id: 'subs-dlg', className: 'modal' });
+  const head = ask ? `<h3>Pick a sub at ${ask}</h3><p class="note">Your guy went down. Pick who goes in. You can swap anyone else too.</p>` : `<h3>Depth chart</h3><p class="note">Put anybody in at any spot to see how they play. Tired players slow down and get hurt more. ${live ? 'You can make changes between plays.' : ''}</p>`;
+  el.innerHTML = `<div class="panel subs-panel">${head}<div class="sub-list">${roles.map(r => subRow(S, r, r === ask)).join('')}</div><button class="btn" id="subs-x" type="button">${ask ? 'Keep who’s in' : 'Done'}</button></div>`;
+  el.classList.remove('hidden'); if (!el.parentNode) document.body.appendChild(el);
+  el.dataset.ask = ask || '';
+  $('#subs-x').onclick = () => { if (ask) pushEv({ t: 'sub', role: ask, pick: (S.depth && S.depth[me] && S.depth[me][ask]) || 1 }); el.classList.add('hidden'); };
+  $$('[data-pick]', el).forEach(b => b.onclick = () => {
+    const role = b.dataset.role, d = +b.dataset.pick; pushEv({ t: 'sub', role, pick: d });
+    const j = (S.inj || []).find(x => x.team === me && x.role === role); if (d === 0 && j && j.ready) pushEv({ t: 'injback', role, back: true });
+    if (role === ask) { el.classList.add('hidden'); toast(`${b.querySelector('b').textContent} is in at ${role}`); } else setTimeout(() => renderSubs(only), 150);
+  });
+}
+$('#p-subs').addEventListener('click', () => renderSubs());
 $('#inj-back').addEventListener('click', () => { const S = st.snap; const r = S && S.injAsk && S.injAsk[st.local]; if (r) pushEv({ t: 'injback', role: r, back: true }); $('#inj-ask').classList.add('hidden'); });
 $('#inj-keep').addEventListener('click', () => { const S = st.snap; const r = S && S.injAsk && S.injAsk[st.local]; if (r) pushEv({ t: 'injback', role: r, back: false }); $('#inj-ask').classList.add('hidden'); });
 $('#p-settings').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('settings'); });
@@ -1291,6 +1300,7 @@ function renderKickMeter(S) {
 }
 
 function updateHud(S) {
+  if (S.bench) st.bench = S.bench;
   const me = st.local;
   const T = S.teams.map(i => TEAMS[i]);
   const htEl = $('#halftime');
@@ -1381,6 +1391,9 @@ function updateHud(S) {
 
   // injuries: a heads-up when someone goes down, and the "put him back in?" question
   if (S.msgInj && S.msgInj.text !== hudCache.injMsg) { hudCache.injMsg = S.msgInj.text; if (st.mode !== 'clip') toast((S.msgInj.team === me ? '' : 'Opponent: ') + S.msgInj.text, 4200); }
+  { const need = S.subAsk && S.subAsk[me], dlg = document.getElementById('subs-dlg');
+    if (need && S.ph !== 'live' && st.mode !== 'clip' && hudCache.subAsk !== need && st.bench) { hudCache.subAsk = need; renderSubs(); }
+    if (!need) { hudCache.subAsk = null; if (dlg && dlg.dataset.ask && !dlg.classList.contains('hidden')) dlg.classList.add('hidden'); } }
   { const ask = S.injAsk && S.injAsk[me], j = ask && (S.inj || []).find(x => x.team === me && x.role === ask);
     const show = !!(j && j.ready) && S.ph !== 'live'; $('#inj-ask').classList.toggle('hidden', !show);
     if (show) setTxt('#inj-ask-t', `${j.name} (${j.kind}) is cleared to go back in.`); }
@@ -1474,7 +1487,7 @@ async function startSpectate(code) {
         enterGame(); $('#hud').classList.add('spec'); st.intro = 0;
         toast(`Watching ${st.names[0]} vs ${st.names[1]}. Press Esc to leave.`, 3500);
       }
-      st.guestBuf.push({ at: performance.now(), s: m.s }); if (st.guestBuf.length > 40) st.guestBuf.shift();
+      if (m.s && m.s.bench) st.bench = m.s.bench; st.guestBuf.push({ at: performance.now(), s: m.s }); if (st.guestBuf.length > 40) st.guestBuf.shift();
       if (m.e) for (const e of m.e) { sfx.play(e); R.event(e); }
     });
   } catch (e) { clearTimeout(give); onlineMsg(e.message, true); resetOnlineUI(); }
@@ -1608,7 +1621,7 @@ function guestRx(m) {
     $('#chat').classList.remove('hidden'); chatLine('sys', '', 'Press T to chat.');
   } else if (m.t === 's') {
     if (!st.playing) return;
-    st.guestBuf.push({ at: performance.now(), s: m.s });
+    if (m.s && m.s.bench) st.bench = m.s.bench; st.guestBuf.push({ at: performance.now(), s: m.s });
     if (st.guestBuf.length > 40) st.guestBuf.shift();
     if (m.e) for (const e of m.e) { sfx.play(e); R.event(e); }
   } else if (m.t === 'bye') { st.peer && st.peer.handlers.close && st.peer.handlers.close('Opponent left'); }

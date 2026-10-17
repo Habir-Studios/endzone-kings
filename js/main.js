@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792264410';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792264410';
-import { Renderer } from './render.js?v=1792264410';
-import { Sfx } from './audio.js?v=1792264410';
-import { Auth } from './auth.js?v=1792264410';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792264410';
-import { getRoster, teamOvr } from './teams.js?v=1792264410';
-import * as Season from './season.js?v=1792264410';
-import * as Fr from './franchise.js?v=1792264410';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792264410';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792264410';
-import * as UTm from './ut.js?v=1792264410';
-import { initCreator, renderCreator } from './creator.js?v=1792264410';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792264410';
-import { portraitURL } from './faces.js?v=1792264410';
-import { logoURL, clearLogoCache } from './logos.js?v=1792264410';
+import { askYes } from './ui.js?v=1792264871';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792264871';
+import { Renderer } from './render.js?v=1792264871';
+import { Sfx } from './audio.js?v=1792264871';
+import { Auth } from './auth.js?v=1792264871';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792264871';
+import { getRoster, teamOvr } from './teams.js?v=1792264871';
+import * as Season from './season.js?v=1792264871';
+import * as Fr from './franchise.js?v=1792264871';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792264871';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792264871';
+import * as UTm from './ut.js?v=1792264871';
+import { initCreator, renderCreator } from './creator.js?v=1792264871';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792264871';
+import { portraitURL } from './faces.js?v=1792264871';
+import { logoURL, clearLogoCache } from './logos.js?v=1792264871';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1287,6 +1287,7 @@ function updateHud(S) {
     else if (iCarry) hint([['Space', 'juke'], ['E', 'spin'], ['R', 'stiff arm'], ['B', 'truck'], ['F', 'hurdle'], ['X', 'dive'], ['G', 'go down'], ['Shift', 'sprint']]);
     else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring'], ['E', 'aggressive catch'], ['X', 'dive for it']]);
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
+    else if (S.b[3] === 3) hint([['Space', 'dive on the ball'], ['W A S D', 'get to it first'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else hint([['Space', 'dive tackle'], ['H', 'hit stick'], ['Q', 'switch'], ['Shift', 'sprint']]);
   } else hint(st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat']]);
   const tOn = touchOn();

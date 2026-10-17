@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792264410';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792264410';
-import { drawLogo } from './logos.js?v=1792264410';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792264410';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792264871';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792264871';
+import { drawLogo } from './logos.js?v=1792264871';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792264871';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -627,6 +627,16 @@ export class Renderer {
     });
     this.ctrlRing = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, depthWrite: false, toneMapped: false }));
     this.ctrlRing.rotation.x = -Math.PI / 2; this.ctrlRing.position.y = 0.04; this.ctrlRing.renderOrder = 3; s.add(this.ctrlRing);
+    // your opponent's player (when the other side is a person): red ring and a red arrow, like Madden
+    const oppTex = canvasTex(128, 128, (c) => {
+      const g = c.createRadialGradient(64, 64, 30, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255,60,80,0)'); g.addColorStop(0.55, 'rgba(255,60,80,0.9)'); g.addColorStop(0.7, 'rgba(255,170,180,1)'); g.addColorStop(1, 'rgba(255,60,80,0)');
+      c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+    });
+    this.oppRing = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: oppTex, transparent: true, depthWrite: false, toneMapped: false }));
+    this.oppRing.rotation.x = -Math.PI / 2; this.oppRing.position.y = 0.035; this.oppRing.renderOrder = 3; this.oppRing.visible = false; s.add(this.oppRing);
+    const oppG = new THREE.ConeGeometry(0.2, 0.38, 3); oppG.rotateX(Math.PI);
+    this.oppArrow = new THREE.Mesh(oppG, new THREE.MeshBasicMaterial({ color: 0xff3d50, toneMapped: false })); this.oppArrow.visible = false; s.add(this.oppArrow);
     const arrowG = new THREE.ConeGeometry(0.22, 0.42, 3); arrowG.rotateX(Math.PI);
     this.ctrlArrow = new THREE.Mesh(arrowG, new THREE.MeshBasicMaterial({ color: 0xffd23f, toneMapped: false })); s.add(this.ctrlArrow);
     const tgtTex = canvasTex(128, 128, (c) => {
@@ -978,7 +988,7 @@ export class Renderer {
     const [bx, by, bz, bstate, tgt, bc] = S.b;
     this.ball.position.set(bx, by, bz);
     { const sc = this.ballBoost ? 1.9 : 1; if (this.ball.scale.x !== sc) this.ball.scale.setScalar(sc); }   // easier to follow in clips
-    if (bstate === 1 || bstate === 2) {
+    if (bstate === 1 || bstate === 2 || bstate === 3) {
       this.ball.rotation.z += dt * 20;
       const dx = (this._pbx !== undefined ? bx - this._pbx : 0), dz = (this._pbz !== undefined ? bz - this._pbz : 0), dy = by - (this._pby ?? by);
       const h = Math.hypot(dx, dz);
@@ -1008,6 +1018,10 @@ export class Renderer {
       this.ctrlArrow.position.set(cp[4], 3.0 + Math.sin(this.time * 5) * 0.1, cp[5]); this.ctrlArrow.rotation.y += dt * 3;
     }
 
+    { const other = local >= 0 ? 1 - local : -1, oid = other >= 0 && S.humans && S.humans[other] && S.ctrl ? S.ctrl[other] : -1, op = oid >= 0 ? S.pl[oid] : null;
+      const showOpp = !!op && S.ph !== 'kick' && S.ph !== 'gameover' && S.ph !== 'kickset';
+      this.oppRing.visible = showOpp; this.oppArrow.visible = showOpp;
+      if (op) { this.oppRing.position.set(op[4], 0.035, op[5]); this.oppRing.scale.set(op[10], op[10], 1); this.oppArrow.position.set(op[4], 3.0, op[5]); this.oppArrow.rotation.y -= dt * 3; } }
     const showBadges = local >= 0 && S.off === local && ((S.ph === 'presnap' && S.poss === local) || S.canThrow);
     const rroles = ['WR1', 'WR2', 'RB', 'TE', 'WR3'];
     this.badges.forEach((sp, k) => {

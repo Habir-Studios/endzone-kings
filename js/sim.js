@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792264410';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792264871';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792264410';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792264871';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -408,6 +408,9 @@ function handleEvent(g, team, ev) {
       if (dl < 4.5 + left * me.max * 0.6) { me.playBall = 0.75; g.events.push('playball'); }
       else { me.playBall = 0.45; }
     }
+  } else if (ev.t === 'dive' && me && b.state === 'loose' && me.dive <= 0 && me.stun <= 0 && me.fallen <= 0) {
+    let dx = b.x - me.x, dz = b.z - me.z; const l = hyp(dx, dz) || 1; dx /= l; dz /= l;
+    me.dive = 0.5; me.hit = 0; me.vx = dx * 9; me.vz = dz * 9; me.face = Math.atan2(dx, dz); g.events.push('dive');
   } else if (ev.t === 'dive') {
     if (me && carrier && carrier.team !== team && me.dive <= 0 && me.stun <= 0 && me.engagedBy < 0) {
       let dx = carrier.x - me.x, dz = carrier.z - me.z; const l = hyp(dx, dz) || 1;
@@ -1211,6 +1214,39 @@ function updateLive(g, dt, inputs) {
   if (b.state === 'held') {
     const c = g.players[b.carrier];
     b.x = c.x + Math.sin(c.face) * 0.35; b.z = c.z + Math.cos(c.face) * 0.35; b.y = 1.15;
+  } else if (b.state === 'loose') {
+    b.looseT += dt;
+    b.x += b.vx * dt; b.z += b.vz * dt; b.vy -= 18 * dt; b.y += b.vy * dt;
+    if (b.y < 0.15) { b.y = 0.15; if (Math.abs(b.vy) > 1.2) { b.vy = -b.vy * 0.45; b.vx += (g.rng() - 0.5) * 3; b.vz += (g.rng() - 0.5) * 3; } else b.vy = 0; b.vx *= 0.88; b.vz *= 0.88; }   // a football bounces funny
+    b.vx *= 1 - dt * 0.7; b.vz *= 1 - dt * 0.7;
+    // out of bounds: the team that fumbled keeps it there
+    if (Math.abs(b.x) > HALF_W || b.z > 110 || b.z < -10) {
+      const f = g.players[P.fumbler] || g.players[0]; f.x = clamp(b.x, -HALF_W, HALF_W); f.z = clamp(b.z, -9.9, 109.9);
+      b.state = 'held'; b.carrier = f.id; g.flash = { text: 'BALL WENT OUT OF BOUNDS', until: 1.4 };
+      return endPlay(g, 'oob', f);
+    }
+    let rec = null, rd = 1e9;
+    if (b.looseT > 0.5 && b.y < 1.5) for (const p of g.players) {
+      const diving = p.dive > 0;
+      if (!diving && (p.stun > 0 || p.fallen > 0)) continue;
+      const dd = hyp(p.x - b.x, p.z - b.z), reach = diving ? 1.5 : 0.95;
+      if (dd < reach && dd < rd) { rd = dd; rec = p; }
+    }
+    if (!rec && b.looseT > 7) for (const p of g.players) { const dd = hyp(p.x - b.x, p.z - b.z); if (dd < rd) { rd = dd; rec = p; } }
+    if (rec) {
+      b.state = 'held'; b.carrier = rec.id; rec.x = b.x; rec.z = b.z;
+      const fum = g.players[P.fumbler], fumTeam = fum ? fum.team : P.off;
+      if (rec.team !== fumTeam) {
+        P.turnover = !P.turnover || rec.team !== P.off; g.poss = rec.team; mom(g, rec.team, 14); g.events.push('turnover');
+        g.flash = { text: rec.team === P.off ? 'THEY GOT IT BACK!' : 'FUMBLE RECOVERED! TURNOVER!', until: 1.8 };
+        if (rec.team !== P.off) highlight(g, 'FUMBLE RECOVERY', rec.rt.name, rec.team);
+      } else g.flash = { text: 'RECOVERED! STILL THEIR BALL', until: 1.6 };
+      if (g.opts.humans[rec.team]) g.ctrl[rec.team] = rec.id;
+      const other = 1 - rec.team;
+      if (g.opts.humans[other]) { let best = null, bd = 1e9; for (const q of g.players) if (q.team === other && dist(q, rec) < bd) { bd = dist(q, rec); best = q; } if (best) g.ctrl[other] = best.id; }
+      g.events.push('catch');
+      if (rec.dive > 0) return endPlay(g, 'tackle', rec, null);   // dove on it: he's down right there
+    }
   } else if (b.state === 'air') {
     b.t += dt;
     const s = Math.min(1, b.t / b.T);
@@ -1322,17 +1358,14 @@ function updateLive(g, dt, inputs) {
             const big = c2.vx * c2.vx + c2.vz * c2.vz > 30;
             const fc = hitting ? clamp(0.12 + (hp - sec) * 0.12, 0.06, 0.28) : clamp((big ? 0.045 : 0.016) + (hp - sec) * 0.012 + (c2.juke > 0 || c2.spin > 0 ? 0.015 : 0), 0.008, 0.07);   // moves in traffic are riskier
             if (g.rng() < fc) {
-              let rec = null, rd = 1e9;
-              for (const q of g.players) { if (q === c2 || q === d) continue; const dd = dist(q, c2) + g.rng() * 2.5 - (q.team === d.team ? 0.4 : 0); if (dd < rd) { rd = dd; rec = q; } }
-              rec = rec || d;
-              const b = g.ball; b.state = 'held'; b.carrier = rec.id;
+              // the ball is LOOSE: it bounces around and whoever gets to it first (or dives on it) owns it
+              const b = g.ball, a = g.rng() * Math.PI * 2, sp = 3 + g.rng() * 4;
+              b.state = 'loose'; b.carrier = -1; b.x = c2.x; b.z = c2.z; b.y = 0.9; b.vx = Math.sin(a) * sp + c2.vx * 0.3; b.vz = Math.cos(a) * sp + c2.vz * 0.3; b.vy = 2.6; b.looseT = 0;
+              P.fumbler = c2.id; P.recognized = true;
+              c2.fallen = 1.4; c2.stun = 1.1; d.fallen = 1.1; d.stun = 0.8; d.tackleCd = 1.5; d.vx *= 0.3; d.vz *= 0.3; c2.vx *= 0.3; c2.vz *= 0.3;
               highlight(g, 'FORCED FUMBLE', d.rt.name, d.team);
-              if (rec.team !== c2.team) {
-                P.turnover = true; P.recognized = true; g.poss = rec.team; mom(g, rec.team, 14);
-                g.flash = { text: 'FUMBLE! DEFENSE RECOVERS', until: 1.8 }; g.events.push('turnover');
-              } else g.flash = { text: 'FUMBLE! OFFENSE RECOVERS', until: 1.6 };
-              rec.x = c2.x; rec.z = c2.z;
-              return endPlay(g, 'tackle', rec, null);
+              g.flash = { text: 'FUMBLE! BALL IS LOOSE', until: 1.6 }; g.events.push('bighit');
+              return;
             }
           }
           // forward progress: a runner going downhill falls forward, more if he's hit from the side or behind
@@ -1472,6 +1505,8 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
     return carrierSteer(g, p, ai);
   }
 
+  // loose ball: closest guys sprint for it, everyone else flows toward it
+  if (b.state === 'loose') { const dl = hyp(p.x - b.x, p.z - b.z); return seek(p, b.x + b.vx * 0.2, b.z + b.vz * 0.2, dl < 14 ? Math.max(ai, 0.97) + 0.03 : ai * 0.75, 0.05); }
   // ball in the air on a pass
   if (airPass) {
     const since = g.t - P.throwT;
@@ -2104,7 +2139,7 @@ export function snapshot(g) {
         | (p.spin > 0 ? 256 : 0) | (p.stiff > 0 ? 512 : 0) | (p.hurdle > 0 ? 1024 : 0) | (p.playBall > 0 ? 2048 : 0) | (p.press > 0 ? 4096 : 0)
         | (p.wrapAt !== undefined && g.t - p.wrapAt < 1.2 ? 8192 : 0) | (p.caughtAt !== undefined && g.t - p.caughtAt < 0.5 ? 16384 : 0) | (p.fallBack ? 32768 : 0) | (p.oneHandAt !== undefined && g.t - p.oneHandAt < 0.6 ? 65536 : 0) | (p.truck > 0 ? 131072 : 0),
       r2(p.stam), r2(p.size), p.rt.name, POS_LABEL[p.role], r2(p.moveCd), p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num)]),
-    b: [r2(g.ball.x), r2(g.ball.y), r2(g.ball.z), g.ball.state === 'air' ? 1 : g.ball.state === 'kick' ? 2 : 0,
+    b: [r2(g.ball.x), r2(g.ball.y), r2(g.ball.z), g.ball.state === 'air' ? 1 : g.ball.state === 'kick' ? 2 : g.ball.state === 'loose' ? 3 : 0,
       g.ball.state === 'air' && !g.ball.auto ? [r2(g.ball.tx), r2(g.ball.tz)] : null, g.ball.carrier ?? -1],
     st: g.stats,
     ql: g.opts.quarterLen,

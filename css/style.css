@@ -1612,3 +1612,9 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 @media (max-width: 700px) { .so-tabs .ut-tab, .ut-tab { font-size: 15px; padding: 9px 10px; } }
 #throw-meter.heat .tm-zone { box-shadow: 0 0 0 2px #ff5a5a inset; }
 #throw-meter.heat span, #throw-meter.run span { color: #ffb36b; }
+
+/* spectators get the field, the two teams and the scoreboard. Nothing else. */
+#hud.spec > :not(.scorebug):not(#pause-btn):not(#intro) { display: none !important; }
+#hud.spec .sb-pc { display: none !important; }
+#pause.spec .pause-panel > .btn:not(#resume):not(#quit):not(#p-settings) { display: none !important; }
+#gameover.spec #go-stats, #gameover.spec #go-rec, #gameover.spec #go-potg, #gameover.spec #go-hl, #gameover.spec #go-rewards, #gameover.spec #go-clip, #gameover.spec #go-again { display: none !important; }

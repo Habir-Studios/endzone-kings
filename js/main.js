@@ -1,25 +1,25 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792278846';
-import * as Form from './form.js?v=1792278846';
-import { watchSim } from './simview.js?v=1792278846';
-import { bracketHTML } from './bracket.js?v=1792278846';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792278846';
-import { Renderer } from './render.js?v=1792278846';
-import { Sfx } from './audio.js?v=1792278846';
-import { Auth } from './auth.js?v=1792278846';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792278846';
-import { getRoster, teamOvr } from './teams.js?v=1792278846';
-import * as Season from './season.js?v=1792278846';
-import * as Fr from './franchise.js?v=1792278846';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792278846';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792278846';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792278846';
-import * as UTm from './ut.js?v=1792278846';
-import { initCreator, renderCreator } from './creator.js?v=1792278846';
-import { filmCapture, filmSave } from './social.js?v=1792278846';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792278846';
-import { portraitURL } from './faces.js?v=1792278846';
-import { logoURL, clearLogoCache } from './logos.js?v=1792278846';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792279913';
+import * as Form from './form.js?v=1792279913';
+import { watchSim } from './simview.js?v=1792279913';
+import { bracketHTML } from './bracket.js?v=1792279913';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792279913';
+import { Renderer } from './render.js?v=1792279913';
+import { Sfx } from './audio.js?v=1792279913';
+import { Auth } from './auth.js?v=1792279913';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792279913';
+import { getRoster, teamOvr } from './teams.js?v=1792279913';
+import * as Season from './season.js?v=1792279913';
+import * as Fr from './franchise.js?v=1792279913';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792279913';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792279913';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792279913';
+import * as UTm from './ut.js?v=1792279913';
+import { initCreator, renderCreator } from './creator.js?v=1792279913';
+import { filmCapture, filmSave } from './social.js?v=1792279913';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792279913';
+import { portraitURL } from './faces.js?v=1792279913';
+import { logoURL, clearLogoCache } from './logos.js?v=1792279913';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -182,7 +182,8 @@ function show(id) {
   if (id === 'creator') renderCreator();
   if (id === 'modes') renderModes();
   if (id === 'social') renderSocial();
-  if (id === 'menu') { renderMenuBoard(); refreshUnread(); checkBan(); refreshAdminBadge(); const P = !isGuest() && profile(); if (P) { P.settleSeasons(); for (const n of P.notice || []) toast(n, 6000); P.notice = []; const L = P.claimLogin(); if (L) setTimeout(() => showInfo(`Day ${L.streak} login reward`, `<div class="login-row">${LOGIN_REWARDS_.map((r, i) => `<div class="lg-day ${i + 1 < L.streak ? 'got' : i + 1 === L.streak ? 'now' : ''}"><small>Day ${i + 1}</small><b>${r.coins}</b><span>coins${r.tp ? ` +${r.tp} TP` : ''}${r.pack ? ' + pack' : ''}</span></div>`).join('')}</div><p class="note">Come back tomorrow to keep the streak going. Miss a day and it starts over.</p>`), 600); refreshChip(); } }
+  if (id === 'menu') { renderMenuBoard(); refreshUnread(); checkBan(); refreshAdminBadge(); const P = !isGuest() && profile(); if (P && !st.playing) { try { const q = JSON.parse(localStorage.getItem(QUIT_KEY()) || 'null'); if (q && q.k) { applyQuitLoss(q); setTimeout(() => toast('You left your last game in the middle, so it counted as a loss.', 5000), 800); } } catch (_) {} }
+  if (P) { P.settleSeasons(); for (const n of P.notice || []) toast(n, 6000); P.notice = []; const L = P.claimLogin(); if (L) setTimeout(() => showInfo(`Day ${L.streak} login reward`, `<div class="login-row">${LOGIN_REWARDS_.map((r, i) => `<div class="lg-day ${i + 1 < L.streak ? 'got' : i + 1 === L.streak ? 'now' : ''}"><small>Day ${i + 1}</small><b>${r.coins}</b><span>coins${r.tp ? ` +${r.tp} TP` : ''}${r.pack ? ' + pack' : ''}</span></div>`).join('')}</div><p class="note">Come back tomorrow to keep the streak going. Miss a day and it starts over.</p>`), 600); refreshChip(); } }
   if (id === 'admin') renderAdmin();
   if (id === 'franchise') Fr.renderFranchise();
   if (id !== 'online') stopLobby();
@@ -1034,7 +1035,30 @@ $('#p-settings').addEventListener('click', () => { $('#pause').classList.add('hi
 $('#p-replay').addEventListener('click', () => { togglePause(false); startReplay(); });
 const CAM_NAME = { behind: 'Follow ball', player: 'Follow you', broadcast: 'Sideline' };
 $('#p-cam').addEventListener('click', () => { SET.cam = SET.cam === 'behind' ? 'player' : SET.cam === 'player' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); $('#p-cam-l').textContent = CAM_NAME[SET.cam]; });
-$('#quit').addEventListener('click', () => leaveGame());
+// quitting a game that counts (Online, Ultimate Team, Season, Franchise) is a loss; Quick Play, practice and drills don't count
+function quitKind() {
+  const S = st.snap; if (!st.playing || st.overShown || !S || S.mode !== 'game' || st.replay) return null;
+  if (st.mode === 'host' || st.mode === 'guest') return 'online';
+  if (st.mode !== 'cpu' || st.practice || st.drill) return null;
+  return st.ut ? 'ut' : st.franchiseGame ? 'fr' : st.seasonGame ? 'season' : null;
+}
+function quitInfo() { const S = st.snap, me = st.local, other = 1 - me; return { k: quitKind(), my: S.sc[me], opp: Math.max(S.sc[other], S.sc[me] + 1), ql: S.ql, at: Date.now() }; }
+function applyQuitLoss(q) {
+  if (!q || !q.k || isGuest()) return;
+  try { localStorage.removeItem(QUIT_KEY()); } catch (_) {}
+  const P = profile(), online = q.k === 'online', ut = q.k === 'ut', fr = q.k === 'fr';
+  if (online || ut || fr) postGameStats({ res: 'L', ps: [], st: [{}, {}], me: 0, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: 600, qlen: q.ql || SET.qlen, ac: 0, acWhy: '', ut, pts: q.my, online, fr, quit: true });
+  if (P) { P.p.streak = 0; if (online) P.p.rp = Math.max(0, (P.p.rp || 0) - 25); if (ut && P.p.ut) P.p.ut.rw = Math.max(0, (P.p.ut.rw || 0) - 0.5); P.save(); }
+  if (q.k === 'season') { const SS = loadSeason(); if (SS && Season.userGame(SS)) { Season.finishWeek(SS, q.my, q.opp); saveSeason(SS); } }
+  if (fr) { const F = Fr.load(); if (F) Fr.recordResult(F, q.my, q.opp, [], 0, []); }
+}
+const QUIT_KEY = () => 'ek_quit_' + (Auth.user ? Auth.user.id : 'anon');
+// closing the tab mid-game counts too: the game keeps a note, and the loss is applied next time you open the game
+setInterval(() => { const k = quitKind(); try { if (k) localStorage.setItem(QUIT_KEY(), JSON.stringify(quitInfo())); else if (!st.playing) localStorage.removeItem(QUIT_KEY()); } catch (_) {} }, 3000);
+$('#quit').addEventListener('click', async () => {
+  if (quitKind()) { if (!(await askYes('Leaving now counts as a LOSS on your record. Quit anyway?', 'Quit and take the L'))) return; applyQuitLoss(quitInfo()); toast('You quit: counted as a loss', 3000); }
+  leaveGame();
+});
 $('#p-chat').addEventListener('click', () => { SET.chat = !SET.chat; saveSet(); $('#p-chat').textContent = SET.chat ? 'Mute chat' : 'Unmute chat'; if (!SET.chat) $('#chat-log').innerHTML = ''; });
 $('#go-menu').addEventListener('click', () => leaveGame());
 $('#go-clip').addEventListener('click', () => saveClip(st.rec));
@@ -1073,7 +1097,7 @@ function forfeitWin() {
 }
 function filmOk() { return !st.practice && !st.drill && st.mode !== 'spec' && st.mode !== 'clip' && !st.replay; }
 function showGameOver(S) {
-  st.overShown = true;
+  st.overShown = true; try { localStorage.removeItem(QUIT_KEY()); } catch (_) {}
   if (filmOk() && S.mode === 'game') { if (st.lastDead) filmCapture(st.rec, st.lastDead); const T0 = TEAMS[S.teams[0]], T1 = TEAMS[S.teams[1]]; filmSave(S, `${(st.teamNames && st.teamNames[0]) || T0.abbr} ${S.sc[0]} - ${S.sc[1]} ${(st.teamNames && st.teamNames[1]) || T1.abbr}${st.ut ? ' · UT' : st.seasonGame ? ' · Season' : st.franchiseGame ? ' · Franchise' : st.mode === 'cpu' ? ' · Quick Play' : ' · Online'}`); }
   const me = st.local, other = 1 - me;
   if (st.mode === 'spec') { st.rewarded = true; st.resultSaved = true; st.seasonSaved = true; }

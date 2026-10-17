@@ -1006,3 +1006,10 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .pad-grid span { font-size: 14px; color: var(--chalk); }
 .tbtn.r4 { border-color: #a855f7; background: rgba(168,85,247,.35); font-size: 32px; }
 .tbtn.r5 { border-color: #eab308; background: rgba(234,179,8,.35); font-size: 32px; }
+.ut-online { display: flex; margin: 4px 0 12px; }
+.invite-pop { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 10px; padding: 12px 14px; width: min(520px, calc(100vw - 32px)); background: rgba(7,11,28,.96); border-top: 3px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.invite-pop > div { flex: 1; min-width: 0; } .invite-pop b { display: block; font-family: var(--display); font-weight: 900; font-size: 20px; text-transform: uppercase; } .invite-pop small { color: var(--steel); }
+.friend-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; background: rgba(5,8,22,.45); }
+.friend-row img { width: 36px; height: 36px; } .friend-row small { display: block; color: var(--steel); font-size: 13px; }
+.friend-row .ad-btns { justify-content: flex-end; }
+.bubble.invite { background: linear-gradient(135deg, #3b2a00, #1b2550); border-left: 3px solid var(--gold); }

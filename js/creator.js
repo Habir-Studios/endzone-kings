@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Play Creator: draw your own offense, defense and special teams plays.
 // Plays save on this device (localStorage 'ek_custom_plays') and show up under "My Plays" in every game, online too.
-import { FORMS, cleanCustom } from './playbook.js?v=1792253797';
+import { FORMS, cleanCustom } from './playbook.js?v=1792254012';
 
 let C = null;
 const KEY = 'ek_custom_plays', MAX = 24;
@@ -11,7 +11,7 @@ const DEF_NAMES = { DL1: 'DE (left)', DL4: 'DT (left)', DL2: 'DT (right)', DL3: 
 const X = lx => 200 + lx * 7.2, Y = lz => 220 - lz * 6.5;
 const LX = x => (x - 200) / 7.2, LZ = y => (220 - y) / 6.5;
 
-export const SAVE_COST = 3500, EDIT_COST = 750;
+export const SAVE_COST = 2250, EDIT_COST = 500;
 let side = 'off';
 let ed = null;      // the play being edited
 let selRole = 'WR1';

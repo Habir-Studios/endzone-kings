@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792253797';
-import { Renderer } from './render.js?v=1792253797';
-import { Sfx } from './audio.js?v=1792253797';
-import { Auth } from './auth.js?v=1792253797';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792253797';
-import { getRoster, teamOvr } from './teams.js?v=1792253797';
-import * as Season from './season.js?v=1792253797';
-import * as Fr from './franchise.js?v=1792253797';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792253797';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792253797';
-import * as UTm from './ut.js?v=1792253797';
-import { initCreator, renderCreator } from './creator.js?v=1792253797';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792253797';
-import { portraitURL } from './faces.js?v=1792253797';
-import { logoURL, clearLogoCache } from './logos.js?v=1792253797';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792254012';
+import { Renderer } from './render.js?v=1792254012';
+import { Sfx } from './audio.js?v=1792254012';
+import { Auth } from './auth.js?v=1792254012';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792254012';
+import { getRoster, teamOvr } from './teams.js?v=1792254012';
+import * as Season from './season.js?v=1792254012';
+import * as Fr from './franchise.js?v=1792254012';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792254012';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792254012';
+import * as UTm from './ut.js?v=1792254012';
+import { initCreator, renderCreator } from './creator.js?v=1792254012';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792254012';
+import { portraitURL } from './faces.js?v=1792254012';
+import { logoURL, clearLogoCache } from './logos.js?v=1792254012';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1510,7 +1510,10 @@ let menuSkip = 0;
 requestAnimationFrame(frame);
 
 // ---------------- menus that live in their own modules ----------------
-const CTX = { zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+// used by friend challenges: host a private game with a given code, or join one
+function hostGame(code) { show('online'); SET.vis = 'private'; saveSet(); renderOnline(); $('#host-code').value = code; setTimeout(() => $('#host-btn').click(), 50); }
+function joinGame(code) { if (st.playing) { toast('Finish your game first'); return; } show('online'); $('#join-code').value = code; setTimeout(() => $('#join-btn').click(), 50); }
+const CTX = { hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
 initSocial(CTX);

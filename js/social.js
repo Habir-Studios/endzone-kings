@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792253797';
+import { TEAMS } from './teams.js?v=1792254012';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -39,7 +39,8 @@ async function tick() {
   try {
     if (scr === 'menu') await renderMenuBoard();
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
-    if (me() && (++unreadT % 10 === 0)) refreshUnread();
+    if (me()) { ensureProfile(); listenInvites(); }
+    if (me() && (++unreadT % 10 === 0)) { refreshUnread(); refreshRequests(); }
   } catch (_) {} finally { ticking = false; }
 }
 
@@ -69,6 +70,7 @@ export function renderSocial() {
   if (view.tab === 'boards') return renderBoards();
   if (view.tab === 'clips') return renderFeed();
   if (view.tab === 'msgs') return renderInbox();
+  if (view.tab === 'friends') return renderFriends();
   if (view.tab === 'me') return openProfile(me().id);
   if (view.tab === 'player') return openProfile(view.id);
   if (view.tab === 'thread') return openThread(view.id, view.name);
@@ -119,15 +121,17 @@ async function openProfile(id) {
     D.from('ek_clips').select('id,title,teams,secs,views,created_at').eq('owner', id).order('created_at', { ascending: false }).limit(30),
     me() && me().id !== id ? D.from('ek_follows').select('follower').eq('follower', me().id).eq('followee', id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
-  if (!p) { pane.innerHTML = id === (me() && me().id) ? '<p class="note">Your profile shows up after your first finished online 1v1. Go play one!</p>' : '<p class="note">That player doesn’t exist.</p>'; return; }
+  if (!p) { if (id === (me() && me().id)) { profileMade = false; await ensureProfile(); return openProfile(id); } pane.innerHTML = '<p class="note">That player doesn’t exist.</p>'; return; }
   const mine = me() && me().id === id, fol = !!(iFollow && iFollow.data), t = TEAMS[p.team] || TEAMS[0];
+  let theyFollow = false;
+  if (me() && !mine) { const { data: tf } = await D.from('ek_follows').select('follower').eq('follower', id).eq('followee', me().id).maybeSingle(); theyFollow = !!tf; }
   const stat = (n, v) => `<div><b>${v}</b><small>${n}</small></div>`;
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
       <div class="pf-id"><h3>${esc(p.name)}</h3><small>Level ${p.lvl}, ${fmt(p.wins)}-${fmt(p.losses)}, ${t.city} fan</small>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
-        <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span></div></div>
-      <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? 'Following' : 'Follow'}</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
+        <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}</div></div>
+      <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
     </div>
     <div class="pf-stats">
       <div class="pf-grp"><h4>Offense</h4><div class="pf-row">${stat('Pass yds', fmt(p.pass_yds))}${stat('Pass TD', fmt(p.pass_td))}${stat('Rush yds', fmt(p.rush_yds))}${stat('Rush TD', fmt(p.rush_td))}${stat('Rec yds', fmt(p.rec_yds))}${stat('Catches', fmt(p.rec))}${stat('Rec TD', fmt(p.rec_td))}</div></div>
@@ -141,9 +145,10 @@ async function openProfile(id) {
   if (fb) fb.onclick = async () => {
     fb.disabled = true;
     const r = fol ? await D.from('ek_follows').delete().eq('follower', me().id).eq('followee', id) : await D.from('ek_follows').insert({ follower: me().id, followee: id });
-    if (r.error) C.toast(r.error.message); else C.sfx.play('ui');
+    if (r.error) C.toast(r.error.message); else { C.sfx.play('ui'); if (!fol) C.toast(theyFollow ? `You and ${p.name} are friends now` : `Friend request sent to ${p.name}`); }
     openProfile(id);
   };
+  const cb = C.$('#pf-challenge'); if (cb) cb.onclick = () => challenge(id, p.name);
   const mb = C.$('#pf-msg'); if (mb) mb.onclick = () => openThread(id, p.name);
   wireReport(id, p.name);
   wireClipCards(pane, id);
@@ -275,7 +280,7 @@ async function renderInbox() {
   const names = {};
   if (convos.size) { const { data: ps } = await db().from('ek_players').select('id,name,team').in('id', [...convos.keys()]); for (const p of ps || []) names[p.id] = p; }
   pane.innerHTML = `<h3 class="store-h">Messages</h3><div class="inbox">${[...convos.entries()].map(([id, c]) => { const p = names[id] || { name: 'Player', team: 0 };
-    return `<button class="convo ${c.unread ? 'unread' : ''}" type="button" data-id="${esc(id)}" data-name="${esc(p.name)}"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><b>${esc(p.name)}</b><small>${c.last.sender === uid ? 'You: ' : ''}${esc(c.last.body.slice(0, 70))}</small></div><em>${c.unread ? `<i class="dotn">${c.unread}</i>` : ago(c.last.created_at)}</em></button>`; }).join('') || '<p class="note">No messages yet. Find someone on the leaderboard and hit Message.</p>'}</div>`;
+    return `<button class="convo ${c.unread ? 'unread' : ''}" type="button" data-id="${esc(id)}" data-name="${esc(p.name)}"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><b>${esc(p.name)}</b><small>${c.last.sender === uid ? 'You: ' : ''}${parseInvite(c.last.body) ? '🏈 1v1 challenge' : esc(c.last.body.slice(0, 70))}</small></div><em>${c.unread ? `<i class="dotn">${c.unread}</i>` : ago(c.last.created_at)}</em></button>`; }).join('') || '<p class="note">No messages yet. Find someone on the leaderboard and hit Message.</p>'}</div>`;
   C.$$('.convo', pane).forEach(b => b.onclick = () => openThread(b.dataset.id, b.dataset.name));
 }
 let threadSub = null;
@@ -291,7 +296,10 @@ async function openThread(id, name) {
   const draw = async () => {
     const { data } = await db().from('ek_messages').select('id,sender,recipient,body,created_at').or(`and(sender.eq.${uid},recipient.eq.${id}),and(sender.eq.${id},recipient.eq.${uid})`).order('created_at', { ascending: true }).limit(200);
     const box = C.$('#thread'); if (!box) return;
-    box.innerHTML = (data || []).map(m => `<div class="bubble ${m.sender === uid ? 'mine' : ''}"><p>${esc(m.body)}</p><small>${ago(m.created_at)}</small></div>`).join('') || '<p class="note">Say hi.</p>';
+    box.innerHTML = (data || []).map(m => { const inv = parseInvite(m.body), fresh = inv && Date.now() - new Date(m.created_at) < 10 * 60000;
+      return inv ? `<div class="bubble invite ${m.sender === uid ? 'mine' : ''}"><p>${m.sender === uid ? 'You challenged them to a 1v1' : 'Challenged you to a 1v1'}</p>${m.sender !== uid && fresh ? `<button class="btn sm primary" data-join="${esc(inv)}">Play now</button>` : `<small>${fresh ? 'Waiting…' : 'Expired'}</small>`}<small>${ago(m.created_at)}</small></div>`
+        : `<div class="bubble ${m.sender === uid ? 'mine' : ''}"><p>${esc(m.body)}</p><small>${ago(m.created_at)}</small></div>`; }).join('') || '<p class="note">Say hi.</p>';
+    C.$$('[data-join]', box).forEach(b => b.onclick = () => C.joinGame(b.dataset.join));
     box.scrollTop = box.scrollHeight;
     await db().from('ek_messages').update({ read: true }).eq('recipient', uid).eq('sender', id).eq('read', false);
     refreshUnread();
@@ -434,4 +442,79 @@ async function namesFor(ids) {
   const { data } = await db().from('ek_players').select('id,name').in('id', ids.slice(0, 300));
   for (const r of data || []) out[r.id] = r.name;
   return out;
+}
+
+
+// ---------------- profiles exist from the moment you sign in (so friends can find you) ----------------
+let profileMade = false;
+async function ensureProfile() {
+  if (profileMade || !db() || !me()) return; profileMade = true;
+  const P = C.profile && C.profile();
+  const { error } = await db().from('ek_players').upsert({ id: me().id, name: me().name, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0 }, { onConflict: 'id' });
+  if (error) { console.warn('profile create failed', error.message); profileMade = false; }
+}
+
+// ---------------- friends: add = follow, friends = you both added each other ----------------
+async function refreshRequests() {
+  if (!db() || !me()) return;
+  const uid = me().id;
+  const [{ data: inc }, { data: out }] = await Promise.all([db().from('ek_follows').select('follower').eq('followee', uid).limit(500), db().from('ek_follows').select('followee').eq('follower', uid).limit(500)]);
+  const mine = new Set((out || []).map(r => r.followee)), ignored = ignoredSet();
+  const n = (inc || []).filter(r => !mine.has(r.follower) && !ignored.has(r.follower)).length;
+  const el = C.$('#fr-req-n'); if (el) { el.textContent = n; el.classList.toggle('hidden', !n); }
+}
+const ignoredSet = () => { try { return new Set(JSON.parse(localStorage.getItem('ek_ignored_req') || '[]')); } catch (_) { return new Set(); } };
+const ignore = id => { try { const s = ignoredSet(); s.add(id); localStorage.setItem('ek_ignored_req', JSON.stringify([...s])); } catch (_) {} };
+async function renderFriends() {
+  const pane = C.$('#so-pane'), uid = me().id; pane.innerHTML = '<p class="note">Loading…</p>';
+  const [{ data: inc }, { data: out }] = await Promise.all([db().from('ek_follows').select('follower').eq('followee', uid).limit(500), db().from('ek_follows').select('followee').eq('follower', uid).limit(500)]);
+  const incS = new Set((inc || []).map(r => r.follower)), outS = new Set((out || []).map(r => r.followee)), ignored = ignoredSet();
+  const friends = [...outS].filter(x => incS.has(x)), requests = [...incS].filter(x => !outS.has(x) && !ignored.has(x)), sent = [...outS].filter(x => !incS.has(x));
+  const ids = [...new Set([...friends, ...requests, ...sent])];
+  const ps = {}; if (ids.length) { const { data } = await db().from('ek_players').select('id,name,team,lvl').in('id', ids); for (const p of data || []) ps[p.id] = p; }
+  const row = (id, btns, sub) => { const p = ps[id] || { name: 'Player', team: 0, lvl: 1 }; return `<div class="friend-row"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><button class="link" data-pid="${esc(id)}">${esc(p.name)}</button><small>${sub || 'Level ' + p.lvl}</small></div><div class="ad-btns">${btns}</div></div>`; };
+  pane.innerHTML = `<p class="note">Find people with the search box above, open their profile and hit Add friend. When they add you back you're friends, and you can challenge each other to a 1v1 from here.</p>
+    ${requests.length ? `<h3 class="store-h">Friend requests (${requests.length})</h3><div class="ad-list">${requests.map(id => row(id, `<button class="btn sm primary" data-accept="${esc(id)}">Accept</button><button class="btn sm ghost" data-ignore="${esc(id)}">Ignore</button>`, 'Wants to be friends')).join('')}</div>` : ''}
+    <h3 class="store-h">Friends (${friends.length})</h3><div class="ad-list">${friends.map(id => row(id, `<button class="btn sm primary" data-chal="${esc(id)}">Challenge</button><button class="btn sm" data-dm="${esc(id)}">Message</button>`)).join('') || '<p class="note">No friends yet.</p>'}</div>
+    ${sent.length ? `<h3 class="store-h">Sent requests</h3><div class="ad-list">${sent.map(id => row(id, `<button class="btn sm ghost" data-cancel="${esc(id)}">Cancel</button>`, 'Waiting for them to add you back')).join('')}</div>` : ''}`;
+  C.$$('[data-pid]', pane).forEach(b => b.onclick = () => openProfile(b.dataset.pid));
+  C.$$('[data-accept]', pane).forEach(b => b.onclick = async () => { const { error } = await db().from('ek_follows').insert({ follower: uid, followee: b.dataset.accept }); if (error) C.toast(error.message); else C.toast('Friend added'); renderFriends(); refreshRequests(); });
+  C.$$('[data-ignore]', pane).forEach(b => b.onclick = () => { ignore(b.dataset.ignore); renderFriends(); refreshRequests(); });
+  C.$$('[data-cancel]', pane).forEach(b => b.onclick = async () => { await db().from('ek_follows').delete().eq('follower', uid).eq('followee', b.dataset.cancel); renderFriends(); });
+  C.$$('[data-chal]', pane).forEach(b => b.onclick = () => challenge(b.dataset.chal, (ps[b.dataset.chal] || {}).name || 'them'));
+  C.$$('[data-dm]', pane).forEach(b => b.onclick = () => openThread(b.dataset.dm, (ps[b.dataset.dm] || {}).name));
+}
+
+// ---------------- 1v1 challenges: host a private game and send the code as a special message ----------------
+const INVITE_RE = /^\[1v1:([A-Z0-9]{6,8})\]/;
+const parseInvite = body => { const m = INVITE_RE.exec(body || ''); return m ? m[1] : null; };
+async function challenge(id, name) {
+  if (!db() || !me()) return;
+  const code = C.newCode();
+  const { error } = await db().from('ek_messages').insert({ sender: me().id, recipient: id, body: `[1v1:${code}] ${me().name} challenged you to a 1v1` });
+  if (error) { C.toast('Couldn’t send the challenge: ' + error.message); return; }
+  C.toast(`Challenge sent to ${name}. Waiting for them to join…`, 3500);
+  C.hostGame(code);
+}
+let inviteSub = null, inviteUser = '';
+function listenInvites() {
+  if (!db() || !me() || inviteUser === me().id) return;
+  inviteUser = me().id;
+  if (inviteSub) { try { db().removeChannel(inviteSub); } catch (_) {} }
+  inviteSub = db().channel('ek-inv-' + me().id).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ek_messages', filter: `recipient=eq.${me().id}` }, async (pl) => {
+    refreshUnread();
+    const code = parseInvite(pl.new && pl.new.body); if (!code) return;
+    const { data } = await db().from('ek_players').select('name').eq('id', pl.new.sender).maybeSingle();
+    showInvite(code, data ? data.name : 'Someone');
+  }).subscribe();
+}
+function showInvite(code, from) {
+  const el = C.$('#invite-pop'); if (!el) return;
+  C.$('#inv-title').textContent = `${from} challenged you`;
+  C.$('#inv-sub').textContent = C.st.playing ? 'Finish your game first, it’s in your messages' : 'Online 1v1, ready when you are';
+  C.$('#inv-yes').disabled = !!C.st.playing;
+  el.classList.remove('hidden'); C.sfx.play('whistle');
+  C.$('#inv-yes').onclick = () => { el.classList.add('hidden'); C.joinGame(code); };
+  C.$('#inv-no').onclick = () => el.classList.add('hidden');
+  clearTimeout(showInvite.t); showInvite.t = setTimeout(() => el.classList.add('hidden'), 30000);
 }

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792253797">
+  <link rel="stylesheet" href="css/style.css?v=1792254012">
 </head>
 <body>
   <canvas id="gl"></canvas>
@@ -218,6 +218,7 @@
           <div class="ut-tabs so-tabs" role="tablist">
             <button class="ut-tab so-tab on" data-so="boards" role="tab">Leaderboards</button>
             <button class="ut-tab so-tab" data-so="clips" role="tab">Clips</button>
+            <button class="ut-tab so-tab" data-so="friends" role="tab">Friends<i class="dotn hidden" id="fr-req-n"></i></button>
             <button class="ut-tab so-tab" data-so="msgs" role="tab">Messages<i class="dotn hidden so-unread"></i></button>
             <button class="ut-tab so-tab" data-so="me" role="tab">My profile</button>
           </div>
@@ -281,6 +282,7 @@
         <p id="online-warn" class="warn hidden"></p>
         <div id="online-main">
           <div class="team-pick inline" id="tp-online"><small>Your team</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
+          <label class="check ut-online"><input type="checkbox" id="use-ut"> Play with my Ultimate Team squad (works for hosting, joining and challenges)</label>
           <div class="two-col">
             <div class="box">
               <h3>Host a game</h3>
@@ -289,7 +291,6 @@
               <label class="mini">Quarter length<div class="seg" id="seg-qlen2"></div></label>
               <label class="mini">Who can join<div class="seg" id="seg-vis"></div></label>
               <label class="mini">Weather and time<div class="seg" id="seg-wx2"></div></label>
-              <label class="check"><input type="checkbox" id="use-ut"> Play with my Ultimate Team squad</label>
               <button class="btn primary" id="host-btn">Host game</button>
             </div>
             <div class="box">
@@ -588,6 +589,7 @@
     <p class="in-skip">Press <kbd>Space</kbd> to skip</p>
   </div>
 
+  <div id="invite-pop" class="invite-pop hidden" role="alertdialog"><div><b id="inv-title">1v1 challenge</b><small id="inv-sub"></small></div><button class="btn sm primary" id="inv-yes">Play</button><button class="btn sm ghost" id="inv-no">Not now</button></div>
   <div id="clipbar" class="clipbar hidden"><div><b id="clip-title">Clip</b><small id="clip-by"></small></div><button class="btn sm" id="clip-again">Replay</button><button class="btn sm primary" id="clip-close">Close</button></div>
   <div id="pause" class="modal hidden">
     <div class="panel pause-panel">
@@ -640,6 +642,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792253797"></script>
+  <script type="module" src="js/main.js?v=1792254012"></script>
 </body>
 </html>

@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792269592';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792269592';
-import * as UT from './ut.js?v=1792269592';
-import { portraitURL } from './faces.js?v=1792269592';
-import { TEAMS } from './teams.js?v=1792269592';
+import { askYes } from './ui.js?v=1792269984';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792269984';
+import * as UT from './ut.js?v=1792269984';
+import { portraitURL } from './faces.js?v=1792269984';
+import { TEAMS } from './teams.js?v=1792269984';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -21,7 +21,14 @@ export function profile() {
     prof = new Profile(u.id); profUser = u.id;
     prof.onSave(p => { C.Auth.saveCloud(p); refreshChip(); });
     const cloud = C.Auth.cloudProfile(); if (cloud && prof.adopt(cloud)) refreshChip();
-    C.Auth.refreshCloud().then(cp => { if (cp && prof && prof.adopt(cp)) { refreshChip(); if (C.screen() === 'ut') renderUT(); if (C.screen() === 'progress') renderProgress(); } });
+    C.Auth.refreshCloud().then(cp => {
+      if (!prof) return;
+      if (cp && prof.adopt(cp)) { refreshChip(); if (C.screen() === 'ut') renderUT(); if (C.screen() === 'progress') renderProgress(); }
+      const x = C.syncExtras ? C.syncExtras() : {};
+      // this device is further along than the cloud (or the cloud has nothing yet): upload it now
+      const pg = q => q ? (q.lvl || 1) * 1e7 + (q.xp || 0) * 10 + Math.min(9, q.games || 0) : -1;
+      if (!cp || !C.Auth._row || pg(prof.p) > pg(cp) || Object.keys(x).length) C.Auth.saveCloud(prof.p, x);
+    });
   }
   return prof;
 }

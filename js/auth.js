@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792269592';
+import { CONFIG } from './config.js?v=1792269984';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -13,13 +13,17 @@ async function sha(text) {
 const loadAcc = () => { try { return JSON.parse(localStorage.getItem(LS_ACC)) || {}; } catch (_) { return {}; } };
 const saveAcc = (a) => { try { localStorage.setItem(LS_ACC, JSON.stringify(a)); } catch (_) {} };
 
+// compact form for the old account-metadata save. Keeps every card field (variant, ability, X-Factor):
+// dropping them used to break the save's seal on the other device and knock coins back to 1500.
 function pack(p) {
   const { log, ...rest } = p;
-  return { ...rest, ut: { ...p.ut, cards: p.ut.cards.map(c => [c.u, c.id, c.b || 0]) } };
+  return { ...rest, ut: { ...p.ut, cards: p.ut.cards.map(c => [c.u, c.id, c.b || 0, c.x || 0, c.ab || 0, c.xf ? 1 : 0]) } };
 }
 function unpack(e) {
-  try { return { ...e, log: [], ut: { ...e.ut, cards: (e.ut.cards || []).map(a => ({ u: a[0], id: a[1], b: a[2] })) } }; } catch (_) { return null; }
+  try { return { ...e, log: [], ut: { ...e.ut, cards: (e.ut.cards || []).map(a => { const c = { u: a[0], id: a[1], b: a[2] }; if (a[3]) c.x = a[3]; if (a[4]) c.ab = a[4]; if (a[5]) c.xf = 1; return c; }) } }; } catch (_) { return null; }
 }
+// how far along a save is: level and XP only ever go up, so the save with more of them is the real one
+export const progOf = p => p ? (p.lvl || 1) * 1e7 + (p.xp || 0) * 10 + Math.min(9, p.games || 0) : 0;
 
 export const Auth = {
   mode: 'local', client: null, user: null,
@@ -112,19 +116,35 @@ export const Auth = {
   // progression save that follows a real account between devices (kept compact: it rides in the account metadata)
   cloudProfile() {
     if (this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return null;
+    if (this._row) return this._row.p || null;
     return this._sbUser && this._sbUser.user_metadata && this._sbUser.user_metadata.ek ? unpack(this._sbUser.user_metadata.ek) : null;
   },
+  // the full save (profile + franchise + season) from the ek_saves table, falling back to the old metadata copy
   async refreshCloud() {
     if (this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return null;
-    try { const { data } = await this.client.auth.getUser(); if (data && data.user) this._sbUser = data.user; } catch (_) {}
+    try {
+      const { data, error } = await this.client.from('ek_saves').select('data').eq('id', this.user.id).maybeSingle();
+      if (!error) { this._saves = true; this._row = data ? data.data : null; }
+    } catch (_) {}
+    if (!this._row) { try { const { data } = await this.client.auth.getUser(); if (data && data.user) this._sbUser = data.user; } catch (_) {} }
     return this.cloudProfile();
   },
-  saveCloud(p) {
+  cloudExtra(k) { return this._row && this._row[k] !== undefined ? this._row[k] : undefined; },
+  saveCloud(p, extra) {
     if (this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return;
+    this._pendP = p || this._pendP || (this._row && this._row.p) || null; if (extra) this._pendX = { ...(this._pendX || {}), ...extra };
     clearTimeout(this._cloudT);
-    this._cloudT = setTimeout(async () => {
-      try { const { data } = await this.client.auth.updateUser({ data: { ek: pack(p) } }); if (data && data.user) this._sbUser = data.user; } catch (e) { console.warn('cloud save failed', e); }
-    }, 3000);
+    this._cloudT = setTimeout(() => this.flushCloud(), 2500);
+  },
+  async flushCloud() {
+    const p = this._pendP; if (!p || this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return;
+    const row = { ...(this._row || {}), ...(this._pendX || {}), p, at: Date.now() };
+    try {
+      const { error } = await this.client.from('ek_saves').upsert({ id: this.user.id, data: row, prog: progOf(p), updated_at: new Date().toISOString() });
+      if (!error) { this._row = row; this._saves = true; this._pendX = null; return; }
+      console.warn('cloud save (table) failed, using account metadata', error.message);
+    } catch (e) { console.warn(e); }
+    try { const { data } = await this.client.auth.updateUser({ data: { ek: pack(p) } }); if (data && data.user) this._sbUser = data.user; } catch (e) { console.warn('cloud save failed', e); }
   },
 
   async signOut() {

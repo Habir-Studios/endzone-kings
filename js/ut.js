@@ -1,6 +1,7 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792269592';
+import { TEAMS } from './teams.js?v=1792269984';
+import { grade, nextForm, decay, formed } from './form.js?v=1792269984';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
@@ -175,13 +176,21 @@ export function squadRoster(ut) {
   const players = {}, usedNums = new Set();
   for (const s of SLOTS) {
     const c = L[s]; let num = c.num; while (usedNums.has(num)) num = (num + 1) % 100; usedNums.add(num);
-    players[s] = { first: c.first, last: c.last, num, face: c.face, ovr: c.ovr, spd: c.spd, hands: c.hands, acc: c.acc, arm: c.arm, elu: c.elu, blk: c.blk, rush: c.rush, tkl: c.tkl, cov: c.cov };
+    players[s] = formed({ first: c.first, last: c.last, num, face: c.face, ovr: c.ovr, spd: c.spd, hands: c.hands, acc: c.acc, arm: c.arm, elu: c.elu, blk: c.blk, rush: c.rush, tkl: c.tkl, cov: c.cov }, (ut.form || {})[ut.lineup[s]]);   // live form
   }
   return { players };
 }
 
 // ---------------- scaling rival: a CPU squad built around a target overall ----------------
 // As your squad gets better (and you keep winning), the rival squads you face get better too.
+// live attribute form: after each Ultimate Team game, starters run hot or cold off their box score
+export function updateForm(ut, ps, me, won, margin) {
+  ut.form = ut.form || {}; const played = new Set(), out = [];
+  for (const s of ps || []) { if (s.t !== me) continue; const u = ut.lineup[s.role]; if (u == null) continue; const f0 = ut.form[u] || 0; ut.form[u] = nextForm(f0, grade(s, s.role, won, margin)); played.add(String(u));
+    if (ut.form[u] >= 1.5 && f0 < 1.5) out.push(`${s.n} is heating up: +${Math.round(ut.form[u])} to every rating`); else if (ut.form[u] <= -1.5 && f0 > -1.5) out.push(`${s.n} is in a slump: ${Math.round(ut.form[u])} to every rating`); }
+  for (const u of Object.keys(ut.form)) { if (!played.has(u)) ut.form[u] = decay(ut.form[u]); if (!ut.form[u]) delete ut.form[u]; }
+  return out;
+}
 export function rivalLevel(ut) { const o = squadOvr(ut).ovr; return Math.max(58, Math.min(97, o - 1 + Math.min(9, Math.floor((ut.rw || 0) / 3)))); }
 export function rivalRoster(target, seed) {
   const r = rng(seed >>> 0 || 7), players = {}, usedNums = new Set();

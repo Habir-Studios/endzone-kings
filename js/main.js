@@ -1,20 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792269592';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792269592';
-import { Renderer } from './render.js?v=1792269592';
-import { Sfx } from './audio.js?v=1792269592';
-import { Auth } from './auth.js?v=1792269592';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792269592';
-import { getRoster, teamOvr } from './teams.js?v=1792269592';
-import * as Season from './season.js?v=1792269592';
-import * as Fr from './franchise.js?v=1792269592';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792269592';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792269592';
-import * as UTm from './ut.js?v=1792269592';
-import { initCreator, renderCreator } from './creator.js?v=1792269592';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792269592';
-import { portraitURL } from './faces.js?v=1792269592';
-import { logoURL, clearLogoCache } from './logos.js?v=1792269592';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792269984';
+import * as Form from './form.js?v=1792269984';
+import { watchSim } from './simview.js?v=1792269984';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792269984';
+import { Renderer } from './render.js?v=1792269984';
+import { Sfx } from './audio.js?v=1792269984';
+import { Auth } from './auth.js?v=1792269984';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792269984';
+import { getRoster, teamOvr } from './teams.js?v=1792269984';
+import * as Season from './season.js?v=1792269984';
+import * as Fr from './franchise.js?v=1792269984';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792269984';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792269984';
+import * as UTm from './ut.js?v=1792269984';
+import { initCreator, renderCreator } from './creator.js?v=1792269984';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792269984';
+import { portraitURL } from './faces.js?v=1792269984';
+import { logoURL, clearLogoCache } from './logos.js?v=1792269984';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -334,7 +336,17 @@ const QLENS = [[60, '1 min'], [120, '2 min'], [180, '3 min'], [300, '5 min']];
 // ---------------- season ----------------
 const seasonKey = () => 'ek_season_' + (Auth.user ? Auth.user.id : 'anon');
 function loadSeason() { try { return JSON.parse(localStorage.getItem(seasonKey())); } catch (_) { return null; } }
-function saveSeason(S) { try { localStorage.setItem(seasonKey(), JSON.stringify(S)); } catch (_) {} }
+function saveSeason(S) { if (S) S.at = Date.now(); try { localStorage.setItem(seasonKey(), JSON.stringify(S)); } catch (_) {} Auth.saveCloud(null, { se: S }); }
+// keep franchise and season in step with the cloud save (newest wins), and upload this device's copies if they're newer
+function syncExtras() {
+  const fr = Auth.cloudExtra('fr'), se = Auth.cloudExtra('se');
+  Fr.adoptCloud(fr);
+  const cur = loadSeason(); if (se && (!cur || (se.at || 0) > (cur.at || 0))) { try { localStorage.setItem(seasonKey(), JSON.stringify(se)); } catch (_) {} }
+  const lf = Fr.load(), ls = loadSeason(), x = {};
+  if (lf && (!fr || (lf.at || 0) > (fr.at || 0))) x.fr = lf;
+  if (ls && (!se || (ls.at || 0) > (se.at || 0))) x.se = ls;
+  return x;
+}
 let seasonPick = -1;
 function renderSeason() {
   const S = loadSeason();
@@ -384,7 +396,14 @@ function renderSeason() {
   $('#sched').innerHTML = rows.join('');
   if (S.v === 2) {
     // NFL standings: by division; division winners plus 3 wild cards per conference make it
-    $('#stand-h').textContent = S.phase === 'regular' ? 'Standings (division winners + 3 wild cards per conference make the playoffs)' : 'Final standings';
+    // injury report: tap a player for the details
+  { let box = $('#season-inj'); if (!box) { box = document.createElement('div'); box.id = 'season-inj'; box.className = 'season-inj'; $('#stand').parentNode.insertBefore(box, $('#stand-h')); }
+    const ros = getRoster(S.team).players, rows = [...Object.entries(S.inj || {}).map(([r, j]) => ({ r, j, out: true })), ...Object.entries(S.ling || {}).filter(([r]) => !(S.inj || {})[r]).map(([r, j]) => ({ r, j, out: false }))];
+    const hot = Object.entries(S.form || {}).filter(([, f]) => Math.abs(f) >= 1.5).sort((a, b) => b[1] - a[1]);
+    box.innerHTML = (rows.length ? `<h3 class="store-h">Injury report</h3><ul class="fr-log">${rows.map(({ r, j, out }) => `<li class="inj-li" data-sinj="${r}"><i class="inj-cross ${out ? '' : 'q'}">✚</i><b>${escapeHtml(ros[r] ? ros[r].name : r)}</b> (${r}): ${out ? `${escapeHtml(j.kind)}, out ${j.weeks} more week${j.weeks === 1 ? '' : 's'}` : `playing through ${escapeHtml(j.kind.toLowerCase())}`}<small>details</small></li>`).join('')}</ul>` : '')
+      + (hot.length ? `<h3 class="store-h">Form</h3><div class="form-row">${hot.map(([r, f]) => `<span data-sinj="${r}">${escapeHtml(ros[r] ? ros[r].name : r)} ${Form.formTag(f)}</span>`).join('')}</div>` : '');
+    box.querySelectorAll('[data-sinj]').forEach(el => el.onclick = () => { const r = el.dataset.sinj, p = ros[r] || {}; showInfo((S.inj || {})[r] ? 'Injury report' : 'Player status', injuryCard({ name: p.name || r, pos: `${r} · ${p.ovr || ''} OVR`, inj: (S.inj || {})[r], ling: (S.ling || {})[r], form: (S.form || {})[r] || 0, backWeek: (S.inj || {})[r] ? (S.week || 0) + 1 + S.inj[r].weeks : 0 })); }); }
+  $('#stand-h').textContent = S.phase === 'regular' ? 'Standings (division winners + 3 wild cards per conference make the playoffs)' : 'Final standings';
     const seeds = S.playoffs ? S.playoffs.seeds : [...Season.seeds(S, 'AFC'), ...Season.seeds(S, 'NFC')];
     $('#stand').innerHTML = Season.divisionTables(S).map(D => `<tr class="div-h"><th colspan="7">${D.div}</th></tr>` + D.rows.map(r => {
       const sd = seeds.indexOf(r.team), seed = sd < 0 ? '' : (sd % 7) + 1;
@@ -400,14 +419,26 @@ function renderSeason() {
 $('#season-start').addEventListener('click', () => { if (seasonPick < 0) return; saveSeason(Season.newSeason(seasonPick)); renderSeason(); toast(`Welcome to ${TEAMS[seasonPick].city}, coach.`); });
 $('#season-sim').addEventListener('click', () => {
   const S = loadSeason(); if (!S) return;
-  const r = Season.simMyGame(S); saveSeason(S); renderSeason();
+  const g = Season.userGame(S);
+  if (g && !$('#season-sim').dataset.busy) {   // watch the sim: the real engine plays it out with a play-by-play feed
+    const opp = g.home === S.team ? g.away : g.home; $('#season-sim').dataset.busy = 1;
+    watchSim({ teams: [S.team, opp], rosters: [Form.seasonRoster(S), null], names: [TEAMS[S.team].city, TEAMS[opp].city], qlen: SET.qlen, diff: SET.diff, logo: logoURL }).then(res => {
+      delete $('#season-sim').dataset.busy;
+      const SS = loadSeason(); if (!SS) return;
+      const notes = Form.seasonAfterGame(SS, res.ps, res.injLog, 0, res.sc[0] > res.sc[1], res.sc[0] - res.sc[1]);
+      Season.finishWeek(SS, res.sc[0], res.sc[1]); saveSeason(SS); renderSeason();
+      toast(`${res.sc[0] > res.sc[1] ? 'W' : res.sc[0] < res.sc[1] ? 'L' : 'T'} ${res.sc[0]}-${res.sc[1]}${notes.length ? ' · ' + notes[0] : ''}`, 3500);
+    });
+    return;
+  }
+  const r = Season.simMyGame(S); if (!r) Form.tickInjuries(S, []); saveSeason(S); renderSeason();
   if (r) toast(r[0] > r[1] ? `Simmed: W ${r[0]}-${r[1]}` : r[0] < r[1] ? `Simmed: L ${r[0]}-${r[1]}` : `Simmed: T ${r[0]}-${r[1]}`); else if (S.phase !== 'done') toast('Bye week done');
 });
 $('#season-play').addEventListener('click', () => {
   const S = loadSeason(); if (!S) return;
   const g = Season.userGame(S); if (!g) return;
   const opp = g.home === S.team ? g.away : g.home;
-  startCPU({ teams: [S.team, opp], season: true });
+  startCPU({ teams: [S.team, opp], season: true, rosters: [Form.seasonRoster(S), null] });
 });
 $('#season-quit').addEventListener('click', async () => {
   const S = loadSeason();
@@ -1052,6 +1083,7 @@ function showGameOver(S) {
     st.seasonSaved = true;
     const SS = loadSeason();
     if (SS) {
+      { const inj = (st.game && st.game.injLog) || [], notes = Form.seasonAfterGame(SS, S.ps || [], inj, 0, S.sc[0] > S.sc[1], S.sc[0] - S.sc[1]); if (notes.length) setTimeout(() => toast(notes[0], 3500), 4200); }
       Season.finishWeek(SS, S.sc[0], S.sc[1]); saveSeason(SS);
       if (SS.phase === 'done' && SS.champion === SS.team) unlockAch('champ');
       const note = SS.phase === 'done' ? (SS.champion === SS.team ? '🏆 KINGS BOWL CHAMPIONS!' : 'Season over.') : `Season record: ${SS.standings[SS.team].w}-${SS.standings[SS.team].l}${SS.standings[SS.team].t ? '-' + SS.standings[SS.team].t : ''}`;
@@ -1083,6 +1115,7 @@ function showGameOver(S) {
     const mine = S.st[me], theirs = S.st[other];
     try {
       $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.franchiseGame ? 'franchise' : st.ut ? 'ut' : 'cpu') : 'online', ut: !!st.ut, solo: st.solo, res, diff: st.mode === 'cpu' ? (st.game && st.game.opts && st.game.opts.difficulty != null ? st.game.opts.difficulty : SET.diff) : 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
+      if (st.ut && S.mode === 'game') { try { const P = profile(); if (P && P.p.ut) { const fl = UTm.updateForm(P.p.ut, S.ps || [], me, res === 'W', S.sc[me] - S.sc[other]); P.save(); if (fl.length) $('#go-rewards').insertAdjacentHTML('beforeend', `<div class="gr-extra">${fl.map(t => `<span class="up">${escapeHtml(t)}</span>`).join('')}</div>`); } } catch (e) { console.warn(e); } }
     } catch (e) { console.warn(e); $('#go-rewards').innerHTML = ''; }
   }
   $('#gameover').classList.remove('hidden');
@@ -1840,7 +1873,7 @@ requestAnimationFrame(frame);
 // used by friend challenges: host a private game with a given code, or join one
 function hostGame(code) { show('online'); SET.vis = 'private'; saveSet(); renderOnline(); $('#host-code').value = code; setTimeout(() => $('#host-btn').click(), 50); }
 function joinGame(code) { if (st.playing) { toast('Finish your game first'); return; } show('online'); $('#join-code').value = code; setTimeout(() => $('#join-btn').click(), 50); }
-const CTX = { peekLive, watchUser, openTrade: (id, name) => { setTradeTarget(id, name); show('ut'); }, SET, leaveGame, refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+const CTX = { syncExtras, peekLive, watchUser, openTrade: (id, name) => { setTradeTarget(id, name); show('ut'); }, SET, leaveGame, refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
 initSocial(CTX);

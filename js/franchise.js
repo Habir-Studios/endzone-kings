@@ -1,16 +1,20 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { askYes, askPick } from './ui.js?v=1792269592';
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792269592';
-import * as Season from './season.js?v=1792269592';
+import { askYes, askPick, showInfo, injuryCard } from './ui.js?v=1792269984';
+import { grade, nextForm, decay, formed, formTag } from './form.js?v=1792269984';
+import { watchSim } from './simview.js?v=1792269984';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792269984';
+import * as Season from './season.js?v=1792269984';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const KEY = () => 'ek_franchise_' + (C.Auth.user ? C.Auth.user.id : 'anon');
 export const load = () => { try { return JSON.parse(localStorage.getItem(KEY())); } catch (_) { return null; } };
-const save = F => { try { localStorage.setItem(KEY(), JSON.stringify(F)); } catch (_) {} };
+const save = F => { if (F) F.at = Date.now(); try { localStorage.setItem(KEY(), JSON.stringify(F)); } catch (_) {} if (C.Auth && C.Auth.saveCloud) C.Auth.saveCloud(null, { fr: F }); };
+// a newer franchise from another device replaces this one
+export function adoptCloud(fr) { const cur = load(); if (fr && (!cur || (fr.at || 0) > (cur.at || 0))) { try { localStorage.setItem(KEY(), JSON.stringify(fr)); } catch (_) {} return true; } return false; }
 
 export const CAP = 240;   // salary cap, $M
 const BENCH_MAX = 10;
@@ -83,7 +87,7 @@ export function simRoster(F) {
   for (const [role] of Object.entries(F.starters)) {
     const p = activeAt(F, role); if (!p) return null;
     let num = p.num || 0; while (used.has(num)) num = (num + 1) % 100; used.add(num);
-    players[role] = { first: p.first, last: p.last, num, face: p.face, ovr: p.ovr, spd: p.spd, hands: p.hands, acc: p.acc, arm: p.arm, elu: p.elu, blk: p.blk, rush: p.rush, tkl: p.tkl, cov: p.cov };
+    players[role] = formed({ first: p.first, last: p.last, num, face: p.face, ovr: p.ovr, spd: p.spd, hands: p.hands, acc: p.acc, arm: p.arm, elu: p.elu, blk: p.blk, rush: p.rush, tkl: p.tkl, cov: p.cov }, p.form, p.ling);   // hot/cold form and lingering knocks
   }
   return { players };
 }
@@ -104,19 +108,23 @@ function levelDown(p, n) { for (const k of RK) p[k] = clampR(p[k] - n * (KEYS[p.
 
 // ---------------- games ----------------
 // XP from one game: S.ps holds per-player stats keyed by role
-export function applyGame(F, ps, myIdx, won, myScore, oppScore) {
-  const out = [];
+export function applyGame(F, ps, myIdx, won, myScore, oppScore, xpScale = 1) {
+  const out = [], played = new Set();
   for (const s of ps || []) {
     if (s.t !== myIdx) continue;
-    const id = F.starters[s.role]; const p = F.players[id]; if (!p) continue;
+    const id = F.starters[s.role]; const p = F.players[id]; if (!p || p.inj) continue;
+    const f0 = p.form || 0; p.form = nextForm(f0, grade(s, s.role, won, myScore - oppScore)); played.add(p.id);
+    if (p.form >= 1.5 && f0 < 1.5) out.push(`${p.first} ${p.last} is heating up (form +${Math.round(p.form)})`);
+    else if (p.form <= -1.5 && f0 > -1.5) out.push(`${p.first} ${p.last} is in a slump (form ${Math.round(p.form)})`);
     for (const k of ['py', 'ptd', 'ry', 'rec', 'recy', 'td', 'tk', 'sk', 'int']) { p.ss[k] = (p.ss[k] || 0) + (s[k] || 0); p.cs[k] = (p.cs[k] || 0) + (s[k] || 0); }
     let xp = 60 + (won ? 50 : 0) + (s.py || 0) * 0.6 + (s.ptd || 0) * 40 + (s.ry || 0) * 1.6 + (s.recy || 0) * 1.3 + (s.rec || 0) * 8 + (s.td || 0) * 45 + (s.tk || 0) * 14 + (s.sk || 0) * 50 + (s.int || 0) * 60;
     if (p.group === 'OL') xp += 40 + Math.max(0, myScore - oppScore) * 2;
-    xp *= devMul(p.dev);
+    xp *= devMul(p.dev) * xpScale;
     p.xp += Math.round(xp);
     let ups = 0; while (p.xp >= xpNeed(p) && p.ovr < 99) { p.xp -= xpNeed(p); levelUp(p); ups++; }
     if (ups) out.push(`${p.first} ${p.last} +${ups} OVR (now ${p.ovr})`);
   }
+  for (const p of Object.values(F.players)) if (!played.has(p.id) && p.form) p.form = decay(p.form);
   return out;
 }
 function setOvr(F) { const t = teamRating(F); Season.setOvrOverride({ [F.team]: t.ovr }); }
@@ -128,15 +136,17 @@ function weekly(F, gameInj) {
   const pr = PRACTICE[F.practice || 'normal'], notes = [];
   for (const j of gameInj || []) {   // injuries from the game you just played
     const id = F.starters[j.role], p = F.players[id]; if (!p) continue;
-    if (j.out === 'weeks') { p.inj = { kind: j.kind, weeks: j.weeks }; notes.push(`${p.first} ${p.last}: ${j.kind}, out ${j.weeks} weeks`); }
+    if (j.out === 'weeks') { p.inj = { kind: j.kind, weeks: j.weeks + 1, total: j.weeks }; notes.push(`${p.first} ${p.last}: ${j.kind}, out ${j.weeks} weeks`); }
+    else if (!p.inj) { p.ling = { kind: j.kind, weeks: j.out === 'game' ? 3 : 2 }; notes.push(`${p.first} ${p.last} is playing through a ${j.kind.toLowerCase()}`); }   // a week of playing banged up
   }
   const starters = new Set(Object.values(F.starters));
   for (const p of Object.values(F.players)) {
-    if (p.inj) { p.inj.weeks--; if (p.inj.weeks <= 0) { notes.push(`${p.first} ${p.last} is healthy again`); delete p.inj; } }
+    if (p.ling) { if (--p.ling.weeks <= 0) delete p.ling; }
+    if (p.inj) { p.inj.weeks--; if (p.inj.weeks <= 0) { notes.push(`${p.first} ${p.last} is back from his ${p.inj.kind.toLowerCase()}, still a little banged up`); p.ling = { kind: p.inj.kind, weeks: 2 }; delete p.inj; } }
     const st = starters.has(p.id) && !p.inj;
     p.fat = Math.max(0, Math.min(1, (p.fat || 0) + (st ? 0.04 + pr.fat : -0.15)));
     if (st && pr.xp) { p.xp += Math.round(pr.xp * devMul(p.dev)); while (p.xp >= xpNeed(p) && p.ovr < 99) { p.xp -= xpNeed(p); levelUp(p); } }
-    if (st && Math.random() < pr.inj + p.fat * 0.03) { const w = 1 + ((Math.random() * 3) | 0); p.inj = { kind: SOFT[(Math.random() * SOFT.length) | 0], weeks: w }; notes.push(`${p.first} ${p.last}: ${p.inj.kind} in practice, out ${w} week${w > 1 ? 's' : ''}`); }
+    if (st && Math.random() < pr.inj + p.fat * 0.03) { const w = 1 + ((Math.random() * 3) | 0); p.inj = { kind: SOFT[(Math.random() * SOFT.length) | 0], weeks: w, total: w }; notes.push(`${p.first} ${p.last}: ${p.inj.kind} in practice, out ${w} week${w > 1 ? 's' : ''}`); }
   }
   for (const n of notes) F.log.unshift(`${F.year}: ${n}`);
   return notes;
@@ -146,6 +156,16 @@ export function restPlayer(F, id, on) { const p = F.players[id]; if (p) { p.rest
 export function recordResult(F, myScore, oppScore, ps, myIdx, gameInj) {
   setOvr(F);
   const ups = applyGame(F, ps, myIdx, myScore > oppScore, myScore, oppScore);
+  F.lastNotes = weekly(F, gameInj);
+  Season.finishWeek(F.season, myScore, oppScore);
+  if (F.season.phase === 'done') endSeason(F);
+  save(F);
+  return ups;
+}
+// a simmed week you watched: the real engine played it, so the box score drives form, injuries and a bit of XP
+export function simResult(F, myScore, oppScore, ps, gameInj) {
+  setOvr(F);
+  const ups = applyGame(F, ps, 0, myScore > oppScore, myScore, oppScore, 0.6);
   F.lastNotes = weekly(F, gameInj);
   Season.finishWeek(F.season, myScore, oppScore);
   if (F.season.phase === 'done') endSeason(F);
@@ -286,8 +306,19 @@ function migrate(F) {
   for (const role of r.order) if (!F.players[F.starters[role]]) { const p = fromRoster(F, role, r.players[role]); F.players[p.id] = p; F.starters[role] = p.id; n++; }
   if (n) { F.log.unshift(`${F.year}: the league went 11-on-11, ${n} players joined your team`); save(F); }
 }
+// tap any player: injury, recovery, fatigue and form
+function wirePlayerInfo(F) {
+  const pane = C.$('#fr-pane'); if (!pane || pane.dataset.pi) return; pane.dataset.pi = 1;
+  pane.addEventListener('click', e => {
+    if (e.target.closest('button, input, select')) return;
+    const el = e.target.closest('[data-pinfo]'); if (!el) return;
+    const FF = load(), p = FF && FF.players[el.dataset.pinfo]; if (!p) return;
+    const wk = FF.season ? (FF.season.week || 0) + 1 : 0;
+    showInfo(p.inj ? 'Injury report' : 'Player status', injuryCard({ ...p, name: `${p.first} ${p.last}`, pos: `${p.group} · ${p.ovr} OVR`, backWeek: p.inj && wk ? wk + p.inj.weeks : 0 }));
+  });
+}
 export function renderFranchise() {
-  const F = load(), { $ } = C;
+  const F = load(), { $ } = C; wirePlayerInfo(F);
   if (F) migrate(F);
   $('#fr-new').classList.toggle('hidden', !!F); $('#fr-hub').classList.toggle('hidden', !F);
   if (!F) {
@@ -315,13 +346,19 @@ function hubTab(F) {
   pane.innerHTML = `<div class="fr-next">${bye ? `<div><small>${Season.phaseLabel(S)}</small><h3>Bye week</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Rest up, the rest of the league plays.</p></div><div class="cr-btns"><button class="btn primary big" id="fr-sim">Next week</button></div>` : g ? `<div><small>${Season.phaseLabel(S)}</small><h3>${g.home === F.team ? 'vs' : 'at'} ${TEAMS[opp].city}</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Opponent ${C.teamOvr(opp)} OVR.</p></div>
       <div class="cr-btns"><button class="btn primary big" id="fr-play">Play game</button><button class="btn" id="fr-sim">Simulate</button></div>` : `<p class="note">${S.eliminated ? 'Your season is over.' : 'Season complete.'}</p>`}</div>
     <div class="fr-practice"><b>Practice this week</b><div class="seg" id="fr-prac"></div><small class="note">${PRACTICE[F.practice || 'normal'].n === 'Hard' ? 'Hard: players grow faster but wear down and get hurt more.' : PRACTICE[F.practice || 'normal'].n === 'Light' ? 'Light: players stay fresh, but grow slower.' : 'Normal: a balance of growth and freshness.'}</small></div>
-    ${(() => { const hurt = Object.values(F.players).filter(p => p.inj); const tired = Object.values(F.players).filter(p => !p.inj && (p.fat || 0) > 0.55 && Object.values(F.starters).includes(p.id)); return (hurt.length ? `<h3 class="store-h">Injuries</h3><ul class="fr-log">${hurt.map(p => `<li><b>${esc(p.first)} ${esc(p.last)}</b> (${p.group}): ${esc(p.inj.kind)}, out ${p.inj.weeks} more week${p.inj.weeks > 1 ? 's' : ''}</li>`).join('')}</ul>` : '') + (tired.length ? `<h3 class="store-h">Worn down</h3><p class="note">${tired.map(p => `${esc(p.last)} (${Math.round(p.fat * 100)}%)`).join(', ')}. Ease up in practice or sit them to avoid injuries.</p>` : ''); })()}
+    ${(() => { const hurt = Object.values(F.players).filter(p => p.inj || p.ling); const tired = Object.values(F.players).filter(p => !p.inj && (p.fat || 0) > 0.55 && Object.values(F.starters).includes(p.id)); return (hurt.length ? `<h3 class="store-h">Injuries</h3><ul class="fr-log">${hurt.map(p => `<li class="inj-li" data-pinfo="${p.id}"><i class="inj-cross ${p.inj ? '' : 'q'}">✚</i><b>${esc(p.first)} ${esc(p.last)}</b> (${p.group}): ${p.inj ? `${esc(p.inj.kind)}, out ${p.inj.weeks} more week${p.inj.weeks > 1 ? 's' : ''}` : `playing through ${esc(p.ling.kind.toLowerCase())}, ${p.ling.weeks} wk`}<small>details</small></li>`).join('')}</ul>` : '') + (tired.length ? `<h3 class="store-h">Worn down</h3><p class="note">${tired.map(p => `${esc(p.last)} (${Math.round(p.fat * 100)}%)`).join(', ')}. Ease up in practice or sit them to avoid injuries.</p>` : ''); })()}
     <h3 class="store-h">Recent moves</h3><ul class="fr-log">${F.log.slice(0, 8).map(l => `<li>${esc(l)}</li>`).join('') || '<li>Nothing yet. Go win some games.</li>'}</ul>`;
   { const ps = C.$('#fr-prac'); if (ps) C.seg(ps, [['light', 'Light'], ['normal', 'Normal'], ['hard', 'Hard']], F.practice || 'normal', v => { setPractice(F, v); renderFranchise(); }); }
   const pb = C.$('#fr-play'); if (pb) pb.onclick = () => { const ros = simRoster(F); if (!ros) return C.toast('Your lineup has holes'); C.startCPU({ teams: [F.team, opp], rosters: [ros, null], franchise: true }); };
-  const sb = C.$('#fr-sim'); if (sb) sb.onclick = () => { const m = simWeek(F); if (m) C.toast(`${m[0] > m[1] ? 'Won' : m[0] < m[1] ? 'Lost' : 'Tied'} ${m[0]}-${m[1]}`); else C.toast('Bye week done'); renderFranchise(); };
+  const sb = C.$('#fr-sim'); if (sb) sb.onclick = async () => {
+    if (opp < 0) { simWeek(F); C.toast('Bye week done'); return renderFranchise(); }
+    const ros = simRoster(F); if (!ros) return C.toast('Your lineup has holes');
+    const r = await watchSim({ teams: [F.team, opp], rosters: [ros, null], names: [TEAMS[F.team].city, TEAMS[opp].city], qlen: C.SET.qlen || 120, diff: C.SET.diff ?? 1, logo: C.logoURL });
+    const ups = simResult(F, r.sc[0], r.sc[1], r.ps, r.injLog.filter(j => j.team === 0));
+    C.toast(`${r.sc[0] > r.sc[1] ? 'Won' : r.sc[0] < r.sc[1] ? 'Lost' : 'Tied'} ${r.sc[0]}-${r.sc[1]}${ups.length ? ' · ' + ups[0] : ''}`, 3200); renderFranchise();
+  };
 }
-function pRow(p, extra = '') { const hurtTag = p.inj ? ` · <b style="color:#ff8b8b">OUT ${p.inj.weeks} wk (${esc(p.inj.kind)})</b>` : (p.fat || 0) > 0.55 ? ` · <b style="color:#f6c445">tired ${Math.round(p.fat * 100)}%</b>` : ''; extra = hurtTag ? `<small class="fr-hurt">${hurtTag}</small>` + extra : extra; const dv = p.hidden ? `projected ${devName(p.proj || p.dev)} (?)` : devName(p.dev) + (p.tag === 'sleeper' ? ' · SLEEPER' : p.tag === 'bust' ? ' · BUST' : ''); return `<div class="fr-p"><span class="fr-ovr">${p.ovr}</span><div><b>${esc(p.first)} ${esc(p.last)}</b><small>${p.group}, age ${p.age}, ${dv}, $${p.sal.toFixed(2)}M x ${Math.max(0, p.yrs)} yr${p.yrs === 1 ? '' : 's'}</small></div>${extra}</div>`; }
+function pRow(p, extra = '') { const hurtTag = p.inj ? ` · <b style="color:#ff8b8b">OUT ${p.inj.weeks} wk (${esc(p.inj.kind)})</b>` : p.ling ? ` · <b style="color:#ffb36b">banged up: ${esc(p.ling.kind)}</b>` : (p.fat || 0) > 0.55 ? ` · <b style="color:#f6c445">tired ${Math.round(p.fat * 100)}%</b>` : ''; extra = hurtTag ? `<small class="fr-hurt">${hurtTag}</small>` + extra : extra; const dv = p.hidden ? `projected ${devName(p.proj || p.dev)} (?)` : devName(p.dev) + (p.tag === 'sleeper' ? ' · SLEEPER' : p.tag === 'bust' ? ' · BUST' : ''); return `<div class="fr-p ${p.inj ? 'is-hurt' : p.ling ? 'is-ling' : ''}" data-pinfo="${p.id}" title="Tap for injury and form details"><span class="fr-ovr">${p.ovr}</span><div><b>${esc(p.first)} ${esc(p.last)}</b>${p.inj ? '<i class="inj-cross" title="Injured">✚</i>' : ''}${formTag(p.form)}<small>${p.group}, age ${p.age}, ${dv}, $${p.sal.toFixed(2)}M x ${Math.max(0, p.yrs)} yr${p.yrs === 1 ? '' : 's'}</small></div>${extra}</div>`; }
 function rosterTab(F) {
   const pane = C.$('#fr-pane'), order = getRoster(F.team).order;
   pane.innerHTML = `<h3 class="store-h">Starters</h3><div class="fr-list">${order.map(role => { const p = F.players[F.starters[role]]; return p ? `<div class="fr-slot"><small>${POS_LABEL[role] || role}</small>${pRow(p, `<div class="fr-xp" title="XP to next point"><i style="width:${Math.min(100, p.xp / xpNeed(p) * 100)}%"></i></div><button class="btn sm" data-sw="${role}">Swap</button>`)}</div>` : `<div class="fr-slot"><small>${role}</small><p class="note">Empty</p></div>`; }).join('')}</div>

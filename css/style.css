@@ -1036,3 +1036,21 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .pf-recs span { display: flex; flex-direction: column; padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); }
 .pf-recs small { font-size: 10px; opacity: .7; }
 .pf-recs b { font-size: 16px; }
+
+/* packs: foil wrappers with a tear strip, brand line, stars for how good the pull can be */
+.pack-art { position: relative; width: 112px; height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; overflow: hidden;
+  background: repeating-linear-gradient(115deg, rgba(255,255,255,.07) 0 6px, transparent 6px 14px), linear-gradient(160deg, var(--c1), var(--c2));
+  box-shadow: inset 0 0 0 2px var(--edge), inset 0 -26px 30px rgba(0,0,0,.35); transition: transform .2s ease; }
+.pack-art::after { content: ''; position: absolute; inset: -40% -60%; background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.45) 50%, transparent 60%); transform: translateX(-60%); pointer-events: none; }
+.pack:hover .pack-art { transform: translateY(-3px) rotate(-1.5deg); }
+.pack:hover .pack-art::after { transition: transform .7s ease; transform: translateX(60%); }
+.pack-art .pa-tear { position: absolute; top: 9px; left: 0; right: 0; height: 0; border-top: 2px dashed var(--edge); opacity: .7; }
+.pack-art .pa-brand { position: absolute; top: 14px; font-size: 8px; letter-spacing: .12em; opacity: .75; font-family: var(--display); }
+.pack-art strong { display: block; font-size: 26px; line-height: .85; letter-spacing: -.01em; text-shadow: 0 2px 0 rgba(0,0,0,.35); }
+.pack-art .pa-2 { font-size: 20px; color: var(--edge); }
+.pack.silver .pack-art .pa-2, .pack.gold .pack-art .pa-2 { color: var(--ink); opacity: .8; }
+.pack-art .pa-stars { margin-top: 6px; font-size: 12px; letter-spacing: 1px; color: var(--edge); text-shadow: 0 0 6px var(--edge); }
+.pack-art .pa-n { position: absolute; bottom: 7px; font-size: 9px; letter-spacing: .08em; opacity: .8; font-family: var(--display); }
+.pack.kings .pack-art { box-shadow: inset 0 0 0 2px var(--edge), inset 0 0 22px rgba(246,196,69,.35), 0 0 18px rgba(246,196,69,.25); }
+@media (prefers-reduced-motion: reduce) { .pack-art, .pack-art::after { transition: none !important; } }
+.pack.silver .pack-art .pa-stars, .pack.gold .pack-art .pa-stars { color: var(--ink); text-shadow: none; opacity: .75; }

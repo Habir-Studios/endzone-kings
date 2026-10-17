@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792259173';
+import { TEAMS } from './teams.js?v=1792260141';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
@@ -73,11 +73,11 @@ export const trainCost = inst => { const c = card(inst.id); const b = inst.b || 
 
 // ---------------- packs ----------------
 export const PACKS = [
-  { key: 'bronze', name: 'Bronze Pack', cost: 750, n: 5, w: [85, 14, 1, 0, 0], guar: 0, blurb: '5 players, mostly bronze' },
-  { key: 'silver', name: 'Silver Pack', cost: 2250, n: 5, w: [35, 55, 10, 0, 0], guar: 1, blurb: '5 players, at least 1 silver' },
-  { key: 'gold', name: 'Gold Pack', cost: 5500, n: 5, w: [0, 45, 50, 5, 0], guar: 2, blurb: '5 players, at least 1 gold' },
-  { key: 'elite', name: 'Elite Pack', cost: 15000, n: 5, w: [0, 0, 70, 27, 3], guar: 3, blurb: '5 players, at least 1 elite' },
-  { key: 'kings', name: 'Kings Pack', cost: 40000, n: 3, w: [0, 0, 0, 70, 30], guar: 4, blurb: '3 players, 1 Kings card guaranteed' },
+  { key: 'bronze', name: 'Rookie Rush Pack', art: ['Rookie', 'Rush'], stars: 1, cost: 750, n: 5, w: [85, 14, 1, 0, 0], guar: 0, blurb: '5 players, mostly bronze. Fill out the depth chart.' },
+  { key: 'silver', name: 'Blitz Pack', art: ['Blitz', 'Box'], stars: 2, cost: 2250, n: 5, w: [35, 55, 10, 0, 0], guar: 1, blurb: '5 players, at least 1 silver' },
+  { key: 'gold', name: 'Prime Time Pack', art: ['Prime', 'Time'], stars: 3, cost: 5500, n: 5, w: [0, 45, 50, 5, 0], guar: 2, blurb: '5 players, at least 1 gold' },
+  { key: 'elite', name: 'Showtime Pack', art: ['Show', 'Time'], stars: 4, cost: 15000, n: 5, w: [0, 0, 70, 27, 3], guar: 3, blurb: '5 players, at least 1 elite. Small shot at a Kings card' },
+  { key: 'kings', name: 'Crown Vault', art: ['Crown', 'Vault'], stars: 5, cost: 40000, n: 3, w: [0, 0, 0, 70, 30], guar: 4, blurb: '3 players, 1 Kings card guaranteed' },
 ];
 export const packByKey = k => PACKS.find(p => p.key === k);
 function pickTier(w, r) { const tot = w.reduce((a, b) => a + b, 0); let x = r() * tot; for (let i = 0; i < w.length; i++) { x -= w[i]; if (x <= 0) return i; } return 0; }

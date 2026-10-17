@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792259173';
-import * as UT from './ut.js?v=1792259173';
-import { portraitURL } from './faces.js?v=1792259173';
-import { TEAMS } from './teams.js?v=1792259173';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792260141';
+import * as UT from './ut.js?v=1792260141';
+import { portraitURL } from './faces.js?v=1792260141';
+import { TEAMS } from './teams.js?v=1792260141';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -171,7 +171,7 @@ function renderClub(P) {
 function renderPacks(P) {
   const pane = C.$('#ut-pane');
   const mine = UT.PACKS.filter(k => P.p.packs[k.key] > 0);
-  const art = k => `<div class="pack-art">${k.name.replace(' Pack', '')}<span>Pack</span></div>`;
+  const art = k => `<div class="pack-art"><i class="pa-tear"></i><span class="pa-brand">Endzone Kings</span><strong>${(k.art || [k.name])[0]}</strong><strong class="pa-2">${(k.art || [])[1] || ''}</strong><span class="pa-stars">${'★'.repeat(k.stars || 1)}</span><span class="pa-n">${k.n} players</span></div>`;
   pane.innerHTML = `${mine.length ? `<h3 class="store-h">My packs</h3><div class="store">${mine.map(k => `<div class="pack ${k.key}"><span class="own">x${P.p.packs[k.key]}</span>${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn primary" data-open="${k.key}">Open</button></div>`).join('')}</div>` : ''}
     <h3 class="store-h">Store</h3><p class="note">Paid for with coins you earn by playing. No real money, ever.</p>
     <div class="store">${UT.PACKS.map(k => `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn" data-buy="${k.key}" ${P.p.coins < k.cost ? 'disabled' : ''}><i class="coin"></i> ${fmt(k.cost)}</button></div>`).join('')}</div>`;

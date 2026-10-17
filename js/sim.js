@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792259173';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792260141';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792259173';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792260141';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -581,7 +581,8 @@ function snap(g) {
     if (!g.opts.humans[g.poss] && r < 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'fs', byRole(g, ['LT', 'LG', 'C', 'RG', 'RT', 'TE'][(g.rng() * 6) | 0]));
     if (!g.opts.humans[1 - g.poss] && r > 1 - 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'offside', byRole(g, ['DL1', 'DL2', 'DL3', 'DL4'][(g.rng() * 4) | 0]));
   }
-  const play = getPlay(g, g.poss, g.offPlay);
+  let play = getPlay(g, g.poss, g.offPlay);
+  if (!play) { g.offPlay = 'dive'; alignOffense(g); play = getPlay(g, g.poss, 'dive') || OFF_PLAYS[0]; }   // never crash on a stale play id
   P.type = play.type; P.playDef = play; P.snapT = g.t;
   P.readT = (g.opts.humans[1 - g.poss] ? 2.0 : 1.7) + g.rng() * 1.2;
   P.def = 1 - g.poss;
@@ -1172,8 +1173,15 @@ function updateLive(g, dt, inputs) {
     } else {
       want = aiMove(g, p, carrier, pocket, airPass, tl);
       p.stam = Math.min(1, p.stam + dt * 0.13);
+      // nobody without the ball (AI-driven) leaves the field: hold at the sideline and the back of the end zone
+      if (want && !(carrier && carrier.id === p.id)) {
+        if (Math.abs(p.x) > HALF_W - 0.8 && want.x * p.x > 0) want = { ...want, x: 0 };
+        const dz = p.z > 100 ? p.z - 100 : p.z < 0 ? -p.z : 0;
+        if (dz > 8.5 && want.z * (p.z > 50 ? 1 : -1) > 0) want = { ...want, z: 0 };
+      }
     }
     applyMove(g, p, want, dt);
+    if (!(carrier && carrier.id === p.id) && !p.dive && !p.fallen) { const lim = HALF_W + 0.4; if (p.x > lim) p.x = lim; else if (p.x < -lim) p.x = -lim; if (p.z > 109.5) p.z = 109.5; else if (p.z < -9.5) p.z = -9.5; }
   }
 
   updateBlocks(g, dt, pocket);
@@ -1298,7 +1306,7 @@ function updateLive(g, dt, inputs) {
             const hp = hyp(d.vx, d.vz) / 9 + (d.size - 1) * 1.5 + d.rt.tkl / 100 * 0.4;
             const sec = c2.rt.elu / 100 * 0.25 + (c2.role === 'RB' ? 0.08 : 0) + (c2.role === 'QB' ? -0.05 : 0);
             const big = c2.vx * c2.vx + c2.vz * c2.vz > 30;
-            const fc = hitting ? clamp(0.08 + (hp - sec) * 0.12, 0.04, 0.22) : clamp((big ? 0.022 : 0.008) + (hp - sec) * 0.01, 0.003, 0.04);
+            const fc = hitting ? clamp(0.12 + (hp - sec) * 0.12, 0.06, 0.28) : clamp((big ? 0.045 : 0.016) + (hp - sec) * 0.012 + (c2.juke > 0 || c2.spin > 0 ? 0.015 : 0), 0.008, 0.07);   // moves in traffic are riskier
             if (g.rng() < fc) {
               let rec = null, rd = 1e9;
               for (const q of g.players) { if (q === c2 || q === d) continue; const dd = dist(q, c2) + g.rng() * 2.5 - (q.team === d.team ? 0.4 : 0); if (dd < rd) { rd = dd; rec = q; } }
@@ -1573,7 +1581,7 @@ function routeMove(g, p) {
     // sit in the window, drift away from nearest defender a bit
     let nd = null, best = 1e9;
     for (const q of g.players) if (q.team !== p.team) { const dd = dist(q, p); if (dd < best) { best = dd; nd = q; } }
-    if (nd && best < 3) { const dx = p.x - nd.x, dz = p.z - nd.z, l = hyp(dx, dz) || 1; return { x: dx / l, z: dz / l, s: 0.35 }; }
+    if (nd && best < 3) { let dx = p.x - nd.x, dz = p.z - nd.z; if (Math.abs(p.x) > HALF_W - 3 && dx * p.x > 0) dx = 0; if (prog(P.off, p.z) > 105 && dz * d > 0) dz = 0; const l = hyp(dx, dz); if (l < 0.01) return { x: 0, z: 0, s: 0 }; return { x: dx / l, z: dz / l, s: 0.35 }; }   // find space, but not out of bounds
     return { x: 0, z: 0, s: 0 };
   }
   let x = p.ldx, z = p.ldz;

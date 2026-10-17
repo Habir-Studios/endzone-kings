@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792259173';
+import { TEAMS } from './teams.js?v=1792260141';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -232,11 +232,24 @@ export function lastPlayFrames(rec) {
   for (const f of frames) { acc += f.dt; if (acc >= 1 / 30 || !out.length) { out.push({ dt: acc, s: f.s }); acc = 0; } }
   return out.length >= 5 ? out : null;
 }
+// in-game text box (browser prompt() gets blocked in fullscreen and some browsers, which made clips silently do nothing)
+export function askText(title, def = '', ok = 'Post') {
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 60;
+    m.innerHTML = `<div class="panel"><h3>${esc(title)}</h3><input id="ask-in" maxlength="60" value="${esc(def)}"><div style="display:flex;gap:8px"><button class="btn" id="ask-no" type="button">Cancel</button><button class="btn primary" id="ask-ok" type="button" style="flex:1">${esc(ok)}</button></div></div>`;
+    document.body.appendChild(m);
+    const inp = m.querySelector('#ask-in'), done = v => { m.remove(); res(v); };
+    m.querySelector('#ask-ok').onclick = () => done(inp.value);
+    m.querySelector('#ask-no').onclick = () => done(null);
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') done(inp.value); if (e.key === 'Escape') done(null); });
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
+  });
+}
 export async function saveClip(rec) {
   if (!db() || !me()) { C.toast('Sign in with a real account to post clips'); return; }
   const frames = lastPlayFrames(rec); if (!frames) { C.toast('Nothing to clip yet. Run a play first.'); return; }
   const def = (() => { const s = frames[frames.length - 1].s; return (s.msg && s.msg.text) ? s.msg.text.slice(0, 40) : 'Big play'; })();
-  const title = prompt('Name your clip', def); if (title === null) return;
+  const title = await askText('Name your clip', def, 'Post clip'); if (title === null) return;
   const t = C.cleanText(title).trim().slice(0, 60) || def;
   C.toast('Uploading clip…');
   try {
@@ -246,7 +259,7 @@ export async function saveClip(rec) {
     const { error } = await db().from('ek_clips').insert({ owner: me().id, title: t, teams: frames[0].s.teams, secs: +secs.toFixed(1), data });
     if (error) C.toast(error.message.includes('limit') ? 'You have 30 clips. Delete one from your profile first.' : 'Clip upload failed: ' + error.message);
     else { C.toast('Clip posted to your profile'); C.sfx.play('firstdown'); }
-  } catch (e) { C.toast('Clip upload failed'); }
+  } catch (e) { console.warn(e); C.toast('Clip upload failed: ' + (e && e.message || e)); }
 }
 
 // ---------- clip playback ----------
@@ -422,7 +435,7 @@ function wireAdmin(pane) {
 }
 async function adminAct(kind, id) {
   let r;
-  if (kind === 'ban') { const why = prompt('Why are you banning this player? (they will see this)', 'Cheating'); if (why === null) return; r = await db().rpc('ek_admin_ban', { uid: id, why }); }
+  if (kind === 'ban') { const why = await askText('Why are you banning this player? (they will see this)', 'Cheating', 'Ban'); if (why === null) return; r = await db().rpc('ek_admin_ban', { uid: id, why }); }
   else if (kind === 'unban') { if (!confirm('Unban this player?')) return; r = await db().rpc('ek_admin_unban', { uid: id }); }
   else { if (!confirm('Wipe this player’s career stats to zero?')) return; r = await db().rpc('ek_admin_reset_stats', { uid: id }); }
   if (r.error) C.toast(r.error.message); else C.toast(kind === 'ban' ? 'Player banned' : kind === 'unban' ? 'Player unbanned' : 'Stats reset');

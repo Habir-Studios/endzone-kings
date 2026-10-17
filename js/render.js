@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792263777';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792263777';
-import { drawLogo } from './logos.js?v=1792263777';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792263777';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792263919';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792263919';
+import { drawLogo } from './logos.js?v=1792263919';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792263919';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1312,7 +1312,9 @@ export class Renderer {
       if (bstate === 1 && tgt && S.poss === local) { fx = (me[4] * 0.4 + tgt[0] * 0.6); fz = me[5] * 0.4 + tgt[1] * 0.6 - 3 * s; }   // ball in the air: swing toward the catch
       else { fx = me[4]; fz = me[5]; }
     }
-    const k = 1 - Math.exp(-dt * (bstate === 2 ? 2.2 : this.camMode === 'player' ? 5 : 3.2));
+    // glide, don't snap: when control jumps to another player (throw, switch) a fast follow made the whole team look like it lurched
+    const jump = Math.hypot(fx - this.focus.x, fz - this.focus.z);
+    const k = 1 - Math.exp(-dt * (bstate === 2 ? 2.2 : this.camMode === 'player' ? (jump > 8 ? 1.6 : 3.2) : (jump > 10 ? 2 : 3.2)));
     this.focus.x += (fx - this.focus.x) * k; this.focus.z += (fz - this.focus.z) * k;
     let px, py, pz, lx, ly, lz;
     if (this.camMode === 'broadcast') {

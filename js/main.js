@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792263777';
-import { Renderer } from './render.js?v=1792263777';
-import { Sfx } from './audio.js?v=1792263777';
-import { Auth } from './auth.js?v=1792263777';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792263777';
-import { getRoster, teamOvr } from './teams.js?v=1792263777';
-import * as Season from './season.js?v=1792263777';
-import * as Fr from './franchise.js?v=1792263777';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792263777';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792263777';
-import * as UTm from './ut.js?v=1792263777';
-import { initCreator, renderCreator } from './creator.js?v=1792263777';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792263777';
-import { portraitURL } from './faces.js?v=1792263777';
-import { logoURL, clearLogoCache } from './logos.js?v=1792263777';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792263919';
+import { Renderer } from './render.js?v=1792263919';
+import { Sfx } from './audio.js?v=1792263919';
+import { Auth } from './auth.js?v=1792263919';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792263919';
+import { getRoster, teamOvr } from './teams.js?v=1792263919';
+import * as Season from './season.js?v=1792263919';
+import * as Fr from './franchise.js?v=1792263919';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792263919';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792263919';
+import * as UTm from './ut.js?v=1792263919';
+import { initCreator, renderCreator } from './creator.js?v=1792263919';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792263919';
+import { portraitURL } from './faces.js?v=1792263919';
+import { logoURL, clearLogoCache } from './logos.js?v=1792263919';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -42,7 +42,9 @@ try { R = new Renderer(canvas, SET.gfx); } catch (e) {
 R.camMode = SET.cam;
 R.userZoom = Math.max(0.75, Math.min(2.6, +SET.zoom || 1));
 function zoomCam(d) { R.userZoom = Math.max(0.75, Math.min(2.6, R.userZoom * (d > 0 ? 1.12 : 1 / 1.12))); SET.zoom = +R.userZoom.toFixed(2); saveSet(); }
-canvas.addEventListener('wheel', (e) => { if (!st.playing) return; e.preventDefault(); zoomCam(e.deltaY > 0 ? 1 : -1); }, { passive: false });
+// zoom needs a real scroll, not a trackpad brush: deltas add up and it steps at most every 180 ms
+let wheelAcc = 0, wheelT = 0;
+canvas.addEventListener('wheel', (e) => { if (!st.playing) return; e.preventDefault(); wheelAcc += e.deltaY; const now = performance.now(); if (Math.abs(wheelAcc) < 120 || now - wheelT < 180) return; zoomCam(wheelAcc > 0 ? 1 : -1); wheelAcc = 0; wheelT = now; }, { passive: false });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { clearLogoCache(); R.refreshText(); if (st.screen && st.screen !== 'splash' && st.screen !== 'game') show(st.screen); });
 R.setTeams([SET.team, SET.cpuTeam]);
 const sfx = new Sfx(); sfx.setVolume(SET.vol); sfx.musicVol = SET.music; sfx.announcer = SET.ann; sfx.startMusic();

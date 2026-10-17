@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792258388';
-import { Renderer } from './render.js?v=1792258388';
-import { Sfx } from './audio.js?v=1792258388';
-import { Auth } from './auth.js?v=1792258388';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792258388';
-import { getRoster, teamOvr } from './teams.js?v=1792258388';
-import * as Season from './season.js?v=1792258388';
-import * as Fr from './franchise.js?v=1792258388';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792258388';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792258388';
-import * as UTm from './ut.js?v=1792258388';
-import { initCreator, renderCreator } from './creator.js?v=1792258388';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792258388';
-import { portraitURL } from './faces.js?v=1792258388';
-import { logoURL, clearLogoCache } from './logos.js?v=1792258388';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792259036';
+import { Renderer } from './render.js?v=1792259036';
+import { Sfx } from './audio.js?v=1792259036';
+import { Auth } from './auth.js?v=1792259036';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792259036';
+import { getRoster, teamOvr } from './teams.js?v=1792259036';
+import * as Season from './season.js?v=1792259036';
+import * as Fr from './franchise.js?v=1792259036';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792259036';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792259036';
+import * as UTm from './ut.js?v=1792259036';
+import { initCreator, renderCreator } from './creator.js?v=1792259036';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792259036';
+import { portraitURL } from './faces.js?v=1792259036';
+import { logoURL, clearLogoCache } from './logos.js?v=1792259036';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -896,7 +896,8 @@ function showGameOver(S) {
   $('#gameover').classList.remove('hidden');
   if (!st.resultSaved && Auth.user) {
     st.resultSaved = true;
-    Auth.recordResult(res).then(() => {
+    const counted = S.mode === 'game' && (st.mode === 'host' || st.mode === 'guest' || st.ut || st.franchiseGame);
+    (counted && Auth.user.kind !== 'account' ? Auth.recordResult(res) : Promise.resolve()).then(() => {
       const u = Auth.user;
       // the record for the mode you just played; CPU quick play and seasons don't count toward any record
       const online = st.mode === 'host' || st.mode === 'guest', kinds = [online && 'on', st.ut && 'ut', st.franchiseGame && 'fr'].filter(Boolean);
@@ -907,8 +908,12 @@ function showGameOver(S) {
         P.save();
       }
       const NAME = { on: 'Online 1v1', ut: 'Ultimate Team', fr: 'Franchise' };
-      const line = kinds.map(k => { const r = (P && P.p.recs && P.p.recs[k]) || [0, 0, 0]; return `${NAME[k]} record: ${r[0]}-${r[1]}${r[2] ? '-' + r[2] : ''}`; }).join(' · ');
-      $('#go-rec').textContent = u.kind === 'guest' ? 'Make an account to save your record.' : line || 'This mode doesn\'t count toward your records. Play online 1v1, Ultimate Team or Franchise.';
+      const SV = { on: ['on_w', 'on_l', 'on_t'], ut: ['ut_wins', 'ut_l', 'ut_t'], fr: ['fr_w', 'fr_l', 'fr_t'] };
+      const draw = () => {
+        const line = kinds.map(k => { const r = u.recs ? SV[k].map(f => u.recs[f] || 0) : ((P && P.p.recs && P.p.recs[k]) || [0, 0, 0]); return `${NAME[k]} record: ${r[0]}-${r[1]}${r[2] ? '-' + r[2] : ''}`; }).join(' · ');
+        $('#go-rec').textContent = u.kind === 'guest' ? 'Make an account to save your record.' : line || 'CPU games don\'t count toward your record. Play online 1v1, Ultimate Team or Franchise.';
+      };
+      draw(); setTimeout(draw, 3000);   // the leaderboard copy lands a moment later
     });
   }
   sfx.play(res === 'W' ? 'td' : 'final');
@@ -1588,7 +1593,7 @@ requestAnimationFrame(frame);
 // used by friend challenges: host a private game with a given code, or join one
 function hostGame(code) { show('online'); SET.vis = 'private'; saveSet(); renderOnline(); $('#host-code').value = code; setTimeout(() => $('#host-btn').click(), 50); }
 function joinGame(code) { if (st.playing) { toast('Finish your game first'); return; } show('online'); $('#join-code').value = code; setTimeout(() => $('#join-btn').click(), 50); }
-const CTX = { hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+const CTX = { refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
 initSocial(CTX);

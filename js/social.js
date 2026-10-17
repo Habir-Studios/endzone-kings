@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792258388';
+import { TEAMS } from './teams.js?v=1792259036';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -340,6 +340,7 @@ export async function postGameStats(r) {
     await db().from('ek_players').upsert({ id: me().id, name: me().name, lvl: r.lvl || 1, rp: r.rp || 0 }, { onConflict: 'id' });
     const { error } = await db().rpc('ek_add_game', { s });
     if (error) console.warn('leaderboard update failed', error.message);
+    await syncRecord();
   } catch (e) { console.warn(e); }
 }
 
@@ -454,6 +455,17 @@ async function ensureProfile() {
   const P = C.profile && C.profile();
   const { error } = await db().from('ek_players').upsert({ id: me().id, name: me().name, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0 }, { onConflict: 'id' });
   if (error) { console.warn('profile create failed', error.message); profileMade = false; }
+  syncRecord();
+}
+// your record everywhere (main menu, game over) is the same one the leaderboard shows: only online 1v1,
+// Ultimate Team and Franchise games, never CPU quick play
+export async function syncRecord() {
+  if (!db() || !me()) return null;
+  const { data } = await db().from('ek_players').select('wins,losses,on_w,on_l,on_t,ut_wins,ut_l,ut_t,fr_w,fr_l,fr_t').eq('id', me().id).maybeSingle();
+  if (!data) return null;
+  const u = me(); u.wins = data.wins || 0; u.losses = data.losses || 0; u.ties = 0; u.recs = data;
+  C.refreshProfile && C.refreshProfile();
+  return data;
 }
 
 // ---------------- friends: add = follow, friends = you both added each other ----------------

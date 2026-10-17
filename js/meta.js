@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792278338';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792278338';
-import * as UT from './ut.js?v=1792278338';
-import { portraitURL } from './faces.js?v=1792278338';
-import { TEAMS } from './teams.js?v=1792278338';
+import { askYes } from './ui.js?v=1792278399';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792278399';
+import * as UT from './ut.js?v=1792278399';
+import { portraitURL } from './faces.js?v=1792278399';
+import { TEAMS } from './teams.js?v=1792278399';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -310,7 +310,7 @@ function renderMarket(P) {
   const left = Math.max(0, (m.slot + 1) * UT.MARKET_SLOT_MS - Date.now()), mins = Math.ceil(left / 60000);
   const mine = m.mine.map(l => { const c = UT.owned({ id: l.id, b: l.b, u: l.u }), rem = Math.max(0, l.end - Date.now());
     return `<div class="mk-mine">${cardHTML(c, { mini: true })}<div><b>${fmt(l.price)}</b><small>${rem ? `${Math.ceil(rem / 60000)} min left` : 'Ended, settling'}</small>${rem ? `<button class="btn sm ghost" data-cancel="${l.u}">Take down</button>` : ''}</div></div>`; }).join('');
-  pane.innerHTML = `<div class="squad-head"><div><h3>Market</h3><p class="note">Buy players outright or list your own. New players come up every 30 minutes (next batch in ${mins} min). The market keeps ${UT.MARKET_TAX * 100}% of every sale.</p></div>
+  pane.innerHTML = `<div class="squad-head"><div><h3>Market</h3><p class="note">Buy players outright or list your own. New players come up every 15 minutes (next batch in ${mins} min). The market keeps ${UT.MARKET_TAX * 100}% of every sale.</p></div>
     <button class="btn" id="mk-sell">Sell a player</button></div>
     ${mine ? `<h3 class="store-h">Your listings (${m.mine.length} of ${UT.MAX_LISTINGS})</h3><div class="mk-mines">${mine}</div>` : ''}
     <div class="pk-filters"><div class="seg" id="mk-g"></div></div>

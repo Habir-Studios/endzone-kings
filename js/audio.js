@@ -175,6 +175,8 @@ export class Sfx {
       case 'juke': this.whoosh(0.25); break;
       case 'dive': this.whoosh(0.35); break;
       case 'whistle': this.whistle(); break;
+      case 'flag': this.whistle(); break;
+      case 'half': this.cheer(0.5, 3); break;
       case 'firstdown': this.cheer(0.22, 1.8); this.tone(660, 0.1, 'triangle', 0.08); setTimeout(() => this.tone(880, 0.16, 'triangle', 0.08), 110); break;
       case 'int': this.groan(); this.cheer(0.4, 2.6); break;
       case 'breakup': this.pads(0.4); this.groan(); break;
@@ -298,6 +300,11 @@ export class Sfx {
     else if (t === 'HALFTIME') this.say("That's the half.");
     else if (t === 'OVERTIME') this.say("We're going to overtime! Next score wins.", true);
     else if (t === 'PUNT' || t === 'TOUCHBACK') { if (Math.random() < 0.5) this.say(t === 'PUNT' ? 'Booming punt.' : 'Touchback.'); }
+    else if (msg.pen) {
+      const side = (msg.sub || '').split(' · ')[0], num = ((msg.sub || '').match(/#\d+/) || [''])[0].replace('#', 'number ');
+      const nice = t.toLowerCase().replace('offsides', 'offside');
+      this.say(pick([`Flag on the play. ${nice}, ${side.toLowerCase()}, ${num}.`, `We have a penalty. ${nice} on the ${side.toLowerCase()}.`, `Flag is down. ${nice}.`]), true);
+    }
     else if (t === 'OUT OF BOUNDS') { if (Math.random() < 0.3) this.say(`${name} pushed out of bounds.`); }
   }
   flashCall(text) { if (text && text.startsWith('INTERCEPTED')) this.say(`Intercepted! ${text.replace('INTERCEPTED!', '').trim()} picks it off!`, true); else if (text === 'BROKEN TACKLE' && Math.random() < 0.5) this.say('Breaks the tackle!'); }

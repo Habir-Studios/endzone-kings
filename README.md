@@ -13,13 +13,15 @@ Endzone Kings is a 3D arcade football game that runs right in your browser. Ther
 - **Play Now:** pick any two teams and a difficulty.
 - **Season:** a 14-week schedule, live standings, a top-4 playoff and the Kings Bowl.
 - **Online 1v1:** send your friend a 5-letter code and play live.
+- **Ultimate Team:** open packs of player cards with coins you earn by playing (never real money), build and train your squad, and play with it against the CPU or online.
+- **Progression:** coins and XP every game, levels with free packs, ranked divisions from Bronze to Kings, and daily and weekly challenges.
+- **Public lobby and chat:** host a game anyone can join, or share a code. Press T to chat during online games.
+- **Play Creator:** draw your own offense, defense and special teams plays and call them in any game.
+- **Game day:** rain, snow, fog, day, dusk or night games, a halftime show with stats and leaders, and referees who throw flags for holding, pass interference, false starts, offsides, roughing and facemasks.
 - **Rosters:** browse every team and player rating.
-- **Accounts:** sign up and log in with the game's own accounts, not Google sign-in. Your win-loss record is saved.
+- **Accounts:** sign up and log in with the game's own accounts, not Google sign-in. Guests get Quick Play; a free account unlocks everything else and saves your progress.
 - **Controls for any device:** keyboard and mouse on a computer, an on-screen joystick and buttons on phones and tablets.
 - **Sound made in the browser:** play-by-play announcer, crowd chants, air horns, pad hits and menu music, with no sound files.
-
-## Coming soon
-Ultimate Team with packs you open using coins you earn in the game (never real money), a Play Creator, weather and day or night games, a halftime show, player levels, ranked divisions, daily and weekly challenges, a public lobby and in-game chat.
 
 ---
 

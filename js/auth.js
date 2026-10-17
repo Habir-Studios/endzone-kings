@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792200186';
+import { CONFIG } from './config.js?v=1792205915';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -12,6 +12,14 @@ async function sha(text) {
 }
 const loadAcc = () => { try { return JSON.parse(localStorage.getItem(LS_ACC)) || {}; } catch (_) { return {}; } };
 const saveAcc = (a) => { try { localStorage.setItem(LS_ACC, JSON.stringify(a)); } catch (_) {} };
+
+function pack(p) {
+  const { log, ...rest } = p;
+  return { ...rest, ut: { ...p.ut, cards: p.ut.cards.map(c => [c.u, c.id, c.b || 0]) } };
+}
+function unpack(e) {
+  try { return { ...e, log: [], ut: { ...e.ut, cards: (e.ut.cards || []).map(a => ({ u: a[0], id: a[1], b: a[2] })) } }; } catch (_) { return null; }
+}
 
 export const Auth = {
   mode: 'local', client: null, user: null,
@@ -39,6 +47,7 @@ export const Auth = {
   },
 
   fromSb(u) {
+    this._sbUser = u;
     const m = u.user_metadata || {};
     return { id: u.id, name: m.username || (u.email || 'Player').split('@')[0], email: u.email, wins: m.wins || 0, losses: m.losses || 0, ties: m.ties || 0, kind: 'account' };
   },
@@ -93,8 +102,29 @@ export const Auth = {
   },
 
   guest() {
-    this.user = { id: 'guest-' + Math.random().toString(36).slice(2, 8), name: 'Guest' + Math.floor(1000 + Math.random() * 9000), wins: 0, losses: 0, ties: 0, kind: 'guest' };
+    // the same guest on this device keeps their progress
+    let g = null; try { g = JSON.parse(localStorage.getItem('ek_guest') || 'null'); } catch (_) {}
+    if (!g) { g = { id: 'guest-' + Math.random().toString(36).slice(2, 8), name: 'Guest' + Math.floor(1000 + Math.random() * 9000) }; try { localStorage.setItem('ek_guest', JSON.stringify(g)); } catch (_) {} }
+    this.user = { id: g.id, name: g.name, wins: 0, losses: 0, ties: 0, kind: 'guest' };
     return this.user;
+  },
+
+  // progression save that follows a real account between devices (kept compact: it rides in the account metadata)
+  cloudProfile() {
+    if (this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return null;
+    return this._sbUser && this._sbUser.user_metadata && this._sbUser.user_metadata.ek ? unpack(this._sbUser.user_metadata.ek) : null;
+  },
+  async refreshCloud() {
+    if (this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return null;
+    try { const { data } = await this.client.auth.getUser(); if (data && data.user) this._sbUser = data.user; } catch (_) {}
+    return this.cloudProfile();
+  },
+  saveCloud(p) {
+    if (this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return;
+    clearTimeout(this._cloudT);
+    this._cloudT = setTimeout(async () => {
+      try { const { data } = await this.client.auth.updateUser({ data: { ek: pack(p) } }); if (data && data.user) this._sbUser = data.user; } catch (e) { console.warn('cloud save failed', e); }
+    }, 3000);
   },
 
   async signOut() {

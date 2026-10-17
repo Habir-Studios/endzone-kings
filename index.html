@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792201071">
+  <link rel="stylesheet" href="css/style.css?v=1792205915">
 </head>
 <body>
   <canvas id="gl"></canvas>
@@ -91,20 +91,24 @@
     <div class="profile-chip">
       <div class="avatar" id="pc-avatar">?</div>
       <div><b id="pc-name">Player</b><small id="pc-rec">0-0</small></div>
+      <div class="pc-meta"><span class="lvl-badge" id="pc-lvl">1</span><span class="rank-pill" id="pc-rank">Bronze III</span><span class="coins-pill"><i class="coin" aria-hidden="true"></i><b id="pc-coins">0</b></span></div>
       <button class="link" id="logout">Log out</button>
     </div>
     <div class="menu-wrap">
       <div class="logo-slot"></div>
       <nav class="tiles" aria-label="Game modes">
-        <button class="tile hero" data-go="setup"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></i><span class="tl-k">Play Now</span><small>Pick any two teams and take on the CPU</small></button>
+        <button class="tile hero" data-go="setup"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></i><span class="tl-k">Play Now</span><small>Quick Play: any two teams against the CPU</small></button>
+        <button class="tile wide t-ut" data-go="ut"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M4 3h11l5 5v13H4zm2 2v14h12V9h-4V5zm3 6.5a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0zM7.5 18c.5-2.4 2.3-3.6 4.5-3.6s4 1.2 4.5 3.6z"/></svg></i><span class="tl-k">Ultimate Team</span><small id="tile-ut-sub">Open packs, build a squad, play for coins</small></button>
         <button class="tile t-season" data-go="season"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v3h3.5v2.5A4.5 4.5 0 0 1 16.4 13 5.5 5.5 0 0 1 13 15.8V18h3v3H8v-3h3v-2.2A5.5 5.5 0 0 1 7.6 13 4.5 4.5 0 0 1 3.5 8.5V6H7zm-1.5 5v.5c0 1 .6 1.9 1.5 2.3V8zm12 2.8c.9-.4 1.5-1.3 1.5-2.3V8h-1.5z"/></svg></i><span class="tl-k">Season</span><small id="tile-season-sub">Fourteen weeks to the Kings Bowl</small></button>
         <button class="tile t-online" data-go="online" id="online-btn"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M13.5 2 4 13.5h6.5L9 22l11-12.5h-6.8z"/></svg></i><span class="tl-k">Online 1v1</span><small>Play a friend with a game code</small></button>
+        <button class="tile t-progress" data-go="progress"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 16.9 6.1 20l1.2-6.5L2.5 8.9 9.1 8z"/></svg></i><span class="tl-k">Progress</span><small id="tile-prog-sub">Level, rank and challenges</small></button>
+        <button class="tile t-creator" data-go="creator"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zm2 2v12h14V6zm2 9.5L9.5 12 12 14l4-5 1.5 1.2L12.3 17 9.6 14.8 8.2 16.6zM7 8h3v2H7z"/></svg></i><span class="tl-k">Play Creator</span><small>Draw your own plays</small></button>
         <button class="tile t-rosters" data-go="rosters"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M9 2h6v2h4v18H5V4h4zm1 2v1.5h4V4zM8 9v2h2V9zm4 0v2h4V9zm-4 4v2h2v-2zm4 0v2h4v-2zm-4 4v2h2v-2zm4 0v2h4v-2z"/></svg></i><span class="tl-k">Rosters</span><small>Every player on all 32 teams</small></button>
         <button class="tile t-howto" data-go="howto"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 6h10a5 5 0 0 1 4.9 6l-1.1 5.2a2.6 2.6 0 0 1-4.5 1.2L14 16h-4l-2.3 2.4a2.6 2.6 0 0 1-4.5-1.2L2.1 12A5 5 0 0 1 7 6zm0 3v1.5H5.5V12H7v1.5h1.5V12H10v-1.5H8.5V9zm9.5.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm-2.2 2.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/></svg></i><span class="tl-k">How to Play</span><small>Controls, moves and tips</small></button>
         <button class="tile wide t-settings" data-go="settings"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M10.2 2h3.6l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.8 3.1-2 1.7c.1.6.1 1.2 0 1.8l2 1.7-1.8 3.1-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.6l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.8-3.1 2-1.7a6 6 0 0 1 0-1.8l-2-1.7 1.8-3.1 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></i><span class="tl-k">Settings</span><small>Sound, announcer, camera, graphics and controls</small></button>
       </nav>
     </div>
-    <footer class="foot">© <span id="yr"></span> Habir Studios. Endzone Kings v1.1 <button class="link foot-link" data-go="about">About the game</button></footer>
+    <footer class="foot">© <span id="yr"></span> Habir Studios. Endzone Kings v2.0 <button class="link foot-link" data-go="about">About the game</button></footer>
   </section>
 
   <!-- ===================== PLAY NOW SETUP ===================== -->
@@ -121,6 +125,8 @@
         <div class="opts">
           <label>Difficulty<div class="seg" id="seg-diff"></div></label>
           <label>Quarter length<div class="seg" id="seg-qlen"></div></label>
+          <label>Weather<div class="seg" id="seg-wx"></div></label>
+          <label>Time of day<div class="seg" id="seg-tod"></div></label>
         </div>
         <div class="actions"><button class="btn" data-go="menu">Back</button><button class="btn primary big" id="start-cpu">Kick off</button></div>
       </div>
@@ -185,6 +191,9 @@
               <h3>Host a game</h3>
               <p class="note">You get a 5-letter code. Send it to whoever you want to play.</p>
               <label class="mini">Quarter length<div class="seg" id="seg-qlen2"></div></label>
+              <label class="mini">Who can join<div class="seg" id="seg-vis"></div></label>
+              <label class="mini">Weather and time<div class="seg" id="seg-wx2"></div></label>
+              <label class="check"><input type="checkbox" id="use-ut"> Play with my Ultimate Team squad</label>
               <button class="btn primary" id="host-btn">Host game</button>
             </div>
             <div class="box">
@@ -193,6 +202,10 @@
               <input id="join-code" maxlength="5" placeholder="Code" autocomplete="off" spellcheck="false" aria-label="Game code">
               <button class="btn primary" id="join-btn">Join game</button>
             </div>
+          </div>
+          <div class="lobby">
+            <div class="lobby-head"><h3>Public lobby</h3><span id="lobby-count" class="note"></span></div>
+            <div id="lobby-list" class="lobby-list"></div>
           </div>
         </div>
         <div id="online-wait" class="hidden wait">
@@ -241,7 +254,8 @@
             <ul class="keys">
               <li><span class="kk"><kbd>C</kbd></span><span>Change camera</span></li>
               <li><span class="kk"><kbd>M</kbd></span><span>Mute</span></li>
-              <li><span class="kk"><kbd>Esc</kbd></span><span>Pause</span></li>
+              <li><span class="kk"><kbd>Esc</kbd></span><span>Pause, controls and settings</span></li>
+              <li><span class="kk"><kbd>T</kbd></span><span>Chat in online games</span></li>
             </ul>
           </div>
         </div>
@@ -249,6 +263,9 @@
           <p>After a touchdown, kick the extra point or pick any play to go for two.</p>
           <p>Field goals and punts work on any down from the Special Teams tab.</p>
           <p>On a phone or tablet you get a joystick and buttons automatically.</p>
+          <p>Refs throw flags for holding, pass interference, false starts, offsides, roughing and facemasks. Let the clock run out on offense and it's delay of game.</p>
+          <p>Rain makes the ball slippery and snow slows everyone down.</p>
+          <p>Every game pays coins and XP to players with an account. Spend coins on Ultimate Team packs, and claim challenge rewards in Progress.</p>
         </div>
         <div class="actions"><button class="btn primary" data-go="back">Got it</button></div>
       </div>
@@ -271,17 +288,85 @@
         <ul class="about-list">
           <li><b>Play Now:</b> pick any two teams and a difficulty and take on the CPU.</li>
           <li><b>Season:</b> take one team through a 14-week schedule with live standings, a four-team playoff and the Kings Bowl.</li>
-          <li><b>Online 1v1:</b> send a friend a five-letter code and play each other live.</li>
+          <li><b>Ultimate Team:</b> open packs of player cards, build your own squad, train your players and take them into games, online too.</li>
+          <li><b>Online 1v1:</b> host a game in the public lobby or send a friend a code. Chat with <kbd>T</kbd>.</li>
+          <li><b>Play Creator:</b> draw your own offense, defense and special teams plays and call them in any game.</li>
           <li><b>Rosters:</b> look up every player's ratings on all 32 teams.</li>
         </ul>
         <p>It plays with a keyboard and mouse on a computer, and with an on-screen joystick and buttons on a phone or tablet.</p>
+        <h3>Game day</h3>
+        <p>Every game can be played in clear skies, rain, snow or fog, during the day, at dusk or under the lights. Rain makes the ball slippery and snow slows everyone down. At the half you get a halftime show with team stats and each side's leaders. Referees are on the field and throw flags for holding, pass interference, false starts, offsides, roughing the passer and facemasks.</p>
+        <h3>The grind</h3>
+        <p>Every game you play pays coins and XP. Level up for coin bonuses and free packs, climb ranked divisions from Bronze to Kings, and knock out daily and weekly challenges for big rewards. Coins only come from playing. Nothing in Endzone Kings costs real money.</p>
         <h3>Your account</h3>
-        <p>Endzone Kings has its own sign-up and log-in, so you don't need a Google account. Your win-loss record is saved to your account and follows you to any device.</p>
-        <h3>What's next</h3>
-        <p>Coming soon: Ultimate Team with card packs you open using coins you earn in the game (never real money), a Play Creator, weather and day or night games, a halftime show, player levels, ranked divisions and daily challenges, a public lobby for online games, and in-game chat.</p>
-        <p class="credit">Created by Habir Studios. Endzone Kings v1.1.</p>
+        <p>Endzone Kings has its own sign-up and log-in, so you don't need a Google account. Guests can jump into Quick Play against the CPU. A free account unlocks everything else: Ultimate Team, coins, levels, ranked, challenges, Season, online games and the Play Creator. Your progress follows you to any device.</p>
+        <p class="credit">Created by Habir Studios. Endzone Kings v2.0.</p>
         <div class="actions"><button class="btn primary" data-go="back">Back</button></div>
       </div>
+    </div>
+  </section>
+
+  <!-- ===================== ULTIMATE TEAM ===================== -->
+  <section id="ut" class="screen">
+    <div class="center-col xwide">
+      <div class="ut-top"><h2 class="title sm">Ultimate Team</h2><span class="coins-pill big"><i class="coin" aria-hidden="true"></i><b id="ut-coins">0</b></span></div>
+      <div id="ut-start" class="panel hidden">
+        <h3 class="h3">Start your club</h3>
+        <p class="note">Pick the uniform your squad wears and give it a name. You start with 14 players and a free Silver Pack. Every pack, upgrade and coin in Ultimate Team comes from playing games, never real money.</p>
+        <label>Squad name<input id="ut-name" maxlength="18" placeholder="Night Riders" autocomplete="off"></label>
+        <p class="note">Uniform</p>
+        <div id="ut-start-grid" class="team-grid"></div>
+        <div class="actions"><button class="btn primary big" id="ut-begin" disabled>Start my club</button></div>
+      </div>
+      <div id="ut-main" class="hidden">
+        <div class="ut-tabs" role="tablist">
+          <button class="ut-tab on" data-ut="squad" role="tab">Squad</button>
+          <button class="ut-tab" data-ut="play" role="tab">Play</button>
+          <button class="ut-tab" data-ut="packs" role="tab">Packs<i class="dotn hidden" id="ut-packs-n"></i></button>
+          <button class="ut-tab" data-ut="club" role="tab">Club</button>
+        </div>
+        <div class="panel ut-pane" id="ut-pane"></div>
+      </div>
+      <div class="actions"><button class="btn" data-go="menu">Back</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== PROGRESS ===================== -->
+  <section id="progress" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title sm">Progress</h2>
+      <div class="prog-grid">
+        <div class="panel" id="prog-level"></div>
+        <div class="panel" id="prog-rank"></div>
+        <div class="panel prog-ch" id="prog-daily"></div>
+        <div class="panel prog-ch" id="prog-weekly"></div>
+        <div class="panel prog-wide" id="prog-track"></div>
+        <div class="panel prog-wide" id="prog-career"></div>
+      </div>
+      <div class="actions"><button class="btn" data-go="menu">Back</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== PLAY CREATOR ===================== -->
+  <section id="creator" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title sm">Play Creator</h2>
+      <div class="panel cr-panel">
+        <div class="cr-side">
+          <div class="seg" id="cr-side"></div>
+          <label>Play name<input id="cr-name" maxlength="22" placeholder="Name your play" autocomplete="off"></label>
+          <div id="cr-opts"></div>
+          <div id="cr-help" class="cr-help"></div>
+          <div class="cr-btns"><button class="btn" id="cr-clear">Clear</button><button class="btn primary" id="cr-save">Save play</button></div>
+          <p id="cr-msg" class="msg" role="status"></p>
+        </div>
+        <div class="cr-field-wrap"><svg id="cr-field" class="cr-field" viewBox="0 0 400 300" aria-label="Play drawing field"></svg></div>
+      </div>
+      <div class="panel cr-mine">
+        <h3 class="h3">My plays <span class="note" id="cr-count"></span></h3>
+        <div id="cr-list" class="cr-list"></div>
+      </div>
+      <div class="actions"><button class="btn" data-go="menu">Back</button></div>
     </div>
   </section>
 
@@ -304,9 +389,9 @@
   <!-- ===================== HUD ===================== -->
   <div id="hud" class="hidden">
     <div class="scorebug">
-      <div class="sb-team" id="sb-t0"><span class="poss" aria-hidden="true"></span><b class="abbr"></b><span class="pts">0</span></div>
+      <div class="sb-team" id="sb-t0"><span class="poss" aria-hidden="true"></span><img class="sb-logo" alt=""><b class="abbr"></b><span class="pts">0</span></div>
       <div class="sb-mid"><span id="sb-q">Q1</span><span id="sb-clk">2:00</span></div>
-      <div class="sb-team r" id="sb-t1"><span class="pts">0</span><b class="abbr"></b><span class="poss" aria-hidden="true"></span></div>
+      <div class="sb-team r" id="sb-t1"><span class="pts">0</span><b class="abbr"></b><img class="sb-logo" alt=""><span class="poss" aria-hidden="true"></span></div>
       <div class="sb-down" id="sb-down">1st &amp; 10</div>
       <div class="sb-spot" id="sb-spot">Own 25</div>
       <div class="sb-pc" id="sb-pc">20</div>
@@ -320,6 +405,11 @@
       <div class="pc-head"><div><b id="pc-title">Offense</b><small id="pc-book"></small></div><span id="pc-hint"></span></div>
       <div class="pc-tabs" id="pc-tabs"></div>
       <div class="pc-cards" id="pc-cards"></div>
+    </div>
+    <div id="halftime" class="halftime hidden" aria-live="polite"></div>
+    <div id="chat" class="chat hidden">
+      <div id="chat-log" class="chat-log" aria-live="polite"></div>
+      <form id="chat-form" class="chat-form hidden"><input id="chat-in" maxlength="120" placeholder="Say something (Enter to send, Esc to close)" autocomplete="off" aria-label="Chat message"></form>
     </div>
     <div id="hint" class="hint"></div>
     <div id="net-badge" class="net-badge hidden"></div>
@@ -341,7 +431,9 @@
       <h2 class="title sm">Paused</h2>
       <button class="btn primary" id="resume">Resume</button>
       <button class="btn" id="p-howto">Controls</button>
+      <button class="btn" id="p-settings">Settings</button>
       <button class="btn" id="p-cam">Camera: <span id="p-cam-l"></span></button>
+      <button class="btn hidden" id="p-chat">Mute chat</button>
       <button class="btn danger" id="quit">Quit game</button>
     </div>
   </div>
@@ -352,13 +444,35 @@
       <div class="go-score" id="go-score"></div>
       <table class="go-stats" id="go-stats"></table>
       <p class="note" id="go-rec"></p>
+      <div id="go-rewards" class="go-rewards"></div>
       <div class="actions"><button class="btn" id="go-menu">Main menu</button><button class="btn primary" id="go-again">Play again</button></div>
+    </div>
+  </div>
+
+  <div id="packopen" class="modal hidden">
+    <div class="po-stage">
+      <p class="po-title" id="po-title">Gold Pack</p>
+      <div class="po-cards" id="po-cards"></div>
+      <div class="po-actions"><button class="btn" id="po-all">Reveal all</button><button class="btn primary hidden" id="po-done">Add to club</button></div>
+    </div>
+  </div>
+
+  <div id="carddlg" class="modal hidden">
+    <div class="panel cd-panel" id="cd-panel"></div>
+  </div>
+
+  <div id="lockdlg" class="modal hidden">
+    <div class="panel lock-panel">
+      <div class="lock-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v12h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg></div>
+      <h2 class="title sm" id="lock-title">Make a free account</h2>
+      <p class="note" id="lock-text">Guests can play Quick Play against the CPU. A free account unlocks Ultimate Team, coins and packs, levels, ranked divisions, challenges, Season, online games, the public lobby and the Play Creator. Your progress saves to your account and follows you to any device.</p>
+      <div class="actions"><button class="btn" id="lock-no">Not now</button><button class="btn primary" id="lock-yes">Create free account</button></div>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792200186"></script>
+  <script type="module" src="js/main.js?v=1792205915"></script>
 </body>
 </html>

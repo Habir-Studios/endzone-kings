@@ -1,11 +1,16 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792200186';
-import { Renderer } from './render.js?v=1792200186';
-import { Sfx } from './audio.js?v=1792200186';
-import { Auth } from './auth.js?v=1792200186';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode } from './net.js?v=1792200186';
-import { getRoster, teamOvr } from './teams.js?v=1792200186';
-import * as Season from './season.js?v=1792200186';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792205915';
+import { Renderer } from './render.js?v=1792205915';
+import { Sfx } from './audio.js?v=1792205915';
+import { Auth } from './auth.js?v=1792205915';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby } from './net.js?v=1792205915';
+import { getRoster, teamOvr } from './teams.js?v=1792205915';
+import * as Season from './season.js?v=1792205915';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL } from './meta.js?v=1792205915';
+import * as UTm from './ut.js?v=1792205915';
+import { initCreator, renderCreator } from './creator.js?v=1792205915';
+import { portraitURL } from './faces.js?v=1792205915';
+import { logoURL, clearLogoCache } from './logos.js?v=1792205915';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -13,7 +18,7 @@ const params = new URLSearchParams(location.search);
 const LOCALNET = params.has('localnet');
 
 // ---------------- settings ----------------
-const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'behind', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15 };
+const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'behind', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true };
 let SET = { ...DEF_SET };
 try { SET = { ...DEF_SET, ...JSON.parse(localStorage.getItem('ek_settings') || '{}') }; } catch (_) {}
 const saveSet = () => { try { localStorage.setItem('ek_settings', JSON.stringify(SET)); } catch (_) {} };
@@ -26,7 +31,7 @@ try { R = new Renderer(canvas, SET.gfx); } catch (e) {
   throw e;
 }
 R.camMode = SET.cam;
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => R.refreshText());
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { clearLogoCache(); R.refreshText(); if (st.screen && st.screen !== 'splash' && st.screen !== 'game') show(st.screen); });
 R.setTeams([SET.team, SET.cpuTeam]);
 const sfx = new Sfx(); sfx.setVolume(SET.vol); sfx.musicVol = SET.music; sfx.announcer = SET.ann; sfx.startMusic();
 window.addEventListener('pointerdown', () => sfx.init(), { once: false });
@@ -51,10 +56,23 @@ function show(id) {
   if (id === 'settings') renderSettings();
   if (id === 'season') renderSeason();
   if (id === 'rosters') renderRosters();
+  if (id === 'ut') renderUT();
+  if (id === 'progress') renderProgress();
+  if (id === 'creator') renderCreator();
+  if (id !== 'online') stopLobby();
 }
+const LOCKED = ['ut', 'season', 'online', 'progress', 'creator'];
+const isGuest = () => !Auth.user || Auth.user.kind === 'guest';
+function lockPrompt(what) {
+  $('#lock-title').textContent = what ? `${what} needs a free account` : 'Make a free account';
+  $('#lockdlg').classList.remove('hidden');
+}
+$('#lock-no').addEventListener('click', () => $('#lockdlg').classList.add('hidden'));
+$('#lock-yes').addEventListener('click', async () => { $('#lockdlg').classList.add('hidden'); if (st.playing) leaveGame(); await Auth.signOut(); show('auth'); $$('.tab')[1].click(); });
 $$('[data-go]').forEach(b => b.addEventListener('click', () => {
   sfx.play('ui');
   const g = b.dataset.go;
+  if (LOCKED.includes(g) && isGuest() && !LOCALNET) { const t = b.querySelector('.tl-k'); lockPrompt(t ? t.textContent : ''); return; }
   if (g === 'back') {
     if (st.playing) { $$('.screen').forEach(s => s.classList.remove('active')); st.screen = 'game'; $('#pause').classList.remove('hidden'); }
     else show(st.prev || 'menu');
@@ -125,6 +143,11 @@ function refreshProfile() {
   $('#pc-avatar').textContent = u.name[0].toUpperCase();
   $('#pc-rec').textContent = u.kind === 'guest' ? 'Guest' : `${u.wins}-${u.losses}${u.ties ? '-' + u.ties : ''}`;
   $('#logout').textContent = u.kind === 'guest' ? 'Sign in' : 'Log out';
+  const guest = isGuest() && !LOCALNET;
+  $('.pc-meta').classList.toggle('hidden', guest);
+  $$('.tiles .tile').forEach(t => t.classList.toggle('locked', guest && LOCKED.includes(t.dataset.go)));
+  if (guest) return;
+  profile(); refreshChip();
 }
 
 // ---------------- team / option widgets ----------------
@@ -134,7 +157,7 @@ function teamCard(el, ti) {
   el.style.background = `linear-gradient(160deg, ${t.jersey}, ${shade(t.jersey, -0.55)})`;
   el.style.color = '#fff';
   el.style.setProperty('--trim', t.trim);
-  el.innerHTML = `<div class="helm" style="background:${t.helmet}"></div><b>${t.city}</b><span>${t.abbr} ${r.ovr} OVR</span><em>Offense ${r.off}, defense ${r.def}</em>`;
+  el.innerHTML = `<img class="tlogo" alt="" src="${logoURL(ti, 112)}"><b>${t.city}</b><span>${t.abbr} ${r.ovr} OVR</span><em>Offense ${r.off}, defense ${r.def}</em>`;
   el.title = 'Click to pick a team';
 }
 let pickCb = null;
@@ -152,7 +175,7 @@ function fillGrid(el, current, avoid, onPick) {
     b.className = 'tg' + (i === current ? ' on' : '');
     b.disabled = i === avoid;
     b.style.setProperty('--c', t.jersey); b.style.setProperty('--c2', t.trim);
-    b.innerHTML = `<i></i><b>${t.city}</b><small>${t.abbr}</small><span>${teamOvr(i)}</span>`;
+    b.innerHTML = `<img class="tg-logo" alt="" src="${logoURL(i, 64)}"><b>${t.city}</b><small>${t.abbr}</small><span>${teamOvr(i)}</span>`;
     b.onclick = () => { sfx.play('ui'); $$('.tg', el).forEach(x => x.classList.remove('on')); b.classList.add('on'); onPick(i); };
     el.appendChild(b);
   });
@@ -195,7 +218,7 @@ function renderSeason() {
     return;
   }
   const me = S.team, t = TEAMS[me], rec = S.standings[me];
-  $('#hub-team').innerHTML = `<div class="hb-badge" style="--c:${t.jersey};--c2:${t.trim}">${t.abbr}</div><div><b>${t.city}</b><span>${rec.w}-${rec.l}${rec.t ? '-' + rec.t : ''} record, ${teamOvr(me)} OVR</span></div>`;
+  $('#hub-team').innerHTML = `<img class="hb-logo" alt="" src="${logoURL(me, 136)}"><div><b>${t.city}</b><span>${rec.w}-${rec.l}${rec.t ? '-' + rec.t : ''} record, ${teamOvr(me)} OVR</span></div>`;
   const g = Season.userGame(S);
   const nx = $('#hub-next');
   if (S.phase === 'done') {
@@ -254,7 +277,7 @@ function renderRosters() {
   const strip = $('#roster-strip');
   if (!strip.childElementCount) fillGrid(strip, rosterTeam, -1, (ti) => { rosterTeam = ti; renderRosters(); });
   const t = TEAMS[rosterTeam], R2 = getRoster(rosterTeam);
-  $('#roster-head').innerHTML = `<div class="hb-badge" style="--c:${t.jersey};--c2:${t.trim}">${t.abbr}</div><div><b>${t.city}</b><span>${R2.ovr} OVR, offense ${R2.off}, defense ${R2.def}</span></div>`;
+  $('#roster-head').innerHTML = `<img class="hb-logo" alt="" src="${logoURL(rosterTeam, 136)}"><div><b>${t.city}</b><span>${R2.ovr} OVR, offense ${R2.off}, defense ${R2.def}</span></div>`;
   const cell = (v) => `<td class="rt ${v >= 90 ? 'elite' : v >= 80 ? 'good' : v < 65 ? 'low' : ''}">${v}</td>`;
   $('#roster-tbl').innerHTML = '<tr><th>#</th><th>Name</th><th>Pos</th><th>OVR</th><th>SPD</th><th>HND</th><th>ACC</th><th>ARM</th><th>ELU</th><th>BLK</th><th>RSH</th><th>TKL</th><th>COV</th><th>Age</th></tr>' +
     R2.order.map(k => { const p = R2.players[k]; return `<tr><td>${p.num}</td><td class="nm">${p.first} ${p.last}</td><td>${p.pos}</td>${cell(p.ovr)}${cell(p.spd)}${cell(p.hands)}${cell(p.acc)}${cell(p.arm)}${cell(p.elu)}${cell(p.blk)}${cell(p.rush)}${cell(p.tkl)}${cell(p.cov)}<td>${p.age}</td></tr>`; }).join('');
@@ -265,6 +288,8 @@ function renderSetup() {
   teamCard($('#tp-me .team-card'), SET.team); teamCard($('#tp-cpu .team-card'), SET.cpuTeam);
   seg($('#seg-diff'), DIFFICULTIES.map((n, i) => [i, n]), SET.diff, v => { SET.diff = v; saveSet(); });
   seg($('#seg-qlen'), QLENS, SET.qlen, v => { SET.qlen = v; saveSet(); });
+  seg($('#seg-wx'), WX_OPTS, SET.wx, v => { SET.wx = v; saveSet(); });
+  seg($('#seg-tod'), TOD_OPTS, SET.tod, v => { SET.tod = v; saveSet(); });
 }
 wireTeamPick($('#tp-me'), () => SET.team, v => { SET.team = v; saveSet(); renderSetup(); }, () => SET.cpuTeam);
 wireTeamPick($('#tp-cpu'), () => SET.cpuTeam, v => { SET.cpuTeam = v; saveSet(); renderSetup(); }, () => SET.team);
@@ -287,7 +312,7 @@ function enterGame() {
   st.screen = 'game';
   $('#hud').classList.remove('hidden');
   $('#gameover').classList.add('hidden'); $('#pause').classList.add('hidden');
-  st.playing = true; st.paused = false; st.acc = 0; st.overShown = false; st.resultSaved = false; st.seasonSaved = false;
+  st.playing = true; st.paused = false; st.acc = 0; st.overShown = false; st.resultSaved = false; st.seasonSaved = false; st.rewarded = false; st.halfSaid = false;
   R.snapCamera(); hudCache = {};
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   canvas.focus();
@@ -299,8 +324,9 @@ function enterGame() {
 function startIntro() {
   const teams = st.mode === 'guest' ? R.teams : st.game.opts.teams;
   const T = teams.map(i => TEAMS[i]);
-  const card = (t, name, side) => `<div class="in-team ${side}" style="--c:${t.jersey === '#121a14' ? '#18c964' : t.jersey};--c2:${t.trim}"><small>${escapeHtml(name || '')}</small><b>${t.name}</b><span>${t.abbr}</span></div>`;
-  $('#intro-teams').innerHTML = card(T[0], st.names[0], 'l') + '<div class="in-vs">VS</div>' + card(T[1], st.names[1], 'r');
+  const tn = st.teamNames || [];
+  const card = (t, name, side, k) => `<div class="in-team ${side}" style="--c:${t.jersey === '#121a14' ? '#18c964' : t.jersey};--c2:${t.trim}"><img class="in-logo" alt="" src="${logoURL(teams[k], 160)}"><div><small>${escapeHtml(name || '')}</small><b>${escapeHtml(tn[k] || t.name)}</b><span>${tn[k] ? 'Ultimate Team' : t.abbr}</span></div></div>`;
+  $('#intro-teams').innerHTML = card(T[0], st.names[0], 'l', 0) + '<div class="in-vs">VS</div>' + card(T[1], st.names[1], 'r', 1);
   $('#intro').classList.remove('hidden');
   $('#hud').classList.add('intro');
   st.intro = 4.2; st.introLen = 4.2;
@@ -321,9 +347,13 @@ function startCPU(opts = {}) {
   st.seasonGame = !!opts.season;
   st.lastCpu = opts;
   const teams = opts.teams || [SET.team, SET.cpuTeam];
-  st.game = createGame({ teams, humans: [true, false], quarterLen: SET.qlen, difficulty: SET.diff });
+  st.ut = !!opts.ut; st.teamNames = opts.teamNames || null;
+  const weather = opts.weather || (opts.season ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season ? pickTod('random') : pickTod(SET.tod));
+  st.game = createGame({ teams, humans: [true, false], quarterLen: SET.qlen, difficulty: SET.diff, rosters: opts.rosters || null, weather, tod });
+  st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', 'CPU'];
   R.setTeams(st.game.opts.teams);
+  R.setWeather(weather, tod);
   $('#net-badge').classList.add('hidden');
   enterGame();
 }
@@ -333,9 +363,13 @@ function leaveGame() {
   if (st.peer) { st.peer.close(); st.peer = null; }
   $('#hud').classList.add('hidden'); $('#pause').classList.add('hidden'); $('#gameover').classList.add('hidden');
   for (const m of R.pmeshes.values()) { m.root.visible = false; m.blob.visible = false; }
+  if (R.refs) R.refs.forEach(r => { r.root.visible = false; r.blob.visible = false; });
+  if (R.flagMesh) R.flagMesh.visible = false;
   $('#intro').classList.add('hidden'); st.intro = 0;
+  $('#chat').classList.add('hidden');
   R.ball.visible = false;
   sfx.setSituation('idle'); sfx.startMusic();
+  R.setWeather('clear', 'night'); closeChat(); $('#chat-log').innerHTML = '';
   show('menu');
 }
 
@@ -352,6 +386,7 @@ window.addEventListener('keydown', (e) => {
   keys.add(k);
   if (st.intro > 0) { if (k === 'Space' || k === 'Enter' || k === 'Escape') endIntro(); return; }
   if (k === 'Escape') { togglePause(); return; }
+  if (k === 'KeyT') { e.preventDefault(); openChat(); return; }
   if (k === 'KeyM') { toast(sfx.toggleMute() ? 'Sound off' : 'Sound on'); return; }
   if (k === 'KeyC') { SET.cam = SET.cam === 'behind' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); toast('Camera: ' + (SET.cam === 'behind' ? 'Behind play' : 'Sideline')); return; }
   if (st.paused) return;
@@ -431,6 +466,7 @@ function keyToEvent(k) {
   const S = st.snap; if (!S) return null;
   const me = st.local, onOff = S.poss === me;
   const digit = k.startsWith('Digit') ? +k.slice(5) : k.startsWith('Numpad') ? +k.slice(6) : 0;
+  if (S.ph === 'half') return k === 'Space' || k === 'Enter' ? { t: 'ready' } : null;
   if (S.ph === 'presnap') {
     if (k === 'KeyZ') { switchTab(-1); return null; }
     if (k === 'KeyX') { switchTab(1); return null; }
@@ -466,6 +502,42 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.tabIndex = 0;
 
+// ---------------- chat (online games, press T) ----------------
+const BAD = ['fuck', 'shit', 'bitch', 'cunt', 'nigg', 'fag', 'retard', 'whore', 'slut', 'dick', 'pussy', 'kys'];
+const clean = t => { let out = String(t).replace(/[<>]/g, '').slice(0, 120); for (const w of BAD) out = out.replace(new RegExp(w + '\\w*', 'gi'), m => m[0] + '*'.repeat(m.length - 1)); return out; };
+let chatLast = 0;
+function openChat() {
+  if (st.mode === 'cpu') { toast('Chat works in online games'); return; }
+  if (!SET.chat) { toast('Chat is muted. Unmute it in the pause menu'); return; }
+  keys.clear();
+  $('#chat').classList.add('open'); $('#chat-form').classList.remove('hidden');
+  setTimeout(() => $('#chat-in').focus(), 0);
+}
+function closeChat() { $('#chat').classList.remove('open'); $('#chat-form').classList.add('hidden'); $('#chat-in').value = ''; $('#chat-in').blur(); canvas.focus(); }
+function chatLine(cls, who, text) {
+  const log = $('#chat-log'), p = document.createElement('p'); p.className = cls;
+  p.innerHTML = who ? `<b>${escapeHtml(who)}</b>${escapeHtml(text)}` : escapeHtml(text);
+  log.appendChild(p); while (log.children.length > 8) log.firstChild.remove();
+  setTimeout(() => p.classList.add('old'), 9000);
+}
+function chatRx(m) {
+  if (!SET.chat || !st.playing) return;
+  const now = Date.now(); if (now - (chatRx.t || 0) < 600) return; chatRx.t = now;
+  chatLine('them', st.names[1 - st.local] || 'Opponent', clean(m.m || ''));
+  sfx.play('ui');
+}
+$('#chat-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const t = clean($('#chat-in').value.trim());
+  if (t && st.peer) {
+    if (Date.now() - chatLast < 1200) { chatLine('sys', '', 'Slow down a little.'); }
+    else { chatLast = Date.now(); st.peer.send({ t: 'chat', m: t }, true); chatLine('me', st.names[st.local] || 'You', t); }
+  }
+  closeChat();
+});
+$('#chat-in').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); closeChat(); } });
+$('#chat-in').addEventListener('keyup', (e) => e.stopPropagation());
+
 // ---------------- pause / game over ----------------
 function togglePause(force) {
   if (st.overShown) return;
@@ -475,12 +547,15 @@ function togglePause(force) {
   if (st.paused) { sfx.setSituation('idle'); if (window.speechSynthesis) speechSynthesis.cancel(); }
   $('#p-cam-l').textContent = SET.cam === 'behind' ? 'Behind play' : 'Sideline';
   $('#quit').textContent = st.mode === 'cpu' ? 'Quit to menu' : 'Leave online game';
+  $('#p-chat').classList.toggle('hidden', st.mode === 'cpu'); $('#p-chat').textContent = SET.chat ? 'Mute chat' : 'Unmute chat';
 }
 $('#pause-btn').addEventListener('click', () => togglePause());
 $('#resume').addEventListener('click', () => togglePause(false));
 $('#p-howto').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('howto'); });
+$('#p-settings').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('settings'); });
 $('#p-cam').addEventListener('click', () => { SET.cam = SET.cam === 'behind' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); $('#p-cam-l').textContent = SET.cam === 'behind' ? 'Behind play' : 'Sideline'; });
 $('#quit').addEventListener('click', () => leaveGame());
+$('#p-chat').addEventListener('click', () => { SET.chat = !SET.chat; saveSet(); $('#p-chat').textContent = SET.chat ? 'Mute chat' : 'Unmute chat'; if (!SET.chat) $('#chat-log').innerHTML = ''; });
 $('#go-menu').addEventListener('click', () => leaveGame());
 $('#go-again').addEventListener('click', () => {
   $('#gameover').classList.add('hidden');
@@ -501,7 +576,7 @@ function showGameOver(S) {
   $('#go-score').innerHTML = `<span style="color:${T[0].jersey === '#121a14' ? '#18c964' : T[0].jersey}">${T[0].abbr}</span> ${S.sc[0]} – ${S.sc[1]} <span style="color:${T[1].jersey === '#121a14' ? '#18c964' : T[1].jersey}">${T[1].abbr}</span>`;
   const s = S.st;
   const rows = [['Passing', s[0].passYds, s[1].passYds], ['Comp/Att', `${s[0].comp}/${s[0].att}`, `${s[1].comp}/${s[1].att}`], ['Rushing', s[0].rushYds, s[1].rushYds],
-    ['First downs', s[0].firstDowns, s[1].firstDowns], ['Touchdowns', s[0].tds, s[1].tds], ['Interceptions thrown', s[0].ints, s[1].ints], ['Sacks', s[0].sacks, s[1].sacks]];
+    ['First downs', s[0].firstDowns, s[1].firstDowns], ['Touchdowns', s[0].tds, s[1].tds], ['Interceptions thrown', s[0].ints, s[1].ints], ['Sacks', s[0].sacks, s[1].sacks], ['Penalties', `${s[0].pens || 0}-${s[0].penYds || 0}`, `${s[1].pens || 0}-${s[1].penYds || 0}`]];
   $('#go-stats').innerHTML = `<tr><th>${T[0].abbr}</th><th></th><th>${T[1].abbr}</th></tr>` + rows.map(r => `<tr><td>${r[1]}</td><td>${r[0]}</td><td>${r[2]}</td></tr>`).join('');
   $('#go-again').textContent = st.mode === 'guest' ? 'Rematch (host starts)' : st.seasonGame ? 'Back to season' : 'Play again';
   if (st.seasonGame && !st.seasonSaved) {
@@ -512,6 +587,14 @@ function showGameOver(S) {
       const note = SS.phase === 'done' ? (SS.champion === SS.team ? '🏆 KINGS BOWL CHAMPIONS!' : 'Season over.') : `Season record: ${SS.standings[SS.team].w}-${SS.standings[SS.team].l}${SS.standings[SS.team].t ? '-' + SS.standings[SS.team].t : ''}`;
       setTimeout(() => toast(note, 3500), 400);
     }
+  }
+  if (!st.rewarded && isGuest() && !LOCALNET) { st.rewarded = true; $('#go-rewards').innerHTML = '<div class="gr-head"><b>Rewards</b></div><p class="note">Guests don\'t earn coins, XP or rank. <button class="link" id="go-signup">Make a free account</button> and this game would have paid out.</p>'; setTimeout(() => { const b = $('#go-signup'); if (b) b.onclick = () => lockPrompt(''); }); }
+  if (!st.rewarded) {
+    st.rewarded = true;
+    const mine = S.st[me], theirs = S.st[other];
+    try {
+      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.seasonGame ? 'season' : 'cpu') : 'online', ut: !!st.ut, res, diff: st.mode === 'cpu' ? SET.diff : 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
+    } catch (e) { console.warn(e); $('#go-rewards').innerHTML = ''; }
   }
   $('#gameover').classList.remove('hidden');
   if (!st.resultSaved && Auth.user) {
@@ -654,9 +737,43 @@ function hint(items) {
   if (hudCache.hint !== html) { hudCache.hint = html; $('#hint').innerHTML = html; }
 }
 
+function renderHalftime(S) {
+  const el = $('#halftime'), me = st.local;
+  const T = S.teams.map(i => TEAMS[i]), tn = st.teamNames || [];
+  if (hudCache.htKey !== S.id + '|' + (S.hr || []).join()) {
+    hudCache.htKey = S.id + '|' + (S.hr || []).join();
+    const ps = S.ps || [];
+    const best = (t, f) => ps.filter(p => p.t === t).sort((a, b) => f(b) - f(a))[0];
+    const ldr = (t, f, label, line) => { const p = best(t, f); if (!p || f(p) <= 0) return ''; return `<div class="ldr"><img alt="" src="${portraitURL(p.face, T[t].jersey, T[t].trim, 104)}"><div><b>${escapeHtml(p.n)} <small>${p.pos}</small></b><small>${label}: ${line(p)}</small></div></div>`; };
+    const col = t => `<div class="ht-col" style="--c:${T[t].jersey === '#121a14' ? '#18c964' : T[t].jersey}"><h4>${escapeHtml(tn[t] || T[t].city)} leaders</h4>
+      ${ldr(t, p => p.py, 'Passing', p => `${p.py} yds, ${p.ptd} TD`)}${ldr(t, p => p.ry, 'Rushing', p => `${p.ry} yds${p.td ? `, ${p.td} TD` : ''}`)}
+      ${ldr(t, p => p.recy, 'Receiving', p => `${p.rec} catches, ${p.recy} yds`)}${ldr(t, p => p.tk + p.sk * 2 + p.int * 3, 'Defense', p => [p.tk && `${p.tk} tkl`, p.sk && `${p.sk} sack`, p.int && `${p.int} INT`].filter(Boolean).join(', '))}
+      ${ps.some(p => p.t === t) ? '' : '<p class="note">Nobody has done much yet.</p>'}</div>`;
+    const s0 = S.st[0], s1 = S.st[1];
+    const rows = [['Total yards', s0.passYds + s0.rushYds, s1.passYds + s1.rushYds], ['Passing', s0.passYds, s1.passYds], ['Rushing', s0.rushYds, s1.rushYds], ['Completions', `${s0.comp}/${s0.att}`, `${s1.comp}/${s1.att}`], ['First downs', s0.firstDowns, s1.firstDowns], ['Sacks', s0.sacks, s1.sacks], ['Turnovers', s0.ints, s1.ints], ['Penalties', `${s0.pens || 0}-${s0.penYds || 0}`, `${s1.pens || 0}-${s1.penYds || 0}`]];
+    const ready = S.hr && S.hr[me];
+    el.innerHTML = `<div class="ht-box"><h2 class="ht-title">Halftime</h2>
+      <div class="ht-score"><span class="tm"><img alt="" src="${logoURL(S.teams[0], 96)}">${T[0].abbr}</span><span class="sc">${S.sc[0]} - ${S.sc[1]}</span><span class="tm">${T[1].abbr}<img alt="" src="${logoURL(S.teams[1], 96)}"></span></div>
+      <div class="ht-grid">${col(0)}<div class="ht-col"><h4>First half</h4><table class="ht-stats">${rows.map(r => `<tr><td>${r[1]}</td><td>${r[0]}</td><td>${r[2]}</td></tr>`).join('')}</table></div>${col(1)}</div>
+      <div class="ht-foot">${ready ? '<span>Waiting for the other coach…</span>' : '<button class="btn primary" id="ht-go">Start second half</button><span><kbd>Space</kbd></span>'}<span id="ht-left"></span></div></div>`;
+    const b = $('#ht-go', el); if (b) b.onclick = () => pushEv({ t: 'ready' });
+    hudCache['#ht-left'] = null;
+  }
+  setTxt('#ht-left', `Second half in ${Math.max(0, Math.ceil((S.hl || 12) - S.pt))}s`);
+  if (!st.halfSaid) {
+    st.halfSaid = true;
+    const lead = S.sc[0] === S.sc[1] ? `All tied up at ${S.sc[0]}` : `${T[S.sc[0] > S.sc[1] ? 0 : 1].city} leads it ${Math.max(...S.sc)} to ${Math.min(...S.sc)}`;
+    sfx.say(`That's halftime. ${lead}. Stay with us.`, true); sfx.cheer(0.4, 3);
+  }
+}
+
 function updateHud(S) {
   const me = st.local;
   const T = S.teams.map(i => TEAMS[i]);
+  const htEl = $('#halftime');
+  $('#hud').classList.toggle('half-open', S.ph === 'half');
+  if (S.ph === 'half') { htEl.classList.remove('hidden'); renderHalftime(S); }
+  else if (!htEl.classList.contains('hidden')) { htEl.classList.add('hidden'); hudCache.htKey = null; }
   for (let t = 0; t < 2; t++) {
     const el = $('#sb-t' + t);
     const k = `t${t}`;
@@ -664,6 +781,7 @@ function updateHud(S) {
     if (hudCache[k] !== val) {
       hudCache[k] = val;
       $('.abbr', el).textContent = T[t].abbr; $('.pts', el).textContent = S.sc[t];
+      $('.sb-logo', el).src = logoURL(S.teams[t], 64);
       el.style.setProperty('--tc', T[t].jersey === '#121a14' ? '#18c964' : T[t].jersey);
       el.classList.toggle('has', S.poss === t);
     }
@@ -683,7 +801,7 @@ function updateHud(S) {
   const mtxt = S.msg && S.ph !== 'gameover' ? S.msg.text + '|' + S.msg.sub + '|' + S.msg.big : '';
   if (hudCache.msg !== mtxt) {
     hudCache.msg = mtxt;
-    if (mtxt) { sfx.call(S.msg, { team: (S.msg.sub || '').split(' · ')[1] }); $('b', ban).textContent = S.msg.text; $('small', ban).innerHTML = (S.msg.sub || '').split(' · ').filter(Boolean).map(x => `<span>${escapeHtml(x)}</span>`).join(''); ban.className = 'banner show' + (S.msg.big ? ' big' : ''); }
+    if (mtxt) { sfx.call(S.msg, { team: (S.msg.sub || '').split(' · ')[1] }); $('b', ban).textContent = S.msg.text; $('small', ban).innerHTML = (S.msg.sub || '').split(' · ').filter(Boolean).map(x => `<span>${escapeHtml(x)}</span>`).join(''); ban.className = 'banner show' + (S.msg.big ? ' big' : '') + (S.msg.pen ? ' pen' : ''); }
     else ban.className = 'banner';
   }
   const fl = $('#flash'); const ft = S.flash || '';
@@ -749,6 +867,34 @@ function renderOnline() {
   warn.innerHTML = w; warn.classList.toggle('hidden', !w);
   $('#host-btn').disabled = !!w; $('#join-btn').disabled = !!w;
   if (!st.peer) { $('#online-main').classList.remove('hidden'); $('#online-wait').classList.add('hidden'); onlineMsg(''); }
+  seg($('#seg-vis'), [['public', 'Anyone (lobby)'], ['private', 'Only with code']], SET.vis, v => { SET.vis = v; saveSet(); });
+  seg($('#seg-wx2'), [['random', 'Random'], ['clear', 'Clear night'], ['day', 'Day game'], ['rain', 'Rain'], ['snow', 'Snow'], ['fog', 'Fog']], SET.wx2, v => { SET.wx2 = v; saveSet(); });
+  const P = profile(), utOk = P && P.ut.started && UTm.squadOvr(P.ut).full;
+  $('#use-ut').disabled = !utOk; if (!utOk) $('#use-ut').checked = false;
+  $('#use-ut').parentElement.title = utOk ? '' : 'Start Ultimate Team and fill your lineup first';
+  if (!w) startLobby();
+}
+function myOnlineInfo() {
+  const P = profile(), useUT = $('#use-ut').checked && P && P.ut.started;
+  const roster = useUT ? UTm.squadRoster(P.ut) : null;
+  return { name: Auth.user ? Auth.user.name : 'Player', team: useUT ? P.ut.club : onlineTeam, rank: P ? P.rank.name : '', roster, squad: roster ? P.ut.name : null };
+}
+// ---------------- public lobby ----------------
+let lobby = null;
+function startLobby() {
+  if (lobby) return;
+  lobby = new Lobby(Auth.mode === 'supabase' && !LOCALNET ? Auth.client : null);
+  lobby.open(renderLobby).catch(() => {});
+  renderLobby([]);
+}
+function stopLobby() { if (lobby) { lobby.close(); lobby = null; } }
+function renderLobby(list) {
+  const el = $('#lobby-list'); if (!el) return;
+  $('#lobby-count').textContent = list.length ? `${list.length} open game${list.length > 1 ? 's' : ''}` : '';
+  if (!list.length) { el.innerHTML = '<div class="lob-empty">No open games right now. Host one and it shows up here for everyone.</div>'; return; }
+  el.innerHTML = list.map(g => { const t = TEAMS[g.team] || TEAMS[0]; const r = (g.rank || 'Bronze').split(' ')[0];
+    return `<div class="lob" style="--c:${t.jersey};--c2:${t.trim}"><img class="tg-logo" alt="" src="${logoURL(TEAMS[g.team] ? g.team : 0, 64)}"><div><b>${escapeHtml(g.name)}</b><small>${g.squad ? escapeHtml(g.squad) + ' (Ultimate Team)' : t.city}, ${Math.round((g.ql || 120) / 60)} min quarters${g.wx && g.wx !== 'random' ? ', ' + g.wx : ''}</small></div><span class="rank-pill" style="--rk:${(RANK_COL[r] || RANK_COL.Bronze)[0]}">${escapeHtml(g.rank || '')}</span><button class="btn primary sm" data-code="${escapeHtml(g.code)}">Join</button></div>`; }).join('');
+  $$('[data-code]', el).forEach(b => b.onclick = () => { $('#join-code').value = b.dataset.code; $('#join-btn').click(); });
 }
 wireTeamPick($('#tp-online'), () => onlineTeam, v => { onlineTeam = v; renderOnline(); });
 function onlineMsg(t, err) { const m = $('#online-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
@@ -761,6 +907,7 @@ function wirePeer(peer, role) {
   peer.on('error', (m) => { onlineMsg(m, true); resetOnlineUI(); });
   peer.on('joined', (info) => {
     st.names[role === 'host' ? 1 : 0] = info.name;
+    if (role === 'host' && lobby) lobby.untrack();
     $('#wait-status').innerHTML = `<span class="spinner"></span>${escapeHtml(info.name)} ${role === 'host' ? 'joined' : 'found'}! Connecting…`;
   });
   peer.on('open', (mode) => {
@@ -778,27 +925,30 @@ function wirePeer(peer, role) {
   });
   peer.on('message', (m) => role === 'host' ? hostRx(m) : guestRx(m));
 }
-function resetOnlineUI() { $('#online-main').classList.remove('hidden'); $('#online-wait').classList.add('hidden'); if (st.peer) { st.peer.close(); st.peer = null; } }
+function resetOnlineUI() { $('#online-main').classList.remove('hidden'); $('#online-wait').classList.add('hidden'); if (st.peer) { st.peer.close(); st.peer = null; } if (lobby) lobby.untrack(); }
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 $('#host-btn').addEventListener('click', async () => {
   sfx.init();
   const code = makeRoomCode();
-  const peer = st.peer = new Peer(makeSignal(code), 'host', { name: Auth.user ? Auth.user.name : 'Host', team: onlineTeam });
+  const peer = st.peer = new Peer(makeSignal(code), 'host', myOnlineInfo());
   wirePeer(peer, 'host');
   $('#online-main').classList.add('hidden'); $('#online-wait').classList.remove('hidden');
   $('#room-code').textContent = code; $('#wait-label').textContent = 'Your game code — send it to your friend';
   $('#copy-code').classList.remove('hidden');
   $('#wait-status').innerHTML = '<span class="spinner"></span>Connecting to server…';
   onlineMsg('');
-  try { await peer.start(); $('#wait-status').innerHTML = '<span class="spinner"></span>Waiting for opponent…'; }
+  try {
+    await peer.start(); $('#wait-status').innerHTML = `<span class="spinner"></span>Waiting for opponent${SET.vis === 'public' ? '. Your game is listed in the public lobby.' : '…'}`;
+    if (SET.vis === 'public' && lobby && st.peer === peer) { const i = myOnlineInfo(); lobby.track({ code, name: i.name, team: i.team, rank: i.rank, squad: i.squad, ql: SET.qlen, wx: SET.wx2, at: Date.now() }); }
+  }
   catch (e) { onlineMsg(e.message, true); resetOnlineUI(); }
 });
 $('#join-btn').addEventListener('click', async () => {
   sfx.init();
   const code = $('#join-code').value.trim().toUpperCase();
   if (code.length !== 5) { onlineMsg('Codes are 5 characters', true); return; }
-  const peer = st.peer = new Peer(makeSignal(code), 'guest', { name: Auth.user ? Auth.user.name : 'Guest', team: onlineTeam });
+  const peer = st.peer = new Peer(makeSignal(code), 'guest', myOnlineInfo());
   wirePeer(peer, 'guest');
   $('#online-main').classList.add('hidden'); $('#online-wait').classList.remove('hidden');
   $('#room-code').textContent = code; $('#wait-label').textContent = 'Joining game';
@@ -810,28 +960,40 @@ $('#join-btn').addEventListener('click', async () => {
 
 function startHostGame() {
   const peer = st.peer; if (!peer) return;
-  const gt = peer.remote.info.team === onlineTeam ? (onlineTeam + 1) % TEAMS.length : peer.remote.info.team;
-  st.mode = 'host'; st.local = 0;
-  st.names = [Auth.user ? Auth.user.name : 'Host', peer.remote.info.name];
-  st.game = createGame({ teams: [onlineTeam, gt], humans: [true, true], quarterLen: SET.qlen, difficulty: 1 });
+  stopLobby();
+  const me = peer.info, them = peer.remote.info || {};
+  const myTeam = me.team ?? onlineTeam;
+  const gt = them.team === myTeam ? (myTeam + 1) % TEAMS.length : (TEAMS[them.team] ? them.team : (myTeam + 1) % TEAMS.length);
+  st.mode = 'host'; st.local = 0; st.ut = !!me.roster;
+  st.names = [Auth.user ? Auth.user.name : 'Host', String(them.name || 'Guest').slice(0, 16)];
+  st.teamNames = [me.squad || null, them.squad ? String(them.squad).replace(/[<>]/g, '').slice(0, 18) : null];
+  const w = SET.wx2 === 'random' ? null : SET.wx2;
+  const weather = w === 'day' ? 'clear' : w === 'clear' ? 'clear' : pickWx(w || 'random'), tod = w === 'day' ? 'day' : w === 'clear' ? 'night' : pickTod('random');
+  st.game = createGame({ teams: [myTeam, gt], humans: [true, true], quarterLen: SET.qlen, difficulty: 1, rosters: [me.roster || null, them.roster || null], weather, tod });
   st.remote = { mx: 0, mz: 0, sprint: false, ev: [] };
   st.netEv = [];
   R.setTeams(st.game.opts.teams);
-  peer.send({ t: 'start', teams: st.game.opts.teams, ql: SET.qlen, names: st.names }, true);
+  R.setWeather(weather, tod);
+  peer.send({ t: 'start', teams: st.game.opts.teams, ql: SET.qlen, names: st.names, teamNames: st.teamNames, ut: !!them.roster }, true);
   $('#net-badge').classList.remove('hidden');
   enterGame();
+  $('#chat').classList.remove('hidden'); chatLine('sys', '', 'Press T to chat.');
 }
 function hostRx(m) {
   if (m.t === 'i') { st.remote.mx = +m.mx || 0; st.remote.mz = +m.mz || 0; st.remote.sprint = !!m.sp; }
+  else if (m.t === 'chat') chatRx(m);
   else if (m.t === 'ev' && m.ev && typeof m.ev.t === 'string') { if (st.remote.ev.length < 50) st.remote.ev.push(m.ev); }
   else if (m.t === 'bye') { st.peer && st.peer.handlers.close && st.peer.handlers.close('Opponent left'); }
 }
 function guestRx(m) {
+  if (m.t === 'chat') { chatRx(m); return; }
   if (m.t === 'start') {
-    st.mode = 'guest'; st.local = 1; st.names = m.names || st.names;
+    stopLobby();
+    st.mode = 'guest'; st.local = 1; st.names = m.names || st.names; st.teamNames = m.teamNames || null; st.ut = !!m.ut;
     R.setTeams(m.teams); st.guestBuf = []; st.snap = null;
     $('#net-badge').classList.remove('hidden');
     enterGame();
+    $('#chat').classList.remove('hidden'); chatLine('sys', '', 'Press T to chat.');
   } else if (m.t === 's') {
     if (!st.playing) return;
     st.guestBuf.push({ at: performance.now(), s: m.s });
@@ -902,6 +1064,11 @@ function frame(now) {
     if (st.snap) {
       R.ball.visible = true;
       R.update(st.snap, dt, st.local);
+      if (st.snap.ph === 'half') {
+        st.halfT = (st.halfT || 0) + dt * 0.07;
+        R.cam.position.set(Math.sin(st.halfT) * 70, 30, 50 + Math.cos(st.halfT) * 84);
+        R.cam.lookAt(0, 0, 50); R._camInit = false;
+      }
       if (st.intro > 0) {
         st.intro -= dt;
         const t = 1 - Math.max(0, st.intro) / st.introLen, e = t * t * (3 - 2 * t);
@@ -935,6 +1102,11 @@ function frame(now) {
   R.render();
 }
 requestAnimationFrame(frame);
+
+// ---------------- menus that live in their own modules ----------------
+const CTX = { $, $$, show, toast, sfx, Auth, TEAMS, seg, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+initMeta(CTX);
+initCreator(CTX);
 
 // test hooks (used by automated tests; harmless in production)
 window.__ek = { st, startCPU, keys, pushEv, Auth, R, sfx, cam: null, keyToEvent, pickCard };

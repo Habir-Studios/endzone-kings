@@ -171,3 +171,45 @@ export class Peer {
     setTimeout(() => this.sig.close(), 200);
   }
 }
+
+// --- public lobby: hosts announce open games, everyone on the Online screen sees the list ---
+export class Lobby {
+  constructor(client) { this.client = client; this.id = Math.random().toString(36).slice(2, 10); this.list = []; this.cb = null; this.mine = null; this.seen = new Map(); }
+  async open(cb) {
+    this.cb = cb;
+    if (this.client) {
+      this.ch = this.client.channel('ek-lobby', { config: { presence: { key: this.id } } });
+      this.ch.on('presence', { event: 'sync' }, () => {
+        const st = this.ch.presenceState();
+        this.list = Object.entries(st).filter(([k]) => k !== this.id).map(([, v]) => v[v.length - 1]).filter(x => x && x.code);
+        this.emit();
+      });
+      await new Promise((res) => {
+        const to = setTimeout(res, 8000);
+        this.ch.subscribe(async (status) => { if (status === 'SUBSCRIBED') { clearTimeout(to); if (this.mine) await this.ch.track(this.mine); res(); } });
+      });
+    } else {
+      // same-browser testing: tabs announce themselves every 2 seconds
+      this.bc = new BroadcastChannel('ek-local-lobby');
+      this.bc.onmessage = (e) => { const m = e.data; if (!m || m.id === this.id) return; if (m.bye) this.seen.delete(m.id); else this.seen.set(m.id, { ...m.info, _t: Date.now() }); this.prune(); };
+      this.tick = setInterval(() => { if (this.mine) this.bc.postMessage({ id: this.id, info: this.mine }); this.prune(); }, 2000);
+    }
+  }
+  prune() { const now = Date.now(); for (const [k, v] of this.seen) if (now - v._t > 5000) this.seen.delete(k); this.list = [...this.seen.values()]; this.emit(); }
+  emit() { if (this.cb) this.cb(this.list.slice().sort((a, b) => (a.at || 0) - (b.at || 0))); }
+  async track(info) {
+    this.mine = info;
+    if (this.ch) { try { await this.ch.track(info); } catch (_) {} }
+    else if (this.bc) this.bc.postMessage({ id: this.id, info });
+  }
+  async untrack() {
+    this.mine = null;
+    if (this.ch) { try { await this.ch.untrack(); } catch (_) {} }
+    else if (this.bc) this.bc.postMessage({ id: this.id, bye: 1 });
+  }
+  close() {
+    this.cb = null;
+    if (this.ch) { try { this.ch.untrack(); } catch (_) {} this.client.removeChannel(this.ch); this.ch = null; }
+    if (this.bc) { try { this.bc.postMessage({ id: this.id, bye: 1 }); } catch (_) {} this.bc.close(); this.bc = null; clearInterval(this.tick); }
+  }
+}

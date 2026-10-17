@@ -4,14 +4,14 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792200186';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792205915';
 export { TEAMS };
 
 export const OFF_ROLES = ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB'];
 export const DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
 export const RECEIVERS = ['WR1', 'WR2', 'RB']; // keys 1,2,3
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792200186';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792205915';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -32,7 +32,7 @@ const ROSTER = {
   S:   { spd: 7.6, size: 1.02 },
 };
 const DEF_ALIGN = {
-  DL1: [-2.3, 0.9], DL2: [0.2, 0.9], DL3: [2.3, 0.9], LB: [0, 5.5],
+  DL1: [-2.3, 1.15], DL2: [0.2, 1.15], DL3: [2.3, 1.15], LB: [0, 5.5],
   CB1: [-13, 6], CB2: [13, 6], S: [0, 13],
 };
 function offAlign(form) { const f = FORMS[form] || FORMS.gun; return { ...LINE, QB: f.QB, RB: f.RB, WR1: f.WR1, WR2: f.WR2 }; }
@@ -41,6 +41,7 @@ const DIFF = [
   { name: 'Rookie', ai: 0.85, shed: 0.08, intP: 0.26, qbErr: 1.6, react: 0.45, brk: 0.04 },
   { name: 'Pro',    ai: 0.91, shed: 0.12, intP: 0.38, qbErr: 1.05, react: 0.32, brk: 0.08 },
   { name: 'All-Pro', ai: 0.96, shed: 0.16, intP: 0.5, qbErr: 0.65, react: 0.22, brk: 0.12 },
+  { name: 'Legend',  ai: 1.0, shed: 0.2, intP: 0.6, qbErr: 0.45, react: 0.16, brk: 0.15 },
 ];
 export const DIFFICULTIES = DIFF.map(d => d.name);
 
@@ -70,6 +71,10 @@ export function createGame(opts = {}) {
     quarterLen: opts.quarterLen || 120,
     difficulty: opts.difficulty ?? 1,
     seed: opts.seed ?? (Date.now() & 0xffffffff),
+    rosters: [0, 1].map(k => cleanRoster(opts.rosters && opts.rosters[k])),
+    weather: WEATHERS.includes(opts.weather) ? opts.weather : 'clear',
+    tod: TODS.includes(opts.tod) ? opts.tod : 'night',
+    halftime: opts.halftime ?? 12,
   };
   const rng = mulberry(o.seed);
   const first = rng() < 0.5 ? 0 : 1;
@@ -84,7 +89,7 @@ export function createGame(opts = {}) {
     ctrl: [-1, -1], play: null, playId: 0, runoff: 0,
     msg: null, flash: null, events: [], kick: null, winner: -1,
     stats: [mkStats(), mkStats()],
-    custom: [{}, {}], pat: -1, books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
+    custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
   };
   g.losZ = zOf(first, 25);
   setFirstDown(g);
@@ -102,7 +107,34 @@ export function getPlay(g, team, id) {
   return OFF_PLAYS.find(p => p.id === id) || DEF_PLAYS.find(p => p.id === id) || null;
 }
 
-function mkStats() { return { passYds: 0, rushYds: 0, comp: 0, att: 0, tds: 0, ints: 0, sacks: 0, firstDowns: 0 }; }
+export const WEATHERS = ['clear', 'rain', 'snow', 'fog'];
+export const TODS = ['day', 'dusk', 'night'];
+const RKEYS = ['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'];
+// a custom roster (Ultimate Team squad) sent from a menu or over the network: keep only sane values
+function cleanRoster(r) {
+  if (!r || typeof r !== 'object' || !r.players) return null;
+  const out = { players: {} };
+  for (const role of Object.keys(ROSTER)) {
+    const q = r.players[role]; if (!q || typeof q !== 'object') return null;
+    const p = { role, pos: POS_LABEL[role] };
+    for (const k of RKEYS) p[k] = Math.max(40, Math.min(99, Math.round(+q[k] || 60)));
+    p.first = String(q.first || 'Player').replace(/[<>]/g, '').slice(0, 14);
+    p.last = String(q.last || 'One').replace(/[<>]/g, '').slice(0, 16);
+    p.name = `${p.first[0]}. ${p.last}`;
+    p.num = Math.max(0, Math.min(99, Math.round(+q.num || 0)));
+    p.face = (+q.face >>> 0) || 1;
+    p.ovr = Math.max(40, Math.min(99, Math.round(+q.ovr || 70)));
+    out.players[role] = p;
+  }
+  return out;
+}
+export const rosterFor = (g, team) => g.opts.rosters[team] || getRoster(g.opts.teams[team]);
+function pst(g, p) {
+  const k = p.team + ':' + p.role;
+  return g.ps[k] || (g.ps[k] = { t: p.team, n: p.rt.name, pos: POS_LABEL[p.role], role: p.role, face: p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num), py: 0, ptd: 0, ry: 0, rec: 0, recy: 0, td: 0, tk: 0, sk: 0, int: 0 });
+}
+
+function mkStats() { return { passYds: 0, rushYds: 0, comp: 0, att: 0, tds: 0, ints: 0, sacks: 0, firstDowns: 0, pens: 0, penYds: 0 }; }
 
 function setFirstDown(g) {
   const p = prog(g.poss, g.losZ);
@@ -114,11 +146,11 @@ function setFirstDown(g) {
 
 function makePlayer(g, id, team, unit, role, x, z) {
   const r = ROSTER[role];
-  const rt = getRoster(g.opts.teams[team]).players[role];
+  const rt = rosterFor(g, team).players[role];
   const d = dirOf(g.poss);
   const faceOff = d > 0 ? 0 : Math.PI;
   return {
-    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.88 + rt.spd / 100 * 0.15), rt,
+    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.88 + rt.spd / 100 * 0.15) * (g.opts.weather === 'snow' ? 0.95 : 1), rt,
     x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI,
     stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
     engagedBy: -1, blockOn: -1, shedCd: 0, svx: 0, svz: 0,
@@ -146,7 +178,7 @@ function setupPlay(g) {
   g.ctrl = [-1, -1];
   g.ctrl[off] = 0; // QB
   g.ctrl[def] = byRole(g, 'LB').id;
-  g.kick = null; g.celebrate = -1;
+  g.kick = null; g.celebrate = -1; g.lastFlag = null;
   g.playId++;
   if (!g.opts.humans[off]) cpuCallOffense(g);
   if (!g.opts.humans[def]) { g.defPlay = cpuCallDefense(g); g.defChosen = true; }
@@ -243,6 +275,7 @@ function pickW(r, w) {
 function handleEvent(g, team, ev) {
   const P = g.play;
   if (ev.t === 'custom') { const c = cleanCustom(ev.def); if (c) g.custom[team][c.id] = c; return; }
+  if (g.phase === 'half') { if (ev.t === 'snap' || ev.t === 'ready') g.halfReady[team] = true; return; }
   if (g.phase === 'presnap') {
     if (team === g.poss) {
       if (ev.t === 'play') {
@@ -343,13 +376,91 @@ export function canThrow(g) {
   return g.phase === 'live' && P.type === 'pass' && !P.thrown && !P.crossed && b.state === 'held' && b.carrier === 0;
 }
 
+// ---------------- penalties ----------------
+// Pre-snap fouls (false start, offsides, delay of game) stop the play before it starts.
+// Live fouls (holding, pass interference, roughing, facemask) put a flag on the play and get
+// enforced when it ends, accepted or declined by whichever choice helps the other team more.
+const PEN = {
+  fs: { name: 'FALSE START', yds: 5, off: true, replay: true },
+  dog: { name: 'DELAY OF GAME', yds: 5, off: true, replay: true },
+  offside: { name: 'OFFSIDES', yds: 5, off: false },
+  hold: { name: 'HOLDING', yds: 10, off: true, replay: true, from: 'los' },
+  opi: { name: 'OFFENSIVE PASS INTERFERENCE', yds: 10, off: true, replay: true, from: 'los' },
+  dpi: { name: 'PASS INTERFERENCE', yds: 0, off: false, auto1: true, from: 'spot' },
+  dhold: { name: 'DEFENSIVE HOLDING', yds: 5, off: false, auto1: true, from: 'los' },
+  rough: { name: 'ROUGHING THE PASSER', yds: 15, off: false, auto1: true, from: 'end' },
+  mask: { name: 'FACEMASK', yds: 15, off: false, auto1: true, from: 'end' },
+};
+export const PENALTY_NAMES = Object.fromEntries(Object.entries(PEN).map(([k, v]) => [k, v.name]));
+function throwFlag(g, type, who, z) {
+  const P = g.play; if (!P || P.flag || P.isPat || g.phase !== 'live') return;
+  P.flag = { type, on: who.team, num: who.num, name: who.rt.name, z: z ?? who.z, x: who.x };
+  g.flash = { text: 'FLAG ON THE PLAY', until: 1.4 };
+  g.events.push('flag');
+}
+// move the ball for a foul: positive yds help the offense (toward their goal). Half the distance near a goal line.
+function penaltyMove(g, team, fromP, yds) {
+  let to = fromP + yds;
+  if (to > 99) to = fromP + (100 - fromP) / 2;      // half the distance to the goal
+  if (to < 1) to = fromP / 2;
+  to = clamp(to, 1, 99);
+  g.losZ = zOf(team, to);
+  return to;
+}
+function presnapFoul(g, type, offender) {
+  const pen = PEN[type], off = g.poss;
+  const team = pen.off ? off : 1 - off;
+  g.stats[team].pens++; g.stats[team].penYds += pen.yds;
+  const fromP = prog(off, g.losZ);
+  const to = penaltyMove(g, off, fromP, pen.off ? -pen.yds : pen.yds);
+  if (prog(off, g.fdZ) <= to) setFirstDown(g); else g.togo = Math.max(1, Math.round(prog(off, g.fdZ) - to));
+  g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.2; g.runoff = 0;
+  g.msg = { text: pen.name, sub: `${pen.off ? 'Offense' : 'Defense'}${offender ? ` · #${offender.num} ${offender.rt.name}` : ''} · ${Math.round(Math.abs(to - fromP))} yards`, until: 2.2, pen: 1 };
+  g.events.push('flag', 'whistle');
+}
+const FOUL_RATE = 1; // overall penalty frequency multiplier
+// returns true when the flag decided how the play ended (so the caller should stop)
+function enforceFlag(g, endP, turnover, td) {
+  const P = g.play, F = P.flag; if (!F || P.isPat) return false;
+  P.flag = null;
+  const pen = PEN[F.type], off = P.off, losP = prog(off, P.los);
+  const resYds = endP == null ? 0 : endP - losP;
+  let accept;
+  if (pen.off) accept = !turnover && (endP == null || td || resYds > -pen.yds);
+  else if (td) accept = false;
+  else if (pen.from === 'end' || turnover || endP == null) accept = true;
+  else accept = pen.auto1 ? (prog(off, g.fdZ) > endP || resYds < pen.yds) : resYds < pen.yds;
+  const tm = TEAMS[g.opts.teams[F.on]].abbr;
+  if (!accept) { g.flagNote = `${pen.name} on ${tm}, declined`; return false; }
+  g.stats[F.on].pens++;
+  g.poss = off; g.lastFlag = [r2(F.x), r2(F.z)];
+  let to, yds;
+  if (F.type === 'dpi') { const spotP = clamp(prog(off, F.z), losP + 1, 99); to = spotP; g.losZ = zOf(off, to); yds = Math.round(to - losP); }
+  else if (pen.from === 'end' && endP != null && !turnover) { to = penaltyMove(g, off, Math.max(1, endP), pen.yds); yds = pen.yds; }
+  else { to = penaltyMove(g, off, losP, pen.off ? -pen.yds : pen.yds); yds = Math.round(Math.abs(to - losP)); }
+  g.stats[F.on].penYds += Math.abs(yds);
+  g.ballX = clamp(g.ballX, -7, 7);
+  if (pen.auto1 || prog(off, g.fdZ) <= to) setFirstDown(g);
+  else g.togo = Math.max(1, Math.round(prog(off, g.fdZ) - to));
+  g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.6; g.runoff = 0;
+  g.msg = { text: pen.name, sub: `${pen.off ? 'Offense' : 'Defense'} · #${F.num} ${F.name} · ${Math.abs(yds)} yards${pen.auto1 ? ' · automatic first down' : pen.replay ? ' · replay the down' : ''}`, until: 2.6, pen: 1 };
+  g.events.push('whistle');
+  return true;
+}
+
 function snap(g) {
   const P = g.play;
   if (g.offPlay === 'punt' || g.offPlay === 'fg' || g.offPlay === 'xp') { startKick(g, g.offPlay); return; }
+  if (g.pat < 0) {
+    const r = g.rng();
+    if (r < 0.012 * FOUL_RATE) return presnapFoul(g, 'fs', g.players[1 + ((g.rng() * 3) | 0)]);
+    if (r < 0.022 * FOUL_RATE) return presnapFoul(g, 'offside', g.players[7 + ((g.rng() * 3) | 0)]);
+  }
   const play = getPlay(g, g.poss, g.offPlay);
   P.type = play.type; P.playDef = play; P.snapT = g.t;
   P.readT = 1.7 + g.rng() * 1.1;
   P.def = 1 - g.poss;
+  P.flag = null; P.holdT = 0.6 + g.rng() * 2.2; P.holdRoll = g.rng();
   g.phase = 'live'; g.phaseT = 0;
   g.events.push('snap');
   for (const p of g.players) {
@@ -410,6 +521,7 @@ function throwBall(g, qb, r, err) {
   launchBall(g, tx, tz, Math.max(0.4, D / speed), 0.7 + D * 0.12, r.id, false);
   P.thrown = true; P.target = r.id; P.throwT = g.t; qb.throwAt = g.t;
   g.stats[P.off].att++;
+  for (const d of g.players) if (d.team !== P.off && d.dmode === 'rush' && dist(d, qb) < 1.7 && g.rng() < 0.15 * FOUL_RATE) { throwFlag(g, 'rough', d, qb.z); break; }
   g.events.push('throw');
   if (g.opts.humans[P.off]) g.ctrl[P.off] = r.id;
 }
@@ -501,11 +613,20 @@ export function step(g, dt, inputs = [{}, {}]) {
     const evs = inputs[t] && inputs[t].ev;
     if (evs) for (const ev of evs) handleEvent(g, t, ev);
   }
+  if (g.phase === 'half') {
+    if (g.phaseT >= g.opts.halftime || (g.halfReady[0] && g.halfReady[1] && g.phaseT > 1.5)) {
+      g.phase = 'presnap'; g.phaseT = 0; setupPlay(g);
+      g.msg = { text: 'SECOND HALF', sub: TEAMS[g.opts.teams[g.poss]].name + ' ball', until: 2.2 };
+    }
+    return;
+  }
   if (g.phase === 'presnap') return updatePresnap(g, dt, inputs);
   if (g.phase === 'live') return updateLive(g, dt, inputs);
   if (g.phase === 'kick') return updateKick(g, dt);
   if (g.phase === 'dead') {
+    if (g.flagNote && g.msg) { g.msg.sub = (g.msg.sub ? g.msg.sub + ' · ' : '') + g.flagNote; g.flagNote = null; }
     for (const p of g.players) { p.vx *= Math.max(0, 1 - dt * 4); p.vz *= Math.max(0, 1 - dt * 4); p.x += p.vx * dt; p.z += p.vz * dt; }
+    separate(g, 1);
     if (g.ball.state === 'held' && g.players[g.ball.carrier]) { const c = g.players[g.ball.carrier]; g.ball.x = c.x; g.ball.z = c.z; }
     if (g.phaseT >= g.deadDur) nextPlay(g);
   }
@@ -520,6 +641,7 @@ function updatePresnap(g, dt, inputs) {
     if (l > 0.05) { const st = Math.min(l, 7 * dt); p.x += dx / l * st; p.z += dz / l * st; p.vx = dx / l * (l > 0.3 ? 5 : 0); p.vz = dz / l * (l > 0.3 ? 5 : 0); p.face = Math.atan2(dx, dz); }
     else { p.vx = 0; p.vz = 0; p.face = p.unit === 'off' ? (dirOf(off) > 0 ? 0 : Math.PI) : (dirOf(off) > 0 ? Math.PI : 0); }
   }
+  separate(g, 1);
   // let defensive human shuffle a little pre-snap
   if (g.opts.humans[def]) {
     const me = g.players[g.ctrl[def]], inp = inputs[def] || {};
@@ -538,6 +660,7 @@ function updatePresnap(g, dt, inputs) {
     const ready = !humanDef ? g.phaseT > 2.0 : (g.defChosen ? g.phaseT > 2.2 : g.phaseT > 7);
     if (ready || g.playClock <= 0) snap(g);
   } else if (g.playClock <= 0) {
+    if (g.pat < 0 && g.phaseT > 3) return presnapFoul(g, 'dog', null);
     if (!g.offPlay) { g.offPlay = g.pat === off ? 'xp' : 'dive'; alignOffense(g); }
     snap(g);
   }
@@ -551,6 +674,11 @@ function nextPlay(g) {
     if (q === 2) {
       g.quarter = 3; g.clock = g.opts.quarterLen;
       kickoffTo(g, 1 - g.firstReceiver);
+      if (g.opts.halftime > 0) {
+        g.phase = 'half'; g.phaseT = 0; g.halfReady = [!g.opts.humans[0], !g.opts.humans[1]];
+        g.msg = null; g.events.push('half');
+        return;
+      }
       g.msg = { text: 'HALFTIME', sub: `${TEAMS[g.opts.teams[0]].abbr} ${g.score[0]} - ${g.score[1]} ${TEAMS[g.opts.teams[1]].abbr}`, until: 2.5 };
     } else if (q === 4 || q >= 5) {
       if (q === 4 && g.score[0] === g.score[1]) {
@@ -577,6 +705,14 @@ function endGame(g) {
 // ---------------- live play ----------------
 function updateLive(g, dt, inputs) {
   g._dt = dt;
+  { const P = g.play;
+    if (P && !P.flag && !P.isPat && P.holdT && g.phaseT >= P.holdT) {
+      P.holdT = 0;
+      const ol = g.players.filter(p => p.team === P.off && (p.role === 'C' || p.role === 'LG' || p.role === 'RG') && p.blockOn >= 0);
+      if (ol.length && P.holdRoll < 0.045 * FOUL_RATE) throwFlag(g, 'hold', ol[(g.rng() * ol.length) | 0]);
+      else if (P.holdRoll > 1 - 0.015 * FOUL_RATE) { const cb = g.players.find(p => p.team !== P.off && (p.role === 'CB1' || p.role === 'CB2') && p.dmode === 'man'); if (cb && P.type === 'pass' && !P.thrown) throwFlag(g, 'dhold', cb); }
+    }
+  }
   const P = g.play, b = g.ball, cfg = g.cfg;
   const tl = g.phaseT;
   // timers
@@ -747,21 +883,37 @@ function applyMove(g, p, w, dt) {
   }
 }
 
-function separate(g) {
-  const ps = g.players;
-  for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
-    const a = ps[i], b = ps[j];
-    if (a.fallen > 0 || b.fallen > 0) continue;
-    if (a.team !== b.team && (g.ball.state === 'held') && (g.ball.carrier === a.id || g.ball.carrier === b.id)) continue;
-    if (a.team === b.team && g.phase === 'live' && g.phaseT < 1.6 && ((a.role === 'QB' && b.role === 'RB') || (a.role === 'RB' && b.role === 'QB'))) continue;
-    const dx = b.x - a.x, dz = b.z - a.z, d = hyp(dx, dz), m = R * (a.size + b.size);
-    if (d < m && d > 1e-4) {
-      const push = (m - d) / 2, nx = dx / d, nz = dz / d;
-      const wa = b.size / (a.size + b.size), wb = a.size / (a.size + b.size);
-      a.x -= nx * push * 2 * wa; a.z -= nz * push * 2 * wa;
-      b.x += nx * push * 2 * wb; b.z += nz * push * 2 * wb;
+// keep bodies from overlapping. A few relaxation passes so a crowd settles instead of sinking into each other.
+// Ball carrier vs defenders keep a tighter gap (they still need to get close enough to tackle).
+function separate(g, iters = 3) {
+  const ps = g.players, carrier = g.ball.state === 'held' ? g.ball.carrier : -1;
+  for (let it = 0; it < iters; it++) {
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const a = ps[i], b = ps[j];
+      if (a.fallen > 0 && b.fallen > 0) continue;
+      let k = 1;
+      if (a.team === b.team && (a.role === 'QB' || b.role === 'QB') && (a.role === 'RB' || b.role === 'RB' || a.role === 'C' || b.role === 'C')) k = g.phaseT < 1.6 || g.phase !== 'live' ? 0.62 : 1;
+      if (a.team !== b.team && (carrier === a.id || carrier === b.id)) k = 0.7;
+      else if (a.engagedBy === b.id || b.engagedBy === a.id) k = 0.82;
+      if (a.fallen > 0 || b.fallen > 0) k *= 0.55;   // step over / around guys on the ground
+      const dx = b.x - a.x, dz = b.z - a.z, m = R * (a.size + b.size) * k;
+      if (Math.abs(dx) > m || Math.abs(dz) > m) continue;
+      let d = hyp(dx, dz);
+      if (d >= m) continue;
+      let nx, nz;
+      if (d < 1e-4) { const an = (i * 2.39996 + j) % (Math.PI * 2); nx = Math.cos(an); nz = Math.sin(an); d = 0; } else { nx = dx / d; nz = dz / d; }
+      const push = m - d;
+      // heavier / grounded players move less
+      let wa = b.size / (a.size + b.size), wb = a.size / (a.size + b.size);
+      if (a.fallen > 0) { wa = 0; wb = 1; } else if (b.fallen > 0) { wa = 1; wb = 0; }
+      a.x -= nx * push * wa; a.z -= nz * push * wa;
+      b.x += nx * push * wb; b.z += nz * push * wb;
+      // kill the part of the velocity that drives them into each other
+      const rv = (b.vx - a.vx) * nx + (b.vz - a.vz) * nz;
+      if (rv < 0) { a.vx += nx * rv * wa; a.vz += nz * rv * wa; b.vx -= nx * rv * wb; b.vz -= nz * rv * wb; }
     }
   }
+  for (const p of ps) { p.x = clamp(p.x, -HALF_W - 6, HALF_W + 6); }
 }
 
 function updateBlocks(g, dt, pocket) {
@@ -1074,6 +1226,7 @@ function zoneMove(g, p, s) {
   return seek(p, tx, tz, s, 0.8);
 }
 
+const wxHands = g => g.opts.weather === 'rain' ? 0.93 : g.opts.weather === 'snow' ? 0.96 : 1;
 // ---------------- pass resolution ----------------
 function resolveBall(g) {
   const b = g.ball, P = g.play, cfg = g.cfg;
@@ -1108,29 +1261,37 @@ function resolveBall(g) {
     else outcome = 'inc';
   }
   else if (cO && cD) {
-    const hands = 0.8 + ro.rt.hands / 100 * 0.22, cov = 0.6 + rd.rt.cov / 100 * 0.6;
+    const hands = (0.8 + ro.rt.hands / 100 * 0.22) * wxHands(g), cov = 0.6 + rd.rt.cov / 100 * 0.6;
     let pc = clamp((0.55 + (dD - dO) * 0.3) * hands / (0.7 + cov * 0.3) + (offAgg ? 0.12 : 0), 0.2, 0.9);
     if (rd.dive > 0) pc -= 0.1;
     if (g.rng() < pc) outcome = 'catch';
     else if (g.rng() < (dD < dO ? cfg.intP * 0.6 * cov : 0.12)) outcome = 'int';
   } else if (cO) {
-    const hands = 0.8 + ro.rt.hands / 100 * 0.22;
+    const hands = (0.8 + ro.rt.hands / 100 * 0.22) * wxHands(g);
     outcome = g.rng() < Math.min(0.98, (dO < 1.0 ? 0.92 : 0.82) * hands) ? 'catch' : 'inc';
   } else if (cD) {
     outcome = g.rng() < cfg.intP * (0.6 + rd.rt.cov / 100 * 0.6) ? 'int' : 'inc';
   }
+  if (!outOfBounds && cO && cD && !P.isPat) {
+    const r = g.rng();
+    if (outcome !== 'catch' && dD < 1.1 && r < (rd.dive > 0 ? 0.3 : 0.16) * FOUL_RATE) { throwFlag(g, 'dpi', rd, L.z); outcome = 'inc'; }
+    else if (outcome === 'catch' && r < 0.035 * FOUL_RATE) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
+  }
   if (outcome === 'catch') {
     b.state = 'held'; b.carrier = ro.id;
     P.catchZ = ro.z;
-    g.stats[offTeam].comp++;
+    g.stats[offTeam].comp++; pst(g, ro).rec++;
     if (g.opts.humans[offTeam]) g.ctrl[offTeam] = ro.id;
     g.events.push('catch');
     if (ro !== target) {} // caught by a different receiver, fine
+  } else if (outcome === 'int' && P.flag && !PEN[P.flag.type].off) {
+    b.x = L.x; b.z = L.z; b.y = 0.2;
+    if (enforceFlag(g, null, true, false)) return;
   } else if (outcome === 'int') {
     b.state = 'held'; b.carrier = rd.id;
     P.turnover = true; P.recognized = true;
     g.poss = rd.team;
-    g.stats[offTeam].ints++;
+    g.stats[offTeam].ints++; pst(g, rd).int++;
     if (g.opts.humans[rd.team]) g.ctrl[rd.team] = rd.id;
     if (g.opts.humans[offTeam]) {
       // control nearest player to the interceptor
@@ -1153,6 +1314,8 @@ function resolveBall(g) {
 // ---------------- end of play ----------------
 function touchdown(g, c) {
   const t = c.team, P = g.play;
+  if (P.flag && !P.isPat && t === P.off && PEN[P.flag.type].off && !P.turnover) { if (enforceFlag(g, 100, false, false)) { g.msg.sub += ' · touchdown wiped out'; return; } }
+  if (P.flag && !P.isPat) { const F = P.flag; P.flag = null; if (!PEN[F.type].off && t === P.off) g.flagNote = `${PEN[F.type].name} on ${TEAMS[g.opts.teams[F.on]].abbr}, declined`; }
   g.phase = 'dead'; g.phaseT = 0; g.deadDur = 3.4; g.runoff = 0;
   g.celebrate = t; c.scorer = 1;
   if (P.isPat) {
@@ -1165,6 +1328,7 @@ function touchdown(g, c) {
   score(g, t, 6);
   g.stats[t].tds++;
   addYards(g, c, prog(t, zOf(t, 100)));
+  if (!P.turnover) { pst(g, c).td++; if (P.thrown) pst(g, g.players[0]).ptd++; } else pst(g, c).td++;
   g.msg = { text: 'TOUCHDOWN!', sub: `${c.rt.name} · ${TEAMS[g.opts.teams[t]].name}`, until: 3.2, big: true, team: t };
   g.events.push('td', 'whistle');
   if (g.quarter >= 5) { kickoffTo(g, 1 - t); return; }            // walk-off in OT
@@ -1175,14 +1339,20 @@ function addYards(g, c, endP) {
   const P = g.play;
   if (P.turnover) return;
   const gained = endP - prog(P.off, P.los);
-  if (P.thrown) g.stats[P.off].passYds += Math.round(gained);
-  else g.stats[P.off].rushYds += Math.round(gained);
+  const y = Math.round(gained);
+  if (P.thrown) { g.stats[P.off].passYds += y; pst(g, g.players[0]).py += y; pst(g, c).recy += y; }
+  else { g.stats[P.off].rushYds += y; pst(g, c).ry += y; }
 }
 
 function endPlay(g, kind, c, tackler, note) {
   const P = g.play;
   g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.1; g.runoff = 0;
   g.events.push('whistle');
+  if (!P.isPat && kind === 'tackle' && tackler && c && c.team === P.off && !P.flag && g.rng() < 0.012 * FOUL_RATE) throwFlag2(g, 'mask', tackler, c.z);
+  if (P.flag && !P.isPat) {
+    const endP = kind === 'incomplete' ? null : (c && c.team === P.off ? prog(P.off, c.z) : null);
+    if (enforceFlag(g, endP, !!P.turnover, false)) return;
+  }
   if (P.isPat) {
     g.msg = { text: '2-POINT FAILED', sub: '', until: 2 };
     g.pat = -1; kickoffTo(g, 1 - P.off);
@@ -1222,6 +1392,7 @@ function endPlay(g, kind, c, tackler, note) {
   const gained = Math.round(p - prog(ct, P.los));
   const sack = c.id === 0 && P.type === 'pass' && !P.thrown && !P.crossed && kind === 'tackle';
   if (sack) g.stats[1 - ct].sacks++;
+  if (tackler && kind === 'tackle') { pst(g, tackler).tk++; if (sack) pst(g, tackler).sk++; }
   g.losZ = zOf(ct, spot);
   if (p >= prog(ct, g.fdZ)) {
     setFirstDown(g);
@@ -1237,6 +1408,8 @@ function endPlay(g, kind, c, tackler, note) {
     checkDowns(g);
   }
 }
+
+function throwFlag2(g, type, who, z) { const P = g.play; P.flag = { type, on: who.team, num: who.num, name: who.rt.name, z, x: who.x }; g.events.push('flag'); }
 
 function checkDowns(g) {
   if (g.down > 4) {
@@ -1260,7 +1433,8 @@ export function snapshot(g) {
     off: P.off, plos: r2(P.los ?? g.losZ), pbx: r2(P.bx ?? g.ballX), pty: P.type, thr: !!P.thrown,
     canThrow: canThrow(g),
     ctrl: g.ctrl.slice(), teams: g.opts.teams, humans: g.opts.humans, diff: g.opts.difficulty,
-    msg: g.msg ? { text: g.msg.text, sub: g.msg.sub, big: !!g.msg.big } : null,
+    msg: g.msg ? { text: g.msg.text, sub: g.msg.sub, big: !!g.msg.big, pen: !!g.msg.pen } : null,
+    fl: g.play && g.play.flag && g.phase === 'live' ? [r2(g.play.flag.x), r2(g.play.flag.z)] : (g.lastFlag && g.phase === 'dead' ? g.lastFlag : null),
     flash: g.flash ? g.flash.text : null,
     win: g.winner,
     pl: g.players.map(p => [p.team, p.unit === 'off' ? 1 : 0, p.role, p.num, r2(p.x), r2(p.z), r2(p.face),
@@ -1268,7 +1442,7 @@ export function snapshot(g) {
         | (p.throwAt !== undefined && g.t - p.throwAt < 0.5 && g.phase === 'live' ? 16 : 0) | (reaching(g, p) ? 32 : 0)
         | (g.phase === 'dead' && g.celebrate === p.team ? 64 : 0) | (p.scorer && g.phase === 'dead' ? 128 : 0)
         | (p.spin > 0 ? 256 : 0) | (p.stiff > 0 ? 512 : 0) | (p.hurdle > 0 ? 1024 : 0) | (p.playBall > 0 ? 2048 : 0) | (p.press > 0 ? 4096 : 0),
-      r2(p.stam), r2(p.size), p.rt.name, POS_LABEL[p.role], r2(p.moveCd)]),
+      r2(p.stam), r2(p.size), p.rt.name, POS_LABEL[p.role], r2(p.moveCd), p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num)]),
     b: [r2(g.ball.x), r2(g.ball.y), r2(g.ball.z), g.ball.state === 'air' ? 1 : g.ball.state === 'kick' ? 2 : 0,
       g.ball.state === 'air' && !g.ball.auto ? [r2(g.ball.tx), r2(g.ball.tz)] : null, g.ball.carrier ?? -1],
     st: g.stats,
@@ -1278,6 +1452,9 @@ export function snapshot(g) {
     pat: g.pat, form: g.form,
     opDef: g.phase === 'presnap' && g.offPlay ? (() => { const q = getPlay(g, g.poss, g.offPlay); return q && q.routes ? { form: q.form, routes: q.routes, qbPath: q.qbPath || null } : null; })() : null,
     bT: g.ball.state === 'air' && !g.ball.auto ? r2(g.ball.T - g.ball.t) : -1,
+    wx: g.opts.weather, tod: g.opts.tod,
+    hr: g.phase === 'half' ? g.halfReady.slice() : null, hl: g.opts.halftime,
+    ps: g.phase === 'half' || g.phase === 'gameover' ? Object.values(g.ps) : null,
   };
 }
 
@@ -1287,4 +1464,5 @@ function reaching(g, p) {
   const left = b.T - b.t;
   return left < 0.45 && hyp(p.x - b.tx, p.z - b.tz) < 2.6 && RECEIVERS.concat(['CB1', 'CB2', 'S', 'LB']).includes(p.role);
 }
+export function faceSeed(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
 export function drainEvents(g) { const e = g.events; g.events = []; return e; }

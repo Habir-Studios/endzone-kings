@@ -1,0 +1,280 @@
+// ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD } from './profile.js?v=1792205915';
+import * as UT from './ut.js?v=1792205915';
+import { portraitURL } from './faces.js?v=1792205915';
+import { TEAMS } from './teams.js?v=1792205915';
+
+let C = null;          // shared helpers from main.js
+let prof = null, profUser = null;
+const fmt = n => Math.round(n).toLocaleString();
+export const RANK_COL = { Bronze: ['#cd7f32', '#5a3412'], Silver: ['#c9d1dd', '#5d6675'], Gold: ['#f6c445', '#9a6400'], Platinum: ['#6ee7d8', '#1f6b66'], Diamond: ['#8ab4ff', '#2d3f9a'], Kings: ['#ffe28a', '#7a4a00'] };
+export const WX_OPTS = [['clear', 'Clear'], ['rain', 'Rain'], ['snow', 'Snow'], ['fog', 'Fog'], ['random', 'Random']];
+export const TOD_OPTS = [['day', 'Day'], ['dusk', 'Dusk'], ['night', 'Night'], ['random', 'Random']];
+export function pickWx(v) { return v === 'random' || !v ? ['clear', 'clear', 'clear', 'rain', 'snow', 'fog'][(Math.random() * 6) | 0] : v; }
+export function pickTod(v) { return v === 'random' || !v ? ['day', 'dusk', 'night'][(Math.random() * 3) | 0] : v; }
+
+export function profile() {
+  const u = C.Auth.user; if (!u) return null;
+  if (!prof || profUser !== u.id) {
+    prof = new Profile(u.id); profUser = u.id;
+    prof.onSave(p => { C.Auth.saveCloud(p); refreshChip(); });
+    const cloud = C.Auth.cloudProfile(); if (cloud && prof.adopt(cloud)) refreshChip();
+    C.Auth.refreshCloud().then(cp => { if (cp && prof && prof.adopt(cp)) { refreshChip(); if (C.screen() === 'ut') renderUT(); if (C.screen() === 'progress') renderProgress(); } });
+  }
+  return prof;
+}
+
+export function initMeta(ctx) {
+  C = ctx;
+  const { $, $$ } = C;
+  $$('.ut-tab').forEach(b => b.addEventListener('click', () => { C.sfx.play('ui'); utTab = b.dataset.ut; renderUT(); }));
+  $('#ut-begin').addEventListener('click', () => {
+    const P = profile(); if (!P || utStartTeam < 0) return;
+    P.p.ut.name = ($('#ut-name').value || '').replace(/[<>]/g, '').trim().slice(0, 18) || `${C.Auth.user.name}'s Squad`;
+    P.startUT(utStartTeam);
+    C.toast('Club created. Your free Silver Pack is waiting in Packs.');
+    utTab = 'packs'; renderUT();
+  });
+  $('#po-all').addEventListener('click', () => $$('.flip:not(.open)', $('#po-cards')).forEach((f, i) => setTimeout(() => f.click(), i * 160)));
+  $('#po-done').addEventListener('click', () => { $('#packopen').classList.add('hidden'); renderUT(); });
+  $('#carddlg').addEventListener('click', e => { if (e.target.id === 'carddlg') closeDlg(); });
+  window.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('#carddlg').classList.contains('hidden')) closeDlg(); } });
+}
+
+export function refreshChip() {
+  const P = profile(); if (!P) return;
+  const { $ } = C, r = P.rank, col = RANK_COL[r.div];
+  $('#pc-lvl').textContent = P.p.lvl; $('#pc-lvl').title = `Level ${P.p.lvl}`;
+  $('#pc-rank').textContent = r.name; $('#pc-rank').style.setProperty('--rk', col[0]);
+  $('#pc-coins').textContent = fmt(P.p.coins);
+  const U = P.p.ut;
+  $('#tile-ut-sub').textContent = U.started ? `${U.name}, ${UT.squadOvr(U).ovr} OVR, ${U.cards.length} players` : 'Open packs, build a squad, play for coins';
+  const claim = [...P.p.daily.list, ...P.p.weekly.list].filter(c => c.done && !c.claimed).length;
+  $('#tile-prog-sub').textContent = claim ? `${claim} reward${claim > 1 ? 's' : ''} ready to claim` : `Level ${P.p.lvl}, ${r.name}`;
+}
+
+// ---------------- cards ----------------
+const TOP3 = { QB: ['acc', 'arm', 'spd'], HB: ['spd', 'elu', 'hands'], WR: ['spd', 'hands', 'elu'], OL: ['blk', 'tkl', 'spd'], DL: ['rush', 'tkl', 'spd'], LB: ['tkl', 'spd', 'cov'], CB: ['cov', 'spd', 'hands'], S: ['cov', 'tkl', 'spd'] };
+const SHORT = { spd: 'SPD', hands: 'HND', acc: 'ACC', arm: 'ARM', elu: 'ELU', blk: 'BLK', rush: 'RSH', tkl: 'TKL', cov: 'COV' };
+export function cardHTML(c, o = {}) {
+  const t = TEAMS[c.team];
+  const tag = o.tag || 'div';
+  return `<${tag} class="ucard ${c.tierKey}${o.mini ? ' mini' : ''}${o.inLu ? ' in-lu' : ''}" ${c.u ? `data-u="${c.u}"` : ''} ${tag === 'button' ? 'type="button"' : ''} title="${c.first} ${c.last}, ${c.ovr} ${c.pos}">
+    <span class="uc-ovr">${c.ovr}</span><span class="uc-pos">${c.pos}</span>${c.b ? `<span class="uc-boost">+${c.b}</span>` : ''}
+    <img class="uc-img" alt="" src="${portraitURL(c.face, t.jersey, t.trim, 128)}">
+    <span class="uc-name"><small>${C.escapeHtml(c.first)}</small><b>${C.escapeHtml(c.last)}</b></span>
+    <span class="uc-stats">${TOP3[c.group].map(k => `<span>${c[k]}<small>${SHORT[k]}</small></span>`).join('')}</span>
+    <span class="uc-prog">${c.program || c.tierName}</span></${tag}>`;
+}
+
+// ---------------- Ultimate Team ----------------
+let utTab = 'squad', utStartTeam = -1, clubFilter = { g: 'all', sort: 'ovr' }, utOpp = 15, utWx = 'random', utTod = 'random';
+export function renderUT() {
+  const P = profile(); if (!P) return;
+  const { $, $$ } = C, U = P.p.ut;
+  $('#ut-coins').textContent = fmt(P.p.coins);
+  $('#ut-start').classList.toggle('hidden', U.started);
+  $('#ut-main').classList.toggle('hidden', !U.started);
+  if (!U.started) {
+    C.fillGrid($('#ut-start-grid'), utStartTeam, -1, ti => { utStartTeam = ti; $('#ut-begin').disabled = false; });
+    $('#ut-begin').disabled = utStartTeam < 0;
+    return;
+  }
+  const np = Object.values(P.p.packs).reduce((a, b) => a + b, 0);
+  $('#ut-packs-n').textContent = np; $('#ut-packs-n').classList.toggle('hidden', !np);
+  $$('.ut-tab').forEach(b => b.classList.toggle('on', b.dataset.ut === utTab));
+  ({ squad: renderSquad, packs: renderPacks, club: renderClub, play: renderPlay })[utTab](P);
+}
+
+function renderSquad(P) {
+  const U = P.p.ut, L = UT.lineupCards(U), o = UT.squadOvr(U), t = TEAMS[U.club];
+  const slot = s => `<div class="slot" data-slot="${s}"><small>${UT.SLOT_LABEL[s]}</small>${L[s] ? cardHTML(L[s], { mini: true, tag: 'button' }) : `<button class="ucard mini empty" type="button">Add ${UT.SLOT_LABEL[s]}</button>`}</div>`;
+  const row = (ss) => `<div class="pitch-row">${ss.map(slot).join('')}</div>`;
+  const pane = C.$('#ut-pane');
+  pane.innerHTML = `<div class="squad-head"><div><h3>${C.escapeHtml(U.name)}</h3><p class="note">Wearing ${t.city} colors. Click a player to swap him out.</p></div>
+    <div class="sq-ovr"><div><b>${o.ovr}</b><small>OVR</small></div><div><b>${o.off}</b><small>OFF</small></div><div><b>${o.def}</b><small>DEF</small></div></div>
+    <div class="cr-btns"><button class="btn sm" id="sq-auto">Best lineup</button><button class="btn sm" id="sq-uni">Change uniform</button></div></div>
+    <div class="pitch">
+      <div class="pitch-label">Offense</div>${row(['WR1', 'C', 'LG', 'RG', 'WR2'])}${row(['QB', 'RB'])}
+      <div class="pitch-label">Defense</div>${row(['DL1', 'DL2', 'DL3'])}${row(['CB1', 'LB', 'S', 'CB2'])}
+    </div>`;
+  C.$$('.slot', pane).forEach(el => el.querySelector('button').addEventListener('click', () => { C.sfx.play('ui'); pickForSlot(el.dataset.slot); }));
+  C.$('#sq-auto').onclick = () => { U.lineup = UT.autoLineup(U.cards); P.save(); C.toast('Best players moved into your lineup'); renderUT(); };
+  C.$('#sq-uni').onclick = () => C.openPicker('Choose your uniform', U.club, -1, ti => { U.club = ti; P.save(); renderUT(); });
+}
+
+function openDlg(html) { const d = C.$('#carddlg'); C.$('#cd-panel').innerHTML = html; d.classList.remove('hidden'); return C.$('#cd-panel'); }
+function closeDlg() { C.$('#carddlg').classList.add('hidden'); }
+
+function pickForSlot(slot) {
+  const P = profile(), U = P.p.ut, g = UT.SLOT_GROUP[slot];
+  const cur = U.lineup[slot];
+  const list = U.cards.map(UT.owned).filter(c => c.group === g).sort((a, b) => b.ovr - a.ovr);
+  const el = openDlg(`<div style="grid-column:1/-1"><div class="pk-head"><h2 class="title sm">Pick your ${UT.SLOT_LABEL[slot]}</h2><button class="btn ghost sm" id="dlg-x">Close</button></div>
+    <div class="pick-list">${list.map(c => cardHTML(c, { mini: true, tag: 'button', inLu: c.u !== cur && P.inLineup(c.u) })).join('') || '<p class="note">You have no players for this spot yet. Open some packs.</p>'}</div></div>`);
+  C.$('#dlg-x', el).onclick = closeDlg;
+  C.$$('.ucard', el).forEach(b => b.onclick = () => { P.setSlot(slot, +b.dataset.u); closeDlg(); C.sfx.play('ui'); renderUT(); });
+}
+
+function cardDetail(u) {
+  const P = profile(), U = P.p.ut, inst = U.cards.find(c => c.u === u); if (!inst) return;
+  const c = UT.owned(inst), t = TEAMS[c.team];
+  const qs = UT.quicksell(inst), tc = UT.trainCost(inst), inLu = P.inLineup(u);
+  const rate = k => `<div class="cd-rate"><span>${UT.RATING_NAMES[k]}</span><b>${c[k]}</b><i style="--v:${c[k]}%;--bar:${c[k] >= 85 ? 'var(--go)' : c[k] >= 70 ? 'var(--gold)' : '#ff8b97'}"></i></div>`;
+  const slots = UT.GROUPS[c.group];
+  const el = openDlg(`${cardHTML(c)}<div class="cd-info"><h3>${C.escapeHtml(c.first)} ${C.escapeHtml(c.last)}</h3>
+    <p class="note">${c.tierName} ${c.pos}${c.program ? `, ${c.program}` : ''}. #${c.num}. Card art in ${t.city} colors. Trained ${c.b} of ${UT.MAX_BOOST[c.tier]} times.</p>
+    <div class="cd-rates">${['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'].map(rate).join('')}</div>
+    <div class="cd-acts">
+      ${slots.map(s => `<button class="btn${U.lineup[s] === u ? ' primary' : ''}" data-slot="${s}" ${U.lineup[s] === u ? 'disabled' : ''}>${U.lineup[s] === u ? 'Starting at' : 'Start at'} ${UT.SLOT_LABEL[s]}${slots.length > 1 ? ' ' + (slots.indexOf(s) + 1) : ''}</button>`).join('')}
+      <button class="btn" id="cd-train" ${tc ? '' : 'disabled'}>${tc ? `Train +1 OVR (${fmt(tc)} coins)` : 'Fully trained'}</button>
+      <button class="btn danger" id="cd-sell" ${inLu ? 'disabled title="Take him out of your lineup first"' : ''}>Quicksell for ${fmt(qs)}</button>
+      <button class="btn ghost" id="cd-x">Close</button>
+    </div></div>`);
+  C.$$('[data-slot]', el).forEach(b => b.onclick = () => { P.setSlot(b.dataset.slot, u); C.toast(`${c.last} is starting at ${UT.SLOT_LABEL[b.dataset.slot]}`); cardDetail(u); renderUT(); });
+  C.$('#cd-train', el).onclick = () => { const err = P.train(u, tc); if (err) C.toast(err); else { C.sfx.play('firstdown'); C.toast(`${c.last} trained to ${c.ovr + 1} OVR`); } cardDetail(u); renderUT(); };
+  C.$('#cd-sell', el).onclick = () => {
+    if (c.tier >= 3 && !confirm(`Quicksell ${c.first} ${c.last} (${c.ovr} ${c.tierName}) for ${fmt(qs)} coins?`)) return;
+    if (P.sell(u, qs)) { C.sfx.play('ui'); C.toast(`Sold ${c.last} for ${fmt(qs)} coins`); closeDlg(); renderUT(); }
+  };
+  C.$('#cd-x', el).onclick = closeDlg;
+}
+
+function renderClub(P) {
+  const U = P.p.ut, pane = C.$('#ut-pane');
+  let list = U.cards.map(UT.owned);
+  if (clubFilter.g !== 'all') list = list.filter(c => c.group === clubFilter.g);
+  const sorters = { ovr: (a, b) => b.ovr - a.ovr || b.tier - a.tier, new: (a, b) => b.u - a.u, tier: (a, b) => b.tier - a.tier || b.ovr - a.ovr, pos: (a, b) => UT.SLOTS.indexOf(UT.GROUPS[a.group][0]) - UT.SLOTS.indexOf(UT.GROUPS[b.group][0]) || b.ovr - a.ovr };
+  list.sort(sorters[clubFilter.sort]);
+  const dupes = U.cards.filter(c => !P.inLineup(c.u) && UT.card(c.id).tier === 0 && !c.b);
+  pane.innerHTML = `<div class="squad-head"><div><h3>Club</h3><p class="note">${U.cards.length} of ${UT.CLUB_CAP} players. Click a player to train, start or quicksell him.</p></div>
+    <button class="btn sm danger" id="club-sellb" ${dupes.length ? '' : 'disabled'}>Quicksell spare bronzes (${dupes.length})</button></div>
+    <div class="pk-filters"><div class="seg" id="club-g"></div><select id="club-sort" aria-label="Sort players"><option value="ovr">Best first</option><option value="new">Newest first</option><option value="tier">By card tier</option><option value="pos">By position</option></select></div>
+    <div class="club-grid">${list.map(c => cardHTML(c, { mini: true, tag: 'button', inLu: P.inLineup(c.u) })).join('') || '<p class="note">No players here.</p>'}</div>`;
+  C.seg(C.$('#club-g'), [['all', 'All'], ...Object.keys(UT.GROUPS).map(g => [g, g])], clubFilter.g, v => { clubFilter.g = v; renderUT(); });
+  const so = C.$('#club-sort'); so.value = clubFilter.sort; so.onchange = () => { clubFilter.sort = so.value; renderUT(); };
+  C.$$('.club-grid .ucard', pane).forEach(b => b.onclick = () => { C.sfx.play('ui'); cardDetail(+b.dataset.u); });
+  C.$('#club-sellb').onclick = () => {
+    const tot = dupes.reduce((s, i) => s + UT.quicksell(i), 0);
+    if (!confirm(`Quicksell ${dupes.length} bronze players who aren't in your lineup for ${fmt(tot)} coins?`)) return;
+    for (const d of dupes) P.sell(d.u, UT.quicksell(d));
+    C.toast(`Sold ${dupes.length} players for ${fmt(tot)} coins`); renderUT();
+  };
+}
+
+function renderPacks(P) {
+  const pane = C.$('#ut-pane');
+  const mine = UT.PACKS.filter(k => P.p.packs[k.key] > 0);
+  const art = k => `<div class="pack-art">${k.name.replace(' Pack', '')}<span>Pack</span></div>`;
+  pane.innerHTML = `${mine.length ? `<h3 class="store-h">My packs</h3><div class="store">${mine.map(k => `<div class="pack ${k.key}"><span class="own">x${P.p.packs[k.key]}</span>${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn primary" data-open="${k.key}">Open</button></div>`).join('')}</div>` : ''}
+    <h3 class="store-h">Store</h3><p class="note">Paid for with coins you earn by playing. No real money, ever.</p>
+    <div class="store">${UT.PACKS.map(k => `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn" data-buy="${k.key}" ${P.p.coins < k.cost ? 'disabled' : ''}><i class="coin"></i> ${fmt(k.cost)}</button></div>`).join('')}</div>`;
+  C.$$('[data-buy]', pane).forEach(b => b.onclick = () => { const err = P.buyPack(b.dataset.buy); if (err) return C.toast(err); C.sfx.play('ui'); openPack(b.dataset.buy); });
+  C.$$('[data-open]', pane).forEach(b => b.onclick = () => openPack(b.dataset.open));
+}
+
+const BACK_SVG = '<svg viewBox="0 0 64 48"><path d="M6 40 12 10l12 14L32 4l8 20 12-14 6 30z" fill="#f6c445"/></svg>';
+function openPack(k) {
+  const P = profile(); const ids = UT.rollPack(k);
+  const added = P.openPack(k, ids);
+  if (!Array.isArray(added)) { C.toast(added); renderUT(); return; }
+  const { $ } = C;
+  $('#po-title').textContent = UT.packByKey(k).name;
+  const box = $('#po-cards');
+  box.innerHTML = added.map(inst => { const c = UT.owned(inst); return `<button class="flip" data-tier="${c.tier}" type="button" aria-label="Reveal player"><div class="back">${BACK_SVG}</div>${cardHTML(c)}</button>`; }).join('');
+  $('#po-done').classList.add('hidden'); $('#po-all').classList.remove('hidden');
+  const flips = C.$$('.flip', box);
+  flips.forEach(f => f.addEventListener('click', () => {
+    if (f.classList.contains('open')) return;
+    f.classList.add('open');
+    const t = +f.dataset.tier;
+    if (t >= 2) f.classList.add('glow-' + ['', '', 'gold', 'elite', 'kings'][t]);
+    C.sfx.play(t >= 3 ? 'td' : t === 2 ? 'firstdown' : 'ui');
+    if (t >= 4) C.sfx.airHorn && C.sfx.airHorn();
+    if (flips.every(x => x.classList.contains('open'))) { $('#po-done').classList.remove('hidden'); $('#po-all').classList.add('hidden'); }
+  }));
+  $('#packopen').classList.remove('hidden');
+  C.sfx.play('whistle');
+}
+
+function renderPlay(P) {
+  const U = P.p.ut, pane = C.$('#ut-pane'), o = UT.squadOvr(U);
+  if (utOpp === U.club) utOpp = (U.club + 1) % TEAMS.length;
+  pane.innerHTML = `<div class="squad-head"><div><h3>Play a game</h3><p class="note">Take ${C.escapeHtml(U.name)} (${o.ovr} OVR) against a CPU team. Ultimate Team games pay 20% more coins, and harder difficulties pay more still.</p></div></div>
+    <div class="play-ut">
+      <div class="team-pick" id="utp-opp"><small>Opponent</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
+      <div class="form">
+        <label>Difficulty<div class="seg" id="utp-diff"></div></label>
+        <label>Quarter length<div class="seg" id="utp-qlen"></div></label>
+        <label>Weather<div class="seg" id="utp-wx"></div></label>
+        <label>Time of day<div class="seg" id="utp-tod"></div></label>
+      </div>
+    </div>
+    <div class="actions"><button class="btn primary big" id="utp-go" ${o.full ? '' : 'disabled'}>${o.full ? 'Kick off' : 'Fill every lineup spot first'}</button></div>`;
+  const root = C.$('#utp-opp');
+  const draw = () => C.teamCard(C.$('.team-card', root), utOpp);
+  draw();
+  C.wireTeamPick(root, () => utOpp, v => { utOpp = v; draw(); }, () => U.club);
+  C.seg(C.$('#utp-diff'), C.DIFFICULTIES.map((n, i) => [i, n]), C.SET.diff, v => { C.SET.diff = v; C.saveSet(); });
+  C.seg(C.$('#utp-qlen'), C.QLENS, C.SET.qlen, v => { C.SET.qlen = v; C.saveSet(); });
+  C.seg(C.$('#utp-wx'), WX_OPTS, utWx, v => { utWx = v; });
+  C.seg(C.$('#utp-tod'), TOD_OPTS, utTod, v => { utTod = v; });
+  C.$('#utp-go').onclick = () => {
+    const roster = UT.squadRoster(U); if (!roster) return C.toast('Fill every lineup spot first');
+    C.startCPU({ teams: [U.club, utOpp], rosters: [roster, null], ut: true, weather: pickWx(utWx), tod: pickTod(utTod), teamNames: [U.name, null] });
+  };
+}
+
+// ---------------- progress ----------------
+export function renderProgress() {
+  const P = profile(); if (!P) return;
+  P.refreshChallenges();
+  const { $ } = C, p = P.p, r = P.rank, col = RANK_COL[r.div];
+  const need = xpFor(p.lvl);
+  $('#prog-level').innerHTML = `<div class="lv-row"><div class="lv-big">${p.lvl}</div><div style="flex:1"><h3>Level ${p.lvl}</h3><p class="note">${fmt(p.xp)} of ${fmt(need)} XP to level ${p.lvl + 1}</p><div class="bar"><i style="width:${(p.xp / need) * 100}%"></i></div>
+    <p class="note">Next: ${fmt(levelReward(p.lvl + 1).coins)} coins${levelReward(p.lvl + 1).pack ? ` and a ${UT.packByKey(levelReward(p.lvl + 1).pack).name}` : ''}</p></div></div>`;
+  const nextDiv = r.idx < 5 ? ['Silver', 'Gold', 'Platinum', 'Diamond', 'Kings'][r.idx] : null;
+  $('#prog-rank').innerHTML = `<div class="rk-row" style="--rk:${col[0]};--rk2:${col[1]}"><div class="rk-emblem">${r.div === 'Kings' ? '♛' : 'I'.repeat(r.sub)}</div><div style="flex:1"><h3>${r.name}</h3>
+    <p class="note">${r.span ? `${r.into} of 100 RP to the next tier` : `${fmt(p.rp)} RP. You're at the top.`}</p>${r.span ? `<div class="bar rk"><i style="width:${r.into}%"></i></div>` : ''}
+    <p class="note">Online wins +40 RP, losses -20. CPU wins earn 6 to 18 RP depending on difficulty. You can't drop out of a division once you reach it.${nextDiv && RANK_REWARD[nextDiv] ? ` Reach ${nextDiv} for ${fmt(RANK_REWARD[nextDiv].coins)} coins and a ${UT.packByKey(RANK_REWARD[nextDiv].pack).name}.` : ''}</p></div></div>`;
+  const chList = (list, kind) => {
+    const left = Math.max(0, nextReset(kind) - Date.now()), h = Math.floor(left / 36e5), d = Math.floor(h / 24);
+    return `<div class="ch-head"><h3 class="h3">${kind === 'daily' ? 'Daily' : 'Weekly'} challenges</h3><p class="note">New ones in ${d ? `${d}d ${h % 24}h` : `${h}h ${Math.floor(left / 6e4) % 60}m`}</p></div><div class="ch-list">${list.map(ch => {
+      const d0 = challengeDef(ch.k); if (!d0) return '';
+      return `<div class="ch ${ch.done ? 'done' : ''} ${ch.claimed ? 'claimed' : ''}"><b>${d0.d}</b><small>${fmt(d0.c)} coins, ${fmt(d0.x)} XP${d0.pack ? `, ${UT.packByKey(d0.pack).name}` : ''}</small><div class="bar"><i style="width:${(ch.p / d0.t) * 100}%"></i></div>
+        ${ch.claimed ? '<button class="btn sm" disabled>Claimed</button>' : ch.done ? `<button class="btn primary sm" data-claim="${ch.k}">Claim</button>` : `<span class="note">${fmt(ch.p)}/${fmt(d0.t)}</span>`}</div>`;
+    }).join('')}</div>`;
+  };
+  $('#prog-daily').innerHTML = chList(p.daily.list, 'daily');
+  $('#prog-weekly').innerHTML = chList(p.weekly.list, 'weekly');
+  C.$$('[data-claim]').forEach(b => b.onclick = () => {
+    const out = P.claim(b.dataset.claim); if (!out) return;
+    C.sfx.play('firstdown');
+    C.toast(`+${fmt(out.coins)} coins, +${fmt(out.xp)} XP${out.pack ? `, ${UT.packByKey(out.pack).name}` : ''}${out.levels.length ? `. Level ${out.levels[out.levels.length - 1].lvl}!` : ''}`, 3500);
+    renderProgress();
+  });
+  let tk = '';
+  for (let l = Math.max(2, p.lvl - 1); l <= p.lvl + 12; l++) { const rw = levelReward(l); tk += `<div class="tk ${l <= p.lvl ? 'got' : l === p.lvl + 1 ? 'next' : ''}"><b>Lv ${l}</b><small>${fmt(rw.coins)} coins</small>${rw.pack ? `<small class="pk">${UT.packByKey(rw.pack).name}</small>` : ''}</div>`; }
+  $('#prog-track').innerHTML = `<h3 class="h3">Level rewards</h3><div class="track">${tk}</div>`;
+  const U = p.ut;
+  $('#prog-career').innerHTML = `<h3 class="h3">Career</h3><div class="career">
+    <div><b>${fmt(p.games)}</b><small>Games</small></div><div><b>${fmt(p.wins)}</b><small>Wins</small></div><div><b>${p.games ? Math.round(p.wins / p.games * 100) : 0}%</b><small>Win rate</small></div>
+    <div><b>${fmt(p.tds)}</b><small>Touchdowns</small></div><div><b>${p.bestStreak}</b><small>Best win streak</small></div><div><b>${rankInfo(p.rpBest).name}</b><small>Best rank</small></div>
+    <div><b>${U.cards.length}</b><small>UT players</small></div><div><b>${U.opened}</b><small>Packs opened</small></div></div>`;
+  refreshChip();
+}
+
+// ---------------- post-game ----------------
+export function awardGame(r) {
+  const P = profile(); if (!P) return '';
+  const out = P.award(r);
+  const lines = out.lines.map(l => `<span>${l.label}</span><span>+${fmt(l.c)}</span><span>+${fmt(l.x)} XP</span>`).join('');
+  const extra = [];
+  for (const lv of out.levels) extra.push(`<span class="up">Level up! You're level ${lv.lvl}: +${fmt(lv.coins)} coins${lv.pack ? `, ${UT.packByKey(lv.pack).name}` : ''}</span>`);
+  if (out.drp) extra.push(`<span class="${out.drp > 0 ? 'up' : 'down'}">${out.drp > 0 ? '+' : ''}${out.drp} RP, ${out.rank.name}${out.rank.span ? ` (${out.rank.into}/100)` : ''}</span>`);
+  for (const pr of out.promos) extra.push(`<span class="up">Promoted to ${pr.div}! +${fmt(pr.coins)} coins and a ${UT.packByKey(pr.pack).name}</span>`);
+  for (const d of out.done) extra.push(`<span class="up">Challenge done: ${d.d}. Claim it in Progress.</span>`);
+  return `<div class="gr-head"><b>Rewards</b><span class="coins-pill"><i class="coin"></i>${fmt(P.p.coins)}</span></div>
+    <div class="gr-lines">${lines}<span class="gr-tot">Total</span><span class="gr-tot">+${fmt(out.coins)}</span><span class="gr-tot">+${fmt(out.xp)} XP</span></div>
+    ${extra.length ? `<div class="gr-extra">${extra.join('')}</div>` : ''}`;
+}

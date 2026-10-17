@@ -1602,3 +1602,11 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .crew-m { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 5px; border-radius: 99px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: inherit; font: inherit; cursor: pointer; }
 .crew-m img { width: 22px; height: 22px; } .crew-m small { opacity: .65; margin-left: 2px; }
 .crew-make { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; } .crew-form { display: flex; gap: 8px; flex-wrap: wrap; } .crew-form input { flex: 1; min-width: 120px; }
+/* tab bars never hide tabs: they wrap onto a second row instead of scrolling off the edge */
+.ut-tabs { flex-wrap: wrap; overflow: visible; }
+.ut-tab { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
+.so-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.so-tabs { flex: 1 1 100%; }
+.so-find { flex: 1 1 260px; max-width: 360px; margin-left: auto; }
+.so-tabs .ut-tab { font-size: 18px; padding: 10px 14px; }
+@media (max-width: 700px) { .so-tabs .ut-tab, .ut-tab { font-size: 15px; padding: 9px 10px; } }

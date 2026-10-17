@@ -1182,3 +1182,96 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .player-count { position: fixed; top: 26px; left: 72px; z-index: 6; padding: 5px 10px; background: rgba(10,16,36,.85); border: 1px solid var(--line); font-size: 13px; font-weight: 700; }
 .player-count b { color: var(--gold, #f6c445); }
 @media (max-width: 700px) { .player-count { top: auto; bottom: 26px; left: 72px; } }
+
+/* =====================================================================
+   PRIMETIME CROWN v2 — the glow-up. Stadium light beams, foil-gold rims, glass with real depth,
+   bevelled broadcast buttons. One orchestrated motion: the main menu tiles deal in when it opens.
+   ===================================================================== */
+:root {
+  --foil: linear-gradient(135deg, #fff2b0 0%, #f6c445 22%, #a86a00 50%, #ffe28a 74%, #c98200 100%);
+  --glass: linear-gradient(165deg, rgba(34,48,108,.92) 0%, rgba(14,21,52,.94) 48%, rgba(8,12,30,.96) 100%);
+  --rim: inset 0 1px 0 rgba(255,255,255,.10), inset 0 0 0 1px rgba(246,196,69,.10), inset 0 -18px 30px rgba(0,0,0,.25);
+  --lift: 0 18px 40px rgba(0,0,0,.45), 0 2px 0 rgba(0,0,0,.4);
+}
+
+/* stadium light: two soft beams from above and a deeper vignette behind every menu screen */
+.screen::before { content: ''; position: fixed; inset: -10% -5% 0; pointer-events: none; z-index: -1;
+  background:
+    conic-gradient(from 200deg at 18% -8%, transparent 0deg, rgba(255,236,170,.10) 10deg, transparent 24deg),
+    conic-gradient(from 140deg at 82% -8%, transparent 0deg, rgba(170,205,255,.09) 12deg, transparent 26deg),
+    radial-gradient(80% 60% at 50% 110%, rgba(246,196,69,.07), transparent 60%); }
+.screen { background: radial-gradient(120% 90% at 50% 10%, rgba(10,16,36,.10), rgba(6,9,22,.9) 74%), linear-gradient(180deg, rgba(10,16,36,.35), rgba(6,9,22,.8)); }
+
+/* panels: glass with a top gloss, faint gold inner rim, and a foil corner tab */
+.panel { background: var(--glass); box-shadow: var(--rim), 0 34px 80px rgba(0,0,0,.55); border-color: rgba(160,175,225,.14); }
+.panel::before { width: 96px; height: 3px; background: var(--foil); box-shadow: 0 0 14px rgba(246,196,69,.45); }
+.panel > .np-head, .panel > h3:first-child { letter-spacing: .3px; }
+
+/* titles: chalk-to-silver face with a gold foil underline */
+.title { background: linear-gradient(180deg, #ffffff 0%, #e6ebf7 55%, #a9b4d6 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(0,0,0,.45)) drop-shadow(0 10px 22px rgba(0,0,0,.35)); }
+.title::after { width: 78px; height: 5px; background: var(--foil); box-shadow: 0 0 16px rgba(246,196,69,.5); }
+
+/* buttons: bevelled like a broadcast lower-third, gold edge light on hover */
+.btn { box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -2px 0 rgba(0,0,0,.35); background: linear-gradient(180deg, #2a3778 0%, #1b2557 55%, #141c45 100%); }
+.btn:hover:not(:disabled) { background: linear-gradient(180deg, #34449a 0%, #223070 55%, #18225a 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -2px 0 rgba(0,0,0,.35), inset 0 0 0 1px rgba(246,196,69,.45); }
+.btn.primary { background: linear-gradient(180deg, #fff1b3 0%, #ffd760 30%, #f6b40e 62%, #d98a00 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -3px 0 rgba(120,70,0,.45), 0 8px 22px rgba(246,170,0,.28); }
+.btn.primary:hover:not(:disabled) { box-shadow: inset 0 1px 0 rgba(255,255,255,.8), inset 0 -3px 0 rgba(120,70,0,.45), 0 10px 30px rgba(246,170,0,.45); }
+.btn.ghost { background: rgba(10,16,36,.35); box-shadow: inset 0 0 0 1px rgba(160,175,225,.18); }
+.btn.danger { background: linear-gradient(180deg, #3a1622, #24101a); }
+
+/* segmented choices: a recessed track with a glowing gold pill */
+.seg { padding: 3px; background: rgba(3,6,16,.55); box-shadow: inset 0 1px 3px rgba(0,0,0,.6), inset 0 0 0 1px rgba(160,175,225,.1); }
+.seg button { background: transparent; border-color: transparent; transition: color .15s, background .15s; }
+.seg button:hover { background: rgba(255,255,255,.05); }
+.seg button.on { background: linear-gradient(180deg, #ffe48e, #f6c445 55%, #e3a10a); box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 0 14px rgba(246,196,69,.35); }
+
+/* inputs: inset field with a gold focus ring */
+input:not([type=range]), select, textarea { background: rgba(3,6,16,.7); box-shadow: inset 0 2px 6px rgba(0,0,0,.55); }
+select { color: var(--chalk); border: 1px solid var(--line-2); padding: 8px 10px; }
+
+/* main menu tiles: glass cards with depth, the mode's colour glowing from the corner, foil edge + shine on hover */
+.tile { background: radial-gradient(130% 120% at 100% 0%, color-mix(in srgb, var(--tc1, #1d2860) 85%, transparent), transparent 62%), linear-gradient(170deg, rgba(20,29,70,.96), rgba(8,12,30,.97));
+  box-shadow: var(--rim), var(--lift); border: 1px solid rgba(160,175,225,.13); transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s, border-color .22s; }
+.tile:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--accent, var(--gold)) 70%, transparent);
+  box-shadow: var(--rim), 0 24px 46px rgba(0,0,0,.5), 0 0 0 1px color-mix(in srgb, var(--accent, var(--gold)) 35%, transparent), 0 0 34px color-mix(in srgb, var(--accent, var(--gold)) 22%, transparent); }
+.tile .tl-ico { opacity: .16; color: var(--accent, var(--gold)); filter: drop-shadow(0 0 18px color-mix(in srgb, var(--accent, var(--gold)) 40%, transparent)); }
+.tile:hover .tl-ico { opacity: .32; }
+.tile .tl-k { font-size: clamp(22px, 2.2vw, 30px); overflow-wrap: normal; word-break: keep-all; hyphens: none; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
+.tile small { color: #aab4da; }
+.tile.hero { background: linear-gradient(115deg, #fff3bf 0%, #ffd760 26%, #f6b40e 58%, #d98a00 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.75), inset 0 -4px 0 rgba(120,70,0,.4), 0 18px 44px rgba(246,170,0,.3); }
+.tile.hero .tl-k { text-shadow: 0 2px 0 rgba(255,255,255,.35); }
+.tile.hero:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.8), inset 0 -4px 0 rgba(120,70,0,.4), 0 22px 54px rgba(246,170,0,.45); }
+.tile.t-ut { background: radial-gradient(120% 140% at 100% 0%, rgba(246,196,69,.35), transparent 60%), linear-gradient(170deg, #3a2800, #120c01); border-color: rgba(246,196,69,.35); }
+
+/* corner chrome: profile card, bell, player count, coins — glass with a gold rim */
+.profile-chip, .notif-btn, .player-count, .coins-pill, .rank-pill { background: linear-gradient(180deg, rgba(30,42,96,.92), rgba(10,16,36,.92)); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), inset 0 0 0 1px rgba(246,196,69,.16), 0 10px 26px rgba(0,0,0,.45); }
+.notif-btn:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 0 0 1px rgba(246,196,69,.55), 0 0 20px rgba(246,196,69,.25); }
+.notif-n { box-shadow: 0 0 0 2px #0a1024, 0 0 12px rgba(255,61,79,.7); }
+
+/* modals: glassier, with a pop when they open (it answers your click) */
+.modal { background: radial-gradient(80% 70% at 50% 40%, rgba(10,16,36,.55), rgba(3,5,14,.82)); }
+.modal:not(.hidden) > .panel { animation: ek-pop .22s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes ek-pop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* in-game: scorebug gets a gloss strip and team-colour glow; toasts and hints read like broadcast chyrons */
+.scorebug > div { box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -10px 18px rgba(0,0,0,.35); }
+.scorebug { filter: drop-shadow(0 12px 22px rgba(0,0,0,.55)); }
+.sb-team::before { box-shadow: 0 0 14px var(--tc, #555); }
+.hint span { background: linear-gradient(90deg, rgba(14,21,52,.92), rgba(10,16,36,.78)); box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+.toast, #toast { background: linear-gradient(180deg, rgba(30,42,96,.96), rgba(10,16,36,.96)) !important; box-shadow: inset 0 0 0 1px rgba(246,196,69,.3), 0 14px 30px rgba(0,0,0,.5) !important; }
+.playcall { box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 -10px 40px rgba(0,0,0,.45); }
+.pc-card { box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 18px rgba(0,0,0,.35); transition: transform .15s, box-shadow .15s; }
+.pc-card:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px rgba(246,196,69,.5), 0 14px 26px rgba(0,0,0,.45); }
+.pc-card.on { box-shadow: inset 0 0 0 2px var(--gold), 0 0 26px rgba(246,196,69,.35); }
+
+/* Ultimate Team cards: a little more shine */
+.ucard { box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 10px 24px rgba(0,0,0,.45); }
+.ucard:hover { filter: brightness(1.06); }
+
+/* scrollbars to match */
+* { scrollbar-width: thin; scrollbar-color: rgba(246,196,69,.45) rgba(5,8,22,.4); }
+::-webkit-scrollbar { width: 9px; height: 9px; } ::-webkit-scrollbar-track { background: rgba(5,8,22,.4); }
+::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #ffe28a, #c98200); border-radius: 6px; }
+
+@media (prefers-reduced-motion: reduce) { .modal:not(.hidden) > .panel { animation: none !important; } }

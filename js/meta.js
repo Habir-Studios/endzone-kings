@@ -1,15 +1,16 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792266794';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792266794';
-import * as UT from './ut.js?v=1792266794';
-import { portraitURL } from './faces.js?v=1792266794';
-import { TEAMS } from './teams.js?v=1792266794';
+import { askYes } from './ui.js?v=1792266919';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792266919';
+import * as UT from './ut.js?v=1792266919';
+import { portraitURL } from './faces.js?v=1792266919';
+import { TEAMS } from './teams.js?v=1792266919';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
 const fmt = n => Math.round(n).toLocaleString();
 export const RANK_COL = { Bronze: ['#cd7f32', '#5a3412'], Silver: ['#c9d1dd', '#5d6675'], Gold: ['#f6c445', '#9a6400'], Platinum: ['#6ee7d8', '#1f6b66'], Diamond: ['#8ab4ff', '#2d3f9a'], Kings: ['#ffe28a', '#7a4a00'] };
 export const WX_OPTS = [['clear', 'Clear'], ['rain', 'Rain'], ['snow', 'Snow'], ['fog', 'Fog'], ['random', 'Random']];
+export const WIND_OPTS = [[0, 'Calm'], [5, '5 mph'], [10, '10 mph'], [15, '15 mph'], [20, '20 mph'], [25, '25 mph']];
 export const TOD_OPTS = [['day', 'Day'], ['dusk', 'Dusk'], ['night', 'Night'], ['random', 'Random']];
 export function pickWx(v) { return v === 'random' || !v ? ['clear', 'clear', 'clear', 'rain', 'snow', 'fog'][(Math.random() * 6) | 0] : v; }
 export function pickTod(v) { return v === 'random' || !v ? ['day', 'dusk', 'night'][(Math.random() * 3) | 0] : v; }
@@ -229,6 +230,7 @@ function renderPlay(P) {
         <label>Difficulty<div class="seg" id="utp-diff"></div></label>
         <label>Quarter length<div class="seg" id="utp-qlen"></div></label>
         <label>Weather<div class="seg" id="utp-wx"></div></label>
+        <label>Wind<div class="seg" id="utp-wind"></div><small class="note wind-note">Windy games change how you play: long passes and kicks drift with the wind, a tailwind adds distance and a headwind takes it away.</small></label>
         <label>Time of day<div class="seg" id="utp-tod"></div></label>
       </div>
     </div>
@@ -244,11 +246,12 @@ function renderPlay(P) {
   C.seg(C.$('#utp-diff'), C.DIFFICULTIES.map((n, i) => [i, n]), C.SET.diff, v => { C.SET.diff = v; C.saveSet(); });
   C.seg(C.$('#utp-qlen'), C.QLENS, C.SET.qlen, v => { C.SET.qlen = v; C.saveSet(); });
   C.seg(C.$('#utp-wx'), WX_OPTS, utWx, v => { utWx = v; });
+  C.seg(C.$('#utp-wind'), WIND_OPTS, C.SET.wind || 0, v => { C.SET.wind = v; C.saveSet(); });
   C.seg(C.$('#utp-tod'), TOD_OPTS, utTod, v => { utTod = v; });
   C.$('#utp-go').onclick = () => {
     const roster = UT.squadRoster(U); if (!roster) return C.toast('Fill every lineup spot first');
     const opp = utRival ? UT.rivalRoster(UT.rivalLevel(U), (Date.now() ^ utOpp * 7919) >>> 0) : null;
-    C.startCPU({ teams: [U.club, utOpp], rosters: [roster, opp], ut: true, weather: pickWx(utWx), tod: pickTod(utTod), teamNames: [U.name, null] });
+    C.startCPU({ wind: C.SET.wind || 0, teams: [U.club, utOpp], rosters: [roster, opp], ut: true, weather: pickWx(utWx), tod: pickTod(utTod), teamNames: [U.name, null] });
   };
 }
 

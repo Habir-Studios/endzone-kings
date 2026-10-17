@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792266794">
+  <link rel="stylesheet" href="css/style.css?v=1792266919">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#f6c445"/><stop offset="1" stop-color="#d98a00"/></linearGradient></defs></svg>
@@ -136,6 +136,7 @@
           <label>Difficulty<div class="seg" id="seg-diff"></div></label>
           <label>Quarter length<div class="seg" id="seg-qlen"></div></label>
           <label>Weather<div class="seg" id="seg-wx"></div></label>
+          <label>Wind<div class="seg" id="seg-wind"></div><small class="note wind-note">Windy games change how you play: long passes and kicks drift with the wind, a tailwind adds distance and a headwind takes it away.</small></label>
           <label>Time of day<div class="seg" id="seg-tod"></div></label>
         </div>
         <div class="actions"><button class="btn" data-go="menu">Back</button><button class="btn primary big" id="start-cpu">Kick off</button></div>
@@ -295,6 +296,7 @@
               <label class="mini">Quarter length<div class="seg" id="seg-qlen2"></div></label>
               <label class="mini">Who can join<div class="seg" id="seg-vis"></div></label>
               <label class="mini">Weather and time<div class="seg" id="seg-wx2"></div></label>
+              <label class="mini">Wind<div class="seg" id="seg-wind2"></div><small class="note wind-note">Windy games change how you play: long passes and kicks drift with the wind, a tailwind adds distance and a headwind takes it away.</small></label>
               <button class="btn primary" id="host-btn">Host game</button>
             </div>
             <div class="box">
@@ -601,6 +603,7 @@
       <form id="chat-form" class="chat-form hidden"><input id="chat-in" maxlength="120" placeholder="Say something (Enter to send, Esc to close)" autocomplete="off" aria-label="Chat message"></form>
     </div>
     <div id="hint" class="hint"></div>
+    <div id="wind-ind" class="wind-ind hidden" aria-label="Wind"><i id="wind-arrow">➤</i><b id="wind-mph"></b></div>
     <div id="inj-ask" class="inj-ask hidden" role="alertdialog"><b id="inj-ask-t"></b><div><button class="btn sm primary" id="inj-back" type="button">Put him back in</button><button class="btn sm" id="inj-keep" type="button">Keep him out</button></div></div>
     <div id="cel-pick" class="cel-pick hidden" role="dialog" aria-label="Pick a celebration"><b>Celebration</b><div id="cel-opts"></div><small>1-9 or click to pick · E to close</small></div>
     <div id="net-badge" class="net-badge hidden"></div>
@@ -671,6 +674,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792266794"></script>
+  <script type="module" src="js/main.js?v=1792266919"></script>
 </body>
 </html>

@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792266794';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266794';
-import { Renderer } from './render.js?v=1792266794';
-import { Sfx } from './audio.js?v=1792266794';
-import { Auth } from './auth.js?v=1792266794';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266794';
-import { getRoster, teamOvr } from './teams.js?v=1792266794';
-import * as Season from './season.js?v=1792266794';
-import * as Fr from './franchise.js?v=1792266794';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266794';
-import { celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266794';
-import * as UTm from './ut.js?v=1792266794';
-import { initCreator, renderCreator } from './creator.js?v=1792266794';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266794';
-import { portraitURL } from './faces.js?v=1792266794';
-import { logoURL, clearLogoCache } from './logos.js?v=1792266794';
+import { askYes } from './ui.js?v=1792266919';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266919';
+import { Renderer } from './render.js?v=1792266919';
+import { Sfx } from './audio.js?v=1792266919';
+import { Auth } from './auth.js?v=1792266919';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266919';
+import { getRoster, teamOvr } from './teams.js?v=1792266919';
+import * as Season from './season.js?v=1792266919';
+import * as Fr from './franchise.js?v=1792266919';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266919';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266919';
+import * as UTm from './ut.js?v=1792266919';
+import { initCreator, renderCreator } from './creator.js?v=1792266919';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266919';
+import { portraitURL } from './faces.js?v=1792266919';
+import { logoURL, clearLogoCache } from './logos.js?v=1792266919';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -408,6 +408,7 @@ function renderSetup() {
   seg($('#seg-diff'), DIFFICULTIES.map((n, i) => [i, n]), SET.diff, v => { SET.diff = v; saveSet(); });
   seg($('#seg-qlen'), QLENS, SET.qlen, v => { SET.qlen = v; saveSet(); });
   seg($('#seg-wx'), WX_OPTS, SET.wx, v => { SET.wx = v; saveSet(); });
+  seg($('#seg-wind'), WIND_OPTS, SET.wind || 0, v => { SET.wind = v; saveSet(); if (v >= 15) toast('Heads up: strong wind moves passes and kicks', 2200); });
   seg($('#seg-tod'), TOD_OPTS, SET.tod, v => { SET.tod = v; saveSet(); });
 }
 wireTeamPick($('#tp-me'), () => SET.team, v => { SET.team = v; saveSet(); renderSetup(); }, () => SET.cpuTeam);
@@ -489,7 +490,8 @@ function startCPU(opts = {}) {
   const weather = opts.weather || (opts.season || opts.franchise ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season || opts.franchise ? pickTod('random') : pickTod(SET.tod));
   const adapt = adaptiveCpu(opts);
   // the adjustment is silent: no message, the CPU just plays tougher (or easier)
-  st.game = createGame({ teams, humans: [true, false], adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
+  const wind = opts.practice || opts.drill ? 0 : opts.wind ?? (opts.season || opts.franchise ? [0, 0, 5, 5, 10, 10, 15, 20][(Math.random() * 8) | 0] : (SET.wind || 0));
+  st.game = createGame({ wind, teams, humans: [true, false], adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', 'CPU'];
   R.setTeams(st.game.opts.teams);
@@ -1381,6 +1383,10 @@ function updateHud(S) {
   { const ask = S.injAsk && S.injAsk[me], j = ask && (S.inj || []).find(x => x.team === me && x.role === ask);
     const show = !!(j && j.ready) && S.ph !== 'live'; $('#inj-ask').classList.toggle('hidden', !show);
     if (show) setTxt('#inj-ask-t', `${j.name} (${j.kind}) is cleared to go back in.`); }
+  // wind arrow, drawn from your point of view
+  { const W = S.wind, on = !!(W && W.mph); $('#wind-ind').classList.toggle('hidden', !on);
+    if (on) { const s = st.local === 1 ? -1 : 1, ang = Math.atan2(-Math.sin(W.dir) * s, Math.cos(W.dir) * s) * 180 / Math.PI, key = W.mph + '|' + Math.round(ang);
+      if (hudCache.wind !== key) { hudCache.wind = key; $('#wind-arrow').style.transform = `rotate(${ang - 90}deg)`; setTxt('#wind-mph', `${W.mph} mph`); } } }
   // contextual hints
   if (S.ph === 'dead' && S.msg && S.msg.big && S.msg.team === me) hint([['hold E', 'pick a celebration']]);
   else if (S.ph === 'live') {
@@ -1413,6 +1419,7 @@ function renderOnline() {
   $('#host-btn').disabled = !!w; $('#join-btn').disabled = !!w;
   if (!st.peer) { $('#online-main').classList.remove('hidden'); $('#online-wait').classList.add('hidden'); onlineMsg(''); }
   seg($('#seg-vis'), [['public', 'Anyone (lobby)'], ['private', 'Only with code']], SET.vis, v => { SET.vis = v; saveSet(); });
+  seg($('#seg-wind2'), WIND_OPTS, SET.wind || 0, v => { SET.wind = v; saveSet(); if (v >= 15) toast('Heads up: strong wind moves passes and kicks', 2200); });
   seg($('#seg-wx2'), [['random', 'Random'], ['clear', 'Clear night'], ['day', 'Day game'], ['rain', 'Rain'], ['snow', 'Snow'], ['fog', 'Fog']], SET.wx2, v => { SET.wx2 = v; saveSet(); });
   const P = profile(), utOk = P && P.ut.started && UTm.squadOvr(P.ut).full;
   $('#use-ut').disabled = !utOk; if (!utOk) $('#use-ut').checked = false;
@@ -1572,7 +1579,7 @@ function startHostGame() {
   st.teamNames = [me.squad || null, them.squad ? String(them.squad).replace(/[<>]/g, '').slice(0, 18) : null];
   const w = SET.wx2 === 'random' ? null : SET.wx2;
   const weather = w === 'day' ? 'clear' : w === 'clear' ? 'clear' : pickWx(w || 'random'), tod = w === 'day' ? 'day' : w === 'clear' ? 'night' : pickTod('random');
-  st.game = createGame({ teams: [myTeam, gt], humans: [true, true], quarterLen: SET.qlen, difficulty: 1, rosters: [me.roster || null, them.roster || null], weather, tod, cel: [SET.cel, +them.cel] });
+  st.game = createGame({ wind: SET.wind || 0, teams: [myTeam, gt], humans: [true, true], quarterLen: SET.qlen, difficulty: 1, rosters: [me.roster || null, them.roster || null], weather, tod, cel: [SET.cel, +them.cel] });
   st.remote = { mx: 0, mz: 0, sprint: false, ev: [] };
   st.netEv = [];
   R.setTeams(st.game.opts.teams);

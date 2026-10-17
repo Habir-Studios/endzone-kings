@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266794';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266919';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792266794';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792266919';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -97,6 +97,7 @@ export function createGame(opts = {}) {
     seed: opts.seed ?? (Date.now() & 0xffffffff),
     rosters: [0, 1].map(k => cleanRoster(opts.rosters && opts.rosters[k])),
     weather: WEATHERS.includes(opts.weather) ? opts.weather : 'clear',
+    wind: (() => { const mph = Math.max(0, Math.min(30, +opts.wind || 0)); return { mph, dir: Number.isFinite(+opts.windDir) ? +opts.windDir : (opts.seed || 1) * 2.399 % (Math.PI * 2) }; })(),
     tod: TODS.includes(opts.tod) ? opts.tod : 'night',
     halftime: opts.practice || opts.drill ? 0 : (opts.halftime ?? 12),
     practice: ['off', 'def', 'st'].includes(opts.practice) ? opts.practice : null,
@@ -725,6 +726,7 @@ function throwBall(g, qb, r, err, pw) {
     tx += ux * depth; tz += uz * depth;
     g.flash = Math.abs(off) <= 0.12 ? { text: 'PERFECT THROW', until: 0.7 } : depth > 2.5 ? { text: 'OVERTHROWN', until: 0.8 } : depth < -2.5 ? { text: 'UNDERTHROWN', until: 0.8 } : g.flash;
   }
+  { const W = g.opts.wind; if (W && W.mph) { const T0 = hyp(tx - qb.x, tz - qb.z) / speed, k = W.mph / 20 * T0 * T0 * 1.4 * (bullet > 0.9 ? 0.7 : 1); tx += Math.sin(W.dir) * k; tz += Math.cos(W.dir) * k * 0.6; } }   // wind pushes the ball, floaters most
   const D = hyp(tx - qb.x, tz - qb.z);
   g.ball.x = qb.x; g.ball.z = qb.z; g.ball.y = 1.9;
   const arc = (0.7 + D * 0.12) * (bullet < 0.45 ? 1.7 - bullet : bullet > 0.85 ? 0.8 : 1);   // touch passes float, bullets are flat
@@ -797,9 +799,10 @@ function startKick(g, type, sk) {
     if (type === 'punt') {
       k.fz = g.losZ - 12 * d;
       const shank = Math.abs(sk.acc) > 0.2;
-      let dist0 = 6 + sk.power * kickRange(g, off, 'punt') * (shank ? 0.55 : 1) + (g.rng() - 0.5) * 4;
+      const W = g.opts.wind || { mph: 0, dir: 0 }, tail = Math.cos(W.dir) * d * W.mph, cross = Math.sin(W.dir) * W.mph;
+      let dist0 = (6 + sk.power * kickRange(g, off, 'punt') * (shank ? 0.55 : 1) + (g.rng() - 0.5) * 4) * (1 + tail * 0.012);
       let land = p + 12 + dist0 - 12;
-      let tx = sk.aim + sk.acc * 22 + (g.rng() - 0.5) * (2.5 - skill * 1.5);
+      let tx = sk.aim + sk.acc * 22 + (g.rng() - 0.5) * (2.5 - skill * 1.5) + cross * 0.35;
       const oob = Math.abs(tx) > HALF_W;
       tx = clamp(tx, -HALF_W - 1, HALF_W + 1);
       k.tx = tx; k.T = 1.6 + sk.power * 1.6; k.h = 6 + sk.power * 11;
@@ -808,9 +811,10 @@ function startKick(g, type, sk) {
       k.tz = zOf(off, land); k.yds = Math.round(Math.min(land, 100) - p); k.shank = shank;
     } else {
       const fd = type === 'xp' ? 20 : fgDistance(g);
-      const reach = sk.power * kickRange(g, off, type) * 1.08;
+      const W = g.opts.wind || { mph: 0, dir: 0 }, tail = Math.cos(W.dir) * d * W.mph, cross = Math.sin(W.dir) * W.mph;
+      const reach = sk.power * kickRange(g, off, type) * 1.08 * (1 + tail * 0.01);
       const hook = sk.acc * 13 * (0.55 + fd / 45);
-      const xPost = sk.aim + hook + (g.rng() - 0.5) * (1.6 - skill * 1.1);
+      const xPost = sk.aim + hook + (g.rng() - 0.5) * (1.6 - skill * 1.1) + cross * fd * 0.0065;
       const short = reach < fd;
       k.good = !short && Math.abs(xPost) < 3.05; k.dist = fd;
       k.miss = short ? 'short' : Math.abs(xPost) >= 3.05 ? ((xPost * d > 0) ? 'wide left' : 'wide right') : '';
@@ -844,6 +848,7 @@ function startKick(g, type, sk) {
     const fd = fgDistance(g);
     const pr = fd <= 30 ? 0.97 : fd <= 40 ? 0.9 : fd <= 50 ? 0.75 : 0.5 - (fd - 50) * 0.03;
     k.good = g.rng() < pr; k.dist = fd;
+    { const W = g.opts.wind; if (W && W.mph >= 10) { const cross = Math.abs(Math.sin(W.dir)) * W.mph; if (k.good && g.rng() < cross * fd * 0.0004) k.good = false; } }   // a stiff crosswind costs the CPU kicker too
     k.tx = k.good ? (g.rng() - 0.5) * 4 : (g.rng() < 0.5 ? -1 : 1) * (4.5 + g.rng() * 3);
     k.tz = zOf(off, 110); k.T = 1.7; k.h = 6 + fd * 0.12;
   }
@@ -2226,7 +2231,7 @@ export function snapshot(g) {
     ks: g.phase === 'kickset' && g.ks ? { type: g.ks.type, stage: g.ks.stage, m: r2(g.ks.m), aim: r2(g.ks.aim), power: r2(g.ks.power), fd: g.ks.fd, maxR: r2(g.ks.maxR), sweet: KICK_SWEET } : null,
     to: g.to.slice(), pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
     inj: injuryReport(g), injAsk: g.injAsk.slice(), fat: g.fat, msgInj: g.msgInj || null,
-    wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
+    wind: g.opts.wind, wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
     hls: g.phase === 'gameover' ? g.hl : null,
     hr: g.phase === 'half' ? g.halfReady.slice() : null, hl: g.opts.halftime,
     ps: g.phase === 'half' || g.phase === 'gameover' ? Object.values(g.ps) : null,

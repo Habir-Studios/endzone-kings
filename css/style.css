@@ -1480,3 +1480,14 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .game-logo .t2 { align-self: center; padding: 0 .16em 0 .08em; overflow: visible; }
 .pf-live.checking, .pf-live.idle { border-color: rgba(160,175,225,.22); background: rgba(255,255,255,.03); }
 .live-dot.idle { background: #6b7280; animation: none; box-shadow: none; }
+
+/* ===== no "…" anywhere: text shows in full and wraps instead of getting cut off ===== */
+.tg b, .uc-name b, .mb-list b, .clip-txt b, .clipbar b, .convo small, .sub-chip b, .cw-slot small, .seg button, .lk-cel b,
+.tg small, .mb-list span, .lb-row b, .lb-name, td, th {
+  white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: anywhere; word-break: normal;
+}
+.tg b, .mb-list b, .clip-txt b, .clipbar b, .lk-cel b, .sub-chip b { line-height: 1.15; }
+.seg button { line-height: 1.15; padding-top: 7px; padding-bottom: 7px; overflow-wrap: normal; hyphens: none; }
+.cw-slot small { max-width: 64px; line-height: 1.05; font-size: 9px; text-align: center; overflow-wrap: normal; }
+.uc-name b { overflow-wrap: normal; word-break: keep-all; }
+.tg { align-items: center; height: auto; min-height: 56px; }

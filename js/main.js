@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792266032';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266032';
-import { Renderer } from './render.js?v=1792266032';
-import { Sfx } from './audio.js?v=1792266032';
-import { Auth } from './auth.js?v=1792266032';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266032';
-import { getRoster, teamOvr } from './teams.js?v=1792266032';
-import * as Season from './season.js?v=1792266032';
-import * as Fr from './franchise.js?v=1792266032';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266032';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266032';
-import * as UTm from './ut.js?v=1792266032';
-import { initCreator, renderCreator } from './creator.js?v=1792266032';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266032';
-import { portraitURL } from './faces.js?v=1792266032';
-import { logoURL, clearLogoCache } from './logos.js?v=1792266032';
+import { askYes } from './ui.js?v=1792266119';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266119';
+import { Renderer } from './render.js?v=1792266119';
+import { Sfx } from './audio.js?v=1792266119';
+import { Auth } from './auth.js?v=1792266119';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266119';
+import { getRoster, teamOvr } from './teams.js?v=1792266119';
+import * as Season from './season.js?v=1792266119';
+import * as Fr from './franchise.js?v=1792266119';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266119';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266119';
+import * as UTm from './ut.js?v=1792266119';
+import { initCreator, renderCreator } from './creator.js?v=1792266119';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266119';
+import { portraitURL } from './faces.js?v=1792266119';
+import { logoURL, clearLogoCache } from './logos.js?v=1792266119';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -462,7 +462,7 @@ function startCPU(opts = {}) {
   st.learned = false; st.ut = !!opts.ut; st.solo = opts.solo || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
   const weather = opts.weather || (opts.season || opts.franchise ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season || opts.franchise ? pickTod('random') : pickTod(SET.tod));
   const adapt = adaptiveCpu(opts);
-  if (Math.abs(adapt) >= 0.15) setTimeout(() => toast(adapt > 0 ? `The CPU has been studying you: ${adapt > 1 ? 'way' : adapt > 0.5 ? 'a lot' : 'a bit'} harder than ${DIFFICULTIES[opts.diff ?? SET.diff]}` : `The CPU is going a little easier on you`, 3200), 1500);
+  // the adjustment is silent: no message, the CPU just plays tougher (or easier)
   st.game = createGame({ teams, humans: [true, false], adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', 'CPU'];

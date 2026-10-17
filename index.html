@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792246664">
+  <link rel="stylesheet" href="css/style.css?v=1792248186">
 </head>
 <body>
   <canvas id="gl"></canvas>
@@ -70,12 +70,14 @@
           <label><span class="lbl-id">Email</span><input id="li-id" autocomplete="username" required></label>
           <label>Password<input id="li-pw" type="password" autocomplete="current-password" required></label>
           <button class="btn primary" type="submit">Log in</button>
-          <button class="link" type="button" id="forgot">Forgot your password?</button>
+          <p class="pw-warn">Heads up: passwords can’t be recovered or reset. If you forget yours, that account is gone.</p>
         </form>
         <form id="form-signup" class="form hidden">
           <label>Username<input id="su-name" maxlength="16" autocomplete="nickname" required placeholder="3 to 16 letters, numbers or _"></label>
           <label class="email-row">Email<input id="su-email" type="email" autocomplete="email"></label>
           <label>Password<input id="su-pw" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters"></label>
+          <p class="pw-warn">Write your password down. Passwords can’t be recovered or reset, so if you forget it you lose the account and everything on it.</p>
+          <label class="check"><input type="checkbox" id="su-tos" required> I agree to the <button class="link" type="button" data-go="tos">Terms of Service</button>, including the rules on cheating and bans</label>
           <button class="btn primary" type="submit">Create account</button>
         </form>
         <p id="auth-msg" class="msg" role="status"></p>
@@ -101,14 +103,22 @@
         <button class="tile wide t-ut" data-go="ut"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M4 3h11l5 5v13H4zm2 2v14h12V9h-4V5zm3 6.5a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0zM7.5 18c.5-2.4 2.3-3.6 4.5-3.6s4 1.2 4.5 3.6z"/></svg></i><span class="tl-k">Ultimate Team</span><small id="tile-ut-sub">Open packs, build a squad, play for coins</small></button>
         <button class="tile t-season" data-go="season"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v3h3.5v2.5A4.5 4.5 0 0 1 16.4 13 5.5 5.5 0 0 1 13 15.8V18h3v3H8v-3h3v-2.2A5.5 5.5 0 0 1 7.6 13 4.5 4.5 0 0 1 3.5 8.5V6H7zm-1.5 5v.5c0 1 .6 1.9 1.5 2.3V8zm12 2.8c.9-.4 1.5-1.3 1.5-2.3V8h-1.5z"/></svg></i><span class="tl-k">Season</span><small id="tile-season-sub">Fourteen weeks to the Kings Bowl</small></button>
         <button class="tile t-online" data-go="online" id="online-btn"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M13.5 2 4 13.5h6.5L9 22l11-12.5h-6.8z"/></svg></i><span class="tl-k">Online 1v1</span><small>Play a friend with a game code</small></button>
+        <button class="tile t-franchise" data-go="franchise"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 21V9l9-6 9 6v12h-6v-7H9v7zm8-12h2V7h-2z"/></svg></i><span class="tl-k">Franchise</span><small id="tile-fr-sub">Run a team for years: draft, contracts, progression</small></button>
+        <button class="tile t-social" data-go="social"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm8.5 1a3 3 0 1 1 0-6 3 3 0 0 1 0 6zM1 20c.4-4 3.2-6.5 7-6.5s6.6 2.5 7 6.5zm15.2 0c-.2-2.3-1-4.2-2.4-5.6.8-.3 1.7-.4 2.7-.4 3.2 0 5.3 2 5.5 6z"/></svg></i><span class="tl-k">Community <i class="dotn hidden so-unread"></i></span><small>Leaderboards, clips, friends and messages</small></button>
         <button class="tile t-progress" data-go="progress"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 16.9 6.1 20l1.2-6.5L2.5 8.9 9.1 8z"/></svg></i><span class="tl-k">Progress</span><small id="tile-prog-sub">Level, rank and challenges</small></button>
         <button class="tile t-creator" data-go="creator"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zm2 2v12h14V6zm2 9.5L9.5 12 12 14l4-5 1.5 1.2L12.3 17 9.6 14.8 8.2 16.6zM7 8h3v2H7z"/></svg></i><span class="tl-k">Play Creator</span><small>Draw your own plays</small></button>
         <button class="tile t-modes" data-go="modes"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 3h2v5.4l3.6 2.1-1 1.7L11 13.6z"/></svg></i><span class="tl-k">Practice</span><small>Offense, defense and special teams practice, plus drills</small></button>
         <button class="tile t-rosters" data-go="rosters"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M9 2h6v2h4v18H5V4h4zm1 2v1.5h4V4zM8 9v2h2V9zm4 0v2h4V9zm-4 4v2h2v-2zm4 0v2h4v-2zm-4 4v2h2v-2zm4 0v2h4v-2z"/></svg></i><span class="tl-k">Rosters</span><small>Every player on all 32 teams</small></button>
         <button class="tile t-howto" data-go="howto"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 6h10a5 5 0 0 1 4.9 6l-1.1 5.2a2.6 2.6 0 0 1-4.5 1.2L14 16h-4l-2.3 2.4a2.6 2.6 0 0 1-4.5-1.2L2.1 12A5 5 0 0 1 7 6zm0 3v1.5H5.5V12H7v1.5h1.5V12H10v-1.5H8.5V9zm9.5.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm-2.2 2.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/></svg></i><span class="tl-k">How to Play</span><small>Controls, moves and tips</small></button>
+        <button class="tile wide t-admin hidden" data-go="admin" id="admin-tile"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.6 8 11 4.6-1.4 8-6 8-11V5zm0 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 12c-2 0-3.8-1-4.8-2.6.4-1.6 3-2.4 4.8-2.4s4.4.8 4.8 2.4C15.8 17 14 18 12 18z"/></svg></i><span class="tl-k">Admin <i class="dotn hidden" id="admin-n"></i></span><small>Reports and bans</small></button>
         <button class="tile wide t-settings" data-go="settings"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M10.2 2h3.6l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.8 3.1-2 1.7c.1.6.1 1.2 0 1.8l2 1.7-1.8 3.1-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.6l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.8-3.1 2-1.7a6 6 0 0 1 0-1.8l-2-1.7 1.8-3.1 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></i><span class="tl-k">Settings</span><small>Sound, announcer, camera, graphics and controls</small></button>
       </nav>
     </div>
+    <aside class="menu-board hidden" id="menu-board" aria-live="off">
+      <div class="mb-head"><b>Leaderboard</b><span><span class="live-dot"></span><span id="mb-cat">Wins</span></span></div>
+      <ol class="mb-list" id="mb-list"></ol>
+      <button class="link" data-go="social">See all leaderboards</button>
+    </aside>
     <footer class="foot">© <span id="yr"></span> Habir Studios. Endzone Kings v2.1 <button class="link foot-link" data-go="about">About the game</button></footer>
   </section>
 
@@ -135,6 +145,95 @@
   </section>
 
   <!-- ===================== SEASON ===================== -->
+  <section id="tos" class="screen">
+    <div class="center-col">
+      <h2 class="title">Terms of Service</h2>
+      <div class="panel tos">
+        <p class="note">Last updated October 17, 2026. By making an account or playing Endzone Kings you agree to these terms.</p>
+        <h3>1. The game</h3>
+        <p>Endzone Kings is a free browser football game made by Habir Studios. Teams, players and logos are made up and aren’t connected to any real league or team.</p>
+        <h3>2. Your account</h3>
+        <p>You need to be at least 13 to make an account. Keep your login to yourself. <b>Passwords can’t be recovered or reset.</b> If you forget yours, Habir Studios can’t get the account back for you. One person, one account.</p>
+        <h3>3. Coins, packs and items</h3>
+        <p>Coins, packs, cards and everything else in the game are earned by playing. They have no real-money value, can’t be bought or sold for real money, and can be changed, reset or removed at any time, for example to fix bugs or balance the game.</p>
+        <h3>4. Fair play and anti-cheat</h3>
+        <p>No cheating. That includes editing your save, changing game files or code, using scripts or bots, exploiting bugs on purpose, faking stats, or messing with online games. The game checks every result it records. Stat lines that can’t happen in a real game get thrown out and reported automatically, and repeat offenses ban the account automatically.</p>
+        <h3>5. How you treat people</h3>
+        <p>No harassment, hate speech, threats, slurs, sexual content, spam or impersonation in names, bios, messages, chat or clips. Don’t share anyone’s personal info.</p>
+        <h3>6. Reports and bans</h3>
+        <p>Anyone can report a player from their profile. Reports go privately to the Habir Studios admin, who can remove clips, reset stats and ban accounts. A banned account can’t play online, post stats, message, follow or post clips. Bans can be permanent.</p>
+        <h3>7. What you post</h3>
+        <p>Clips, names and bios you post are public. You keep ownership of them, but you let Habir Studios show them in the game. They may be removed at any time.</p>
+        <h3>8. No warranty</h3>
+        <p>The game is provided as is. It may go down, lose data or change at any time. Habir Studios isn’t liable for lost progress or anything else that comes from using the game.</p>
+        <h3>9. Changes</h3>
+        <p>These terms can change. If you keep playing after they do, you accept the new version.</p>
+        <div class="actions"><button class="btn primary" data-go="back">Back</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="admin" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title">Admin</h2>
+      <div class="panel">
+        <div class="ut-tabs" role="tablist">
+          <button class="ut-tab ad-tab on" data-ad="open" role="tab">Open reports<i class="dotn hidden" id="ad-n"></i></button>
+          <button class="ut-tab ad-tab" data-ad="all" role="tab">All reports</button>
+          <button class="ut-tab ad-tab" data-ad="bans" role="tab">Banned</button>
+          <button class="ut-tab ad-tab" data-ad="find" role="tab">Find player</button>
+        </div>
+        <div id="ad-pane"></div>
+        <div class="actions"><button class="btn" data-go="menu">Back</button></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="banned" class="modal hidden" role="alertdialog" aria-labelledby="ban-h">
+    <div class="panel ban-panel"><h2 class="title sm" id="ban-h">Account banned</h2><p id="ban-why"></p><p class="note">Banned accounts can’t play online, post stats, message, follow or post clips. You can still play offline against the CPU.</p><div class="actions"><button class="btn" id="ban-ok">OK</button><button class="btn ghost" id="ban-out">Log out</button></div></div>
+  </div>
+
+  <section id="franchise" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title">Franchise</h2>
+      <div id="fr-new" class="panel">
+        <p class="note center">Pick a team to run. You call the plays, handle contracts, draft rookies and sign free agents, season after season. Players grow from what they do on the field and get older every year.</p>
+        <div class="team-grid" id="fr-grid"></div>
+        <div class="actions"><button class="btn" data-go="menu">Back</button><button class="btn primary big" id="fr-start" disabled>Start franchise</button></div>
+      </div>
+      <div id="fr-hub" class="panel hidden">
+        <div class="fr-top" id="fr-top"></div>
+        <div class="ut-tabs" role="tablist">
+          <button class="ut-tab fr-tab on" data-fr="hub" role="tab">Front office</button>
+          <button class="ut-tab fr-tab" data-fr="roster" role="tab">Roster</button>
+          <button class="ut-tab fr-tab" data-fr="league" role="tab">Standings</button>
+          <button class="ut-tab fr-tab" data-fr="legacy" role="tab">Legacy</button>
+        </div>
+        <div id="fr-pane"></div>
+        <div class="actions"><button class="btn" data-go="menu">Main menu</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="social" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title">Community</h2>
+      <div class="panel">
+        <div class="so-top">
+          <div class="ut-tabs so-tabs" role="tablist">
+            <button class="ut-tab so-tab on" data-so="boards" role="tab">Leaderboards</button>
+            <button class="ut-tab so-tab" data-so="clips" role="tab">Clips</button>
+            <button class="ut-tab so-tab" data-so="msgs" role="tab">Messages<i class="dotn hidden so-unread"></i></button>
+            <button class="ut-tab so-tab" data-so="me" role="tab">My profile</button>
+          </div>
+          <div class="so-find"><input id="so-search" placeholder="Find a player" autocomplete="off" spellcheck="false" aria-label="Find a player"><div id="so-results" class="so-results hidden"></div></div>
+        </div>
+        <div id="so-pane"></div>
+        <div class="actions"><button class="btn" data-go="menu">Back</button></div>
+      </div>
+    </div>
+  </section>
+
   <section id="season" class="screen">
     <div class="center-col xwide">
       <h2 class="title">Season</h2>
@@ -272,6 +371,19 @@
           <p>Refs throw flags for holding, pass interference, false starts, offsides, roughing and facemasks. Let the clock run out on offense and it's delay of game.</p>
           <p>Rain makes the ball slippery and snow slows everyone down.</p>
           <p>Every game pays coins and XP to players with an account. Spend coins on Ultimate Team packs, and claim challenge rewards in Progress.</p>
+          <p>Kicks use a meter: aim with A and D, press Space to start the swing, Space again to lock power, then Space when the needle hits the gold zone. Press V before the snap to call a timeout. Penalties only happen when somebody actually commits one.</p>
+        </div>
+        <div class="howto-pad">
+          <h3>Controller</h3>
+          <p class="note">Plug in or pair an Xbox, PlayStation or Switch controller and press any button. The game switches to controller controls and button prompts, and back to keyboard the moment you touch the keyboard or unplug the pad.</p>
+          <div class="pad-grid">
+            <div><b>Everywhere</b><span>Left stick: move</span><span>RT / R2: sprint</span><span>Menu / Options: pause</span><span>R3: camera</span><span>D-pad and A: menus, B: back</span></div>
+            <div><b>Calling plays</b><span>D-pad left/right: pick a play</span><span>D-pad up/down, LB/RB: tabs</span><span>A: choose, then A to snap</span><span>Y: hot route</span><span>View / Share: timeout</span></div>
+            <div><b>Passing</b><span>A, B, X: throw to receiver 1, 2, 3</span></div>
+            <div><b>Ball carrier</b><span>Right stick flick: juke</span><span>B: spin</span><span>A: stiff arm</span><span>Y: hurdle</span><span>X: dive</span><span>LB: give yourself up</span></div>
+            <div><b>Defense</b><span>B: switch player</span><span>X or A: dive tackle</span><span>Y: play the ball</span></div>
+            <div><b>Kicking</b><span>Left stick: aim</span><span>A: start, lock power, kick</span></div>
+          </div>
         </div>
         <div class="actions"><button class="btn primary" data-go="back">Got it</button></div>
       </div>
@@ -480,6 +592,7 @@
     <p class="in-skip">Press <kbd>Space</kbd> to skip</p>
   </div>
 
+  <div id="clipbar" class="clipbar hidden"><div><b id="clip-title">Clip</b><small id="clip-by"></small></div><button class="btn sm" id="clip-again">Replay</button><button class="btn sm primary" id="clip-close">Close</button></div>
   <div id="pause" class="modal hidden">
     <div class="panel pause-panel">
       <h2 class="title sm">Paused</h2>
@@ -487,6 +600,7 @@
       <button class="btn" id="p-howto">Controls</button>
       <button class="btn" id="p-settings">Settings</button>
       <button class="btn hidden" id="p-replay">Instant replay</button>
+      <button class="btn" id="p-clip">Clip last play</button>
       <button class="btn" id="p-cam">Camera: <span id="p-cam-l"></span></button>
       <button class="btn hidden" id="p-chat">Mute chat</button>
       <button class="btn danger" id="quit">Quit game</button>
@@ -502,7 +616,7 @@
       <div id="go-potg" class="go-potg"></div>
       <div id="go-hl" class="go-hl"></div>
       <div id="go-rewards" class="go-rewards"></div>
-      <div class="actions"><button class="btn" id="go-menu">Main menu</button><button class="btn primary" id="go-again">Play again</button></div>
+      <div class="actions"><button class="btn" id="go-clip">Clip last play</button><button class="btn" id="go-menu">Main menu</button><button class="btn primary" id="go-again">Play again</button></div>
     </div>
   </div>
 
@@ -530,6 +644,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792246664"></script>
+  <script type="module" src="js/main.js?v=1792248186"></script>
 </body>
 </html>

@@ -4,14 +4,14 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792246664';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792248186';
 export { TEAMS };
 
 export const OFF_ROLES = ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB'];
 export const DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
 export const RECEIVERS = ['WR1', 'WR2', 'RB']; // keys 1,2,3
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792246664';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792248186';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -161,14 +161,15 @@ function setFirstDown(g) {
   g.down = 1;
 }
 
-function makePlayer(g, id, team, unit, role, x, z) {
+function makePlayer(g, id, team, unit, role, x, z) { const pl = makePlayer0(g, id, team, unit, role, x, z); pl.max0 = pl.max; return pl; }
+function makePlayer0(g, id, team, unit, role, x, z) {
   const r = ROSTER[role];
   const rt = rosterFor(g, team).players[role];
   const d = dirOf(g.poss);
   const faceOff = d > 0 ? 0 : Math.PI;
   return {
     id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.88 + rt.spd / 100 * 0.15) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1), rt,
-    x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI,
+    x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI, max0: 0,
     stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
     engagedBy: -1, blockOn: -1, shedCd: 0, svx: 0, svz: 0,
     route: null, ri: 0, rstop: false, ldx: 0, ldz: d,
@@ -753,7 +754,7 @@ function updateKick(g, dt) {
 }
 
 function score(g, team, pts) {
-  g.score[team] += pts;
+  g.score[team] += pts; g.acPts = (g.acPts || 0) + pts;
   if (g.quarter >= 5) { g.otScored = true; }
 }
 function sudden(g) { /* placeholder for possession change hooks */ }
@@ -763,7 +764,41 @@ function kickoffTo(g, team) {
 }
 
 // ---------------- main step ----------------
+// ---------------- anti-cheat ----------------
+// The game watches itself. Nothing a skilled player does can trip these, because every legit move goes through the
+// same physics: players can't move faster than their top speed allows, scores only change through scoring plays,
+// ratings can't change mid-game and input can't be stronger than a full stick. Tampering with the code or memory can.
+function rosterSig(g) {
+  let h = 0;
+  for (const t of [0, 1]) { const r = rosterFor(g, t).players; for (const k of Object.keys(r).sort()) { const q = r[k]; for (const f of RKEYS) h = (Math.imul(h ^ (q[f] | 0), 16777619) + 7) >>> 0; } }
+  return h;
+}
+function acFlag(g, why) { if (!g.ac) g.ac = { n: 0, why: '' }; g.ac.n++; if (!g.ac.why) g.ac.why = why; }
+const cleanInput = i => { if (!i) return i; const mx = +i.mx || 0, mz = +i.mz || 0, l = Math.hypot(mx, mz); if (!Number.isFinite(l)) return { ...i, mx: 0, mz: 0 }; if (l > 1.001) return { ...i, mx: mx / l, mz: mz / l }; return i; };
 export function step(g, dt, inputs = [{}, {}]) {
+  if (g.phase === 'gameover') return;
+  if (!g.ac) { g.ac = { n: 0, why: '' }; g.acPts = g.score[0] + g.score[1]; g.acSig = rosterSig(g); }
+  dt = Math.min(Math.max(+dt || 0, 0), 0.1);
+  inputs = [cleanInput(inputs[0]), cleanInput(inputs[1])];
+  const pid = g.playId, ph = g.phase, before = g.players.map(p => [p.x, p.z]);
+  const scoreOk = () => { if (g.score[0] + g.score[1] !== g.acPts) { acFlag(g, 'score changed outside a scoring play'); g.acPts = g.score[0] + g.score[1]; } };
+  scoreOk();
+  if (g.phase === 'live' && g.acPid === pid) for (const p of g.players) if (p.acX !== undefined && Math.hypot(p.x - p.acX, p.z - p.acZ) > 0.05) { acFlag(g, 'player moved between frames'); break; }
+  stepInner(g, dt, inputs);
+  scoreOk();
+  for (const p of g.players) { p.acX = p.x; p.acZ = p.z; }
+  g.acPid = g.playId;
+  if (ph === 'live' && g.phase === 'live' && g.playId === pid) {
+    for (let i = 0; i < g.players.length; i++) {
+      const p = g.players[i], b = before[i]; if (!b) continue;
+      const moved = Math.hypot(p.x - b[0], p.z - b[1]), lim = (p.max || 8) * 3 * dt + 1.0;
+      if (moved > lim) { acFlag(g, 'player teleported'); break; }
+      if (p.max0 && p.max > p.max0 * 1.06) { acFlag(g, 'player speed was changed'); break; }
+    }
+  }
+  if (g.playId !== pid && g.acSig && rosterSig(g) !== g.acSig) { acFlag(g, 'ratings changed mid-game'); g.acSig = rosterSig(g); }
+}
+function stepInner(g, dt, inputs) {
   if (g.phase === 'gameover') return;
   g.t += dt; g.phaseT += dt; g.timeoutCd = Math.max(0, (g.timeoutCd || 0) - dt);
   if (g.msg && (g.msg.until -= dt) <= 0) g.msg = null;
@@ -842,7 +877,7 @@ function nextPlay(g) {
   g.lastRunoff = Math.min(g.runoff || 0, g.clock);
   if (g.opts.practice) {
     const side = g.opts.practice === 'def' ? 1 : 0;
-    g.clock = g.opts.quarterLen; g.runoff = 0; g.pat = -1; g.score = [0, 0];
+    g.clock = g.opts.quarterLen; g.runoff = 0; g.pat = -1; g.score = [0, 0]; g.acPts = 0;
     if (g.opts.practice === 'st') {
       // special teams: a fresh kick every rep, field goals from 20 to 55 yards or a punt from deep
       g.stkN = (g.stkN || 0) + 1;
@@ -1554,6 +1589,12 @@ function resolveBall(g) {
       if (prog(offTeam, L.z) >= 100) return touchdown(g, ro);
       return endPlay(g, 'tackle', ro, null);
     }
+    // stretched out or fighting a defender: great hands snag it with one hand
+    const stretch = dO > 1.15 || (cD && dD < 1.4);
+    if (stretch && !P.isPat && g.rng() < clamp((ro.rt.hands - 62) / 70, 0.05, 0.5)) {
+      ro.oneHandAt = g.t; g.flash = { text: 'ONE-HANDED CATCH!', until: 1.4 }; g.events.push('bighit');
+      highlight(g, 'ONE-HANDED CATCH', ro.rt.name, offTeam); mom(g, offTeam, 5);
+    }
     g.stats[offTeam].comp++; pst(g, ro).rec++;
     if (g.opts.humans[offTeam]) g.ctrl[offTeam] = ro.id;
     g.events.push('catch');
@@ -1719,7 +1760,7 @@ export function snapshot(g) {
         | (p.throwAt !== undefined && g.t - p.throwAt < 0.5 && g.phase === 'live' ? 16 : 0) | (reaching(g, p) ? 32 : 0)
         | (g.phase === 'dead' && g.celebrate === p.team ? 64 : 0) | (p.scorer && g.phase === 'dead' ? 128 : 0)
         | (p.spin > 0 ? 256 : 0) | (p.stiff > 0 ? 512 : 0) | (p.hurdle > 0 ? 1024 : 0) | (p.playBall > 0 ? 2048 : 0) | (p.press > 0 ? 4096 : 0)
-        | (p.wrapAt !== undefined && g.t - p.wrapAt < 1.2 ? 8192 : 0) | (p.caughtAt !== undefined && g.t - p.caughtAt < 0.5 ? 16384 : 0) | (p.fallBack ? 32768 : 0),
+        | (p.wrapAt !== undefined && g.t - p.wrapAt < 1.2 ? 8192 : 0) | (p.caughtAt !== undefined && g.t - p.caughtAt < 0.5 ? 16384 : 0) | (p.fallBack ? 32768 : 0) | (p.oneHandAt !== undefined && g.t - p.oneHandAt < 0.6 ? 65536 : 0),
       r2(p.stam), r2(p.size), p.rt.name, POS_LABEL[p.role], r2(p.moveCd), p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num)]),
     b: [r2(g.ball.x), r2(g.ball.y), r2(g.ball.z), g.ball.state === 'air' ? 1 : g.ball.state === 'kick' ? 2 : 0,
       g.ball.state === 'air' && !g.ball.auto ? [r2(g.ball.tx), r2(g.ball.tz)] : null, g.ball.carrier ?? -1],
@@ -1731,7 +1772,7 @@ export function snapshot(g) {
     opDef: g.phase === 'presnap' && g.offPlay ? (() => { const q = getPlay(g, g.poss, g.offPlay); return q && q.routes ? { form: q.form, routes: Object.fromEntries(Object.entries({ ...q.routes, ...g.hot }).filter(([, v]) => v && v.length)), qbPath: q.qbPath || null, hot: Object.keys(g.hot), type: q.type } : null; })() : null,
     bT: g.ball.state === 'air' && !g.ball.auto ? r2(g.ball.T - g.ball.t) : -1,
     ks: g.phase === 'kickset' && g.ks ? { type: g.ks.type, stage: g.ks.stage, m: r2(g.ks.m), aim: r2(g.ks.aim), power: r2(g.ks.power), fd: g.ks.fd, maxR: r2(g.ks.maxR), sweet: KICK_SWEET } : null,
-    to: g.to.slice(), pcMax: 25,
+    to: g.to.slice(), pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
     wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
     hls: g.phase === 'gameover' ? g.hl : null,
     hr: g.phase === 'half' ? g.halfReady.slice() : null, hl: g.opts.halftime,

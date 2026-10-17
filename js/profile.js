@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason } from './ut.js?v=1792246664';
+import { starterIds, autoLineup, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason } from './ut.js?v=1792248186';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -89,19 +89,37 @@ const blank = () => ({
   ach: {}, drill: { best: 0, runs: [] },
 });
 
+// tamper seal over the parts of a save that matter (coins, packs, cards). Editing the save by hand breaks it.
+function seal(p, key) {
+  const body = [p.coins, p.xp, p.lvl, p.rp, JSON.stringify(p.packs || {}), (p.ut && p.ut.cards || []).map(c => c.id + ':' + (c.b || 0)).join(','), key, 'ek-v2-habir'].join('|');
+  let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
+  for (let i = 0; i < body.length; i++) { const c = body.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 ^ c, 2246822519) ^ (h2 >>> 13); }
+  return ((h1 >>> 0).toString(36) + (h2 >>> 0).toString(36));
+}
 export class Profile {
   constructor(userId) {
     this.key = 'ek_prof_' + userId;
     this.p = blank();
     try { const raw = localStorage.getItem(this.key); if (raw) this.p = { ...blank(), ...JSON.parse(raw) }; } catch (_) {}
     this.p.ut = { ...blank().ut, ...this.p.ut }; this.p.ach = this.p.ach || {}; this.p.drill = this.p.drill || { best: 0, runs: [] }; this.p.fp = this.p.fp || blank().fp;
+    this.verify();
     this.refreshChallenges();
     this.listeners = [];
   }
   onSave(fn) { this.listeners.push(fn); }
-  save() { this.p.rev++; try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.listeners.forEach(f => f(this.p)); }
+  // a save that was edited by hand loses its coins and packs and gets flagged for anti-cheat
+  verify() {
+    const P = this.p;
+    if (P.sig && P.sig !== seal(P, this.key)) {
+      this.tampered = true; P.tampered = (P.tampered || 0) + 1;
+      P.coins = Math.min(P.coins, 1500); P.packs = {};
+      P.sig = seal(P, this.key);
+      try { localStorage.setItem(this.key, JSON.stringify(P)); } catch (_) {}
+    } else if (P.tampered) this.tampered = true;
+  }
+  save() { this.p.sig = seal(this.p, this.key); this.p.rev++; try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.listeners.forEach(f => f(this.p)); }
   // merge a copy loaded from the cloud (keeps whichever has seen more saves)
-  adopt(remote) { if (remote && remote.rev > this.p.rev) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.refreshChallenges(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} return true; } return false; }
+  adopt(remote) { if (remote && remote.rev > this.p.rev) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.verify(); this.refreshChallenges(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} return true; } return false; }
 
   get rank() { return rankInfo(this.p.rp); }
   refreshChallenges() {

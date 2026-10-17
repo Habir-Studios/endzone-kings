@@ -1,5 +1,5 @@
 // Season mode: 14-week schedule, everyone else simulated by ratings, top-4 playoff, Kings Bowl.
-import { TEAMS, teamOvr } from './teams.js?v=1792246664';
+import { TEAMS, teamOvr } from './teams.js?v=1792248186';
 
 export const WEEKS = 14;
 const N = TEAMS.length;
@@ -37,8 +37,12 @@ export function userGame(S) {
   return null;
 }
 
+// ovr: optional { team: overall } overrides (franchise mode uses your real roster's rating)
+let OVR_OV = null;
+export function setOvrOverride(ov) { OVR_OV = ov || null; }
+const ovrOf = t => (OVR_OV && OVR_OV[t] != null ? OVR_OV[t] : teamOvr(t));
 export function simScore(a, b, r = Math.random) {
-  const d = (teamOvr(a) - teamOvr(b)) / 10;
+  const d = (ovrOf(a) - ovrOf(b)) / 10;
   const pts = (bias) => { let p = 0; const drives = 9 + ((r() * 3) | 0); for (let i = 0; i < drives; i++) { const x = r() + bias * 0.055; p += x > 0.72 ? 7 : x > 0.58 ? 3 : 0; } return p; };
   let sa = pts(d + 0.04), sb = pts(-d);
   if (sa === sb) { if (r() < 0.5 + d * 0.15) sa += 3; else sb += 3; }

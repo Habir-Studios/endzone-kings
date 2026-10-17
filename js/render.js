@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792246664';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792246664';
-import { drawLogo } from './logos.js?v=1792246664';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792246664';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792248186';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792248186';
+import { drawLogo } from './logos.js?v=1792248186';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792248186';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -594,15 +594,15 @@ export class Renderer {
     });
     this.target = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9), new THREE.MeshBasicMaterial({ map: tgtTex, transparent: true, depthWrite: false, toneMapped: false }));
     this.target.rotation.x = -Math.PI / 2; this.target.position.y = 0.05; this.target.renderOrder = 3; s.add(this.target);
+    this.badgeTex = (n, label) => canvasTex(128, 128, (c) => {
+      const col = ['#22c55e', '#3b82f6', '#f97316', '#a855f7', '#eab308'][n - 1];
+      c.shadowColor = 'rgba(0,0,0,.6)'; c.shadowBlur = 10;
+      c.beginPath(); c.arc(64, 64, 52, 0, Math.PI * 2); c.fillStyle = col; c.fill();
+      c.shadowBlur = 0; c.lineWidth = 7; c.strokeStyle = '#fff'; c.stroke();
+      c.fillStyle = '#fff'; c.font = `bold ${String(label).length > 1 ? 50 : 72}px Arial`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(label), 64, 68);
+    });
     this.badges = [1, 2, 3].map(n => {
-      const col = ['#22c55e', '#3b82f6', '#f97316'][n - 1];
-      const tex = canvasTex(128, 128, (c) => {
-        c.shadowColor = 'rgba(0,0,0,.6)'; c.shadowBlur = 10;
-        c.beginPath(); c.arc(64, 64, 52, 0, Math.PI * 2); c.fillStyle = col; c.fill();
-        c.shadowBlur = 0; c.lineWidth = 7; c.strokeStyle = '#fff'; c.stroke();
-        c.fillStyle = '#fff'; c.font = 'bold 72px Arial'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(n), 64, 68);
-      });
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, toneMapped: false }));
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.badgeTex(n, n), depthTest: false, transparent: true, toneMapped: false }));
       sp.scale.set(1.05, 1.05, 1); sp.renderOrder = 10; s.add(sp); return sp;
     });
   }
@@ -844,6 +844,12 @@ export class Renderer {
     if (this.side) updateSidelines(this, this._lastS, dt);
   }
 
+  // receiver icons show 1 2 3 on keyboard, or the controller's buttons
+  setBadgeLabels(labels) {
+    const key = labels.join(); if (this._badgeKey === key) return; this._badgeKey = key;
+    this.badges.forEach((sp, i) => { const old = sp.material.map; sp.material.map = this.badgeTex(i + 1, labels[i]); sp.material.needsUpdate = true; if (old) old.dispose(); });
+  }
+
   update(S, dt, local) {
     this._lastS = S;
     if (S.wx && (S.wx !== this.wx || S.tod !== this.tod)) this.setWeather(S.wx, S.tod);
@@ -927,7 +933,7 @@ export class Renderer {
     const j = m.j;
     const fallen = flags & 1, diving = flags & 2, juking = flags & 4, engaged = flags & 8, throwing = flags & 16, reaching = flags & 32, celebrating = flags & 64, scorer = flags & 128;
     const spinning = flags & 256, stiffing = flags & 512, hurdling = flags & 1024, leaping = flags & 2048, pressing = flags & 4096;
-    const wrapping = flags & 8192, catching = flags & 16384, fallBack = flags & 32768;
+    const wrapping = flags & 8192, catching = flags & 16384, fallBack = flags & 32768, oneHand = flags & 65536;
     const run = Math.min(1, spd / 8.5), sprint = Math.max(0, (spd - 6.5) / 2.5);
     // stride gets longer (not just faster) as speed goes up
     m.phase += dt * (2.4 + spd * 1.15);
@@ -993,6 +999,13 @@ export class Renderer {
       m.catchT = (m.catchT || 0) + dt; const k = Math.min(1, m.catchT / 0.35), e = k * k * (3 - 2 * k);
       as[0] = lerp(-2.6, -0.45, e); as[1] = lerp(-2.6, -0.35, e); ae[0] = lerp(0.3, 2.1, e); ae[1] = lerp(0.3, 2.0, e); az[0] = lerp(0.15, 0.4, e); az[1] = lerp(-0.15, -0.3, e);
       drop += 0.1 * (1 - e); lean = Math.max(lean, 0.22); headX = 0.45 * (1 - e) + 0.1;
+      if (oneHand) {
+        // one arm fully extended snagging it, the other flung out for balance, then it's pulled in
+        const h = Math.min(1, m.catchT / 0.5), eh = h * h * (3 - 2 * h);
+        as[1] = lerp(-3.0, -0.35, eh); ae[1] = lerp(0.05, 2.0, eh); az[1] = lerp(-0.55, -0.3, eh);
+        as[0] = lerp(0.5, -0.4, eh); ae[0] = lerp(0.4, 1.6, eh); az[0] = lerp(0.9, 0.4, eh);
+        lean = Math.max(lean, 0.3); drop += 0.06 * (1 - eh);
+      }
     } else m.catchT = 0;
     if (diving) {
       // launch, lay out flat with arms reaching, then skid

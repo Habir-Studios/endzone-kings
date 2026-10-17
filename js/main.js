@@ -1,16 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792246664';
-import { Renderer } from './render.js?v=1792246664';
-import { Sfx } from './audio.js?v=1792246664';
-import { Auth } from './auth.js?v=1792246664';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792246664';
-import { getRoster, teamOvr } from './teams.js?v=1792246664';
-import * as Season from './season.js?v=1792246664';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792246664';
-import * as UTm from './ut.js?v=1792246664';
-import { initCreator, renderCreator } from './creator.js?v=1792246664';
-import { portraitURL } from './faces.js?v=1792246664';
-import { logoURL, clearLogoCache } from './logos.js?v=1792246664';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792248186';
+import { Renderer } from './render.js?v=1792248186';
+import { Sfx } from './audio.js?v=1792248186';
+import { Auth } from './auth.js?v=1792248186';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792248186';
+import { getRoster, teamOvr } from './teams.js?v=1792248186';
+import * as Season from './season.js?v=1792248186';
+import * as Fr from './franchise.js?v=1792248186';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792248186';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792248186';
+import * as UTm from './ut.js?v=1792248186';
+import { initCreator, renderCreator } from './creator.js?v=1792248186';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792248186';
+import { portraitURL } from './faces.js?v=1792248186';
+import { logoURL, clearLogoCache } from './logos.js?v=1792248186';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -60,9 +63,13 @@ function show(id) {
   if (id === 'progress') renderProgress();
   if (id === 'creator') renderCreator();
   if (id === 'modes') renderModes();
+  if (id === 'social') renderSocial();
+  if (id === 'menu') { renderMenuBoard(); refreshUnread(); checkBan(); refreshAdminBadge(); }
+  if (id === 'admin') renderAdmin();
+  if (id === 'franchise') Fr.renderFranchise();
   if (id !== 'online') stopLobby();
 }
-const LOCKED = ['ut', 'season', 'online', 'progress', 'creator', 'modes'];
+const LOCKED = ['ut', 'season', 'online', 'progress', 'creator', 'modes', 'franchise'];
 const isGuest = () => !Auth.user || Auth.user.kind === 'guest';
 function lockPrompt(what) {
   $('#lock-title').textContent = what ? `${what} needs a free account` : 'Make a free account';
@@ -101,7 +108,6 @@ function setupAuthUI() {
   $('#li-id').type = sb ? 'email' : 'text';
   $('.email-row').classList.toggle('hidden', !sb);
   $('#su-email').required = sb;
-  $('#forgot').classList.toggle('hidden', !sb);
   $('#auth-mode').innerHTML = sb ? '✓ Online accounts are on — your record syncs everywhere.'
     : 'Offline mode: accounts are saved on this device only. Add your Supabase keys in <code>js/config.js</code> to turn on real accounts + online 1v1.';
 }
@@ -124,20 +130,20 @@ $('#form-signup').addEventListener('submit', (e) => {
   e.preventDefault();
   busy(e.submitter || $('#form-signup .btn'), async () => {
     try {
+      if (!$('#su-tos').checked) { authMsg('You need to agree to the Terms of Service first', true); return; }
       const r = await Auth.signUp($('#su-name').value, $('#su-email').value, $('#su-pw').value);
       if (r.needsConfirm) { authMsg('Almost there! Check your email to confirm, then log in.'); $$('.tab')[0].click(); $('#li-id').value = $('#su-email').value; }
       else { authMsg(''); show('menu'); toast(`Welcome to the league, ${Auth.user.name}!`); }
     } catch (err) { authMsg(err.message, true); }
   });
 });
-$('#forgot').addEventListener('click', async () => {
-  try { await Auth.resetPassword($('#li-id').value); authMsg('Reset link sent — check your email.'); } catch (err) { authMsg(err.message, true); }
-});
+
 $('#guest-btn').addEventListener('click', () => { Auth.guest(); show('menu'); });
 $('#logout').addEventListener('click', async () => { await Auth.signOut(); show('auth'); });
 
 function refreshProfile() {
   const u = Auth.user; if (!u) return;
+  $('#tile-fr-sub').textContent = Fr.franchiseSub();
   const SS = loadSeason();
   $('#tile-season-sub').textContent = SS ? (SS.phase === 'done' ? 'Season complete. Start a new one' : `${TEAMS[SS.team].city}, ${SS.standings[SS.team].w}-${SS.standings[SS.team].l}, ${SS.phase === 'regular' ? 'week ' + (SS.week + 1) : 'playoffs'}`) : 'Chase the Kings Bowl';
   $('#pc-name').textContent = u.name;
@@ -344,7 +350,7 @@ function enterGame() {
   st.screen = 'game';
   $('#hud').classList.remove('hidden');
   $('#gameover').classList.add('hidden'); $('#pause').classList.add('hidden');
-  st.playing = true; st.paused = false; st.acc = 0; st.overShown = false; st.resultSaved = false; st.seasonSaved = false; st.rewarded = false; st.halfSaid = false;
+  st.playing = true; st.paused = false; st.acc = 0; st.overShown = false; st.resultSaved = false; st.seasonSaved = false; st.rewarded = false; st.statsPosted = false; st.halfSaid = false; st.startedAt = performance.now();
   R.snapCamera(); hudCache = {};
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   canvas.focus();
@@ -376,11 +382,11 @@ $('#intro').addEventListener('click', endIntro);
 function startCPU(opts = {}) {
   sfx.init();
   st.mode = 'cpu'; st.local = 0;
-  st.seasonGame = !!opts.season;
+  st.seasonGame = !!opts.season; st.franchiseGame = !!opts.franchise;
   st.lastCpu = opts;
   const teams = opts.teams || [SET.team, SET.cpuTeam];
   st.ut = !!opts.ut; st.solo = opts.solo || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
-  const weather = opts.weather || (opts.season ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season ? pickTod('random') : pickTod(SET.tod));
+  const weather = opts.weather || (opts.season || opts.franchise ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season || opts.franchise ? pickTod('random') : pickTod(SET.tod));
   st.game = createGame({ teams, humans: [true, false], quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', 'CPU'];
@@ -419,6 +425,7 @@ window.addEventListener('keydown', (e) => {
   if (typing()) return;
   if (!st.playing) return;
   const k = e.code;
+  if (st.mode === 'clip') { if (k === 'Escape') $('#clip-close').click(); return; }
   if (['Space', 'Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k) && !e.target.closest('.modal')) e.preventDefault();
   if (e.repeat) { keys.add(k); return; }
   keys.add(k);
@@ -455,13 +462,14 @@ function moveVec() {
   if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1;
   if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1;
   if (touch.jx || touch.jy) { x = touch.jx; y = touch.jy; }
+  if (pad.on && (pad.jx || pad.jy)) { x = pad.jx; y = pad.jy; }
   if (!x && !y) return { mx: 0, mz: 0 };
   const b = R.basis();
   let mx = b.fx * y + b.rx * x, mz = b.fz * y + b.rz * x;
   const l = Math.hypot(mx, mz) || 1;
   return { mx: mx / l, mz: mz / l };
 }
-const sprinting = () => keys.has('ShiftLeft') || keys.has('ShiftRight') || touch.sprint || Math.hypot(touch.jx, touch.jy) > 0.92;
+const sprinting = () => keys.has('ShiftLeft') || keys.has('ShiftRight') || (pad.on && pad.sprint) || touch.sprint || Math.hypot(touch.jx, touch.jy) > 0.92;
 
 // ---------------- touch controls ----------------
 const touch = { jx: 0, jy: 0, sprint: false, id: null, key: '' };
@@ -601,11 +609,11 @@ function startReplay() {
 }
 function stopReplay() { st.replay = null; $('#hud').classList.remove('replaying'); $('#replay-badge').classList.add('hidden'); R.snapCamera(); hudCache = {}; }
 function stepReplay(dt) {
-  const r = st.replay; r.t += dt * 0.55;
+  const r = st.replay, sp = r.clip ? 0.85 : 0.55; r.t += dt * sp;
   let acc = 0, i = 0; while (i < r.frames.length - 1 && acc + r.frames[i].dt < r.t) { acc += r.frames[i].dt; i++; }
-  if (i >= r.frames.length - 1 && r.t > acc + 0.3) { stopReplay(); return null; }
+  if (i >= r.frames.length - 1 && r.t > acc + 0.3) { if (r.clip) { r.t = 0; r.cx = undefined; return null; } stopReplay(); return null; }
   const S = r.frames[i].s;
-  R.update(S, dt * 0.55, st.local);
+  R.update(S, dt * sp, st.local);
   r.ang += dt * 0.35;
   const bx = S.b[0], bz = S.b[2];
   r.cx = r.cx === undefined ? bx : r.cx + (bx - r.cx) * Math.min(1, dt * 3); r.cz = r.cz === undefined ? bz : r.cz + (bz - r.cz) * Math.min(1, dt * 3);
@@ -613,8 +621,58 @@ function stepReplay(dt) {
   return S;
 }
 
+// ---------------- controller context ----------------
+function padContext() {
+  if (!st.playing) return 'menu';
+  if (st.mode === 'clip') return 'replay';
+  if (!$('#gameover').classList.contains('hidden')) return 'over';
+  if (st.paused || !$('#pause').classList.contains('hidden')) return 'paused';
+  if (st.replay) return 'replay';
+  const S = st.snap; if (!S) return 'menu';
+  const me = st.local;
+  if (S.ph === 'presnap') return S.poss === me ? 'presnapOff' : 'presnapDef';
+  if (S.ph === 'kickset') return 'kick';
+  if (S.ph === 'half') return 'half';
+  if (S.ph !== 'live') return 'dead';
+  const carrier = S.b[3] === 0 ? S.b[5] : -1;
+  if (S.canThrow && S.off === me) return 'pass';
+  if (carrier >= 0 && carrier === S.ctrl[me]) return 'carry';
+  if (S.b[3] === 1 && S.off === me) return 'air';
+  return 'def';
+}
+let padCard = -1;
+function cardNav(i) {
+  const cards = $$('#pc-cards .pc-card'); if (!cards.length) return;
+  if (i === 12 || i === 13) { switchTab(i === 12 ? -1 : 1); padCard = 0; }
+  else padCard = Math.max(0, Math.min(cards.length - 1, (padCard < 0 ? 0 : padCard) + (i === 15 ? 1 : -1)));
+  const list = $$('#pc-cards .pc-card'); list.forEach((c, k) => c.classList.toggle('padfocus', k === padCard));
+  if (list[padCard]) list[padCard].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function cardPickFocused() {
+  const list = $$('#pc-cards .pc-card'), c = list[padCard];
+  if (!c || c.classList.contains('on')) return false;
+  c.click(); return true;
+}
+
+// ---------------- clips ----------------
+function playClip(frames) {
+  const s0 = frames[0].s;
+  $$('.screen').forEach(x => x.classList.remove('active')); st.screen = 'game';
+  st.mode = 'clip'; st.local = 0; st.playing = true; st.paused = false; st.game = null; st.intro = 0;
+  R.setTeams(s0.teams); if (s0.wx) R.setWeather(s0.wx, s0.tod || 'night');
+  $('#hud').classList.add('hidden'); $('#gameover').classList.add('hidden'); $('#pause').classList.add('hidden');
+  sfx.stopMusic();
+  st.replay = { frames, i: 0, t: 0, ang: Math.random() * 6, clip: true };
+}
+function stopClip(back) {
+  st.replay = null; st.mode = 'cpu';
+  leaveGame();
+  if (back && back !== 'menu' && back !== 'game') show(back);
+}
+
 // ---------------- chat (online games, press T) ----------------
 const BAD = ['fuck', 'shit', 'bitch', 'cunt', 'nigg', 'fag', 'retard', 'whore', 'slut', 'dick', 'pussy', 'kys'];
+const cleanText = t => { let out = String(t).replace(/[<>]/g, ''); for (const w of BAD) out = out.replace(new RegExp(w + '\\w*', 'gi'), m => m[0] + '*'.repeat(m.length - 1)); return out; };
 const clean = t => { let out = String(t).replace(/[<>]/g, '').slice(0, 120); for (const w of BAD) out = out.replace(new RegExp(w + '\\w*', 'gi'), m => m[0] + '*'.repeat(m.length - 1)); return out; };
 let chatLast = 0;
 function openChat() {
@@ -671,9 +729,12 @@ $('#p-cam').addEventListener('click', () => { SET.cam = SET.cam === 'behind' ? '
 $('#quit').addEventListener('click', () => leaveGame());
 $('#p-chat').addEventListener('click', () => { SET.chat = !SET.chat; saveSet(); $('#p-chat').textContent = SET.chat ? 'Mute chat' : 'Unmute chat'; if (!SET.chat) $('#chat-log').innerHTML = ''; });
 $('#go-menu').addEventListener('click', () => leaveGame());
+$('#go-clip').addEventListener('click', () => saveClip(st.rec));
+$('#p-clip').addEventListener('click', () => saveClip(st.rec));
 $('#go-again').addEventListener('click', () => {
   $('#gameover').classList.add('hidden');
-  if (st.mode === 'cpu' && st.seasonGame) { leaveGame(); show('season'); }
+  if (st.mode === 'cpu' && st.seasonGame) { leaveGame(); show('season'); return; }
+  if (st.mode === 'cpu' && st.franchiseGame) { leaveGame(); show('franchise'); return; }
   else if (st.mode === 'cpu') { const o = st.lastCpu || {}; if (o.drill) o.teams = [o.teams[0], randOpp()]; startCPU(o); }
   else if (st.mode === 'host') { startHostGame(); }
   else toast('Waiting for the host to start a rematch…');
@@ -717,8 +778,17 @@ function showGameOver(S) {
   const rows = [['Passing', s[0].passYds, s[1].passYds], ['Comp/Att', `${s[0].comp}/${s[0].att}`, `${s[1].comp}/${s[1].att}`], ['Rushing', s[0].rushYds, s[1].rushYds],
     ['First downs', s[0].firstDowns, s[1].firstDowns], ['Touchdowns', s[0].tds, s[1].tds], ['Interceptions thrown', s[0].ints, s[1].ints], ['Sacks', s[0].sacks, s[1].sacks], ['Penalties', `${s[0].pens || 0}-${s[0].penYds || 0}`, `${s[1].pens || 0}-${s[1].penYds || 0}`]];
   $('#go-stats').innerHTML = `<tr><th>${T[0].abbr}</th><th></th><th>${T[1].abbr}</th></tr>` + rows.map(r => `<tr><td>${r[1]}</td><td>${r[0]}</td><td>${r[2]}</td></tr>`).join('');
-  $('#go-again').textContent = st.mode === 'guest' ? 'Rematch (host starts)' : st.seasonGame ? 'Back to season' : 'Play again';
+  $('#go-again').textContent = st.mode === 'guest' ? 'Rematch (host starts)' : st.seasonGame ? 'Back to season' : st.franchiseGame ? 'Back to franchise' : 'Play again';
   $('#go-again').classList.toggle('hidden', st.mode === 'spec');
+  if (st.franchiseGame && !st.seasonSaved) {
+    st.seasonSaved = true;
+    const F = Fr.load();
+    if (F && F.phase === 'season') {
+      const ups = Fr.recordResult(F, S.sc[0], S.sc[1], S.ps || [], 0);
+      const done = F.phase !== 'season';
+      setTimeout(() => toast(done ? `Season over. ${F.history[0] && F.history[0].champ ? 'KINGS BOWL CHAMPIONS!' : 'Time for the offseason.'}` : ups.length ? 'Progression: ' + ups.slice(0, 3).join(', ') : `Record: ${F.season.standings[F.team].w}-${F.season.standings[F.team].l}`, 4000), 400);
+    }
+  }
   if (st.seasonGame && !st.seasonSaved) {
     st.seasonSaved = true;
     const SS = loadSeason();
@@ -730,6 +800,12 @@ function showGameOver(S) {
     }
   }
   if (!st.rewarded && isGuest() && !LOCALNET) { st.rewarded = true; $('#go-rewards').innerHTML = '<div class="gr-head"><b>Rewards</b></div><p class="note">Guests don\'t earn coins, XP or rank. <button class="link" id="go-signup">Make a free account</button> and this game would have paid out.</p>'; setTimeout(() => { const b = $('#go-signup'); if (b) b.onclick = () => lockPrompt(''); }); }
+  if (!st.statsPosted && S.mode === 'game' && (st.mode === 'cpu' || st.mode === 'host' || st.mode === 'guest') && !isGuest()) {
+    st.statsPosted = true;
+    const P = profile();
+    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : '') });
+    if (P && P.tampered) { P.tampered = false; P.p.tampered = 0; P.save(); }
+  }
   if (!st.rewarded) {
     st.rewarded = true;
     const mine = S.st[me], theirs = S.st[other];
@@ -873,7 +949,20 @@ function switchTab(d) {
   st.pbTab = (st.pbTab + d + st.pbTabs.length) % st.pbTabs.length; hudCache.pcKey = null; sfx.play('ui');
 }
 
+// controller prompts: same hints, controller buttons instead of keys
+function padHint(items) {
+  const g = glyphs(), c = padContext();
+  const M = {
+    pass: { '1 2 3': `${g.A} ${g.B} ${g.X}`, 'W A S D': g.LS, Shift: g.RT },
+    carry: { Space: g.RS + ' flick', E: g.B, R: g.A, F: g.Y, X: g.X, G: g.LB, Shift: g.RT },
+    air: { 'W A S D': g.LS, E: g.Y, Q: g.B, Shift: g.RT },
+    def: { Space: g.X, Q: g.B, Shift: g.RT, E: g.Y },
+  }[c] || {};
+  const G = { Esc: g.Menu, C: g.R3, R: g.X, T: '' };
+  return items.map(([k, t]) => [M[k] || G[k] || k, t]).filter(([k]) => k);
+}
 function hint(items) {
+  if (pad.on) items = padHint(items);
   const html = items.map(([k, t]) => `<span>${k.split(' ').map(x => `<kbd>${x}</kbd>`).join('')}${t}</span>`).join('');
   if (hudCache.hint !== html) { hudCache.hint = html; $('#hint').innerHTML = html; }
 }
@@ -1039,7 +1128,8 @@ function renderOnline() {
   seg($('#seg-qlen2'), QLENS, SET.qlen, v => { SET.qlen = v; saveSet(); });
   const warn = $('#online-warn');
   let w = '';
-  if (!Auth.configured() && !LOCALNET) w = 'Online 1v1 needs the free Supabase setup first. Open <b>README.md</b> → Step 2, paste your keys into <code>js/config.js</code>, and push to GitHub.';
+  if (isBanned()) w = 'Your account is banned, so online play is off.';
+  else if (!Auth.configured() && !LOCALNET) w = 'Online 1v1 needs the free Supabase setup first. Open <b>README.md</b> → Step 2, paste your keys into <code>js/config.js</code>, and push to GitHub.';
   else if (Auth.user && Auth.user.kind === 'guest' && !LOCALNET) w = 'Make a free account to play online (Log out → Sign up).';
   warn.innerHTML = w; warn.classList.toggle('hidden', !w);
   $('#host-btn').disabled = !!w; $('#join-btn').disabled = !!w;
@@ -1349,9 +1439,15 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // ---------------- menus that live in their own modules ----------------
-const CTX = { profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+const CTX = { st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
+initSocial(CTX);
+initAdmin();
+initGamepad({ toast, context: padContext, cardNav, cardPickFocused, hotOpen: () => st.hot.open, onModeChange: (on) => { hudCache = {}; R.setBadgeLabels(on ? (() => { const g = glyphs(); return [g.A, g.B, g.X]; })() : ['1', '2', '3']); } });
+Fr.initFranchise(CTX);
+$('#ban-ok').addEventListener('click', () => $('#banned').classList.add('hidden'));
+$('#ban-out').addEventListener('click', async () => { $('#banned').classList.add('hidden'); await Auth.signOut(); show('auth'); });
 
 // test hooks (used by automated tests; harmless in production)
 window.__ek = { st, startCPU, keys, pushEv, Auth, R, sfx, cam: null, keyToEvent, pickCard };

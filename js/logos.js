@@ -1,6 +1,6 @@
 // ENDZONE KINGS — original team logos. Each city gets its own badge shape and emblem in its colors.
 // These are made-up marks: no real league logos, mascots or wordmarks.
-import { TEAMS } from './teams.js?v=1792274378';
+import { TEAMS } from './teams.js?v=1792277197';
 
 // emblem per team, in TEAMS order: each club's kind of mascot, drawn our own way (no copies of any real logo)
 const EMBLEM = ['cardinal', 'falcon', 'raven', 'bison', 'panther', 'bear', 'tiger', 'dog', 'hat', 'horse', 'lion', 'cheese', 'bull', 'horseshoe', 'jaguar', 'arrows',

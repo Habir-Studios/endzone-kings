@@ -1,25 +1,25 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792274378';
-import * as Form from './form.js?v=1792274378';
-import { watchSim } from './simview.js?v=1792274378';
-import { bracketHTML } from './bracket.js?v=1792274378';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792274378';
-import { Renderer } from './render.js?v=1792274378';
-import { Sfx } from './audio.js?v=1792274378';
-import { Auth } from './auth.js?v=1792274378';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792274378';
-import { getRoster, teamOvr } from './teams.js?v=1792274378';
-import * as Season from './season.js?v=1792274378';
-import * as Fr from './franchise.js?v=1792274378';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792274378';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792274378';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792274378';
-import * as UTm from './ut.js?v=1792274378';
-import { initCreator, renderCreator } from './creator.js?v=1792274378';
-import { filmCapture, filmSave } from './social.js?v=1792274378';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792274378';
-import { portraitURL } from './faces.js?v=1792274378';
-import { logoURL, clearLogoCache } from './logos.js?v=1792274378';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792277197';
+import * as Form from './form.js?v=1792277197';
+import { watchSim } from './simview.js?v=1792277197';
+import { bracketHTML } from './bracket.js?v=1792277197';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792277197';
+import { Renderer } from './render.js?v=1792277197';
+import { Sfx } from './audio.js?v=1792277197';
+import { Auth } from './auth.js?v=1792277197';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792277197';
+import { getRoster, teamOvr } from './teams.js?v=1792277197';
+import * as Season from './season.js?v=1792277197';
+import * as Fr from './franchise.js?v=1792277197';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792277197';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792277197';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792277197';
+import * as UTm from './ut.js?v=1792277197';
+import { initCreator, renderCreator } from './creator.js?v=1792277197';
+import { filmCapture, filmSave } from './social.js?v=1792277197';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792277197';
+import { portraitURL } from './faces.js?v=1792277197';
+import { logoURL, clearLogoCache } from './logos.js?v=1792277197';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -956,7 +956,7 @@ function openChat() {
   setTimeout(() => $('#chat-in').focus(), 0);
 }
 const QUICK = ['GG', "Let's go!", 'Nice play', 'Too easy', 'Unlucky', 'Run it back?', 'My bad', 'Respect'];
-$('#quick-chat').innerHTML = QUICK.map(q => `<button type="button" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('');
+$('#quick-chat').innerHTML = QUICK.map(q => { const h = q.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); return `<button type="button" data-q="${h}">${h}</button>`; }).join('');   // runs while the page loads, so no helpers that aren't defined yet
 $$('#quick-chat [data-q]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); if (!st.peer) return closeChat(); if (Date.now() - chatLast < 1200) { chatLine('sys', '', 'Slow down a little.'); return; } chatLast = Date.now(); st.peer.send({ t: 'chat', m: b.dataset.q }, true); chatLine('me', st.names[st.local] || 'You', b.dataset.q); closeChat(); }));
 function closeChat() { $('#chat').classList.remove('open'); $('#chat-form').classList.add('hidden'); $('#chat-in').value = ''; $('#chat-in').blur(); canvas.focus(); }
 function chatLine(cls, who, text) {

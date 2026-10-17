@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792266143';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792266143';
-import { drawLogo } from './logos.js?v=1792266143';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792266143';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792266422';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792266422';
+import { drawLogo } from './logos.js?v=1792266422';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792266422';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1165,6 +1165,13 @@ export class Renderer {
       } else if (kind === 5) { // take a bow
         const b = Math.min(1, (c % 2.4) / 0.6) * (1 - Math.max(0, ((c % 2.4) - 1.6) / 0.8));
         lean = 1.05 * b; as[0] = -0.6; az[0] = 0.45; ae[0] = 2.1; as[1] = 0.35 + b * 0.4; az[1] = -1.2; ae[1] = 0.2; lh[0] = -0.2 * b; lk[0] = lk[1] = 0.15; headX = -0.3 * b;
+      } else if (kind === 7) { // dab
+        const b = Math.min(1, (c % 1.8) / 0.25);
+        as[0] = -2.3 * b; az[0] = 0.9 * b; ae[0] = 0.1; as[1] = -1.6 * b; az[1] = 0.6 * b; ae[1] = 2.3 * b; headX = 0.55 * b; twist = 0.35 * b; lean = 0.15 * b; lk[0] = lk[1] = 0.25;
+      } else if (kind === 8) { // shuffle: quick feet and swinging arms
+        const s1 = Math.sin(c * 11), s2 = Math.sin(c * 5.5);
+        lk[0] = 0.3 + Math.max(0, s1) * 0.7; lk[1] = 0.3 + Math.max(0, -s1) * 0.7; lh[0] = -Math.max(0, s1) * 0.4; lh[1] = -Math.max(0, -s1) * 0.4;
+        as[0] = -0.9 + s2 * 0.9; as[1] = -0.9 - s2 * 0.9; ae[0] = ae[1] = 1.6; twist = s2 * 0.3; roll = s1 * 0.06; jump = Math.abs(s1) * 0.06; lean = 0.1;
       } else { // moonwalk-style heel slide
         const s1 = Math.sin(c * 6); lk[0] = 0.25 + Math.max(0, s1) * 0.9; lk[1] = 0.25 + Math.max(0, -s1) * 0.9; lh[0] = 0.15 - Math.max(0, s1) * 0.2; lh[1] = 0.15 - Math.max(0, -s1) * 0.2;
         lean = -0.12; as[0] = -0.3 + s1 * 0.3; as[1] = -0.3 - s1 * 0.3; ae[0] = ae[1] = 1.3; roll = s1 * 0.05; twist = s1 * 0.12;

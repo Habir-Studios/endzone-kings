@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266143';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266422';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792266143';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792266422';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -102,7 +102,7 @@ export function createGame(opts = {}) {
     practice: ['off', 'def', 'st'].includes(opts.practice) ? opts.practice : null,
     pspot: clamp(+opts.pspot || 25, 20, 97),
     drill: !!opts.drill,
-    cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 6 ? v : -1; }),
+    cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 8 ? v : -1; }),
   };
   const rng = mulberry(o.seed);
   const first = rng() < 0.5 ? 0 : 1;
@@ -326,6 +326,8 @@ function pickW(r, w) {
 function handleEvent(g, team, ev) {
   const P = g.play;
   if (ev.t === 'custom') { const c = cleanCustom(ev.def); if (c) g.custom[team][c.id] = c; return; }
+  // pick a touchdown celebration while you're celebrating
+  if (ev.t === 'cel') { const v = +ev.id; if (Number.isFinite(v) && v >= -1 && v <= 8) { g.opts.cel[team] = v; if (g.phase === 'dead' && g.celebrate === team) { for (const p of g.players) if (p.team === team) p.celReset = 1; g.events.push('cel' + (v < 0 ? 0 : v)); } } return; }
   if (g.phase === 'half') { if (ev.t === 'snap' || ev.t === 'ready') g.halfReady[team] = true; return; }
   if (g.phase === 'kickset') { if (team === g.poss && (ev.t === 'kick' || ev.t === 'snap')) advanceKick(g); return; }
   if (ev.t === 'timeout' && g.to[team] > 0 && !g.opts.practice && g.timeoutCd <= 0) {
@@ -2012,7 +2014,7 @@ function touchdown(g, c) {
   if (P.flag && !P.isPat && t === P.off && PEN[P.flag.type].off && !P.turnover) { if (enforceFlag(g, 100, false, false)) { g.msg.sub += ' · touchdown wiped out'; return; } }
   if (P.flag && !P.isPat) { const F = P.flag; P.flag = null; if (!PEN[F.type].off && t === P.off) g.flagNote = `${PEN[F.type].name} on ${TEAMS[g.opts.teams[F.on]].abbr}, declined`; }
   g.phase = 'dead'; g.phaseT = 0; g.deadDur = 3.4; g.runoff = 0;
-  g.celebrate = t; c.scorer = 1;
+  g.celebrate = t; c.scorer = 1; g.events.push('cel' + (g.opts.cel[t] >= 0 ? g.opts.cel[t] : 0));
   if (P.isPat) {
     score(g, t, 2);
     g.msg = { text: '2-POINT GOOD!', sub: `${c.rt.name} · ${TEAMS[g.opts.teams[t]].name}`, until: 2.6, big: true, team: t };

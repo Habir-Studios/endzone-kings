@@ -185,6 +185,15 @@ export class Sfx {
       case 'kick': this.kick(); this.cheer(0.2, 2.5); break;
       case 'final': this.cheer(0.5, 3.5); this.airHorn(); break;
       case 'ui': this.tone(900, 0.05, 'triangle', 0.06); break;
+      case 'cel0': this.cheer(0.5, 2.2); [0, 260, 520].forEach(t => setTimeout(() => this.tone(196, 0.12, 'square', 0.06), t)); break;   // jump: crowd + stomps
+      case 'cel1': [523, 659, 523, 784, 659, 523].forEach((f, i) => setTimeout(() => { this.tone(f, 0.12, 'square', 0.045); this.tone(f / 4, 0.12, 'sine', 0.08); }, i * 150)); break;   // dance beat
+      case 'cel2': this.tone(110, 0.6, 'sawtooth', 0.07, 40); this.cheer(0.45, 2); break;   // flex: deep OOH
+      case 'cel3': [784, 988, 1175].forEach((f, i) => setTimeout(() => this.tone(f, 0.5, 'sine', 0.06), i * 120)); break;   // point up: chime
+      case 'cel4': this.whoosh(0.5); setTimeout(() => this.whoosh(0.4), 350); this.cheer(0.3, 1.6); break;   // spin
+      case 'cel5': this.cheer(0.4, 3); [392, 523].forEach((f, i) => setTimeout(() => this.tone(f, 0.4, 'triangle', 0.06), 200 + i * 300)); break;   // bow: applause
+      case 'cel6': [98, 98, 131, 98, 147, 131].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, 'sawtooth', 0.06), i * 180)); break;   // moonwalk bassline
+      case 'cel7': this.whoosh(0.3); setTimeout(() => this.airHorn(), 180); break;   // dab
+      case 'cel8': [0, 1, 2, 3, 4, 5, 6, 7].forEach(i => setTimeout(() => { this.tone(i % 2 ? 1400 : 160, 0.06, i % 2 ? 'square' : 'sine', i % 2 ? 0.03 : 0.1); }, i * 110)); this.cheer(0.35, 2); break;   // shuffle beat
     }
   }
   fanfare() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => { this.tone(f, 0.3, 'square', 0.05); this.tone(f / 2, 0.3, 'triangle', 0.06); }, 250 + i * 130)); }

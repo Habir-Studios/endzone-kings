@@ -16,9 +16,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792266143">
+  <link rel="stylesheet" href="css/style.css?v=1792266422">
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#f6c445"/><stop offset="1" stop-color="#d98a00"/></linearGradient></defs></svg>
   <canvas id="gl"></canvas>
 
   <!-- ===================== SPLASH ===================== -->
@@ -49,8 +50,9 @@
   <!-- shared game logo -->
   <template id="tpl-logo">
     <div class="game-logo">
-      <svg class="crown" viewBox="-150 -110 300 190" aria-hidden="true"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#f6c445"/><stop offset="1" stop-color="#d98a00"/></linearGradient></defs>
-        <path d="M-118 46-138-62-62-8 0-92 62-8 138-62 118 46Z" fill="url(#cg)" stroke="#6b3f00" stroke-width="8" stroke-linejoin="round"/><rect x="-122" y="40" width="244" height="30" rx="10" fill="url(#cg)" stroke="#6b3f00" stroke-width="8"/>
+      <svg class="crown" viewBox="-150 -110 300 190" aria-hidden="true">
+        <path d="M-118 46-138-62-62-8 0-92 62-8 138-62 118 46Z" fill="#f6c445" stroke="#6b3f00" stroke-width="8" stroke-linejoin="round"/><path d="M-112 40-128-44-62 4 0-74 62 4 128-44 112 40Z" fill="url(#ek-crown-g)"/><path d="M-100-20-62 10 0-60" fill="none" stroke="#fff6cc" stroke-width="6" stroke-linecap="round" opacity=".7"/>
+        <rect x="-122" y="40" width="244" height="30" rx="10" fill="#e9a812" stroke="#6b3f00" stroke-width="8"/><rect x="-110" y="46" width="220" height="8" rx="4" fill="#ffe28a" opacity=".8"/>
         <circle cx="0" cy="-92" r="14" fill="#ff4a5c" stroke="#6b3f00" stroke-width="6"/><circle cx="-138" cy="-62" r="12" fill="#4cc3ff" stroke="#6b3f00" stroke-width="6"/><circle cx="138" cy="-62" r="12" fill="#4cc3ff" stroke="#6b3f00" stroke-width="6"/><circle cx="0" cy="12" r="13" fill="#ff4a5c" stroke="#6b3f00" stroke-width="5"/></svg>
       <h1 aria-label="Endzone Kings"><span class="t1">Endzone</span><span class="t2">Kings</span></h1>
       <p class="by">A Habir Studios game</p>
@@ -537,6 +539,7 @@
           <label>Pattern<div class="seg" id="seg-lk-pat"></div></label>
           <label>Chest patch<div class="seg" id="seg-lk-patch"></div></label>
           <label>Visor<div class="seg" id="seg-lk-visor"></div></label>
+          <div class="lk-cels"><b>Touchdown celebrations</b><p class="note">Buy them with coins. In a game, hold <kbd>E</kbd> (or <kbd>Y</kbd>/<kbd>△</kbd>) after you score to pick one.</p><div id="lk-cel-list" class="lk-cel-list"></div></div>
           <p class="note">Your team wears this on your screen. Your opponent still sees your team's normal uniform online.</p>
           <div class="lk-acts"><button class="btn" id="lk-reset" type="button">Reset to team colors</button><button class="btn primary" data-go="menu" type="button">Done</button></div>
         </div>
@@ -552,11 +555,11 @@
         <label>Menu music<input type="range" id="set-music" min="0" max="1" step="0.05"></label>
         <label>Announcer<div class="seg" id="seg-ann"></div></label>
         <label>Notifications<div class="seg" id="seg-notif"></div></label>
-        <label>CPU adapts to how you play<div class="seg" id="seg-adapt"></div></label>
+
         <label>Camera<div class="seg" id="seg-cam"></div></label>
         <label>Graphics<div class="seg" id="seg-gfx"></div></label>
         <label>Touch controls<div class="seg" id="seg-touch"></div></label>
-        <div class="set-cel"><span>Touchdown celebration</span><div class="seg wrap" id="seg-cel"></div><small class="note" id="cel-note"></small></div>
+
         <div class="actions"><button class="btn primary" data-go="back">Done</button></div>
       </div>
     </div>
@@ -599,6 +602,7 @@
       <form id="chat-form" class="chat-form hidden"><input id="chat-in" maxlength="120" placeholder="Say something (Enter to send, Esc to close)" autocomplete="off" aria-label="Chat message"></form>
     </div>
     <div id="hint" class="hint"></div>
+    <div id="cel-pick" class="cel-pick hidden" role="dialog" aria-label="Pick a celebration"><b>Celebration</b><div id="cel-opts"></div><small>1-9 or click to pick · E to close</small></div>
     <div id="net-badge" class="net-badge hidden"></div>
     <button id="pause-btn" class="pause-btn" title="Pause (Esc)" aria-label="Pause"><span></span><span></span></button>
     <div id="touch" class="touch hidden">
@@ -666,6 +670,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792266143"></script>
+  <script type="module" src="js/main.js?v=1792266422"></script>
 </body>
 </html>

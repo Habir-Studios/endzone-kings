@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792266143';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266143';
-import { Renderer } from './render.js?v=1792266143';
-import { Sfx } from './audio.js?v=1792266143';
-import { Auth } from './auth.js?v=1792266143';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266143';
-import { getRoster, teamOvr } from './teams.js?v=1792266143';
-import * as Season from './season.js?v=1792266143';
-import * as Fr from './franchise.js?v=1792266143';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266143';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266143';
-import * as UTm from './ut.js?v=1792266143';
-import { initCreator, renderCreator } from './creator.js?v=1792266143';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266143';
-import { portraitURL } from './faces.js?v=1792266143';
-import { logoURL, clearLogoCache } from './logos.js?v=1792266143';
+import { askYes } from './ui.js?v=1792266422';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266422';
+import { Renderer } from './render.js?v=1792266422';
+import { Sfx } from './audio.js?v=1792266422';
+import { Auth } from './auth.js?v=1792266422';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266422';
+import { getRoster, teamOvr } from './teams.js?v=1792266422';
+import * as Season from './season.js?v=1792266422';
+import * as Fr from './franchise.js?v=1792266422';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266422';
+import { celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266422';
+import * as UTm from './ut.js?v=1792266422';
+import { initCreator, renderCreator } from './creator.js?v=1792266422';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266422';
+import { portraitURL } from './faces.js?v=1792266422';
+import { logoURL, clearLogoCache } from './logos.js?v=1792266422';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -83,23 +83,52 @@ function renderLocker() {
   seg($('#seg-lk-visor'), [['none', 'Clear'], ['#111111', 'Black'], ['#c9a227', 'Gold'], ['#2b7bff', 'Blue'], ['#ff2e63', 'Red'], ['#b9f3ff', 'Ice']], K.visor, v => { K.visor = v; redraw(); });
   for (const k of ['jersey', 'trim', 'num', 'pants', 'helmet']) { const el = $('#lk-' + k); el.value = K[k]; el.oninput = () => { K[k] = el.value; redraw(); }; }
   $('#lk-reset').onclick = () => { SET.kit = { ...teamKit(), on: K.on }; renderLocker(); };
+  renderCelShop();
   redraw();
 }
 // ---------------- adaptive CPU ----------------
 // The CPU learns how good you are: blowout wins push it harder, losses ease it off. Your level and rank add a little
 // on top. It stacks with the difficulty you pick, and can go past Legend.
 function adaptiveCpu(opts) {
-  if (SET.adapt === 'off' || opts.practice || opts.drill) return 0;
+  if (opts.practice || opts.drill) return 0;
   const P = profile(); if (!P) return 0;
   const skill = P.p.skill || 0, lvl = Math.min(0.25, ((P.p.lvl || 1) - 1) * 0.008), rank = Math.min(0.2, (P.p.rp || 0) / 5000);
   return Math.max(-0.8, Math.min(1.4, skill + lvl + rank));
 }
 function learnSkill(res, mine, theirs) {
-  const P = profile(); if (!P || SET.adapt === 'off') return;
+  const P = profile(); if (!P) return;
   const m = (mine || 0) - (theirs || 0);
   const d = res === 'W' ? 0.06 + Math.min(28, m) / 28 * 0.1 : res === 'L' ? -0.08 - Math.min(28, -m) / 28 * 0.06 : 0;
   P.p.skill = Math.max(-0.8, Math.min(1.2, (P.p.skill || 0) + d)); P.save();
 }
+function renderCelShop() {
+  const box = $('#lk-cel-list'); if (!box) return;
+  const P = !isGuest() ? profile() : null, own = celOwned(P);
+  box.innerHTML = CELS.filter(c => c[0] >= 0).map(([id, n, price]) => {
+    const have = own.has(id), on = SET.cel === id;
+    return `<div class="lk-cel ${on ? 'on' : ''}"><b>${n}</b>${have ? `<button class="btn sm ${on ? 'primary' : ''}" data-celeq="${id}" type="button">${on ? 'Equipped' : 'Equip'}</button>` : `<button class="btn sm" data-celbuy="${id}" type="button" ${!P ? 'disabled title="Make an account to buy celebrations"' : ''}><i class="coin"></i> ${price.toLocaleString()}</button>`}<button class="btn sm ghost" data-celhear="${id}" type="button" aria-label="Hear it">♪</button></div>`;
+  }).join('') + `<div class="lk-cel ${SET.cel === -1 ? 'on' : ''}"><b>Random</b><button class="btn sm ${SET.cel === -1 ? 'primary' : ''}" data-celeq="-1" type="button">${SET.cel === -1 ? 'Equipped' : 'Equip'}</button></div>`;
+  $$('[data-celeq]', box).forEach(b => b.onclick = () => { SET.cel = +b.dataset.celeq; saveSet(); sfx.play('ui'); renderCelShop(); });
+  $$('[data-celhear]', box).forEach(b => b.onclick = () => { sfx.init(); sfx.play('cel' + b.dataset.celhear); });
+  $$('[data-celbuy]', box).forEach(b => b.onclick = async () => {
+    const id = +b.dataset.celbuy, c = CELS.find(x => x[0] === id);
+    if (!(await askYes(`Buy the ${c[1]} celebration for ${c[2].toLocaleString()} coins?`, 'Buy'))) return;
+    const err = buyCel(profile(), id); if (err) return toast(err);
+    SET.cel = id; saveSet(); sfx.play('cel' + id); toast(`${c[1]} unlocked and equipped`); refreshChip && refreshChip(); renderCelShop();
+  });
+}
+// in-game celebration picker: hold E (Y / triangle on a controller)
+let celSel = -1;
+function celPickOpen() { return !$('#cel-pick').classList.contains('hidden'); }
+function openCelPick() {
+  const P = !isGuest() ? profile() : null, own = celOwned(P);
+  const list = CELS.filter(c => own.has(c[0]));
+  $('#cel-opts').innerHTML = list.map(([id, n], i) => `<button type="button" class="${SET.cel === id ? 'on' : ''}" data-cp="${id}"><kbd>${i + 1}</kbd>${n}</button>`).join('');
+  $$('#cel-opts [data-cp]').forEach(b => b.onclick = () => pickCel(+b.dataset.cp));
+  celSel = -1; $('#cel-pick').classList.remove('hidden'); sfx.play('ui');
+}
+function closeCelPick() { $('#cel-pick').classList.add('hidden'); }
+function pickCel(id) { SET.cel = id; saveSet(); pushEv({ t: 'cel', id }); closeCelPick(); toast(`Celebration: ${(CELS.find(c => c[0] === id) || [0, 'Random'])[1]}`, 1200); }
 function show(id) {
   if (st.screen !== id && !['howto', 'settings'].includes(st.screen)) st.prev = st.screen;
   $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
@@ -400,16 +429,13 @@ $('#go-drill').addEventListener('click', () => startCPU({ teams: [SET.team, rand
 
 function renderSettings() {
   $('#set-vol').value = SET.vol; $('#set-music').value = SET.music;
-  seg($('#seg-adapt'), [['on', 'On'], ['off', 'Off']], SET.adapt === 'off' ? 'off' : 'on', v => { SET.adapt = v; saveSet(); toast(v === 'off' ? 'The CPU stays at the difficulty you pick' : 'The CPU adapts to how you play'); });
+
   seg($('#seg-notif'), [['on', 'On'], ['off', 'Mute']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications muted: no pop-ups or badges, they still show in the bell' : 'Notifications on'); });
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
   seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
   seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); });
-  const P = !isGuest() ? profile() : null, lvl = P ? P.p.lvl : 0, ok = celUnlocked(lvl);
-  if (!ok.includes(SET.cel)) SET.cel = -1;
-  seg($('#seg-cel'), CELS.map(c => [c[0], c[1]]), SET.cel, v => { SET.cel = v; saveSet(); });
-  $$('#seg-cel button').forEach((b, i) => { const need = CELS[i][2]; if (need > lvl) { b.disabled = true; b.title = `Unlocks at level ${need}`; b.textContent += ` (Lv ${need})`; } });
+
   $('#cel-note').textContent = P ? 'Your scorer does this after a touchdown. Level up to unlock more.' : 'Make a free account to unlock the bow and the moonwalk.';
 }
 $('#set-vol').addEventListener('input', (e) => { SET.vol = +e.target.value; sfx.setVolume(SET.vol); saveSet(); });
@@ -525,10 +551,19 @@ window.addEventListener('keydown', (e) => {
   if (k === 'Equal' || k === 'NumpadAdd') { zoomCam(-1); return; }
   if (k === 'KeyC') { SET.cam = SET.cam === 'behind' ? 'player' : SET.cam === 'player' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); toast('Camera: ' + ({ behind: 'Follow the ball', player: 'Follow your player', broadcast: 'Sideline' })[SET.cam] + '. Scroll or press - and + to zoom'); return; }
   if (st.paused) return;
+  if (celPickOpen()) {
+    const btns = $$('#cel-opts [data-cp]'), d = k.startsWith('Digit') ? +k.slice(5) : 0;
+    if (d >= 1 && d <= btns.length) { pickCel(+btns[d - 1].dataset.cp); return; }
+    if (k === 'ArrowDown' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowLeft') { celSel = (celSel + (k === 'ArrowDown' || k === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length; btns.forEach((b, i) => b.classList.toggle('sel', i === celSel)); return; }
+    if (k === 'Enter' || k === 'Space') { if (celSel >= 0) pickCel(+btns[celSel].dataset.cp); return; }
+    if (k === 'KeyE' || k === 'Escape') { closeCelPick(); return; }
+    return;
+  }
+  if (k === 'KeyE' && st.snap && (st.snap.ph === 'dead' || st.snap.ph === 'presnap') && st.mode !== 'spec' && st.mode !== 'clip') { openCelPick(); return; }
   const ev = keyToEvent(k);
   if (ev) pushEv(ev);
 });
-window.addEventListener('keyup', (e) => { keys.delete(e.code); if (st.charge && st.charge.code === e.code) releaseCharge(); if (st.playing && (e.code === 'Space' || e.code === 'Enter') && !e.target.closest('.modal')) e.preventDefault(); });
+window.addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'KeyE' && celPickOpen() && celSel >= 0) { const b = $$('#cel-opts [data-cp]')[celSel]; if (b) pickCel(+b.dataset.cp); } if (st.charge && st.charge.code === e.code) releaseCharge(); if (st.playing && (e.code === 'Space' || e.code === 'Enter') && !e.target.closest('.modal')) e.preventDefault(); });
 window.addEventListener('blur', () => keys.clear());
 
 // ---- throw power: hold a receiver's button to wind up, release to throw. Green = right amount for that distance ----
@@ -1316,7 +1351,8 @@ function updateHud(S) {
   }
 
   // contextual hints
-  if (S.ph === 'live') {
+  if (S.ph === 'dead' && S.msg && S.msg.big && S.msg.team === me) hint([['hold E', 'pick a celebration']]);
+  else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
     if (S.canThrow && S.off === me) hint([['hold 1-5', 'throw: tap = touch, hold = bullet, green = on target'], ['W A S D', 'move'], ['Shift', 'sprint']]);

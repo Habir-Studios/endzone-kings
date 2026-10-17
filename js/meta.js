@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792266143';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792266143';
-import * as UT from './ut.js?v=1792266143';
-import { portraitURL } from './faces.js?v=1792266143';
-import { TEAMS } from './teams.js?v=1792266143';
+import { askYes } from './ui.js?v=1792266422';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792266422';
+import * as UT from './ut.js?v=1792266422';
+import { portraitURL } from './faces.js?v=1792266422';
+import { TEAMS } from './teams.js?v=1792266422';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -405,8 +405,16 @@ export function renderProgress() {
 }
 
 // ---------------- celebrations, achievements, drill ----------------
-export const CELS = [[-1, 'Random', 0], [0, 'Jump', 0], [1, 'Dance', 0], [2, 'Flex', 0], [3, 'Point up', 0], [4, 'Spin', 0], [5, 'Take a bow', 5], [6, 'Moonwalk', 15]];
-export const celUnlocked = lvl => CELS.filter(c => (lvl || 1) >= c[2]).map(c => c[0]);
+// celebrations: [id, name, coin price (0 = free)]
+export const CELS = [[-1, 'Random', 0], [0, 'Jump', 0], [1, 'Dance', 0], [2, 'Flex', 0], [3, 'Point up', 1800], [4, 'Spin', 2500], [5, 'Take a bow', 4000], [7, 'Dab', 5000], [6, 'Moonwalk', 7000], [8, 'Shuffle', 9000]];
+export const celOwned = P => { const own = new Set([-1, 0, 1, 2, ...((P && P.p.cels) || [])]); if (P && P.p.lvl >= 5) own.add(5); if (P && P.p.lvl >= 15) own.add(6); return own; };   // old level unlocks still count
+export const celUnlocked = (lvlOrP) => [...celOwned(typeof lvlOrP === 'object' ? lvlOrP : null)];
+export function buyCel(P, id) {
+  const c = CELS.find(x => x[0] === id); if (!c || !P) return 'No such celebration';
+  if (celOwned(P).has(id)) return 'You already own it';
+  if (P.p.coins < c[2]) return `You need ${(c[2] - P.p.coins).toLocaleString()} more coins`;
+  P.p.coins -= c[2]; P.p.cels = [...(P.p.cels || []), id]; P.save(); return null;
+}
 export function unlockAch(ev) { const P = profile(); if (!P || (C.Auth.user && C.Auth.user.kind === 'guest')) return; const got = P.unlock(ev); for (const a of got) C.toast(`Achievement unlocked: ${a.n}! +${fmt(a.c)} coins`, 3500); }
 export function packAchToast() { const P = profile(); if (P && P.lastAch) { for (const a of P.lastAch) C.toast(`Achievement unlocked: ${a.n}! +${fmt(a.c)} coins`, 3500); P.lastAch = null; } }
 export function renderDrillBoard(el) {

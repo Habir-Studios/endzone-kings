@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792262858';
+import { TEAMS } from './teams.js?v=1792262999';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -248,6 +248,7 @@ export function askText(title, def = '', ok = 'Post') {
 export async function saveClip(rec) {
   if (!db() || !me()) { C.toast('Sign in with a real account to post clips'); return; }
   const frames = lastPlayFrames(rec); if (!frames) { C.toast('Nothing to clip yet. Run a play first.'); return; }
+  C.toast('Clipped last play! Name it to post it.', 2200); C.sfx.play('ui');
   const def = (() => { const s = frames[frames.length - 1].s; return (s.msg && s.msg.text) ? s.msg.text.slice(0, 40) : 'Big play'; })();
   const title = await askText('Name your clip', def, 'Post clip'); if (title === null) return;
   const t = C.cleanText(title).trim().slice(0, 60) || def;
@@ -258,7 +259,7 @@ export async function saveClip(rec) {
     const secs = frames.reduce((a, f) => a + f.dt, 0);
     const { error } = await db().from('ek_clips').insert({ owner: me().id, title: t, teams: frames[0].s.teams, secs: +secs.toFixed(1), data });
     if (error) C.toast(error.message.includes('limit') ? 'You have 30 clips. Delete one from your profile first.' : 'Clip upload failed: ' + error.message);
-    else { C.toast('Clip posted to your profile'); C.sfx.play('firstdown'); }
+    else { C.toast('Clipped last play: posted to your profile ✓', 3000); C.sfx.play('firstdown'); }
   } catch (e) { console.warn(e); C.toast('Clip upload failed: ' + (e && e.message || e)); }
 }
 

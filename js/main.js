@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792262858';
-import { Renderer } from './render.js?v=1792262858';
-import { Sfx } from './audio.js?v=1792262858';
-import { Auth } from './auth.js?v=1792262858';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792262858';
-import { getRoster, teamOvr } from './teams.js?v=1792262858';
-import * as Season from './season.js?v=1792262858';
-import * as Fr from './franchise.js?v=1792262858';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792262858';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792262858';
-import * as UTm from './ut.js?v=1792262858';
-import { initCreator, renderCreator } from './creator.js?v=1792262858';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792262858';
-import { portraitURL } from './faces.js?v=1792262858';
-import { logoURL, clearLogoCache } from './logos.js?v=1792262858';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792262999';
+import { Renderer } from './render.js?v=1792262999';
+import { Sfx } from './audio.js?v=1792262999';
+import { Auth } from './auth.js?v=1792262999';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792262999';
+import { getRoster, teamOvr } from './teams.js?v=1792262999';
+import * as Season from './season.js?v=1792262999';
+import * as Fr from './franchise.js?v=1792262999';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792262999';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792262999';
+import * as UTm from './ut.js?v=1792262999';
+import { initCreator, renderCreator } from './creator.js?v=1792262999';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792262999';
+import { portraitURL } from './faces.js?v=1792262999';
+import { logoURL, clearLogoCache } from './logos.js?v=1792262999';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -615,6 +615,7 @@ function keyToEvent(k) {
     return { t: 'timeout' };
   }
   if (S.ph === 'presnap') {
+    if (k === 'Backspace') { if (pcCollapsed(S)) reopenPlaybook(); return null; }
     if (k === 'KeyZ') { switchTab(-1); return null; }
     if (k === 'KeyX') { switchTab(1); return null; }
     if (digit >= 1 && digit <= PER_TAB) return pickCard(digit);
@@ -654,6 +655,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.tabIndex = 0;
 
+$('#playcall').addEventListener('click', (e) => { if ($('#playcall').classList.contains('collapsed') && !e.target.closest('#pc-timeout')) reopenPlaybook(); });
 $('#pc-timeout').addEventListener('click', () => { if (st.snap && (st.snap.to || [0, 0])[st.local] > 0) pushEv({ t: 'timeout' }); });
 $('#km-btn').addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.init(); pushEv({ t: 'kick' }); });
 
@@ -733,6 +735,7 @@ function padContext() {
 }
 let padCard = -1;
 function cardNav(i) {
+  if (pcCollapsed(st.snap)) return reopenPlaybook();
   const cards = $$('#pc-cards .pc-card'); if (!cards.length) return;
   if (i === 12 || i === 13) { switchTab(i === 12 ? -1 : 1); padCard = 0; }
   else padCard = Math.max(0, Math.min(cards.length - 1, (padCard < 0 ? 0 : padCard) + (i === 15 ? 1 : -1)));
@@ -740,6 +743,7 @@ function cardNav(i) {
   if (list[padCard]) list[padCard].scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 function cardPickFocused() {
+  if (pcCollapsed(st.snap)) return false;
   const list = $$('#pc-cards .pc-card'), c = list[padCard];
   if (!c || c.classList.contains('on')) return false;
   c.click(); return true;
@@ -1063,19 +1067,28 @@ function buildPlaycall(S) {
     const b = document.createElement('button');
     b.className = 'pc-card' + (c.special ? ' special' : '') + (c.sig ? ' sig' : ''); b.dataset.id = c.id;
     b.innerHTML = `${c.svg}<span class="k">${i + 1}</span>${c.sig ? '<span class="sigtag">SIGNATURE</span>' : ''}<b>${escapeHtml(c.name)}</b><small>${escapeHtml(c.tip)}</small>`;
-    b.onclick = () => { sfx.play('ui'); pushEv({ t: 'play', id: c.id, ...(c.def ? { def: c.def } : {}) }); };
+    b.onclick = () => { sfx.play('ui'); st.pcOpen = null; pushEv({ t: 'play', id: c.id, ...(c.def ? { def: c.def } : {}) }); };
     box.appendChild(b);
   });
   box.scrollLeft = 0;
   hudCache.pcSel = null;
 }
+// once you call a play the playbook folds away (Madden style); Backspace, Z/X or a click brings it back
+function pcCollapsed(S) {
+  if (!S || S.ph !== 'presnap') return false;
+  const onOff = S.poss === st.local, picked = onOff ? !!S.op : !!S.dc;
+  return picked && st.pcOpen !== S.id;
+}
+function reopenPlaybook() { const S = st.snap; if (S) { st.pcOpen = S.id; hudCache.pcKey = null; sfx.play('ui'); } }
 function pickCard(n) {
+  if (pcCollapsed(st.snap)) { reopenPlaybook(); return null; }
   const t = st.pbTabs && st.pbTabs[st.pbTab]; if (!t) return null;
   const c = t.cards[n - 1]; if (!c) return null;
-  sfx.play('ui');
+  sfx.play('ui'); st.pcOpen = null;
   return { t: 'play', id: c.id, ...(c.def ? { def: c.def } : {}) };
 }
 function switchTab(d) {
+  if (pcCollapsed(st.snap)) return reopenPlaybook();
   if (!st.pbTabs || !st.pbTabs.length) return;
   st.pbTab = (st.pbTab + d + st.pbTabs.length) % st.pbTabs.length; hudCache.pcKey = null; sfx.play('ui');
 }
@@ -1224,6 +1237,7 @@ function updateHud(S) {
   const pc = $('#playcall');
   const showPc = S.ph === 'presnap';
   pc.classList.toggle('hidden', !showPc);
+  const col = showPc && pcCollapsed(S); pc.classList.toggle('collapsed', col);
   $('#hud').classList.toggle('pc-open', showPc);
   if (showPc) {
     buildPlaycall(S);
@@ -1231,11 +1245,13 @@ function updateHud(S) {
     const sel = onOff ? S.op : S.dp;
     if (hudCache.pcSel !== sel) { hudCache.pcSel = sel; $$('.pc-card', pc).forEach(c => c.classList.toggle('on', c.dataset.id === sel)); }
     const isCPU = !S.humans[1 - me];
-    setTxt('#pc-title', onOff ? (S.pat >= 0 ? 'Kick the extra point or go for 2' : S.dn === 4 ? 'Fourth down, your call' : 'Offense') : 'Defense');
+    const pickedName = col ? (() => { const id = onOff ? S.op : S.dp; for (const t of st.pbTabs || []) { const c = t.cards.find(x => x.id === id); if (c) return c.name; } return ''; })() : '';
+    setTxt('#pc-title', col ? `${onOff ? 'Offense' : 'Defense'}: ${pickedName}` : onOff ? (S.pat >= 0 ? 'Kick the extra point or go for 2' : S.dn === 4 ? 'Fourth down, your call' : 'Offense') : 'Defense');
     const waitD = onOff && S.humans[1 - me] && !S.dc;
     const hintHtml = onOff ? (S.op ? (waitD ? '<span>Waiting for the defense to call a play…</span>' : '') + `<span><kbd>Space</kbd> snap</span>${hotOk(S) ? '<span><kbd>H</kbd> hot route</span>' : ''}<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>` : `<span><kbd>1</kbd>–<kbd>${Math.min(PER_TAB, ((st.pbTabs || [])[st.pbTab] || { cards: [] }).cards.length) || 1}</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>`)
       : (isCPU ? '<span>CPU snaps soon</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch</span>' : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch player</span>');
-    if (hudCache.pch !== hintHtml) { hudCache.pch = hintHtml; $('#pc-hint').innerHTML = hintHtml; }
+    const hintFull = col ? hintHtml.replace(/<span><kbd>Z<\/kbd><kbd>X<\/kbd> tabs<\/span>/, '') + '<span><kbd>Backspace</kbd> change play</span>' : hintHtml;
+    if (hudCache.pch !== hintFull) { hudCache.pch = hintFull; $('#pc-hint').innerHTML = hintFull; }
     const clk = $('#pc-clock'), pcv = S.pc;
     if (hudCache.pcv !== pcv) { hudCache.pcv = pcv; $('b', clk).textContent = pcv; clk.classList.toggle('low', pcv <= 5); if (pcv <= 5 && pcv > 0 && S.poss === me) sfx.play('ui'); }
     const tos = (S.to || [3, 3])[me], toKey = tos + '|' + S.mode;

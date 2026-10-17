@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792270211';
+import { CONFIG } from './config.js?v=1792270359';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -129,12 +129,15 @@ export const Auth = {
     if (!this._row) { try { const { data } = await this.client.auth.getUser(); if (data && data.user) this._sbUser = data.user; } catch (_) {} }
     return this.cloudProfile();
   },
+  // send any waiting save right away (tab hidden or closing)
+  flushNow() { if (this._pendP && this._cloudT) { clearTimeout(this._cloudT); this._cloudT = null; this.flushCloud(); } },
   cloudExtra(k) { return this._row && this._row[k] !== undefined ? this._row[k] : undefined; },
   saveCloud(p, extra) {
     if (this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return;
     this._pendP = p || this._pendP || (this._row && this._row.p) || null; if (extra) this._pendX = { ...(this._pendX || {}), ...extra };
     clearTimeout(this._cloudT);
-    this._cloudT = setTimeout(() => this.flushCloud(), 2500);
+    this._cloudT = setTimeout(() => { this._cloudT = null; this.flushCloud(); }, 2500);
+    if (!this._hideHook) { this._hideHook = true; const f = () => this.flushNow(); addEventListener('pagehide', f); document.addEventListener('visibilitychange', () => { if (document.hidden) f(); }); }
   },
   async flushCloud() {
     const p = this._pendP; if (!p || this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return;

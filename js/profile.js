@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792270211';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792270359';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -121,7 +121,14 @@ export class Profile {
   save() { this.p.tpv = 1; this.p.at = Date.now(); this.p.sig = seal(this.p, this.key); this.p.rev++; try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.listeners.forEach(f => f(this.p)); }
   // merge a copy loaded from the cloud (keeps whichever has seen more saves)
   // take the cloud copy when it's further along (more level/XP), or as far along but saved more recently
-  adopt(remote) { const pg = q => (q.lvl || 1) * 1e7 + (q.xp || 0) * 10 + Math.min(9, q.games || 0); if (remote && (pg(remote) > pg(this.p) || (pg(remote) === pg(this.p) && (remote.at || 0) > (this.p.at || 0) && remote.rev !== this.p.rev))) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.verify(); this.refreshChallenges(); if (this.listeners) this.upgradeClub(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} return true; } return false; }
+  // Never takes a cloud copy that fails its seal (that's what used to reset coins to 1500).
+  // A local save that got wrongly flagged gives way to a clean cloud copy that's about as far along.
+  adopt(remote) {
+    if (!remote || !remote.sig || remote.sig !== seal(remote, this.key)) return false;
+    const pg = q => (q.lvl || 1) * 1e7 + (q.xp || 0) * 10 + Math.min(9, q.games || 0), a = pg(remote), b = pg(this.p);
+    if (remote.tampered && !this.p.tampered && a <= b + 2e7) return false;   // a flagged copy from another device never beats a clean one
+    const take = a > b || (a === b && (remote.at || 0) > (this.p.at || 0) && remote.rev !== this.p.rev) || (this.p.tampered && !remote.tampered && a >= b - 2e7);
+    if (take) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.verify(); this.refreshChallenges(); if (this.listeners) this.upgradeClub(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.tampered = !!this.p.tampered; return true; } return false; }
 
   get rank() { return rankInfo(this.p.rp); }
   refreshChallenges() {

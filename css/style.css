@@ -1022,3 +1022,11 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 #throw-meter .tm-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; opacity: .9; }
 #throw-meter span { position: absolute; left: 0; right: 0; top: -22px; text-align: center; font: 800 13px/1 system-ui, sans-serif; color: #fff; text-shadow: 0 1px 3px #000; text-transform: uppercase; }
 #throw-meter { overflow: visible; }
+
+/* which real team the card's player comes from */
+.uc-team { position: absolute; right: 7px; top: 7px; display: flex; flex-direction: column; align-items: center; gap: 1px; z-index: 2; }
+.uc-team img { width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,.35); box-shadow: 0 0 0 2px var(--tc); }
+.uc-team i { font-style: normal; font: 900 10px/1 var(--display, system-ui); letter-spacing: .02em; color: #fff; background: var(--tc); padding: 2px 4px; border-radius: 4px; text-shadow: 0 1px 1px rgba(0,0,0,.6); }
+.ucard.mini .uc-team { right: 4px; top: 4px; }
+.ucard.mini .uc-team img { width: 18px; height: 18px; }
+.ucard.mini .uc-team i { font-size: 8px; padding: 1px 3px; }

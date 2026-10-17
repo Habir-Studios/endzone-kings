@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792255873';
-import * as UT from './ut.js?v=1792255873';
-import { portraitURL } from './faces.js?v=1792255873';
-import { TEAMS } from './teams.js?v=1792255873';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792255900';
+import * as UT from './ut.js?v=1792255900';
+import { portraitURL } from './faces.js?v=1792255900';
+import { TEAMS } from './teams.js?v=1792255900';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -59,8 +59,9 @@ const SHORT = { spd: 'SPD', hands: 'HND', acc: 'ACC', arm: 'ARM', elu: 'ELU', bl
 export function cardHTML(c, o = {}) {
   const t = TEAMS[c.team];
   const tag = o.tag || 'div';
-  return `<${tag} class="ucard ${c.tierKey}${o.mini ? ' mini' : ''}${o.inLu ? ' in-lu' : ''}" ${c.u ? `data-u="${c.u}"` : ''} ${tag === 'button' ? 'type="button"' : ''} title="${c.first} ${c.last}, ${c.ovr} ${c.pos}">
-    <span class="uc-ovr">${c.ovr}</span><span class="uc-pos">${c.pos}</span>${c.b ? `<span class="uc-boost">+${c.b}</span>` : ''}
+  return `<${tag} class="ucard ${c.tierKey}${o.mini ? ' mini' : ''}${o.inLu ? ' in-lu' : ''}" ${c.u ? `data-u="${c.u}"` : ''} ${tag === 'button' ? 'type="button"' : ''} title="${c.first} ${c.last}, ${c.ovr} ${c.pos}, ${t.city}">
+    <span class="uc-ovr">${c.ovr}</span><span class="uc-pos">${c.pos}</span>
+    <span class="uc-team" style="--tc:${t.jersey}">${C.logoURL ? `<img src="${C.logoURL(c.team, 48)}" alt="">` : ''}<i>${t.abbr}</i></span>${c.b ? `<span class="uc-boost">+${c.b}</span>` : ''}
     <img class="uc-img" alt="" src="${portraitURL(c.face, t.jersey, t.trim, 128)}">
     <span class="uc-name"><small>${C.escapeHtml(c.first)}</small><b>${C.escapeHtml(c.last)}</b></span>
     <span class="uc-stats">${TOP3[c.group].map(k => `<span>${c[k]}<small>${SHORT[k]}</small></span>`).join('')}</span>

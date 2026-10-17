@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792273643';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792273783';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -9,6 +9,21 @@ export function rankInfo(rp) {
   const step = Math.floor(rp / 100), idx = Math.floor(step / 3), sub = 3 - (step % 3);
   return { name: `${DIVS[idx]} ${'I'.repeat(sub)}`, div: DIVS[idx], idx, sub, into: rp % 100, span: 100, floor: idx * 300 };
 }
+// ---------- ranked seasons: one per calendar month. Your best rank pays out when it ends, then RP soft-resets ----------
+export const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+export const RANK_REWARDS = [
+  { div: 'Bronze', coins: 300 }, { div: 'Silver', coins: 700, pack: 'bronze' }, { div: 'Gold', coins: 1400, pack: 'silver' },
+  { div: 'Platinum', coins: 2400, pack: 'gold' }, { div: 'Diamond', coins: 4000, pack: 'elite' }, { div: 'Kings', coins: 7000, pack: 'kings' },
+];
+export function seasonDaysLeft(d = new Date()) { const end = new Date(d.getFullYear(), d.getMonth() + 1, 1); return Math.max(1, Math.ceil((end - d) / 86400000)); }
+// ---------- Weekend League: Friday through Sunday, your first 10 online games count. Pays out after the weekend ----------
+export const WL_MAX = 10;
+export const isWeekend = (d = new Date()) => [5, 6, 0].includes(d.getDay());
+export const WL_REWARDS = [
+  { w: 0, coins: 200 }, { w: 3, coins: 600, pack: 'bronze' }, { w: 5, coins: 1200, pack: 'silver' },
+  { w: 7, coins: 2400, pack: 'gold' }, { w: 9, coins: 4000, pack: 'elite' }, { w: 10, coins: 6500, pack: 'kings' },
+];
+export const wlReward = w => WL_REWARDS.filter(r => w >= r.w).pop();
 export const xpFor = lvl => 650 + lvl * 200;   // levels take a while
 export function levelReward(lvl) {
   const r = { coins: 80 + lvl * 15, pack: null };
@@ -46,7 +61,7 @@ const ALL_CH = Object.fromEntries([...DAILY, ...WEEKLY].map(c => [c.k, c]));
 export const challengeDef = k => ALL_CH[k];
 
 function dayKey(d = new Date()) { return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
-function weekKey(d = new Date()) { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return dayKey(t); }
+export function weekKey(d = new Date()) { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return dayKey(t); }
 function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function pickN(pool, n, seed) { const a = pool.slice(); let s = seed; const out = []; while (out.length < n && a.length) { s = (Math.imul(s, 1103515245) + 12345) >>> 0; out.push(a.splice(s % a.length, 1)[0]); } return out; }
 export function nextReset(kind) { const d = new Date(); if (kind === 'daily') { d.setHours(24, 0, 0, 0); } else { d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + (8 - (d.getDay() || 7))); } return d; }
@@ -139,8 +154,26 @@ export class Profile {
     if (take) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.verify(); this.refreshChallenges(); if (this.listeners) this.upgradeClub(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.tampered = !!this.p.tampered; return true; } return false; }
 
   get rank() { return rankInfo(this.p.rp); }
+  // pay out a finished ranked season / Weekend League (shown as a toast the next time the menu opens)
+  settleSeasons() {
+    const P = this.p, mk = monthKey(), wk = weekKey(); let paid = false;
+    if (!P.rs) P.rs = { k: mk, peak: P.rp || 0 };
+    else if (P.rs.k !== mk) {
+      const rk = rankInfo(P.rs.peak || 0), R = RANK_REWARDS[Math.min(5, rk.idx)];
+      P.coins += R.coins; if (R.pack) this.addPack(R.pack);
+      this.notice = (this.notice || []).concat(`Ranked season over: you peaked at ${rk.name}. +${R.coins.toLocaleString()} coins${R.pack ? ' and a ' + (PACKS.find(k => k.key === R.pack) || {}).name : ''}. RP soft reset for the new season.`);
+      P.rp = Math.floor((P.rp || 0) * 0.5); P.rs = { k: mk, peak: P.rp }; paid = true;
+    }
+    if (P.wl && P.wl.n > 0 && !P.wl.paid && (P.wl.k !== wk || !isWeekend())) {
+      const R = wlReward(P.wl.w); P.coins += R.coins; if (R.pack) this.addPack(R.pack); P.wl.paid = true;
+      this.notice = (this.notice || []).concat(`Weekend League over: ${P.wl.w}W-${P.wl.l}L. +${R.coins.toLocaleString()} coins${R.pack ? ' and a ' + (PACKS.find(k => k.key === R.pack) || {}).name : ''}.`);
+      paid = true;
+    }
+    if (paid) this.save();
+  }
   refreshChallenges() {
     const P = this.p, dk = dayKey(), wk = weekKey();
+    if (this.listeners) this.settleSeasons();
     if (!P.daily || P.daily.d !== dk) P.daily = { d: dk, list: pickN(DAILY, 3, hashStr(dk + this.key)).map(c => ({ k: c.k, p: 0, done: false, claimed: false })) };
     if (!P.weekly || P.weekly.d !== wk) P.weekly = { d: wk, list: pickN(WEEKLY, 3, hashStr(wk + this.key)).map(c => ({ k: c.k, p: 0, done: false, claimed: false })) };
     const U = P.ut; if (!U.mk) U.mk = { slot: 0, bought: [], list: [], sold: 0 };
@@ -259,6 +292,15 @@ export class Profile {
     if (r.mode === 'online') drp = r.res === 'W' ? 40 : r.res === 'L' ? -20 : 5;
     else drp = r.res === 'W' ? 6 + 4 * (r.diff ?? 1) : r.res === 'L' ? -4 : 1;
     P.rp = Math.max(before.floor, P.rp + drp); P.rpBest = Math.max(P.rpBest, P.rp);
+    if (P.rs) P.rs.peak = Math.max(P.rs.peak || 0, P.rp);
+    let wlLine = null;
+    if (r.mode === 'online') {
+      // Weekend League record (first 10 online games Friday-Sunday)
+      const wk = weekKey(); if (!P.wl || P.wl.k !== wk) P.wl = { k: wk, w: 0, l: 0, t: 0, n: 0, paid: false };
+      if (isWeekend() && P.wl.n < WL_MAX && !P.wl.paid) { P.wl.n++; P.wl[r.res === 'W' ? 'w' : r.res === 'L' ? 'l' : 't']++; wlLine = `Weekend League: ${P.wl.w}W-${P.wl.l}L (${WL_MAX - P.wl.n} games left)`; }
+      // head-to-head vs this opponent
+      if (r.oppName) { const k = String(r.oppName).toLowerCase().slice(0, 24); P.h2h = P.h2h || {}; const h = P.h2h[k] = P.h2h[k] || [0, 0, 0]; h[r.res === 'W' ? 0 : r.res === 'L' ? 1 : 2]++; }
+    }
     const after = rankInfo(P.rp);
     const promos = [];
     if (after.div !== before.div && !P.divsReached.includes(after.div)) {
@@ -289,7 +331,7 @@ export class Profile {
     const ach = this.checkAch(r);
     P.log.unshift({ at: Date.now(), res: r.res, sc: r.sc, mode: r.mode, ut: !!r.ut, coins, xp }); P.log.length = Math.min(P.log.length, 20);
     this.save();
-    return { tp: tpS, lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
+    return { wl: wlLine, tp: tpS, lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
   }
 
   // ---------------- Ultimate Team ----------------

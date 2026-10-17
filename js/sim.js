@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792254092';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792254126';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792254092';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792254126';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1731,6 +1731,10 @@ function resolveBall(g) {
     } else if (!g.opts.humans[rd.team] && outcome !== 'catch' && dD < 1.1 && r < (rd.dive > 0 ? 0.2 : 0.08) * FOUL_RATE) { throwFlag(g, 'dpi', rd, L.z); outcome = 'inc'; }
     if (outcome === 'catch' && humanO && ro.playBall > 0 && bump && r < 0.3) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
     else if (outcome === 'catch' && !g.opts.humans[ro.team] && r < 0.02 * FOUL_RATE) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
+  }
+  // feet have to be in bounds: a catch made on or past the sideline (or out the back of the end zone) is incomplete
+  if ((outcome === 'catch' || outcome === 'int') && (() => { const q = outcome === 'catch' ? ro : rd; return q && (Math.abs(q.x) > HALF_W - 0.15 || prog(q.team === offTeam ? offTeam : 1 - offTeam, q.z) > 109.9); })()) {
+    outcome = 'inc'; g.flash = { text: 'OUT OF BOUNDS', until: 1.2 };
   }
   if (outcome === 'catch') {
     b.state = 'held'; b.carrier = ro.id;

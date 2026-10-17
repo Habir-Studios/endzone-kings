@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792263438';
-import * as UT from './ut.js?v=1792263438';
-import { portraitURL } from './faces.js?v=1792263438';
-import { TEAMS } from './teams.js?v=1792263438';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792263777';
+import * as UT from './ut.js?v=1792263777';
+import { portraitURL } from './faces.js?v=1792263777';
+import { TEAMS } from './teams.js?v=1792263777';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -26,6 +26,7 @@ export function profile() {
 
 export function initMeta(ctx) {
   C = ctx;
+  setInterval(uploadClub, 8000);
   setInterval(() => { if (tdb() && tme()) settleTrades().then(n => { if (n && C.screen() === 'ut') renderUT(); }); if (C.screen() === 'ut' && utTab === 'trade') loadTrades(true); }, 15000);
   const { $, $$ } = C;
   $$('.ut-tab').forEach(b => b.addEventListener('click', () => { C.sfx.play('ui'); utTab = b.dataset.ut; renderUT(); }));
@@ -423,7 +424,24 @@ export function drillRewardsHTML(pts, diff, team) {
 const tdb = () => (C.Auth.mode === 'supabase' && C.Auth.client ? C.Auth.client : null);
 const tme = () => (C.Auth.user && C.Auth.user.kind === 'account' ? C.Auth.user : null);
 const tesc = s => C.escapeHtml(String(s ?? ''));
-let tradeDraft = { to: null, toName: '', us: [], packs: {}, coins: 0, tp: 0, ask: { packs: {}, coins: 0, tp: 0 }, note: '' }, tradeRows = [], tradeNames = {};
+const blankDraft = () => ({ to: null, toName: '', us: [], packs: {}, coins: 0, tp: 0, ask: { cards: [], packs: {}, coins: 0, tp: 0 }, note: '' });
+let tradeDraft = blankDraft(), tradeRows = [], tradeNames = {}, theirClub = null;
+// your club is copied to the server so other players can browse it and ask for specific cards
+let clubUp = '';
+async function uploadClub() {
+  const D = tdb(), u = tme(), P = profile(); if (!D || !u || !P || !P.p.ut || !P.p.ut.started) return;
+  const key = u.id + ':' + P.p.rev; if (key === clubUp) return;
+  const U = P.p.ut;
+  const { error } = await D.from('ek_clubs').upsert({ id: u.id, name: u.name.slice(0, 16), cards: U.cards.slice(0, 220).map(c => [c.u, c.id, c.x || 0, c.b || 0, c.ab || 0, c.xf ? 1 : 0]), lineup: Object.values(U.lineup || {}), packs: P.p.packs || {}, ovr: UT.squadOvr(U).ovr, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+  if (!error) clubUp = key;
+}
+const fromRow = r => ({ u: r[0], id: r[1], ...(r[2] ? { x: r[2] } : {}), b: r[3] || 0, ...(r[4] ? { ab: r[4] } : {}), ...(r[5] ? { xf: 1 } : {}) });
+async function loadTheirClub(id) {
+  theirClub = { id, loading: true }; const { data } = await tdb().from('ek_clubs').select('cards,lineup,packs,ovr,updated_at').eq('id', id).maybeSingle();
+  theirClub = data ? { id, cards: (data.cards || []).map(fromRow), lineup: data.lineup || [], packs: data.packs || {}, ovr: data.ovr, at: data.updated_at } : { id, none: true };
+  if (C.screen() === 'ut' && utTab === 'trade') renderUT();
+}
+export function setTradeTarget(id, name) { tradeDraft = blankDraft(); tradeDraft.to = id; tradeDraft.toName = name; utTab = 'trade'; loadTheirClub(id); }
 function itemsHTML(it) {
   if (!it) return '<span class="note">nothing</span>';
   const bits = [];
@@ -477,7 +495,8 @@ async function respondTrade(id, yes) {
   const P = profile(), t = tradeRows.find(x => x.id === id); if (!t || !P) return;
   if (yes) {
     // you pay what they asked for (coins, TP, packs) and get what they offered
-    const ask = t.ask || {}, need = { packs: ask.packs || {}, coins: ask.coins || 0, tp: ask.tp || 0 };
+    const ask = t.ask || {}, need = { us: (ask.cards || []).map(c => c.u), packs: ask.packs || {}, coins: ask.coins || 0, tp: ask.tp || 0 };
+    for (const c of ask.cards || []) { const mine = P.p.ut.cards.find(x => x.u === c.u); if (!mine || mine.id !== c.id) return C.toast('You don’t have one of the players they asked for anymore. Decline it'); }
     const err = P.tradeCheck(need); if (err) return C.toast(err);
     if (P.p.ut.cards.length + (t.offer.cards || []).length > UT.CLUB_CAP) return C.toast('Your club is full. Quicksell some players first');
     const { data, error } = await tdb().rpc('ek_trade_respond', { tid: id, yes: true });
@@ -488,6 +507,12 @@ async function respondTrade(id, yes) {
     await tdb().rpc('ek_trade_respond', { tid: id, yes: false }); C.toast('Trade declined');
   }
   loadTrades.key = null; await loadTrades(); renderUT();
+}
+function theirBlock(d) {
+  if (!d.to) return '<p class="note">Pick who you’re trading with to see their club.</p>';
+  if (!theirClub || theirClub.id !== d.to || theirClub.loading) { if (!theirClub || theirClub.id !== d.to) loadTheirClub(d.to); return '<p class="note">Loading their club…</p>'; }
+  if (theirClub.none) return '<p class="note">They haven’t opened Ultimate Team yet, so there’s no club to ask from. You can still ask for coins or TP.</p>';
+  return `<div class="tr-items">${d.ask.cards.map(c => `<button class="tr-x" data-aunpick="${c.u}" title="Remove">${cardHTML({ ...UT.owned(c), u: c.u }, { mini: true })}</button>`).join('')}</div><button class="btn sm" id="tr-askcard" type="button">+ Ask for one of their players</button>`;
 }
 function renderTrade(P) {
   const pane = C.$('#ut-pane');
@@ -507,9 +532,10 @@ function renderTrade(P) {
           <label class="tr-num"><i class="tp-ic">TP</i><input type="number" min="0" max="${P.p.tp || 0}" step="5" value="${d.tp}" id="tr-tp"></label>
         </div>
         <div><b>You want</b>
+          ${theirBlock(d)}
           <label class="tr-num"><i class="coin"></i><input type="number" min="0" max="500000" step="50" value="${d.ask.coins}" id="tr-acoins"></label>
           <label class="tr-num"><i class="tp-ic">TP</i><input type="number" min="0" max="50000" step="5" value="${d.ask.tp}" id="tr-atp"></label>
-          <div class="tr-packs">${UT.PACKS.map(k => `<label class="tr-pk">${tesc(k.name)} <input type="number" min="0" max="10" value="${d.ask.packs[k.key] || 0}" data-apack="${k.key}"></label>`).join('')}</div>
+          ${(() => { const tp = theirClub && theirClub.packs ? UT.PACKS.filter(k => (theirClub.packs[k.key] || 0) > 0) : []; return tp.length ? `<small class="note">Their unopened packs</small><div class="tr-packs">${tp.map(k => `<label class="tr-pk">${tesc(k.name)} <input type="number" min="0" max="${theirClub.packs[k.key]}" value="${d.ask.packs[k.key] || 0}" data-apack="${k.key}"></label>`).join('')}</div>` : ''; })()}
         </div>
       </div>
       <label>Note<input id="tr-note" maxlength="120" value="${tesc(d.note)}" placeholder="optional"></label>
@@ -521,7 +547,16 @@ function renderTrade(P) {
   num('tr-coins', v => d.coins = Math.min(v, P.p.coins)); num('tr-tp', v => d.tp = Math.min(v, P.p.tp || 0));
   num('tr-acoins', v => d.ask.coins = Math.min(v, 500000)); num('tr-atp', v => d.ask.tp = Math.min(v, 50000));
   C.$$('[data-gpack]', pane).forEach(el => el.oninput = () => { d.packs[el.dataset.gpack] = Math.max(0, Math.min(+el.value || 0, P.p.packs[el.dataset.gpack] || 0)); });
-  C.$$('[data-apack]', pane).forEach(el => el.oninput = () => { d.ask.packs[el.dataset.apack] = Math.max(0, Math.min(+el.value || 0, 10)); });
+  C.$$('[data-apack]', pane).forEach(el => el.oninput = () => { d.ask.packs[el.dataset.apack] = Math.max(0, Math.min(+el.value || 0, (theirClub && theirClub.packs && theirClub.packs[el.dataset.apack]) || 0)); });
+  C.$$('[data-aunpick]', pane).forEach(b => b.onclick = () => { d.ask.cards = d.ask.cards.filter(c => c.u !== +b.dataset.aunpick); renderUT(); });
+  const ab = C.$('#tr-askcard', pane); if (ab) ab.onclick = () => {
+    const lu = new Set(theirClub.lineup || []), list = theirClub.cards.filter(c => !lu.has(c.u) && !d.ask.cards.some(x => x.u === c.u)).map(c => ({ c, o: UT.owned(c) })).sort((a, b) => b.o.ovr - a.o.ovr);
+    const el = openDlg(`<div style="grid-column:1/-1"><div class="pk-head"><h2 class="title sm">${tesc(d.toName)}'s club</h2><button class="btn ghost sm" id="dlg-x">Close</button></div>
+      <p class="note">Players in their starting lineup can’t be traded, so they’re hidden. ${theirClub.ovr ? `Their squad is ${theirClub.ovr} OVR.` : ''}</p>
+      <div class="pick-list">${list.map(({ c, o }) => cardHTML({ ...o, u: c.u }, { mini: true, tag: 'button' })).join('') || '<p class="note">Nothing they can trade right now.</p>'}</div></div>`);
+    C.$('#dlg-x', el).onclick = closeDlg;
+    C.$$('.pick-list [data-u]', el).forEach(b => b.onclick = () => { if (d.ask.cards.length >= 8) return C.toast('8 players max'); const c = theirClub.cards.find(x => x.u === +b.dataset.u); if (c) d.ask.cards.push(c); closeDlg(); renderUT(); });
+  };
   C.$('#tr-note', pane).oninput = e => { d.note = e.target.value; };
   C.$$('[data-unpick]', pane).forEach(b => b.onclick = () => { d.us = d.us.filter(u => u !== +b.dataset.unpick); renderUT(); });
   C.$('#tr-addcard', pane).onclick = () => {
@@ -537,18 +572,18 @@ function renderTrade(P) {
     const box = C.$('#tr-qres', pane); if (q.length < 2) { box.innerHTML = ''; return; }
     const { data } = await tdb().from('ek_players').select('id,name').ilike('name', `%${q}%`).neq('id', tme().id).limit(6);
     box.innerHTML = (data || []).map(p => `<button type="button" data-tto="${p.id}" data-tname="${tesc(p.name)}">${tesc(p.name)}</button>`).join('') || '<small class="note">No one by that name</small>';
-    C.$$('[data-tto]', box).forEach(b => b.onclick = () => { d.to = b.dataset.tto; d.toName = b.dataset.tname; renderUT(); });
+    C.$$('[data-tto]', box).forEach(b => b.onclick = () => { d.to = b.dataset.tto; d.toName = b.dataset.tname; d.ask.cards = []; d.ask.packs = {}; loadTheirClub(d.to); renderUT(); });
   }, 250); };
   C.$('#tr-send', pane).onclick = async () => {
     if (!d.to) return C.toast('Pick who to trade with first');
     const give = { us: d.us, packs: Object.fromEntries(Object.entries(d.packs).filter(([, n]) => n > 0)), coins: d.coins | 0, tp: d.tp | 0 };
-    const ask = { packs: Object.fromEntries(Object.entries(d.ask.packs).filter(([, n]) => n > 0)), coins: d.ask.coins | 0, tp: d.ask.tp | 0 };
+    const ask = { cards: d.ask.cards.map(c => ({ u: c.u, id: c.id, ...(c.x ? { x: c.x } : {}), b: c.b || 0, ...(c.ab ? { ab: c.ab } : {}), ...(c.xf ? { xf: 1 } : {}) })), packs: Object.fromEntries(Object.entries(d.ask.packs).filter(([, n]) => n > 0)), coins: d.ask.coins | 0, tp: d.ask.tp | 0 };
     if (!give.us.length && !Object.keys(give.packs).length && !give.coins && !give.tp) return C.toast('Add something to give');
     const r = P.tradeTake(give); if (r.err) return C.toast(r.err);
     const { error } = await tdb().from('ek_trades').insert({ recipient: d.to, offer: r.items, ask, note: C.cleanText(d.note).slice(0, 120) });
     if (error) { P.tradeGive(r.items); return C.toast('Trade failed: ' + error.message); }
     C.sfx.play('ui'); C.toast(`Trade sent to ${d.toName}`);
-    tradeDraft = { to: null, toName: '', us: [], packs: {}, coins: 0, tp: 0, ask: { packs: {}, coins: 0, tp: 0 }, note: '' };
+    tradeDraft = blankDraft(); theirClub = null;
     loadTrades.key = null; renderUT();
   };
   settleTrades().then(() => { loadTrades.key = null; loadTrades(); });

@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792263438';
+import { TEAMS } from './teams.js?v=1792263777';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -133,7 +133,7 @@ async function openProfile(id) {
       <div class="pf-id"><h3>${esc(p.name)}</h3><small>Level ${p.lvl}, ${t.city} fan</small>
         <div class="pf-recs">${[['Overall', p.wins, p.losses, 0], ['Online 1v1', p.on_w, p.on_l, p.on_t], ['Ultimate Team', p.ut_wins, p.ut_l, p.ut_t], ['Franchise', p.fr_w, p.fr_l, p.fr_t]].map(([n, w, l, tt]) => `<span><small>${n}</small><b>${fmt(w || 0)}-${fmt(l || 0)}${tt ? '-' + fmt(tt) : ''}</b></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}</div></div>
-      <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
+      <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
     </div>
     <div class="pf-stats">
       <div class="pf-grp"><h4>Offense</h4><div class="pf-row">${stat('Pass yds', fmt(p.pass_yds))}${stat('Pass TD', fmt(p.pass_td))}${stat('Rush yds', fmt(p.rush_yds))}${stat('Rush TD', fmt(p.rush_td))}${stat('Rec yds', fmt(p.rec_yds))}${stat('Catches', fmt(p.rec))}${stat('Rec TD', fmt(p.rec_td))}</div></div>
@@ -152,6 +152,7 @@ async function openProfile(id) {
   };
   const cb = C.$('#pf-challenge'); if (cb) cb.onclick = () => challenge(id, p.name);
   const mb = C.$('#pf-msg'); if (mb) mb.onclick = () => openThread(id, p.name);
+  const tb = C.$('#pf-trade'); if (tb) tb.onclick = () => C.openTrade && C.openTrade(id, p.name);
   wireReport(id, p.name);
   wireClipCards(pane, id);
 }

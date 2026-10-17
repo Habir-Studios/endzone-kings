@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792254126';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792254126';
-import { drawLogo } from './logos.js?v=1792254126';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792254126';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792254545';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792254545';
+import { drawLogo } from './logos.js?v=1792254545';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792254545';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -33,6 +33,7 @@ function mergeTwo(a, b) {
   }
   return g;
 }
+const kickingNow = S => S.ph === 'kickset' || S.ph === 'kick';
 const damp = (a, b, rate, dt) => a + (b - a) * (1 - Math.exp(-rate * dt));
 
 export class Renderer {
@@ -1259,6 +1260,11 @@ export class Renderer {
     if (S.ph === 'kickset') { fx = S.bx; fz = S.los - 6 * (S.poss === 0 ? 1 : -1); }
     if (bstate === 1 && tgt) { fx = (bx + tgt[0]) / 2 * 0.8; fz = (bz + tgt[1]) / 2; }
     if (bstate === 2) { fx = bx * 0.5; fz = bz; }
+    // on defense the camera keeps YOUR defender in the shot (between him and the ball) instead of locking onto the QB
+    if (this.camMode === 'behind' && local >= 0 && S.poss !== local && S.ctrl && S.ctrl[local] >= 0 && S.pl[S.ctrl[local]] && (S.ph === 'live' || S.ph === 'presnap')) {
+      const me = S.pl[S.ctrl[local]], w = bstate === 1 ? 0.35 : 0.6;
+      fx = fx * (1 - w) + me[4] * 0.9 * w; fz = fz * (1 - w) + me[5] * w;
+    }
     // player cam: follow the guy you control instead of the ball
     if (this.camMode === 'player' && local >= 0 && S.ctrl && S.ctrl[local] >= 0 && S.pl[S.ctrl[local]] && (S.ph === 'live' || S.ph === 'presnap')) { const me = S.pl[S.ctrl[local]]; fx = me[4] * 0.9; fz = me[5] + 2 * s; }
     const k = 1 - Math.exp(-dt * (bstate === 2 ? 2.2 : this.camMode === 'player' ? 5 : 3.2));
@@ -1271,7 +1277,7 @@ export class Renderer {
     } else {
       const portrait = this.cam.aspect < 1;
       const celebrate = S.msg && S.msg.big && S.ph === 'dead';
-      const zoom = (celebrate ? 0.72 : 1) * this.userZoom;
+      const zoom = (celebrate ? 0.72 : 1) * this.userZoom * (local >= 0 && S.poss !== local && !kickingNow(S) ? 1.15 : 1);
       const kicking = S.ph === 'kickset' || S.ph === 'kick';
       px = this.focus.x * 0.93; py = (portrait ? 13 : (kicking ? 6.5 : 9)) * zoom; pz = this.focus.z - (portrait ? 16 : (kicking ? 11 : 13.5)) * s * zoom;
       lx = this.focus.x; ly = celebrate ? 1.5 : 0.8; lz = this.focus.z + (kicking ? 30 : 9 + (this.userZoom - 1) * 6) * s;

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792255178';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792255331';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792255178';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792255331';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1791,7 +1791,8 @@ function resolveBall(g) {
     // contested: separation first, then timing, then hands vs coverage
     const edge = (dD - dO) * 1.25 + (timing(ro) - timing(rd)) * 0.7 + (ro.rt.hands * wx - rd.rt.cov) / 100 * 0.9 + (rd.dive > 0 ? 0.15 : 0) + noise();
     if (edge > 0.05) outcome = 'catch';
-    else if ((dD < 0.5 && dD < dO - 0.6) || (edge < -0.6 && dD < 1.1 && (defPlay || timing(rd) > 0.45))) outcome = 'int';   // ball thrown into the defender's chest gets picked
+    else if ((dD < 0.5 && dD < dO - 0.6) || (edge < -0.6 && dD < 1.1 && (defPlay || timing(rd) > 0.45))
+      || (myD && dD < 1.0 && dD < dO - 0.15) || (myD && defPlay && edge < -0.3 && dD < 1.5)) outcome = 'int';   // you beat him to it: it's yours   // ball thrown into the defender's chest gets picked
     else outcome = 'inc';
   } else if (cO) {
     // open-ish: how hard was this catch? reaching for it, a defender closing on him, running full speed across the field
@@ -1807,7 +1808,7 @@ function resolveBall(g) {
     // only a defender there: a pick if he's in front of it and timed it, otherwise he knocks it down
     // thrown right at him (within arm's length) is a pick almost every time; farther away he needs timing or ball skills
     const pick = (1.4 - dD) * 0.9 + timing(rd) * 0.6 + rd.rt.cov / 100 * 0.4 + noise();
-    outcome = (dD < 0.38 && rd.rt.cov + rd.rt.hands > 80) || (pick > 1.3 && dD < 0.9) ? 'int' : 'inc';
+    outcome = (dD < 0.6) || (myD && dD < 1.1) || (pick > 1.3 && dD < 0.9) || (myD && defPlay && pick > 0.95 && dD < 1.7) ? 'int' : 'inc';   // the ball's coming right at you = you catch it
   }
   if (!outOfBounds && cO && cD && !P.isPat) {
     const r = g.rng();

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792262263';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792262858';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792262263';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792262858';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -760,6 +760,11 @@ function startKick(g, type, sk) {
       k.miss = short ? 'short' : Math.abs(xPost) >= 3.05 ? ((xPost * d > 0) ? 'wide left' : 'wide right') : '';
       k.tx = clamp(xPost, -14, 14);
       k.tz = short ? zOf(off, p - 7 + reach + 2) : zOf(off, 110); k.T = 1.2 + fd * 0.012; k.h = short ? 4 : 6 + fd * 0.12;
+      if (!short) {
+        // carry the flight past the posts so the ball visibly sails over the crossbar (3.3 up) between the uprights (x = ±3.1)
+        // and drops into the net, crossing the goal line plane exactly at xPost
+        throughPosts(k, off, xPost, k.good ? 6 + Math.min(fd, 55) * 0.04 : 5.5);
+      }
     }
     g.kick = k;
     const b = g.ball; b.state = 'kick'; b.carrier = -1; b.x = k.fx; b.z = k.fz; b.y = 0.5;
@@ -786,11 +791,20 @@ function startKick(g, type, sk) {
     k.tx = k.good ? (g.rng() - 0.5) * 4 : (g.rng() < 0.5 ? -1 : 1) * (4.5 + g.rng() * 3);
     k.tz = zOf(off, 110); k.T = 1.7; k.h = 6 + fd * 0.12;
   }
+  if (type !== 'punt') throughPosts(k, off, k.tx, k.good ? 6 + Math.min(k.dist || 20, 55) * 0.04 : 5.5);
   g.kick = k;
   const b = g.ball; b.state = 'kick'; b.carrier = -1; b.x = k.fx; b.z = k.fz; b.y = 0.5;
   g.events.push('kick');
 }
 
+// kicks keep flying past the goal line plane: they cross it exactly at xPost, at a height clearly over the 3.3 crossbar,
+// then drop into the net behind the posts
+function throughPosts(k, off, xPost, cross) {
+  const z0 = prog(off, k.fz), zEnd = 119, sc = (110 - z0) / (zEnd - z0);
+  k.tx = clamp(k.fx + (xPost - k.fx) / sc, -30, 30);
+  k.tz = zOf(off, zEnd); k.T = k.T / sc;
+  k.h = Math.max(k.h, (cross - 0.5 - 3 * sc) / (4 * sc * (1 - sc)));
+}
 function updateKick(g, dt) {
   const k = g.kick;
   k.t += dt;

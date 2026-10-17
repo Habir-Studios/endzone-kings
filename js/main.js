@@ -1,22 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792272477';
-import * as Form from './form.js?v=1792272477';
-import { watchSim } from './simview.js?v=1792272477';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792272477';
-import { Renderer } from './render.js?v=1792272477';
-import { Sfx } from './audio.js?v=1792272477';
-import { Auth } from './auth.js?v=1792272477';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792272477';
-import { getRoster, teamOvr } from './teams.js?v=1792272477';
-import * as Season from './season.js?v=1792272477';
-import * as Fr from './franchise.js?v=1792272477';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792272477';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792272477';
-import * as UTm from './ut.js?v=1792272477';
-import { initCreator, renderCreator } from './creator.js?v=1792272477';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792272477';
-import { portraitURL } from './faces.js?v=1792272477';
-import { logoURL, clearLogoCache } from './logos.js?v=1792272477';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792272794';
+import * as Form from './form.js?v=1792272794';
+import { watchSim } from './simview.js?v=1792272794';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792272794';
+import { Renderer } from './render.js?v=1792272794';
+import { Sfx } from './audio.js?v=1792272794';
+import { Auth } from './auth.js?v=1792272794';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792272794';
+import { getRoster, teamOvr } from './teams.js?v=1792272794';
+import * as Season from './season.js?v=1792272794';
+import * as Fr from './franchise.js?v=1792272794';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792272794';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792272794';
+import * as UTm from './ut.js?v=1792272794';
+import { initCreator, renderCreator } from './creator.js?v=1792272794';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792272794';
+import { portraitURL } from './faces.js?v=1792272794';
+import { logoURL, clearLogoCache } from './logos.js?v=1792272794';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1531,7 +1531,7 @@ function liveTrack(force) {
 function specPush(events) {
   if (!spec || !st.snap) return;
   specAcc += 1; if (specAcc < 2 && !(events && events.length)) return; specAcc = 0;
-  spec.send({ t: 's', s: st.snap, e: events || [], names: st.names, teamNames: st.teamNames, teams: st.snap.teams });
+  spec.send({ t: 's', s: specSafe(st.snap), e: events || [], names: st.names, teamNames: st.teamNames, teams: st.snap.teams });
   liveTrack(false);
 }
 // every signed-in game streams on your own channel so friends can watch it from your profile.
@@ -1558,7 +1558,7 @@ function stopUserCast() {
 function userCastPush() {
   if (!ucast || !st.snap || !(ucast.watchers > 0)) { ucastEv.length = 0; return; }
   ucastAcc++; if (ucastAcc < 7 && !ucastEv.length) return; ucastAcc = 0;
-  ucast.send({ t: 's', s: st.snap, e: ucastEv.splice(0, 30), names: st.names, teamNames: st.teamNames, teams: st.snap.teams, kind: ucast.meta.kind });
+  ucast.send({ t: 's', s: specSafe(st.snap), e: ucastEv.splice(0, 30), names: st.names, teamNames: st.teamNames, teams: st.snap.teams, kind: ucast.meta.kind });
 }
 async function peekLive(uid) {
   if (Auth.mode !== 'supabase' || LOCALNET || !Auth.client) return null;
@@ -1566,6 +1566,8 @@ async function peekLive(uid) {
   try { await ch.open(() => {}); for (let i = 0; i < 6; i++) { await new Promise(r => setTimeout(r, 500)); const h = ch.hostInfo(); if (h) return h; } return null; } catch (e) { return null; } finally { ch.close(); }
 }
 function watchUser(uid) { startSpectate('u' + uid, true); }
+// what watchers get: the game, minus the play calls (routes, hot routes, play art) so nobody can scout a live game
+function specSafe(s) { return s ? { ...s, opDef: null, hot: undefined } : s; }
 function stopSpec() { if (spec) { spec.close(); spec = null; } if (liveLobby) { liveLobby.close(); liveLobby = null; } }
 async function startSpectate(code, fromProfile) {
   sfx.init(); stopSpec(); onlineMsg('');
@@ -1836,6 +1838,7 @@ function frameBody(now) {
     if (st.snap) {
       userCastPush();
       R.ball.visible = true;
+      R.spectating = st.mode === 'spec';
       R.update(st.snap, dt, st.local);
       if (st.snap.ph === 'half') {
         st.halfT = (st.halfT || 0) + dt * 0.07;

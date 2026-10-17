@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792268873';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792268873';
-import { Renderer } from './render.js?v=1792268873';
-import { Sfx } from './audio.js?v=1792268873';
-import { Auth } from './auth.js?v=1792268873';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792268873';
-import { getRoster, teamOvr } from './teams.js?v=1792268873';
-import * as Season from './season.js?v=1792268873';
-import * as Fr from './franchise.js?v=1792268873';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792268873';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792268873';
-import * as UTm from './ut.js?v=1792268873';
-import { initCreator, renderCreator } from './creator.js?v=1792268873';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792268873';
-import { portraitURL } from './faces.js?v=1792268873';
-import { logoURL, clearLogoCache } from './logos.js?v=1792268873';
+import { askYes } from './ui.js?v=1792268934';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792268934';
+import { Renderer } from './render.js?v=1792268934';
+import { Sfx } from './audio.js?v=1792268934';
+import { Auth } from './auth.js?v=1792268934';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792268934';
+import { getRoster, teamOvr } from './teams.js?v=1792268934';
+import * as Season from './season.js?v=1792268934';
+import * as Fr from './franchise.js?v=1792268934';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792268934';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792268934';
+import * as UTm from './ut.js?v=1792268934';
+import { initCreator, renderCreator } from './creator.js?v=1792268934';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792268934';
+import { portraitURL } from './faces.js?v=1792268934';
+import { logoURL, clearLogoCache } from './logos.js?v=1792268934';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1264,7 +1264,7 @@ function padHint(items) {
     air: { 'W A S D': g.LS, E: g.Y, Q: g.B, Shift: g.RT },
     def: { Space: g.X, Q: g.B, Shift: g.RT, E: g.Y },
   }[c] || {};
-  const G = { Esc: g.Menu, C: g.R3, R: g.X, T: '' };
+  const G = { Esc: g.Menu, C: g.R3, R: g.X, T: '', 'hold E': `hold ${g.Y}` };
   return items.map(([k, t]) => [M[k] || G[k] || k, t]).filter(([k]) => k);
 }
 function hint(items) {
@@ -1444,7 +1444,7 @@ function updateHud(S) {
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else if (S.b[3] === 3) hint([['Space', 'dive on the ball'], ['W A S D', 'get to it first'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else hint([['Space', 'dive tackle'], ['H', 'hit stick'], ['Q', 'switch'], ['Shift', 'sprint']]);
-  } else hint(st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat']]);
+  } else hint(st.mode === 'spec' || st.mode === 'clip' ? [['Esc', 'leave'], ['C', 'camera'], ['- +', 'zoom']] : st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay'], ['hold E', 'celebrate']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat'], ['hold E', 'celebrate']]);
   const tOn = touchOn();
   $('#touch').classList.toggle('hidden', !tOn || S.ph === 'gameover');
   $('#hud').classList.toggle('touch-mode', tOn);

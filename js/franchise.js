@@ -1,8 +1,8 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792261089';
-import * as Season from './season.js?v=1792261089';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792261128';
+import * as Season from './season.js?v=1792261128';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -158,7 +158,13 @@ export function toDraft(F) {
   for (let i = 0; i < 120; i++) {
     const g = pick(groups), pot = Math.random();
     const p = mkPlayer({ next: 100000 + i }, g, rnd(58, 76) + (pot > 0.92 ? 4 : 0), 21 + ((Math.random() * 2) | 0), { dev: pot > 0.97 ? 'xfactor' : pot > 0.88 ? 'superstar' : pot > 0.65 ? 'star' : 'normal', yrs: 4 });
-    p.pid = 'd' + i; p.grade = p.ovr + (devMul(p.dev) - 1) * 12;
+    // scouting isn't perfect: the projection is what everyone sees; a few are busts (look great, won't grow) or sleepers (look average, will explode)
+    const roll = Math.random();
+    if (roll < 0.08) { p.tag = 'bust'; p.proj = Math.random() < 0.5 ? 'superstar' : 'star'; p.dev = 'normal'; p.ovr = Math.min(80, p.ovr + 3); }
+    else if (roll < 0.18) { p.tag = 'sleeper'; p.proj = 'normal'; p.dev = Math.random() < 0.3 ? 'xfactor' : 'superstar'; }
+    else p.proj = p.dev;
+    p.hidden = true;
+    p.pid = 'd' + i; p.grade = p.ovr + (devMul(p.proj) - 1) * 12;
     F.draft.pool.push(p);
   }
   F.draft.pool.sort((a, b) => b.grade - a.grade);
@@ -177,7 +183,7 @@ export function draftPlayer(F, pid) {
   if (F.bench.length >= BENCH_MAX) return `Your bench is full (${BENCH_MAX}). Release someone first`;
   const p = D.pool.splice(i, 1)[0]; p.id = F.next++; p.sal = +(salaryFor(p.ovr) * 0.5).toFixed(2); p.yrs = 4; delete p.pid; delete p.grade;
   F.players[p.id] = p; F.bench.push(p.id); D.picks.push(p.id);
-  F.log.unshift(`${F.year}: drafted ${p.first} ${p.last} (${p.group}, ${p.ovr} OVR, ${devName(p.dev)}) in round ${D.round}`);
+  F.log.unshift(`${F.year}: drafted ${p.first} ${p.last} (${p.group}, ${p.ovr} OVR, projected ${devName(p.proj || p.dev)}) in round ${D.round}`);
   D.round++;
   if (D.round > 3) return toFreeAgency(F), null;
   aiPicksUntilMine(F); save(F); return null;
@@ -206,12 +212,19 @@ export function startNextSeason(F) {
     p.age++; p.ss = {};
     // progression and regression by age and development trait
     let d = 0;
-    if (p.age <= 24) d = Math.round(rnd(0, 3) * devMul(p.dev));
+    if (p.tag === 'bust' && p.age <= 27) d = Math.round(rnd(-1.5, 0.8));   // busts stall out
+    else if (p.age <= 24) d = Math.round(rnd(0, 3) * devMul(p.dev));
     else if (p.age <= 28) d = Math.round(rnd(-0.5, 2) * devMul(p.dev));
     else if (p.age <= 31) d = Math.round(rnd(-2, 0.5));
     else d = Math.round(rnd(-5, -1));
     if (d > 0) { for (let i = 0; i < d; i++) levelUp(p); } else if (d < 0) levelDown(p, -d);
     if (Math.abs(d) >= 3) notes.push(`${p.first} ${p.last} ${d > 0 ? '+' : ''}${d} OVR`);
+    // after his first season the truth comes out
+    if (p.hidden) {
+      p.hidden = false;
+      if (p.tag === 'sleeper') { notes.push(`SLEEPER! ${p.first} ${p.last} is a ${devName(p.dev)}`); F.log.unshift(`${F.year}: ${p.first} ${p.last} turned out to be a sleeper (${devName(p.dev)})`); }
+      else if (p.tag === 'bust') { notes.push(`BUST: ${p.first} ${p.last} isn't the ${devName(p.proj)} we thought`); F.log.unshift(`${F.year}: ${p.first} ${p.last} was a draft bust`); }
+    }
     if (p.age >= 34 && Math.random() < (p.age - 32) * 0.25) { notes.push(`${p.first} ${p.last} retired`); F.log.unshift(`${F.year}: ${p.first} ${p.last} retired at ${p.age}`); release(F, p.id); }
   }
   fillHoles(F);
@@ -270,7 +283,7 @@ function hubTab(F) {
   const pb = C.$('#fr-play'); if (pb) pb.onclick = () => { const ros = simRoster(F); if (!ros) return C.toast('Your lineup has holes'); C.startCPU({ teams: [F.team, opp], rosters: [ros, null], franchise: true }); };
   const sb = C.$('#fr-sim'); if (sb) sb.onclick = () => { const m = simWeek(F); if (m) C.toast(`${m[0] > m[1] ? 'Won' : m[0] < m[1] ? 'Lost' : 'Tied'} ${m[0]}-${m[1]}`); renderFranchise(); };
 }
-function pRow(p, extra = '') { return `<div class="fr-p"><span class="fr-ovr">${p.ovr}</span><div><b>${esc(p.first)} ${esc(p.last)}</b><small>${p.group}, age ${p.age}, ${devName(p.dev)}, $${p.sal.toFixed(2)}M x ${Math.max(0, p.yrs)} yr${p.yrs === 1 ? '' : 's'}</small></div>${extra}</div>`; }
+function pRow(p, extra = '') { const dv = p.hidden ? `projected ${devName(p.proj || p.dev)} (?)` : devName(p.dev) + (p.tag === 'sleeper' ? ' · SLEEPER' : p.tag === 'bust' ? ' · BUST' : ''); return `<div class="fr-p"><span class="fr-ovr">${p.ovr}</span><div><b>${esc(p.first)} ${esc(p.last)}</b><small>${p.group}, age ${p.age}, ${dv}, $${p.sal.toFixed(2)}M x ${Math.max(0, p.yrs)} yr${p.yrs === 1 ? '' : 's'}</small></div>${extra}</div>`; }
 function rosterTab(F) {
   const pane = C.$('#fr-pane'), order = getRoster(F.team).order;
   pane.innerHTML = `<h3 class="store-h">Starters</h3><div class="fr-list">${order.map(role => { const p = F.players[F.starters[role]]; return p ? `<div class="fr-slot"><small>${POS_LABEL[role] || role}</small>${pRow(p, `<div class="fr-xp" title="XP to next point"><i style="width:${Math.min(100, p.xp / xpNeed(p) * 100)}%"></i></div><button class="btn sm" data-sw="${role}">Swap</button>`)}</div>` : `<div class="fr-slot"><small>${role}</small><p class="note">Empty</p></div>`; }).join('')}</div>
@@ -305,7 +318,7 @@ function resignView(F, pane) {
 }
 function draftView(F, pane) {
   const D = F.draft;
-  pane.innerHTML = `<div class="fr-next"><div><small>Offseason, step 2 of 3</small><h3>Draft, round ${D.round}</h3><p class="note">You're on the clock. Rookies sign cheap 4-year deals. Development trait decides how fast they grow.</p></div><button class="btn" id="fr-skip">Skip this pick</button></div>
+  pane.innerHTML = `<div class="fr-next"><div><small>Offseason, step 2 of 3</small><h3>Draft, round ${D.round}</h3><p class="note">You're on the clock. Rookies sign cheap 4-year deals. Scouting isn't perfect: some "can't miss" picks are busts, and some average-looking guys are sleepers. You find out after their first season.</p></div><button class="btn" id="fr-skip">Skip this pick</button></div>
     <div class="fr-list">${D.pool.slice(0, 24).map(p => pRow({ ...p, sal: salaryFor(p.ovr) * 0.5 }, `<button class="btn sm primary" data-dp="${p.pid}">Draft</button>`)).join('')}</div>`;
   C.$$('[data-dp]', pane).forEach(b => b.onclick = () => { const e = draftPlayer(F, b.dataset.dp); if (e) C.toast(e); else C.sfx.play('firstdown'); renderFranchise(); });
   C.$('#fr-skip').onclick = () => { skipPick(F); renderFranchise(); };

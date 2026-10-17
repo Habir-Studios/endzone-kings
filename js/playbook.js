@@ -286,5 +286,6 @@ export function cleanCustom(def) {
     if (def.carrier === 'QB') out.qbRun = true; else out.hand = num(def.hand, 0.3, 1.2, 0.5);
   }
   if (def.pa) out.pa = 0.65;
+  if (type === 'pass' && routes.QB) { out.qbPath = routes.QB.map(w => [w[0], Math.min(w[1], 2)]); delete routes.QB; }   // QB rollout path (stays behind the line so he can still throw)
   return fillOffense(out);
 }

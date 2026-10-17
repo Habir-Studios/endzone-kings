@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Play Creator: draw your own offense, defense and special teams plays.
 // Plays save on this device (localStorage 'ek_custom_plays') and show up under "My Plays" in every game, online too.
-import { askYes } from './ui.js?v=1792266422';
-import { FORMS, cleanCustom } from './playbook.js?v=1792266422';
+import { askYes } from './ui.js?v=1792266498';
+import { FORMS, cleanCustom } from './playbook.js?v=1792266498';
 
 let C = null;
 const KEY = 'ek_custom_plays', MAX = 24;
@@ -64,17 +64,17 @@ function opts() {
     <div class="cr-roles">${roles().map(r => `<button type="button" class="cr-role ${r === selRole ? 'on' : ''}" data-r="${r}" style="--rc:${COLS[r]}">${LABEL[r]}${ed.routes[r] && ed.routes[r].length ? ` (${ed.routes[r].length})` : ''}</button>`).join('')}</div>
     <div class="cr-btns"><button class="btn sm" id="cr-undo">Undo point</button><button class="btn sm" id="cr-block">Make ${LABEL[selRole]} block</button></div>`;
   C.seg(C.$('#cr-form'), forms, ed.form, v => { ed.form = v; draw(); });
-  C.seg(C.$('#cr-type'), [['pass', 'Pass'], ['run', 'Run']], ed.type, v => { ed.type = v; if (v === 'run') { ed.routes = {}; selRole = ed.carrier; } else { delete ed.routes.QB; selRole = 'WR1'; } opts(); draw(); });
+  C.seg(C.$('#cr-type'), [['pass', 'Pass'], ['run', 'Run']], ed.type, v => { ed.type = v; if (v === 'run') { ed.routes = {}; selRole = ed.carrier; } else { selRole = 'WR1'; } opts(); draw(); });
   if (ed.type === 'run') C.seg(C.$('#cr-car'), [['RB', 'HB'], ['QB', 'QB keeper']], ed.carrier, v => { ed.carrier = v; delete ed.routes[v === 'QB' ? 'RB' : 'QB']; selRole = v; opts(); draw(); });
   else { const pa = C.$('#cr-pa'); pa.checked = !!ed.pa; pa.onchange = () => { ed.pa = pa.checked; }; }
   C.$$('.cr-role', box).forEach(b => b.onclick = () => { selRole = b.dataset.r; opts(); draw(); });
   C.$('#cr-undo').onclick = () => { const r = ed.routes[selRole]; if (r && r.length) r.pop(); if (r && !r.length) delete ed.routes[selRole]; opts(); draw(); };
   C.$('#cr-block').onclick = () => { delete ed.routes[selRole]; opts(); draw(); };
   help.innerHTML = ed.type === 'pass'
-    ? `Pick a player, then <b>click the field</b> to add up to 5 points to his route. Players with no route stay in and block. ${ed.special ? 'The kicker or punter throws it.' : ''}`
+    ? `Pick a player, then <b>click the field</b> to add up to 5 points to his route. Players with no route stay in and block. Pick <b>QB</b> to draw a rollout or bootleg he runs before throwing. ${ed.special ? 'The kicker or punter throws it.' : ''}`
     : `Click the field to draw the ${ed.carrier === 'QB' ? 'QB keeper' : 'HB'}'s running lane. Everyone else blocks for him.`;
 }
-const roles = () => ed.type === 'run' ? [ed.carrier] : ['WR1', 'WR2', 'WR3', 'TE', 'RB'];
+const roles = () => ed.type === 'run' ? [ed.carrier] : ['WR1', 'WR2', 'WR3', 'TE', 'RB', 'QB'];   // QB on a pass play = rollout / bootleg path before he throws
 
 function draw() {
   const svg = C.$('#cr-field');

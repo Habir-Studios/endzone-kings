@@ -1,25 +1,25 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792278680';
-import * as Form from './form.js?v=1792278680';
-import { watchSim } from './simview.js?v=1792278680';
-import { bracketHTML } from './bracket.js?v=1792278680';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792278680';
-import { Renderer } from './render.js?v=1792278680';
-import { Sfx } from './audio.js?v=1792278680';
-import { Auth } from './auth.js?v=1792278680';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792278680';
-import { getRoster, teamOvr } from './teams.js?v=1792278680';
-import * as Season from './season.js?v=1792278680';
-import * as Fr from './franchise.js?v=1792278680';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792278680';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792278680';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792278680';
-import * as UTm from './ut.js?v=1792278680';
-import { initCreator, renderCreator } from './creator.js?v=1792278680';
-import { filmCapture, filmSave } from './social.js?v=1792278680';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792278680';
-import { portraitURL } from './faces.js?v=1792278680';
-import { logoURL, clearLogoCache } from './logos.js?v=1792278680';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792278846';
+import * as Form from './form.js?v=1792278846';
+import { watchSim } from './simview.js?v=1792278846';
+import { bracketHTML } from './bracket.js?v=1792278846';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792278846';
+import { Renderer } from './render.js?v=1792278846';
+import { Sfx } from './audio.js?v=1792278846';
+import { Auth } from './auth.js?v=1792278846';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792278846';
+import { getRoster, teamOvr } from './teams.js?v=1792278846';
+import * as Season from './season.js?v=1792278846';
+import * as Fr from './franchise.js?v=1792278846';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792278846';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792278846';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792278846';
+import * as UTm from './ut.js?v=1792278846';
+import { initCreator, renderCreator } from './creator.js?v=1792278846';
+import { filmCapture, filmSave } from './social.js?v=1792278846';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792278846';
+import { portraitURL } from './faces.js?v=1792278846';
+import { logoURL, clearLogoCache } from './logos.js?v=1792278846';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1843,6 +1843,7 @@ function frameBody(now) {
   watchFps(dt);
   if (st.playing) {
     if (st.replay) {
+      R.ball.visible = true;   // clips opened from the menu start with the ball hidden; show it for playback
       stepReplay(dt);
       R.render();
       return;

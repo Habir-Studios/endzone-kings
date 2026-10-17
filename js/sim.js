@@ -4,14 +4,14 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792246372';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792246664';
 export { TEAMS };
 
 export const OFF_ROLES = ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB'];
 export const DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
 export const RECEIVERS = ['WR1', 'WR2', 'RB']; // keys 1,2,3
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792246372';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792246664';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -75,7 +75,8 @@ export function createGame(opts = {}) {
     weather: WEATHERS.includes(opts.weather) ? opts.weather : 'clear',
     tod: TODS.includes(opts.tod) ? opts.tod : 'night',
     halftime: opts.practice || opts.drill ? 0 : (opts.halftime ?? 12),
-    practice: opts.practice === 'off' || opts.practice === 'def' ? opts.practice : null,
+    practice: ['off', 'def', 'st'].includes(opts.practice) ? opts.practice : null,
+    pspot: clamp(+opts.pspot || 25, 20, 97),
     drill: !!opts.drill,
     cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 6 ? v : -1; }),
   };
@@ -94,12 +95,12 @@ export function createGame(opts = {}) {
     stats: [mkStats(), mkStats()],
     custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], to: [3, 3], lastRunoff: 0, books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
   };
-  if (o.practice) { g.poss = o.practice === 'off' ? 0 : 1; g.firstReceiver = g.poss; }
+  if (o.practice) { g.poss = o.practice === 'def' ? 1 : 0; g.firstReceiver = g.poss; }
   if (o.drill) { g.poss = 0; g.firstReceiver = 0; g.quarter = 4; }
-  g.losZ = zOf(g.poss, 25);
+  g.losZ = zOf(g.poss, o.practice && o.practice !== 'st' ? o.pspot : 25);
   setFirstDown(g);
-  setupPlay(g);
-  g.msg = o.practice ? { text: 'PRACTICE', sub: o.practice === 'off' ? 'Run any play you want · no clock' : 'Defend any play · no clock', until: 2.4 }
+  if (o.practice === 'st') nextPlay(g); else setupPlay(g);
+  g.msg = o.practice ? { text: 'PRACTICE', sub: o.practice === 'off' ? 'Run any play you want · no clock' : o.practice === 'st' ? 'Field goals and punts from all over the field' : 'Defend any play · no clock', until: 2.4 }
     : o.drill ? { text: 'TWO-MINUTE DRILL', sub: 'Score as much as you can · every drive starts at the 25', until: 2.6 }
     : { text: 'KICKOFF', sub: TEAMS[o.teams[g.poss]].name + ' ball', until: 2.2 };
   return g;
@@ -150,7 +151,7 @@ function pst(g, p) {
   return g.ps[k] || (g.ps[k] = { t: p.team, n: p.rt.name, pos: POS_LABEL[p.role], role: p.role, face: p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num), py: 0, ptd: 0, ry: 0, rec: 0, recy: 0, td: 0, tk: 0, sk: 0, int: 0 });
 }
 
-function mkStats() { return { passYds: 0, rushYds: 0, comp: 0, att: 0, tds: 0, ints: 0, sacks: 0, firstDowns: 0, pens: 0, penYds: 0 }; }
+function mkStats() { return { passYds: 0, rushYds: 0, comp: 0, att: 0, tds: 0, ints: 0, sacks: 0, firstDowns: 0, pens: 0, penYds: 0, tkl: 0, fgm: 0, fga: 0, fgl: 0, xpm: 0, xpa: 0, punts: 0, puntYds: 0 }; }
 
 function setFirstDown(g) {
   const p = prog(g.poss, g.losZ);
@@ -309,6 +310,7 @@ function handleEvent(g, team, ev) {
         const isPat = g.pat === team;
         if (pl.id === 'xp' && !isPat) return;
         if ((pl.id === 'fg' && (!canFG(g) || isPat)) || (pl.id === 'punt' && isPat)) return;
+        if (g.opts.practice === 'st' && pl.id !== 'fg' && pl.id !== 'punt') return;
         if ((pl.id === 'fakepunt' || pl.id === 'fakefg') && isPat) return;
         if (g.offPlay !== pl.id) g.hot = {};
         g.offPlay = pl.id; alignOffense(g);
@@ -724,6 +726,10 @@ function updateKick(g, dt) {
     const off = g.poss;
     g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.2; g.runoff = 0;
     g.events.push('whistle');
+    const ks = g.stats[off];
+    if (k.type === 'xp') { ks.xpa++; if (k.good) ks.xpm++; }
+    else if (k.type === 'punt') { ks.punts++; ks.puntYds += k.yds || 0; }
+    else { ks.fga++; if (k.good) { ks.fgm++; ks.fgl = Math.max(ks.fgl, k.dist || 0); } }
     if (k.type === 'xp') {
       if (k.good) { score(g, off, 1); g.events.push('score'); }
       g.msg = k.good ? { text: 'EXTRA POINT GOOD', sub: '', until: 2 } : { text: 'EXTRA POINT NO GOOD', sub: k.miss || '', until: 2 };
@@ -835,10 +841,19 @@ function nextPlay(g) {
   cpuTimeout(g);
   g.lastRunoff = Math.min(g.runoff || 0, g.clock);
   if (g.opts.practice) {
-    const side = g.opts.practice === 'off' ? 0 : 1;
+    const side = g.opts.practice === 'def' ? 1 : 0;
     g.clock = g.opts.quarterLen; g.runoff = 0; g.pat = -1; g.score = [0, 0];
+    if (g.opts.practice === 'st') {
+      // special teams: a fresh kick every rep, field goals from 20 to 55 yards or a punt from deep
+      g.stkN = (g.stkN || 0) + 1;
+      const punt = g.stkN % 3 === 0, spot = punt ? 15 + g.rng() * 30 : 100 - (3 + g.rng() * 35);
+      g.poss = 0; g.losZ = zOf(0, spot); g.ballX = Math.round((g.rng() - 0.5) * 14); setFirstDown(g); g.down = 4;
+      g.phase = 'presnap'; g.phaseT = 0; setupPlay(g);
+      g.offPlay = punt ? 'punt' : 'fg'; alignOffense(g, true);
+      return;
+    }
     const p = prog(side, g.losZ);
-    if (g.poss !== side || p >= 99 || p <= 1 || g.down > 4) { g.poss = side; g.losZ = zOf(side, 25); g.ballX = 0; setFirstDown(g); }
+    if (g.poss !== side || p >= 99 || p <= 1 || g.down > 4 || g.pracReset) { g.pracReset = false; g.poss = side; g.losZ = zOf(side, g.opts.pspot || 25); g.ballX = 0; setFirstDown(g); }
     g.phase = 'presnap'; g.phaseT = 0; setupPlay(g); return;
   }
   if (g.opts.drill) {

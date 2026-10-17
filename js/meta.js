@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792246372';
-import * as UT from './ut.js?v=1792246372';
-import { portraitURL } from './faces.js?v=1792246372';
-import { TEAMS } from './teams.js?v=1792246372';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792246664';
+import * as UT from './ut.js?v=1792246664';
+import { portraitURL } from './faces.js?v=1792246664';
+import { TEAMS } from './teams.js?v=1792246664';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;

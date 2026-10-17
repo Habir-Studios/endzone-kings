@@ -1,16 +1,16 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792246372';
-import { Renderer } from './render.js?v=1792246372';
-import { Sfx } from './audio.js?v=1792246372';
-import { Auth } from './auth.js?v=1792246372';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby } from './net.js?v=1792246372';
-import { getRoster, teamOvr } from './teams.js?v=1792246372';
-import * as Season from './season.js?v=1792246372';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792246372';
-import * as UTm from './ut.js?v=1792246372';
-import { initCreator, renderCreator } from './creator.js?v=1792246372';
-import { portraitURL } from './faces.js?v=1792246372';
-import { logoURL, clearLogoCache } from './logos.js?v=1792246372';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792246664';
+import { Renderer } from './render.js?v=1792246664';
+import { Sfx } from './audio.js?v=1792246664';
+import { Auth } from './auth.js?v=1792246664';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792246664';
+import { getRoster, teamOvr } from './teams.js?v=1792246664';
+import * as Season from './season.js?v=1792246664';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792246664';
+import * as UTm from './ut.js?v=1792246664';
+import { initCreator, renderCreator } from './creator.js?v=1792246664';
+import { portraitURL } from './faces.js?v=1792246664';
+import { logoURL, clearLogoCache } from './logos.js?v=1792246664';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -18,7 +18,7 @@ const params = new URLSearchParams(location.search);
 const LOCALNET = params.has('localnet');
 
 // ---------------- settings ----------------
-const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'behind', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true, cel: -1, pside: 'off' };
+const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'behind', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true, cel: -1, pside: 'off', pspot: 25 };
 let SET = { ...DEF_SET };
 try { SET = { ...DEF_SET, ...JSON.parse(localStorage.getItem('ek_settings') || '{}') }; } catch (_) {}
 const saveSet = () => { try { localStorage.setItem('ek_settings', JSON.stringify(SET)); } catch (_) {} };
@@ -170,10 +170,14 @@ function openPicker(title, current, avoid, cb) {
 $('#pk-close').addEventListener('click', () => $('#teampick').classList.add('hidden'));
 function fillGrid(el, current, avoid, onPick) {
   el.innerHTML = '';
+  const rb = document.createElement('button'); rb.className = 'tg rnd-tile'; rb.type = 'button';
+  rb.innerHTML = '<span class="dice" aria-hidden="true">?</span><b>Random</b><small>Any team</small>';
+  rb.onclick = () => { const i = randomTeam(avoid); sfx.play('ui'); $$('.tg', el).forEach(x => x.classList.toggle('on', x.dataset.ti === String(i))); onPick(i); };
+  el.appendChild(rb);
   TEAMS.map((t, i) => i).sort((a, b) => TEAMS[a].city.localeCompare(TEAMS[b].city)).forEach(i => {
     const t = TEAMS[i];
     const b = document.createElement('button');
-    b.className = 'tg' + (i === current ? ' on' : '');
+    b.className = 'tg' + (i === current ? ' on' : ''); b.dataset.ti = i;
     b.disabled = i === avoid;
     b.style.setProperty('--c', t.jersey); b.style.setProperty('--c2', t.trim);
     b.innerHTML = `<img class="tg-logo" alt="" src="${logoURL(i, 64)}"><b>${t.city}</b><small>${t.abbr}</small><span>${teamOvr(i)}</span>`;
@@ -186,9 +190,18 @@ function shade(hex, f) {
   const m = v => Math.max(0, Math.min(255, Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f)));
   return `rgb(${m(r)},${m(g)},${m(b)})`;
 }
+function randomTeam(avoid) { let v; do { v = (Math.random() * TEAMS.length) | 0; } while (v === avoid); return v; }
+// "Random" spins through a few teams, then lands on one (like Madden's random team)
+function spinTeam(set, avoid) {
+  let n = 0; const tick = () => { set(randomTeam(avoid)); sfx.play('ui'); if (++n < 9) setTimeout(tick, 40 + n * 18); };
+  tick();
+}
 function wireTeamPick(root, get, set, avoid) {
   $('.team-card', root).onclick = () => openPicker('Choose a team', get(), avoid ? avoid() : -1, set);
-  $$('.arrows button', root).forEach(b => b.onclick = () => {
+  const ar = $('.arrows', root);
+  if (ar && !$('.rnd', ar)) { const r = document.createElement('button'); r.className = 'btn sm rnd'; r.type = 'button'; r.textContent = 'Random'; r.setAttribute('aria-label', 'Random team'); ar.appendChild(r); }
+  if (ar) $('.rnd', ar).onclick = () => spinTeam(set, avoid ? avoid() : -1);
+  $$('.arrows button[data-d]', root).forEach(b => b.onclick = () => {
     let v = get();
     do { v = (v + +b.dataset.d + TEAMS.length) % TEAMS.length; } while (avoid && v === avoid());
     set(v); sfx.play('ui');
@@ -298,14 +311,15 @@ $('#start-cpu').addEventListener('click', () => startCPU());
 
 function renderModes() {
   teamCard($('#tp-modes .team-card'), SET.team);
-  seg($('#seg-pside'), [['off', 'Offense'], ['def', 'Defense']], SET.pside, v => { SET.pside = v; saveSet(); });
+  seg($('#seg-pside'), [['off', 'Offense'], ['def', 'Defense'], ['st', 'Special teams']], SET.pside, v => { SET.pside = v; saveSet(); });
+  seg($('#seg-pspot'), [[25, 'Own 25'], [50, 'Midfield'], [80, 'Red zone'], [97, 'Goal line']], SET.pspot, v => { SET.pspot = v; saveSet(); });
   seg($('#seg-pdiff'), DIFFICULTIES.map((n, i) => [i, n]), SET.diff, v => { SET.diff = v; saveSet(); renderModes(); });
   seg($('#seg-ddiff'), DIFFICULTIES.map((n, i) => [i, n]), SET.diff, v => { SET.diff = v; saveSet(); renderModes(); });
   renderDrillBoard($('#drill-board'));
 }
 wireTeamPick($('#tp-modes'), () => SET.team, v => { SET.team = v; saveSet(); renderModes(); });
 const randOpp = () => { let o; do { o = (Math.random() * TEAMS.length) | 0; } while (o === SET.team); return o; };
-$('#go-practice').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], practice: SET.pside, weather: 'clear', tod: 'day' }));
+$('#go-practice').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], practice: SET.pside, pspot: SET.pspot, weather: 'clear', tod: 'day' }));
 $('#go-drill').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], drill: true }));
 
 function renderSettings() {
@@ -367,7 +381,7 @@ function startCPU(opts = {}) {
   const teams = opts.teams || [SET.team, SET.cpuTeam];
   st.ut = !!opts.ut; st.solo = opts.solo || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
   const weather = opts.weather || (opts.season ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season ? pickTod('random') : pickTod(SET.tod));
-  st.game = createGame({ teams, humans: [true, false], quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, drill: !!opts.drill, cel: [SET.cel, -1] });
+  st.game = createGame({ teams, humans: [true, false], quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', 'CPU'];
   R.setTeams(st.game.opts.teams);
@@ -379,6 +393,9 @@ function startCPU(opts = {}) {
 }
 
 function leaveGame() {
+  stopSpec();
+  if (st.mode === 'spec') st.mode = 'cpu';
+  $('#hud').classList.remove('spec');
   st.playing = false; st.game = null; st.snap = null; st.guestBuf = [];
   if (st.peer) { st.peer.close(); st.peer = null; }
   $('#hud').classList.add('hidden'); $('#pause').classList.add('hidden'); $('#gameover').classList.add('hidden');
@@ -678,6 +695,7 @@ function highlightsHTML(S) {
 function showGameOver(S) {
   st.overShown = true;
   const me = st.local, other = 1 - me;
+  if (st.mode === 'spec') { st.rewarded = true; st.resultSaved = true; st.seasonSaved = true; }
   $('#go-potg').innerHTML = S.mode === 'drill' ? '' : potg(S);
   $('#go-hl').innerHTML = highlightsHTML(S);
   if (S.mode === 'drill') {
@@ -700,6 +718,7 @@ function showGameOver(S) {
     ['First downs', s[0].firstDowns, s[1].firstDowns], ['Touchdowns', s[0].tds, s[1].tds], ['Interceptions thrown', s[0].ints, s[1].ints], ['Sacks', s[0].sacks, s[1].sacks], ['Penalties', `${s[0].pens || 0}-${s[0].penYds || 0}`, `${s[1].pens || 0}-${s[1].penYds || 0}`]];
   $('#go-stats').innerHTML = `<tr><th>${T[0].abbr}</th><th></th><th>${T[1].abbr}</th></tr>` + rows.map(r => `<tr><td>${r[1]}</td><td>${r[0]}</td><td>${r[2]}</td></tr>`).join('');
   $('#go-again').textContent = st.mode === 'guest' ? 'Rematch (host starts)' : st.seasonGame ? 'Back to season' : 'Play again';
+  $('#go-again').classList.toggle('hidden', st.mode === 'spec');
   if (st.seasonGame && !st.seasonSaved) {
     st.seasonSaved = true;
     const SS = loadSeason();
@@ -1037,6 +1056,54 @@ function myOnlineInfo() {
   const roster = useUT ? UTm.squadRoster(P.ut) : null;
   return { name: Auth.user ? Auth.user.name : 'Player', team: useUT ? P.ut.club : onlineTeam, rank: P ? P.rank.name : '', roster, squad: roster ? P.ut.name : null, cel: SET.cel };
 }
+// ---------------- spectating ----------------
+let spec = null, liveLobby = null, specAcc = 0, liveAt = 0;
+function startSpecCast(code, listed) {
+  stopSpec(); if (!code) return;
+  const client = Auth.mode === 'supabase' && !LOCALNET ? Auth.client : null;
+  spec = new SpecChannel(client, code); spec.open(() => {}).catch(() => { spec = null; });
+  if (listed) { liveLobby = new Lobby(client); liveLobby.open(() => {}).then(() => liveTrack(true)).catch(() => {}); }
+}
+function liveTrack(force) {
+  if (!liveLobby || !st.snap) return;
+  const now = performance.now(); if (!force && now - liveAt < 8000) return; liveAt = now;
+  const S = st.snap, i = myOnlineInfo();
+  liveLobby.track({ code: st.roomCode, live: true, name: `${st.names[0]} vs ${st.names[1]}`, team: S.teams[0], team2: S.teams[1], sc: S.sc, q: S.q, rank: i.rank, ql: SET.qlen, at: Date.now() });
+}
+// host side: send a snapshot to watchers about 8 times a second
+function specPush(events) {
+  if (!spec || !st.snap) return;
+  specAcc += 1; if (specAcc < 2 && !(events && events.length)) return; specAcc = 0;
+  spec.send({ t: 's', s: st.snap, e: events || [], names: st.names, teamNames: st.teamNames, teams: st.snap.teams });
+  liveTrack(false);
+}
+function stopSpec() { if (spec) { spec.close(); spec = null; } if (liveLobby) { liveLobby.close(); liveLobby = null; } }
+async function startSpectate(code) {
+  sfx.init(); stopSpec(); onlineMsg('');
+  const client = Auth.mode === 'supabase' && !LOCALNET ? Auth.client : null;
+  $('#online-main').classList.add('hidden'); $('#online-wait').classList.remove('hidden');
+  $('#room-code').textContent = code; $('#wait-label').textContent = 'Watching game'; $('#copy-code').classList.add('hidden');
+  $('#wait-status').innerHTML = '<span class="spinner"></span>Looking for a live game…';
+  const ch = spec = new SpecChannel(client, code);
+  const give = setTimeout(() => { if (spec === ch && !st.playing) { stopSpec(); onlineMsg('No live game with that code right now. It might not have kicked off yet.', true); resetOnlineUI(); } }, 15000);
+  try {
+    await ch.open((m) => {
+      if (spec !== ch || !m || m.t !== 's' || !m.s) return;
+      st.specRx = performance.now();
+      if (!st.playing) {
+        clearTimeout(give); stopLobby();
+        st.mode = 'spec'; st.local = 0; st.names = m.names || ['Home', 'Away']; st.teamNames = m.teamNames || null; st.ut = false; st.practice = null; st.drill = false; st.rec = []; st.replay = null;
+        R.setTeams(m.teams); st.guestBuf = []; st.snap = null;
+        $('#net-badge').textContent = 'Spectating'; $('#net-badge').classList.remove('hidden');
+        enterGame(); $('#hud').classList.add('spec'); st.intro = 0;
+        toast(`Watching ${st.names[0]} vs ${st.names[1]}. Press Esc to leave.`, 3500);
+      }
+      st.guestBuf.push({ at: performance.now(), s: m.s }); if (st.guestBuf.length > 40) st.guestBuf.shift();
+      if (m.e) for (const e of m.e) { sfx.play(e); R.event(e); }
+    });
+  } catch (e) { clearTimeout(give); onlineMsg(e.message, true); resetOnlineUI(); }
+}
+
 // ---------------- public lobby ----------------
 let lobby = null;
 function startLobby() {
@@ -1048,11 +1115,16 @@ function startLobby() {
 function stopLobby() { if (lobby) { lobby.close(); lobby = null; } }
 function renderLobby(list) {
   const el = $('#lobby-list'); if (!el) return;
-  $('#lobby-count').textContent = list.length ? `${list.length} open game${list.length > 1 ? 's' : ''}` : '';
-  if (!list.length) { el.innerHTML = '<div class="lob-empty">No open games right now. Host one and it shows up here for everyone.</div>'; return; }
-  el.innerHTML = list.map(g => { const t = TEAMS[g.team] || TEAMS[0]; const r = (g.rank || 'Bronze').split(' ')[0];
-    return `<div class="lob" style="--c:${t.jersey};--c2:${t.trim}"><img class="tg-logo" alt="" src="${logoURL(TEAMS[g.team] ? g.team : 0, 64)}"><div><b>${escapeHtml(g.name)}</b><small>${g.squad ? escapeHtml(g.squad) + ' (Ultimate Team)' : t.city}, ${Math.round((g.ql || 120) / 60)} min quarters${g.wx && g.wx !== 'random' ? ', ' + g.wx : ''}</small></div><span class="rank-pill" style="--rk:${(RANK_COL[r] || RANK_COL.Bronze)[0]}">${escapeHtml(g.rank || '')}</span><button class="btn primary sm" data-code="${escapeHtml(g.code)}">Join</button></div>`; }).join('');
+  const open = list.filter(g => !g.live), live = list.filter(g => g.live);
+  $('#lobby-count').textContent = [open.length ? `${open.length} open` : '', live.length ? `${live.length} live` : ''].filter(Boolean).join(', ');
+  if (!list.length) { el.innerHTML = '<div class="lob-empty">No games right now. Host one and it shows up here for everyone.</div>'; return; }
+  const safe = c => validCode(String(c || '')) ? c : '';
+  el.innerHTML = open.map(g => { const t = TEAMS[g.team] || TEAMS[0]; const r = (g.rank || 'Bronze').split(' ')[0];
+    return `<div class="lob" style="--c:${t.jersey};--c2:${t.trim}"><img class="tg-logo" alt="" src="${logoURL(TEAMS[g.team] ? g.team : 0, 64)}"><div><b>${escapeHtml(g.name)}</b><small>${g.squad ? escapeHtml(g.squad) + ' (Ultimate Team)' : t.city}, ${Math.round((g.ql || 120) / 60)} min quarters${g.wx && g.wx !== 'random' ? ', ' + g.wx : ''}</small></div><span class="rank-pill" style="--rk:${(RANK_COL[r] || RANK_COL.Bronze)[0]}">${escapeHtml(g.rank || '')}</span><button class="btn primary sm" data-code="${safe(g.code)}">Join</button></div>`; }).join('')
+    + live.map(g => { const a = TEAMS[g.team] || TEAMS[0], h = TEAMS[g.team2] || TEAMS[1], sc = Array.isArray(g.sc) ? g.sc.map(n => +n || 0) : [0, 0];
+    return `<div class="lob live" style="--c:${a.jersey};--c2:${h.jersey}"><img class="tg-logo" alt="" src="${logoURL(TEAMS[g.team] ? g.team : 0, 64)}"><div><b>${escapeHtml(g.name)}</b><small><span class="live-dot"></span>Live: ${a.abbr} ${sc[0]}, ${h.abbr} ${sc[1]}, Q${Math.min(5, +g.q || 1)}</small></div><img class="tg-logo" alt="" src="${logoURL(TEAMS[g.team2] ? g.team2 : 1, 64)}"><button class="btn sm" data-watch="${safe(g.code)}">Watch</button></div>`; }).join('');
   $$('[data-code]', el).forEach(b => b.onclick = () => { $('#join-code').value = b.dataset.code; $('#join-btn').click(); });
+  $$('[data-watch]', el).forEach(b => b.onclick = () => startSpectate(b.dataset.watch));
 }
 wireTeamPick($('#tp-online'), () => onlineTeam, v => { onlineTeam = v; renderOnline(); });
 function onlineMsg(t, err) { const m = $('#online-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
@@ -1060,6 +1132,8 @@ function makeSignal(code) { return (Auth.mode === 'supabase' && !LOCALNET) ? new
 $('#online-back').addEventListener('click', () => { if (st.peer) { st.peer.close(); st.peer = null; } show('menu'); });
 $('#copy-code').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText($('#room-code').textContent).then(() => toast('Code copied')); });
 $('#join-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+$('#host-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+$('#watch-btn').addEventListener('click', () => { const code = $('#join-code').value.trim().toUpperCase(); if (!validCode(code)) { onlineMsg(`Codes are ${CODE_MIN} to ${CODE_MAX} letters or numbers`, true); return; } startSpectate(code); });
 
 function wirePeer(peer, role) {
   peer.on('error', (m) => { onlineMsg(m, true); resetOnlineUI(); });
@@ -1088,7 +1162,10 @@ const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<':
 
 $('#host-btn').addEventListener('click', async () => {
   sfx.init();
-  const code = makeRoomCode();
+  const custom = ($('#host-code').value || '').trim().toUpperCase();
+  if (custom && !validCode(custom)) { onlineMsg(`Custom codes must be ${CODE_MIN} to ${CODE_MAX} letters or numbers`, true); return; }
+  const code = custom || makeRoomCode();
+  st.roomCode = code;
   const peer = st.peer = new Peer(makeSignal(code), 'host', myOnlineInfo());
   wirePeer(peer, 'host');
   $('#online-main').classList.add('hidden'); $('#online-wait').classList.remove('hidden');
@@ -1105,7 +1182,7 @@ $('#host-btn').addEventListener('click', async () => {
 $('#join-btn').addEventListener('click', async () => {
   sfx.init();
   const code = $('#join-code').value.trim().toUpperCase();
-  if (code.length !== 5) { onlineMsg('Codes are 5 characters', true); return; }
+  if (!validCode(code)) { onlineMsg(`Codes are ${CODE_MIN} to ${CODE_MAX} letters or numbers`, true); return; }
   const peer = st.peer = new Peer(makeSignal(code), 'guest', myOnlineInfo());
   wirePeer(peer, 'guest');
   $('#online-main').classList.add('hidden'); $('#online-wait').classList.remove('hidden');
@@ -1133,6 +1210,7 @@ function startHostGame() {
   R.setTeams(st.game.opts.teams);
   R.setWeather(weather, tod);
   peer.send({ t: 'start', teams: st.game.opts.teams, ql: SET.qlen, names: st.names, teamNames: st.teamNames, ut: !!them.roster }, true);
+  startSpecCast(st.roomCode, SET.vis === 'public');
   $('#net-badge').classList.remove('hidden');
   enterGame();
   $('#chat').classList.remove('hidden'); chatLine('sys', '', 'Press T to chat.');
@@ -1188,7 +1266,7 @@ setInterval(() => {
   let n = Math.min(60, Math.round(dt / DT));
   for (let i = 0; i < n; i++) { step(st.game, DT, [{}, { mx: st.remote.mx, mz: st.remote.mz, sprint: st.remote.sprint, ev: i === 0 ? st.remote.ev : [] }]); if (i === 0) st.remote.ev = []; for (const e of drainEvents(st.game)) st.netEv.push(e); }
   st.snap = snapshot(st.game);
-  if (st.peer) { st.peer.send({ t: 's', s: st.snap, e: st.netEv }, false); st.netEv = []; }
+  if (st.peer) { st.peer.send({ t: 's', s: st.snap, e: st.netEv }, false); specPush(st.netEv); st.netEv = []; }
 }, 100);
 function frame(now) {
   requestAnimationFrame(frame);
@@ -1199,7 +1277,10 @@ function frame(now) {
       R.render();
       return;
     }
-    if (st.mode === 'guest') {
+    if (st.mode === 'spec') {
+      const v = guestView(); if (v) st.snap = v;
+      if (performance.now() - (st.specRx || 0) > 15000) { toast('The game you were watching ended or lost connection'); leaveGame(); return; }
+    } else if (st.mode === 'guest') {
       const v = guestView();
       if (v) st.snap = v;
       st.inputAcc += dt;
@@ -1221,7 +1302,7 @@ function frame(now) {
       st.snap = snapshot(st.game);
       if (st.mode === 'host' && st.peer) {
         st.netAcc += dt;
-        if (st.netAcc >= 0.05) { st.netAcc = 0; st.peer.send({ t: 's', s: st.snap, e: st.netEv }, false); st.netEv = []; }
+        if (st.netAcc >= 0.05) { st.netAcc = 0; st.peer.send({ t: 's', s: st.snap, e: st.netEv }, false); specPush(st.netEv); st.netEv = []; }
       }
     }
     if (st.snap) {

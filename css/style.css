@@ -882,3 +882,10 @@ button.ucard:hover { transform: translateY(-3px); }
 .ut-tabs::-webkit-scrollbar { display: none; }
 .ut-tab { white-space: nowrap; }
 @media (max-width: 700px) { .ut-tab { min-width: 92px; flex: 0 0 auto; } }
+.tg.rnd-tile { --c: #2a3566; --c2: var(--gold); border-style: dashed; }
+.tg .dice { grid-row: span 2; display: grid; place-items: center; width: 34px; height: 34px; font-family: var(--display); font-weight: 900; font-size: 24px; color: #1a1200; background: var(--gold); transform: rotate(-8deg); }
+.arrows .rnd { padding-inline: 10px; }
+/* spectating */
+#hud.spec #playcall, #hud.spec #touch, #hud.spec #km-btn, #hud.spec .hint, #hud.spec #playball, #hud.spec .stam, #hud.spec #me-label, #hud.spec #hot { display: none !important; }
+.lob.live { border-left-color: var(--siren); }
+.live-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--siren); animation: pclow .7s infinite alternate; vertical-align: middle; }

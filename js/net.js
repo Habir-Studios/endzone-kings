@@ -3,10 +3,35 @@
 
 const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
 
-export function makeRoomCode() {
+// game codes are 6 to 8 letters/numbers
+export const CODE_MIN = 6, CODE_MAX = 8;
+export const validCode = c => typeof c === 'string' && c.length >= CODE_MIN && c.length <= CODE_MAX && /^[A-Z0-9]+$/.test(c);
+export function makeRoomCode(len = CODE_MIN) {
   const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s = ''; for (let i = 0; i < 5; i++) s += A[(Math.random() * A.length) | 0];
+  let s = ''; for (let i = 0; i < len; i++) s += A[(Math.random() * A.length) | 0];
   return s;
+}
+
+// --- spectating: the host streams game state to anyone watching the code (one way, no input) ---
+export class SpecChannel {
+  constructor(client, code) { this.client = client; this.code = code; this.cb = null; }
+  async open(cb) {
+    this.cb = cb;
+    if (this.client) {
+      this.ch = this.client.channel('ek-spec-' + this.code, { config: { broadcast: { self: false, ack: false }, presence: { key: Math.random().toString(36).slice(2, 10) } } });
+      this.ch.on('broadcast', { event: 'g' }, ({ payload }) => this.cb && this.cb(payload));
+      this.ch.on('presence', { event: 'sync' }, () => { this.watchers = Math.max(0, Object.keys(this.ch.presenceState()).length - 1); });
+      await new Promise((res, rej) => {
+        const to = setTimeout(() => rej(new Error('Could not reach the game server.')), 10000);
+        this.ch.subscribe(async (st) => { if (st === 'SUBSCRIBED') { clearTimeout(to); try { await this.ch.track({ w: 1 }); } catch (_) {} res(); } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(to); rej(new Error('Realtime connection failed')); } });
+      });
+    } else {
+      this.bc = new BroadcastChannel('ek-spec-' + this.code);
+      this.bc.onmessage = (e) => this.cb && this.cb(e.data);
+    }
+  }
+  send(m) { if (this.ch) this.ch.send({ type: 'broadcast', event: 'g', payload: m }); else if (this.bc) this.bc.postMessage(m); }
+  close() { this.cb = null; if (this.ch) { try { this.client.removeChannel(this.ch); } catch (_) {} this.ch = null; } if (this.bc) { this.bc.close(); this.bc = null; } }
 }
 
 // --- signaling transports ---

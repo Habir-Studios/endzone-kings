@@ -1,6 +1,6 @@
 // ENDZONE KINGS — original team logos. Each city gets its own badge shape and emblem in its colors.
 // These are made-up marks: no real league logos, mascots or wordmarks.
-import { TEAMS } from './teams.js?v=1792246372';
+import { TEAMS } from './teams.js?v=1792246664';
 
 // emblem per team, in TEAMS order (picked so nothing echoes a real club's mascot)
 const EMBLEM = ['sun', 'comet', 'crown', 'snowflake', 'flame', 'tower', 'gear', 'rook', 'shield', 'mountain', 'chevrons', 'key', 'orbit', 'flag', 'wave', 'bolt',

@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792269171';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792269171';
-import { Renderer } from './render.js?v=1792269171';
-import { Sfx } from './audio.js?v=1792269171';
-import { Auth } from './auth.js?v=1792269171';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792269171';
-import { getRoster, teamOvr } from './teams.js?v=1792269171';
-import * as Season from './season.js?v=1792269171';
-import * as Fr from './franchise.js?v=1792269171';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792269171';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792269171';
-import * as UTm from './ut.js?v=1792269171';
-import { initCreator, renderCreator } from './creator.js?v=1792269171';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792269171';
-import { portraitURL } from './faces.js?v=1792269171';
-import { logoURL, clearLogoCache } from './logos.js?v=1792269171';
+import { askYes } from './ui.js?v=1792269592';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792269592';
+import { Renderer } from './render.js?v=1792269592';
+import { Sfx } from './audio.js?v=1792269592';
+import { Auth } from './auth.js?v=1792269592';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792269592';
+import { getRoster, teamOvr } from './teams.js?v=1792269592';
+import * as Season from './season.js?v=1792269592';
+import * as Fr from './franchise.js?v=1792269592';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792269592';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792269592';
+import * as UTm from './ut.js?v=1792269592';
+import { initCreator, renderCreator } from './creator.js?v=1792269592';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792269592';
+import { portraitURL } from './faces.js?v=1792269592';
+import { logoURL, clearLogoCache } from './logos.js?v=1792269592';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -106,8 +106,8 @@ function renderCelShop() {
   const P = !isGuest() ? profile() : null, own = celOwned(P);
   box.innerHTML = CELS.filter(c => c[0] >= 0).map(([id, n, price]) => {
     const have = own.has(id), on = SET.cel === id;
-    return `<div class="lk-cel ${on ? 'on' : ''}"><b>${n}</b>${have ? `<button class="btn sm ${on ? 'primary' : ''}" data-celeq="${id}" type="button">${on ? 'Equipped' : 'Equip'}</button>` : `<button class="btn sm" data-celbuy="${id}" type="button" ${!P ? 'disabled title="Make an account to buy celebrations"' : ''}><i class="coin"></i> ${price.toLocaleString()}</button>`}<button class="btn sm ghost" data-celhear="${id}" type="button" aria-label="Hear it">♪</button></div>`;
-  }).join('') + `<div class="lk-cel ${SET.cel === -1 ? 'on' : ''}"><b>Random</b><button class="btn sm ${SET.cel === -1 ? 'primary' : ''}" data-celeq="-1" type="button">${SET.cel === -1 ? 'Equipped' : 'Equip'}</button></div>`;
+    return `<div class="lk-cel ${on ? 'on' : ''} ${have ? '' : 'locked'}"><span class="lk-ic">${CEL_IC[id] || '★'}</span><b>${n}</b>${have ? `<button class="btn sm ${on ? 'primary' : ''}" data-celeq="${id}" type="button">${on ? 'Equipped' : 'Equip'}</button>` : `<button class="btn sm" data-celbuy="${id}" type="button" ${!P ? 'disabled title="Make an account to buy celebrations"' : ''}><i class="coin"></i> ${price.toLocaleString()}</button>`}<button class="btn sm ghost" data-celhear="${id}" type="button" aria-label="Hear it">♪</button></div>`;
+  }).join('') + `<div class="lk-cel ${SET.cel === -1 ? 'on' : ''}"><span class="lk-ic">${CEL_IC[-1]}</span><b>Random</b><button class="btn sm ${SET.cel === -1 ? 'primary' : ''}" data-celeq="-1" type="button">${SET.cel === -1 ? 'Equipped' : 'Equip'}</button></div>`;
   $$('[data-celeq]', box).forEach(b => b.onclick = () => { SET.cel = +b.dataset.celeq; saveSet(); sfx.play('ui'); renderCelShop(); });
   $$('[data-celhear]', box).forEach(b => b.onclick = () => { sfx.init(); sfx.play('cel' + b.dataset.celhear); });
   $$('[data-celbuy]', box).forEach(b => b.onclick = async () => {

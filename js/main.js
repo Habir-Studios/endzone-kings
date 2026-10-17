@@ -1,23 +1,23 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792273783';
-import * as Form from './form.js?v=1792273783';
-import { watchSim } from './simview.js?v=1792273783';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792273783';
-import { Renderer } from './render.js?v=1792273783';
-import { Sfx } from './audio.js?v=1792273783';
-import { Auth } from './auth.js?v=1792273783';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792273783';
-import { getRoster, teamOvr } from './teams.js?v=1792273783';
-import * as Season from './season.js?v=1792273783';
-import * as Fr from './franchise.js?v=1792273783';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf } from './profile.js?v=1792273783';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792273783';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792273783';
-import * as UTm from './ut.js?v=1792273783';
-import { initCreator, renderCreator } from './creator.js?v=1792273783';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792273783';
-import { portraitURL } from './faces.js?v=1792273783';
-import { logoURL, clearLogoCache } from './logos.js?v=1792273783';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792273927';
+import * as Form from './form.js?v=1792273927';
+import { watchSim } from './simview.js?v=1792273927';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792273927';
+import { Renderer } from './render.js?v=1792273927';
+import { Sfx } from './audio.js?v=1792273927';
+import { Auth } from './auth.js?v=1792273927';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792273927';
+import { getRoster, teamOvr } from './teams.js?v=1792273927';
+import * as Season from './season.js?v=1792273927';
+import * as Fr from './franchise.js?v=1792273927';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792273927';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792273927';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792273927';
+import * as UTm from './ut.js?v=1792273927';
+import { initCreator, renderCreator } from './creator.js?v=1792273927';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792273927';
+import { portraitURL } from './faces.js?v=1792273927';
+import { logoURL, clearLogoCache } from './logos.js?v=1792273927';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -180,7 +180,7 @@ function show(id) {
   if (id === 'creator') renderCreator();
   if (id === 'modes') renderModes();
   if (id === 'social') renderSocial();
-  if (id === 'menu') { renderMenuBoard(); refreshUnread(); checkBan(); refreshAdminBadge(); const P = !isGuest() && profile(); if (P) { P.settleSeasons(); for (const n of P.notice || []) toast(n, 6000); P.notice = []; } }
+  if (id === 'menu') { renderMenuBoard(); refreshUnread(); checkBan(); refreshAdminBadge(); const P = !isGuest() && profile(); if (P) { P.settleSeasons(); for (const n of P.notice || []) toast(n, 6000); P.notice = []; const L = P.claimLogin(); if (L) setTimeout(() => showInfo(`Day ${L.streak} login reward`, `<div class="login-row">${LOGIN_REWARDS_.map((r, i) => `<div class="lg-day ${i + 1 < L.streak ? 'got' : i + 1 === L.streak ? 'now' : ''}"><small>Day ${i + 1}</small><b>${r.coins}</b><span>coins${r.tp ? ` +${r.tp} TP` : ''}${r.pack ? ' + pack' : ''}</span></div>`).join('')}</div><p class="note">Come back tomorrow to keep the streak going. Miss a day and it starts over.</p>`), 600); refreshChip(); } }
   if (id === 'admin') renderAdmin();
   if (id === 'franchise') Fr.renderFranchise();
   if (id !== 'online') stopLobby();

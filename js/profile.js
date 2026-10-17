@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792273783';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792273927';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -24,6 +24,8 @@ export const WL_REWARDS = [
   { w: 7, coins: 2400, pack: 'gold' }, { w: 9, coins: 4000, pack: 'elite' }, { w: 10, coins: 6500, pack: 'kings' },
 ];
 export const wlReward = w => WL_REWARDS.filter(r => w >= r.w).pop();
+// ---------- daily login: come back every day for a growing reward (a 7-day cycle; miss a day and it restarts) ----------
+export const LOGIN_REWARDS = [{ coins: 100 }, { coins: 150 }, { coins: 200, tp: 10 }, { coins: 250 }, { coins: 300, tp: 20 }, { coins: 350, pack: 'bronze' }, { coins: 600, pack: 'silver', tp: 30 }];
 export const xpFor = lvl => 650 + lvl * 200;   // levels take a while
 export function levelReward(lvl) {
   const r = { coins: 80 + lvl * 15, pack: null };
@@ -154,6 +156,16 @@ export class Profile {
     if (take) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.verify(); this.refreshChallenges(); if (this.listeners) this.upgradeClub(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.tampered = !!this.p.tampered; return true; } return false; }
 
   get rank() { return rankInfo(this.p.rp); }
+  // first visit of the day: returns the reward it just paid, or null
+  claimLogin() {
+    const P = this.p, today = dayKey(), y = new Date(); y.setDate(y.getDate() - 1);
+    if (P.login && P.login.d === today) return null;
+    const streak = P.login && P.login.d === dayKey(y) ? (P.login.streak % 7) + 1 : 1;
+    const R = LOGIN_REWARDS[streak - 1];
+    P.coins += R.coins; if (R.tp) P.tp = (P.tp || 0) + R.tp; if (R.pack) this.addPack(R.pack);
+    P.login = { d: today, streak }; this.save();
+    return { streak, ...R };
+  }
   // pay out a finished ranked season / Weekend League (shown as a toast the next time the menu opens)
   settleSeasons() {
     const P = this.p, mk = monthKey(), wk = weekKey(); let paid = false;

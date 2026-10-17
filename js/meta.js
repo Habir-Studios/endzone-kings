@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792273783';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792273783';
-import * as UT from './ut.js?v=1792273783';
-import { portraitURL } from './faces.js?v=1792273783';
-import { TEAMS } from './teams.js?v=1792273783';
+import { askYes } from './ui.js?v=1792273927';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792273927';
+import * as UT from './ut.js?v=1792273927';
+import { portraitURL } from './faces.js?v=1792273927';
+import { TEAMS } from './teams.js?v=1792273927';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -114,6 +114,7 @@ function renderSquad(P) {
   pane.innerHTML = `<div class="squad-head"><div><h3>${C.escapeHtml(U.name)}</h3><p class="note">Wearing ${t.city} colors. Click a player to swap him out.</p></div>
     <div class="sq-ovr"><div><b>${o.ovr}</b><small>OVR</small></div><div><b>${o.off}</b><small>OFF</small></div><div><b>${o.def}</b><small>DEF</small></div></div>
     <div class="cr-btns"><button class="btn sm" id="sq-auto">Best lineup</button><button class="btn sm" id="sq-uni">Change uniform</button></div></div>
+    ${(() => { const ch = UT.chemistry(U); return `<div class="chem"><b>Chemistry +${ch.total}</b>${ch.groups.length ? ch.groups.map(g => `<span style="--c:${TEAMS[g.team].jersey}"><img alt="" src="${C.logoURL ? C.logoURL(g.team, 32) : ''}">${TEAMS[g.team].abbr} ×${g.n} · +${g.bonus} ratings</span>`).join('') : '<span class="note">Start 3+ players from the same team to boost them (+1 at 3, +2 at 5, +3 at 7). Your club\u2019s team counts one extra.</span>'}</div>`; })()}
     <div class="pitch">
       <div class="pitch-label">Offense</div>${row(['WR1', 'LT', 'LG', 'C', 'RG', 'RT', 'TE', 'WR2'])}${row(['WR3', 'QB', 'RB'])}
       <div class="pitch-label">Defense</div>${row(['DL1', 'DL4', 'DL2', 'DL3'])}${row(['LB2', 'LB', 'LB3'])}${row(['CB1', 'S', 'SS', 'CB2'])}
@@ -275,6 +276,7 @@ function renderSolos(P) {
       <button class="btn ${fin ? '' : 'primary'}" data-solo="${x.k}" ${fin || !o.full ? 'disabled' : ''}>${fin ? 'Done' : o.full ? 'Play' : 'Fill your lineup'}</button></div>`; }).join('')}</div>`;
   C.$$('[data-solo]', pane).forEach(b => b.onclick = () => {
     const x = UT.SOLOS.find(s => s.k === b.dataset.solo), roster = UT.squadRoster(U); if (!roster) return C.toast('Fill every lineup spot first');
+    if (x.req && !x.req(UT.lineupCards(U))) return C.toast(`Squad challenge: ${x.reqd}. Change your lineup first.`, 3500);
     const opp = x.opp === U.club ? (x.opp + 1) % TEAMS.length : x.opp;
     C.startCPU({ teams: [U.club, opp], rosters: [roster, null], ut: true, solo: x.k, diff: x.diff, weather: 'clear', tod: 'night', teamNames: [U.name, null] });
   });

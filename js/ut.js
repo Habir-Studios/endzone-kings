@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792273783';
-import { grade, nextForm, decay, formed } from './form.js?v=1792273783';
+import { TEAMS } from './teams.js?v=1792273927';
+import { grade, nextForm, decay, formed } from './form.js?v=1792273927';
 
 export const TIERS = [
   // mv = what the market pays. Kept well under what packs cost, so buying packs to resell always loses coins
@@ -82,7 +82,16 @@ export const VARIANTS = {
   cyclone: { program: 'Cyclone', apply(o) { o.program = 'Cyclone'; lift(o, ['spd'], 98); o.elu = Math.min(99, o.elu + 6); o.ovr = Math.min(99, o.ovr + 2); } },
   frost: { program: 'Cold-Blooded', apply(o) { o.program = 'Cold-Blooded'; lift(o, ['cov'], 97); o.ovr = Math.min(99, o.ovr + 2); } },
   venom: { program: 'Venom', apply(o) { o.program = 'Venom'; lift(o, ['tkl'], 97); o.ovr = Math.min(99, o.ovr + 2); } },
+  // limited-time weekly event programs (only drop the week they're live)
+  primetime: { program: 'Primetime', apply(o) { o.program = 'Primetime'; for (const k of KEYS[o.group]) o[k] = Math.min(99, o[k] + 3); o.ovr = Math.min(99, o.ovr + 3); } },
+  snowbowl: { program: 'Snow Bowl', apply(o) { o.program = 'Snow Bowl'; for (const k of ['tkl', 'blk', 'rush']) o[k] = Math.min(99, o[k] + 4); o.ovr = Math.min(99, o.ovr + 2); } },
+  throwback: { program: 'Throwback', apply(o) { o.program = 'Throwback'; for (const k of ['spd', 'hands', 'elu']) o[k] = Math.min(99, o[k] + 3); o.ovr = Math.min(99, o.ovr + 2); } },
+  breakout: { program: 'Breakout', apply(o) { o.program = 'Breakout'; for (const k of KEYS[o.group]) o[k] = Math.min(99, o[k] + 5); o.ovr = Math.min(99, o.ovr + 4); } },
 };
+// this week's limited event (rotates every Monday)
+const EVENTS = [['primetime', 'Primetime Heroes'], ['snowbowl', 'Snow Bowl'], ['throwback', 'Throwback Week'], ['breakout', 'Breakout Stars']];
+const weekNo = (d = new Date()) => { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return Math.floor(t.getTime() / 604800000); };
+export const EVENT = (() => { const [x, name] = EVENTS[weekNo() % EVENTS.length]; const d = new Date(), left = 7 - ((d.getDay() + 6) % 7); return { x, name, left }; })();
 
 // ---------------- abilities and X-Factors ----------------
 export const ABILITIES = {
@@ -122,6 +131,7 @@ export const PACKS = [
   { key: 'supernova', name: 'Supernova Pack', art: ['Super', 'nova'], stars: 4, cost: 9800, n: 1, w: [100, 0, 0, 0, 0], guar: 0, nova: true, blurb: 'Most of the time: 1 bronze player and 150 TP. 15% of the time it explodes into 3 Elite players' },
   { key: 'vortex', name: 'Vortex Chaos Pack', art: ['Vortex', 'Chaos'], stars: 4, cost: 11500, n: 3, w: [40, 30, 18, 9, 3], guar: 0, blurb: 'Pure chaos. Any tier can drop, bronze to Kings' },
   { key: 'legends', name: 'Ultimate Legends Pack', art: ['Ultimate', 'Legends'], stars: 5, cost: 85000, n: 3, w: [0, 0, 0, 80, 20], guar: 3, special: { x: 'legend', chance: 1, tier: 4, guaranteed: true }, blurb: '3 players, 1 Ultimate Legend guaranteed: an all-time great of the league' },
+  { key: 'event', name: `${EVENT.name} Pack`, art: [EVENT.name.split(' ')[0], EVENT.name.split(' ').slice(1).join(' ') || 'Event'], stars: 4, cost: 14500, n: 4, w: [10, 50, 32, 7, 1], guar: 2, special: { x: EVENT.x, chance: 0.18, tier: 3 }, limited: true, blurb: `LIMITED: ${EVENT.left} day${EVENT.left === 1 ? '' : 's'} left. 4 players, 18% shot at a ${VARIANTS[EVENT.x].program} card you can only get this week` },
   { key: 'camp', name: 'Training Camp Pack', art: ['Training', 'Camp'], stars: 3, cost: 0, tpCost: 480, n: 4, w: [0, 60, 35, 5, 0], guar: 2, blurb: 'Bought with Training Points. 4 players, at least 1 gold' },
 ];
 export const packByKey = k => PACKS.find(p => p.key === k);
@@ -171,13 +181,22 @@ export function squadOvr(ut) {
   const off = avg(['QB', ...OFF_SLOTS].map(o)), def = avg(DEF_SLOTS.map(o));
   return { ovr: Math.round((off + def) / 2), off, def, full: SLOTS.every(s => L[s]) };
 }
+// team chemistry: starters from the same team boost each other (+1 at 3, +2 at 5, +3 at 7); your club's own team counts one extra
+export function chemistry(ut) {
+  const L = lineupCards(ut), by = {};
+  for (const s of SLOTS) { const c = L[s]; if (!c) continue; (by[c.team] = by[c.team] || []).push(s); }
+  const groups = Object.entries(by).map(([t, ss]) => { const n = ss.length + (+t === ut.club ? 1 : 0); return { team: +t, n: ss.length, bonus: n >= 7 ? 3 : n >= 5 ? 2 : n >= 3 ? 1 : 0, slots: ss }; }).filter(g => g.bonus).sort((a, b) => b.bonus - a.bonus || b.n - a.n);
+  const slot = {}; for (const g of groups) for (const s of g.slots) slot[s] = g.bonus;
+  return { groups, slot, total: Object.values(slot).reduce((a, b) => a + b, 0) };
+}
 // roster object the sim understands (see sim.js cleanRoster)
 export function squadRoster(ut) {
   const L = lineupCards(ut); if (!SLOTS.every(s => L[s])) return null;
+  const CH = chemistry(ut);
   const players = {}, usedNums = new Set();
   for (const s of SLOTS) {
     const c = L[s]; let num = c.num; while (usedNums.has(num)) num = (num + 1) % 100; usedNums.add(num);
-    players[s] = formed({ first: c.first, last: c.last, num, face: c.face, ovr: c.ovr, spd: c.spd, hands: c.hands, acc: c.acc, arm: c.arm, elu: c.elu, blk: c.blk, rush: c.rush, tkl: c.tkl, cov: c.cov }, (ut.form || {})[ut.lineup[s]]);   // live form
+    players[s] = formed({ first: c.first, last: c.last, num, face: c.face, ovr: c.ovr, spd: c.spd, hands: c.hands, acc: c.acc, arm: c.arm, elu: c.elu, blk: c.blk, rush: c.rush, tkl: c.tkl, cov: c.cov }, ((ut.form || {})[ut.lineup[s]] || 0) + (CH.slot[s] || 0));   // live form + chemistry
   }
   return { players };
 }
@@ -253,6 +272,8 @@ export function masterId(weekSeed) { const r = rng(weekSeed); let id; for (let i
 // ---------------- solo challenges ----------------
 // One CPU game each, any Ultimate Team lineup. Each can be beaten once a week.
 export const SOLOS = [
+  { k: 'bronzeb', n: 'Bronze Brigade', d: 'Win with every starter a bronze card', req: (L) => Object.values(L).every(c => c && c.tier === 0), reqd: 'Every starter must be bronze', opp: 25, diff: 1, f: r => r.res === 'W', give: { coins: 1400, pack: 'silver', fp: 500 } },
+  { k: 'hometown', n: 'Hometown Heroes', d: 'Win with 6+ starters from one team', req: (L) => { const n = {}; for (const c of Object.values(L)) if (c) n[c.team] = (n[c.team] || 0) + 1; return Math.max(0, ...Object.values(n)) >= 6; }, reqd: 'Start 6 players from the same team', opp: 9, diff: 2, f: r => r.res === 'W', give: { coins: 1600, pack: 'gold', fp: 600 } },
   { k: 'open', n: 'Opening Drive', d: 'Win the game', opp: 19, diff: 0, f: r => r.res === 'W', give: { coins: 450, fp: 300 } },
   { k: 'air', n: 'Air Show', d: 'Throw for 250 yards and win', opp: 0, diff: 1, f: r => r.res === 'W' && r.me.passYds >= 250, give: { coins: 750, pack: 'bronze', fp: 400 } },
   { k: 'ground', n: 'Ground and Pound', d: 'Run for 120 yards and win', opp: 30, diff: 1, f: r => r.res === 'W' && r.me.rushYds >= 120, give: { coins: 750, fp: 400 } },

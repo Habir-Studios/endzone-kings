@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792264217';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792264217';
-import * as UT from './ut.js?v=1792264217';
-import { portraitURL } from './faces.js?v=1792264217';
-import { TEAMS } from './teams.js?v=1792264217';
+import { askYes } from './ui.js?v=1792264364';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792264364';
+import * as UT from './ut.js?v=1792264364';
+import { portraitURL } from './faces.js?v=1792264364';
+import { TEAMS } from './teams.js?v=1792264364';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -73,7 +73,7 @@ export function cardHTML(c, o = {}) {
 }
 
 // ---------------- Ultimate Team ----------------
-let utTab = 'squad', utStartTeam = -1, clubFilter = { g: 'all', sort: 'ovr' }, utOpp = 15, utWx = 'random', utTod = 'random';
+let utRival = true, utTab = 'squad', utStartTeam = -1, clubFilter = { g: 'all', sort: 'ovr' }, utOpp = 15, utWx = 'random', utTod = 'random';
 export function renderUT() {
   const P = profile(); if (!P) return;
   const { $, $$ } = C, U = P.p.ut;
@@ -224,6 +224,8 @@ function renderPlay(P) {
     <div class="play-ut">
       <div class="team-pick" id="utp-opp"><small>Opponent</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
       <div class="form">
+        <label>Opponent squad<div class="seg" id="utp-rival"></div></label>
+        <p class="note" id="utp-rival-note"></p>
         <label>Difficulty<div class="seg" id="utp-diff"></div></label>
         <label>Quarter length<div class="seg" id="utp-qlen"></div></label>
         <label>Weather<div class="seg" id="utp-wx"></div></label>
@@ -235,13 +237,18 @@ function renderPlay(P) {
   const draw = () => C.teamCard(C.$('.team-card', root), utOpp);
   draw();
   C.wireTeamPick(root, () => utOpp, v => { utOpp = v; draw(); }, () => U.club);
+  const lvl = UT.rivalLevel(U);
+  const rivalNote = () => { C.$('#utp-rival-note').textContent = utRival ? `Rival squad: ${lvl} OVR. It gets tougher as your squad improves and every time you win (${Math.floor(U.rw || 0)} win streak points).` : 'You play the real team’s roster.'; };
+  C.seg(C.$('#utp-rival'), [[true, 'Scaling rival'], [false, 'Real team']], utRival, v => { utRival = v; rivalNote(); });
+  rivalNote();
   C.seg(C.$('#utp-diff'), C.DIFFICULTIES.map((n, i) => [i, n]), C.SET.diff, v => { C.SET.diff = v; C.saveSet(); });
   C.seg(C.$('#utp-qlen'), C.QLENS, C.SET.qlen, v => { C.SET.qlen = v; C.saveSet(); });
   C.seg(C.$('#utp-wx'), WX_OPTS, utWx, v => { utWx = v; });
   C.seg(C.$('#utp-tod'), TOD_OPTS, utTod, v => { utTod = v; });
   C.$('#utp-go').onclick = () => {
     const roster = UT.squadRoster(U); if (!roster) return C.toast('Fill every lineup spot first');
-    C.startCPU({ teams: [U.club, utOpp], rosters: [roster, null], ut: true, weather: pickWx(utWx), tod: pickTod(utTod), teamNames: [U.name, null] });
+    const opp = utRival ? UT.rivalRoster(UT.rivalLevel(U), (Date.now() ^ utOpp * 7919) >>> 0) : null;
+    C.startCPU({ teams: [U.club, utOpp], rosters: [roster, opp], ut: true, weather: pickWx(utWx), tod: pickTod(utTod), teamNames: [U.name, null] });
   };
 }
 

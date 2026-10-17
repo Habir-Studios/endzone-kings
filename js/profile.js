@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792264217';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792264364';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -216,7 +216,10 @@ export class Profile {
     let coins = lines.reduce((s, l) => s + l.c, 0), xp = lines.reduce((s, l) => s + l.x, 0);
     P.coins += coins; P.games++; P.tds += r.me.tds || 0;
     // Training Points: every rewarded game earns some, Ultimate Team games earn the most
-    const tp = r.ut ? Math.round((15 + (r.res === 'W' ? 15 : 0) + (r.me.tds || 0) * 2) * len) : 0;   // Training Points only come from Ultimate Team
+    // Training Points: Ultimate Team pays the most, Franchise pays some
+    const tp = r.ut ? Math.round((15 + (r.res === 'W' ? 15 : 0) + (r.me.tds || 0) * 2) * len) : r.mode === 'franchise' ? Math.round((10 + (r.res === 'W' ? 10 : 0) + (r.me.tds || 0) * 2) * len) : 0;
+    // rival strength in Ultimate Team climbs with your wins against the CPU
+    if (r.ut && r.mode !== 'online' && P.ut) P.ut.rw = Math.max(0, (P.ut.rw || 0) + (r.res === 'W' ? 1 : r.res === 'L' ? -0.5 : 0));
     P.tp = (P.tp || 0) + tp;
     if (r.res === 'W') { P.wins++; P.streak++; P.bestStreak = Math.max(P.bestStreak, P.streak); } else if (r.res === 'L') P.streak = 0;
     // ranked points
@@ -338,6 +341,7 @@ export class Profile {
     if ((this.p.tp || 0) < TP_XFACTOR) return `You need ${(TP_XFACTOR - (this.p.tp || 0)).toLocaleString()} more Training Points`;
     this.p.tp -= TP_XFACTOR; inst.xf = 1; this.save(); return null;
   }
+  addTp(n) { this.p.tp = (this.p.tp || 0) + Math.max(0, n | 0); this.save(); }
   train(u, cost) {
     const inst = this.p.ut.cards.find(c => c.u === u); if (!inst || !cost) return 'This player is maxed out';
     const have = this.p.tp || 0;

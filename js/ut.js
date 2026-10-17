@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792264217';
+import { TEAMS } from './teams.js?v=1792264364';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
@@ -176,6 +176,22 @@ export function squadRoster(ut) {
   for (const s of SLOTS) {
     const c = L[s]; let num = c.num; while (usedNums.has(num)) num = (num + 1) % 100; usedNums.add(num);
     players[s] = { first: c.first, last: c.last, num, face: c.face, ovr: c.ovr, spd: c.spd, hands: c.hands, acc: c.acc, arm: c.arm, elu: c.elu, blk: c.blk, rush: c.rush, tkl: c.tkl, cov: c.cov };
+  }
+  return { players };
+}
+
+// ---------------- scaling rival: a CPU squad built around a target overall ----------------
+// As your squad gets better (and you keep winning), the rival squads you face get better too.
+export function rivalLevel(ut) { const o = squadOvr(ut).ovr; return Math.max(58, Math.min(97, o - 1 + Math.min(9, Math.floor((ut.rw || 0) / 3)))); }
+export function rivalRoster(target, seed) {
+  const r = rng(seed >>> 0 || 7), players = {}, usedNums = new Set();
+  const tierFor = o => Math.max(0, TIERS.findIndex(T => o >= T.lo && o <= T.hi));
+  for (const s of SLOTS) {
+    const g = SLOT_GROUP[s], gi = GROUP_KEYS.indexOf(g), want = Math.round(target + (r() - 0.5) * 6);
+    let best = null;
+    for (let k = 0; k < 40; k++) { const c = card(makeId(tierFor(Math.max(56, Math.min(96, want))), gi, (r() * 1e7) | 0)); if (!best || Math.abs(c.ovr - want) < Math.abs(best.ovr - want)) best = c; if (Math.abs(c.ovr - want) <= 1) break; }
+    let num = best.num; while (usedNums.has(num)) num = (num + 1) % 100; usedNums.add(num);
+    players[s] = { first: best.first, last: best.last, num, face: best.face, ovr: best.ovr, spd: best.spd, hands: best.hands, acc: best.acc, arm: best.arm, elu: best.elu, blk: best.blk, rush: best.rush, tkl: best.tkl, cov: best.cov };
   }
   return { players };
 }

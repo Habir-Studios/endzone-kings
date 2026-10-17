@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792264217';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792264217';
-import { Renderer } from './render.js?v=1792264217';
-import { Sfx } from './audio.js?v=1792264217';
-import { Auth } from './auth.js?v=1792264217';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792264217';
-import { getRoster, teamOvr } from './teams.js?v=1792264217';
-import * as Season from './season.js?v=1792264217';
-import * as Fr from './franchise.js?v=1792264217';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792264217';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792264217';
-import * as UTm from './ut.js?v=1792264217';
-import { initCreator, renderCreator } from './creator.js?v=1792264217';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792264217';
-import { portraitURL } from './faces.js?v=1792264217';
-import { logoURL, clearLogoCache } from './logos.js?v=1792264217';
+import { askYes } from './ui.js?v=1792264364';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792264364';
+import { Renderer } from './render.js?v=1792264364';
+import { Sfx } from './audio.js?v=1792264364';
+import { Auth } from './auth.js?v=1792264364';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792264364';
+import { getRoster, teamOvr } from './teams.js?v=1792264364';
+import * as Season from './season.js?v=1792264364';
+import * as Fr from './franchise.js?v=1792264364';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792264364';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792264364';
+import * as UTm from './ut.js?v=1792264364';
+import { initCreator, renderCreator } from './creator.js?v=1792264364';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792264364';
+import { portraitURL } from './faces.js?v=1792264364';
+import { logoURL, clearLogoCache } from './logos.js?v=1792264364';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -922,7 +922,15 @@ function showGameOver(S) {
   // like Madden: coins, XP, rank and leaderboard stats come from Online 1v1, Ultimate Team and Franchise. Quick Play,
   // Season, practice and drills against the CPU are just for fun.
   const paid = S.mode === 'game' && (st.mode === 'host' || st.mode === 'guest' || st.ut || st.franchiseGame);
-  if (!st.rewarded && !paid && !isGuest()) { st.rewarded = true; $('#go-rewards').innerHTML = NO_REWARDS_HTML; }
+  if (!st.rewarded && !paid && !isGuest()) {
+    st.rewarded = true;
+    const P = profile();
+    if (st.seasonGame && S.mode === 'game' && P) {
+      const tp = 8 + (res === 'W' ? 8 : 0) + Math.min(6, (S.st[me] && S.st[me].tds) || 0) * 2;
+      P.addTp(tp);
+      $('#go-rewards').innerHTML = `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="tp-ic">TP</i>${(P.p.tp || 0).toLocaleString()}</span></div><p class="note">Season game: <b>+${tp} Training Points</b>. Season games don’t pay coins, XP or rank. Spend TP upgrading players in Ultimate Team.</p>`;
+    } else $('#go-rewards').innerHTML = NO_REWARDS_HTML;
+  }
   if (!st.statsPosted && paid && !isGuest()) {
     st.statsPosted = true;
     const P = profile();

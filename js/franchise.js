@@ -1,9 +1,9 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { askYes } from './ui.js?v=1792264217';
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792264217';
-import * as Season from './season.js?v=1792264217';
+import { askYes } from './ui.js?v=1792264364';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792264364';
+import * as Season from './season.js?v=1792264364';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();

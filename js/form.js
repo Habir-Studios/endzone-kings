@@ -1,7 +1,7 @@
 // ENDZONE KINGS — live attribute form and lingering injuries.
 // A player's ratings run hot or cold off his last few games: a big game bumps every rating a little,
 // a bad one drops them. Coming back from an injury he plays a little banged up for a week or two.
-import { getRoster } from './teams.js?v=1792277197';
+import { getRoster } from './teams.js?v=1792277584';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const RK = ['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'];
 export const roleGroup = r => ({ QB: 'QB', RB: 'RB', WR1: 'WR', WR2: 'WR', WR3: 'WR', TE: 'TE', DL1: 'DL', DL2: 'DL', DL3: 'DL', DL4: 'DL', LB: 'LB', LB2: 'LB', LB3: 'LB', CB1: 'CB', CB2: 'CB', S: 'S', SS: 'S' }[r] || 'OL');

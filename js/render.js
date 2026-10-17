@@ -4,12 +4,13 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792277197';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792277197';
-import { drawLogo } from './logos.js?v=1792277197';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792277197';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792277584';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792277584';
+import { drawLogo } from './logos.js?v=1792277584';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792277584';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -80,6 +81,14 @@ export class Renderer {
     this.composer.addPass(new RenderPass(this.scene, this.cam));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.32, 0.4, 0.93);
     this.composer.addPass(this.bloom);
+    this.composer.addPass(new ShaderPass({   // TV-broadcast look on High: soft vignette, a little more contrast and color
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        void main() { vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+          c.rgb = mix(vec3(l), c.rgb, 1.12); c.rgb = (c.rgb - 0.18) * 1.06 + 0.18; c.rgb = max(c.rgb, 0.0);
+          float v = smoothstep(0.95, 0.35, distance(vUv, vec2(0.5))); c.rgb *= mix(0.78, 1.0, v); gl_FragColor = c; }`,
+    }));
     this.composer.addPass(new OutputPass());
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -267,6 +276,16 @@ export class Renderer {
       const img = c.getImageData(0, 0, cw, ch), d = img.data;
       for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 16; d[i] += n * 0.6; d[i + 1] += n; d[i + 2] += n * 0.5; }
       c.putImageData(img, 0, 0);
+      // wear: the middle of the field gets trampled (between the hashes, heaviest around midfield and the 20s)
+      for (let i = 0; i < 70; i++) {
+        const y = 8 + Math.random() * 84, x = (Math.random() - 0.5) * 9, r = PX * (1.5 + Math.random() * 3.5), heavy = Math.abs(y - 50) < 15 || Math.abs(y - 20) < 6 || Math.abs(y - 80) < 6;
+        const g = c.createRadialGradient(X(x), Z(y), 0, X(x), Z(y), r); g.addColorStop(0, `rgba(120,104,62,${heavy ? 0.16 : 0.08})`); g.addColorStop(1, 'rgba(120,104,62,0)');
+        c.fillStyle = g; c.fillRect(X(x) - r, Z(y) - r, r * 2, r * 2);
+      }
+      // mowing: faint cross-hatch so the stripes read like real cut grass
+      c.globalAlpha = 0.035; c.strokeStyle = '#ffffff'; c.lineWidth = PX * 0.6;
+      for (let x = -ch; x < cw; x += PX * 4) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x + ch * 0.35, ch); c.stroke(); }
+      c.globalAlpha = 1;
       teams.forEach((ti, k) => {
         const t = TEAMS[ti];
         const z0 = k === 0 ? -10 : 100;
@@ -319,6 +338,10 @@ export class Renderer {
       c.restore();
     });
     tex.anisotropy = Math.min(16, this.r.capabilities.getMaxAnisotropy());
+    // fine grass-blade grain (one small tiled texture, cheap enough for every setting)
+    if (!this._turfBump) { this._turfBump = canvasTex(128, 128, (c) => { const img = c.createImageData(128, 128), d = img.data; for (let i = 0; i < d.length; i += 4) { const v = 110 + Math.random() * 120; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } c.putImageData(img, 0, 0); for (let i = 0; i < 260; i++) { c.strokeStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.25})`; c.lineWidth = 1; const x = Math.random() * 128, y = Math.random() * 128; c.beginPath(); c.moveTo(x, y); c.lineTo(x + (Math.random() - 0.5) * 2, y - 3 - Math.random() * 4); c.stroke(); } }, false);
+      this._turfBump.wrapS = this._turfBump.wrapT = THREE.RepeatWrapping; this._turfBump.repeat.set(70, 150); }
+    this.fieldMat.bumpMap = this._turfBump; this.fieldMat.bumpScale = 0.9;
     if (this.fieldMat.map) this.fieldMat.map.dispose();
     this.fieldMat.map = tex; this.fieldMat.needsUpdate = true;
   }
@@ -696,12 +719,15 @@ export class Renderer {
   }
   teamMats(ti, away = false, uk = null) {
     this._tm = this._tm || {};
-    const ck = ti + (uk ? 'k' + JSON.stringify(uk) : away ? 'a' + (this.teams ? this.teams[0] : '') : '');
+    const lite = this.quality === 'potato';
+    const ck = (lite ? 'L' : 'H') + ti + (uk ? 'k' + JSON.stringify(uk) : away ? 'a' + (this.teams ? this.teams[0] : '') : '');
     if (this._tm[ck]) return this._tm[ck];
     const t = this.kit(ti, away, uk);
     const m = {
-      jersey: uk ? new THREE.MeshStandardMaterial({ color: '#ffffff', map: this.kitTex(uk), roughness: uk.pattern === 'chrome' ? 0.25 : 0.62, metalness: uk.pattern === 'chrome' ? 0.45 : 0, bumpMap: this.fabric(), bumpScale: 0.6 }) : new THREE.MeshStandardMaterial({ color: t.jersey, roughness: 0.62, bumpMap: this.fabric(), bumpScale: 0.6 }),
-      pants: new THREE.MeshStandardMaterial({ color: t.pants, roughness: 0.48, metalness: 0.05 }),
+      // mesh jersey fabric catches the stadium lights (sheen); game pants have a satin shine. Chromebook keeps plain materials.
+      jersey: (() => { const base = uk ? { color: '#ffffff', map: this.kitTex(uk), roughness: uk.pattern === 'chrome' ? 0.25 : 0.66, metalness: uk.pattern === 'chrome' ? 0.45 : 0, bumpMap: this.fabric(), bumpScale: 0.6 } : { color: t.jersey, roughness: 0.66, bumpMap: this.fabric(), bumpScale: 0.6 };
+        return lite ? new THREE.MeshStandardMaterial(base) : new THREE.MeshPhysicalMaterial({ ...base, sheen: 0.55, sheenRoughness: 0.75, sheenColor: new THREE.Color(0xffffff) }); })(),
+      pants: lite ? new THREE.MeshStandardMaterial({ color: t.pants, roughness: 0.42, metalness: 0.05 }) : new THREE.MeshPhysicalMaterial({ color: t.pants, roughness: 0.36, metalness: 0.04, clearcoat: 0.35, clearcoatRoughness: 0.45, sheen: 0.3, sheenRoughness: 0.5 }),
       helmet: new THREE.MeshPhysicalMaterial({ color: t.helmet, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.08, side: THREE.DoubleSide }),
       trim: new THREE.MeshStandardMaterial({ color: vis(t, 'trim') === vis(t, 'jersey') ? '#ffffff' : t.trim, roughness: 0.6 }),
       sock: new THREE.MeshStandardMaterial({ color: t.jersey === '#121a14' ? '#0b0f0c' : t.jersey, roughness: 0.7 }),
@@ -768,7 +794,7 @@ export class Renderer {
     const M = this.teamMats(teamIdx, away, uk);
     this._curKit = uk;
     const F = faceParams(fseed);
-    const skin = new THREE.MeshStandardMaterial({ color: F.skin, roughness: 0.55 });
+    const skin = this.quality === 'high' ? new THREE.MeshPhysicalMaterial({ color: F.skin, roughness: 0.5, sheen: 0.22, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xffe2cc) }) : new THREE.MeshStandardMaterial({ color: F.skin, roughness: 0.52 });
     const faceMat = new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => drawFaceTexture(c, w, h, fseed)), roughness: 0.6 });
     const white = this._white || (this._white = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6 }));
     const sleeve = (num % 5 === 0) ? (this._sleeve || (this._sleeve = new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.5 }))) : skin;
@@ -793,11 +819,11 @@ export class Renderer {
     const legs = [];
     for (const sx of [-0.125, 0.125]) {
       const hip = new THREE.Group(); hip.position.set(sx, -0.02, 0); body.add(hip);
-      const thigh = mesh(this.limbGeo('thigh', 0.13, 0.115, 0.085, 0.42), M.pants); hip.add(thigh);
+      const thigh = mesh(this.limbGeo('thigh2', 0.145, 0.124, 0.09, 0.42), M.pants); hip.add(thigh);
       const stripe = det(new THREE.BoxGeometry(0.018, 0.4, 0.06), M.trim); stripe.position.set(sx > 0 ? 0.118 : -0.118, -0.2, 0); hip.add(stripe);
       const knee = new THREE.Group(); knee.position.y = -0.46; hip.add(knee);
       const kpad = det(new THREE.SphereGeometry(0.075, 12, 8), M.pants); kpad.position.set(0, 0.0, 0.035); kpad.scale.set(1.05, 0.95, 0.85); knee.add(kpad);
-      const calf = mesh(this.lathe('calf', [[0.0001, 0.05], [0.068, 0.03], [0.08, -0.02], [0.088, -0.12], [0.068, -0.26], [0.052, -0.38], [0.0001, -0.42]]), M.sock); knee.add(calf);
+      const calf = mesh(this.lathe('calf2', [[0.0001, 0.05], [0.072, 0.03], [0.086, -0.02], [0.095, -0.12], [0.072, -0.26], [0.054, -0.38], [0.0001, -0.42]]), M.sock); knee.add(calf);
       const sockTop = det(new THREE.CylinderGeometry(0.083, 0.087, 0.05, 12), M.trim); sockTop.position.y = -0.1; knee.add(sockTop);
       const cleat = new THREE.Group(); cleat.position.set(0, -0.43, 0.05); knee.add(cleat);
       const upper = det(new THREE.SphereGeometry(0.075, 14, 10), num % 3 === 1 ? white : black); upper.scale.set(1.05, 0.72, 1.95); upper.position.set(0, 0.0, 0.02); cleat.add(upper);
@@ -808,10 +834,10 @@ export class Renderer {
 
     // torso: tapered jersey with real shoulder pads on top
     const tz = 0.68;
-    const jersey = mesh(this.lathe('jersey', [[0.0001, 0.86], [0.2, 0.84], [0.275, 0.72], [0.28, 0.56], [0.255, 0.36], [0.225, 0.2], [0.215, 0.1], [0.0001, 0.08]], 20), M.jersey);
+    const jersey = mesh(this.lathe('jersey2', [[0.0001, 0.86], [0.2, 0.84], [0.288, 0.72], [0.292, 0.57], [0.262, 0.38], [0.222, 0.2], [0.21, 0.1], [0.0001, 0.08]], 20), M.jersey);
     jersey.scale.z = tz; torso.add(jersey);
     const chest = jersey;
-    const pads = mesh(new THREE.SphereGeometry(0.3, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), M.jersey); pads.scale.set(1.4, 0.5, 0.8); pads.position.y = 0.73; torso.add(pads);
+    const pads = mesh(new THREE.SphereGeometry(0.3, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), M.jersey); pads.scale.set(1.5, 0.53, 0.84); pads.position.y = 0.73; torso.add(pads);
     const collar = det(new THREE.TorusGeometry(0.105, 0.028, 8, 18), M.trim); collar.rotation.x = Math.PI / 2; collar.position.y = 0.92; torso.add(collar);
     if (!lite) torso.add(this.wrapDecal(nTex, 0.283, 0.36, 0.5, 0, 1.25, tz));
     torso.add(this.wrapDecal(nTex, 0.283, 0.34, 0.43, Math.PI, 1.25, tz));
@@ -858,9 +884,9 @@ export class Renderer {
       const cap0 = det(new THREE.SphereGeometry(0.15, 16, 12), M.jersey); cap0.scale.set(1.0, 0.9, 1.0); sh.add(cap0);
       const sleeveTop = det(this.limbGeo('sleeve', 0.105, 0.098, 0.09, 0.14), M.jersey); sleeveTop.position.y = -0.04; sh.add(sleeveTop);
       const sstripe = det(new THREE.CylinderGeometry(0.104, 0.104, 0.03, 14, 1, true), M.trim); sstripe.position.y = -0.13; sh.add(sstripe);
-      const bicep = mesh(this.limbGeo('bicep', 0.085, 0.084, 0.062, 0.2), sleeve); bicep.position.y = -0.16; sh.add(bicep);
+      const bicep = mesh(this.limbGeo('bicep2', 0.095, 0.09, 0.066, 0.2), sleeve); bicep.position.y = -0.16; sh.add(bicep);
       const elbow = new THREE.Group(); elbow.position.y = -0.37; sh.add(elbow);
-      const fore = mesh(this.limbGeo('fore', 0.066, 0.064, 0.048, 0.22), sleeve); elbow.add(fore);
+      const fore = mesh(this.limbGeo('fore2', 0.071, 0.067, 0.05, 0.22), sleeve); elbow.add(fore);
       const band = det(new THREE.CylinderGeometry(0.056, 0.058, 0.07, 12), num % 2 ? white : M.trim); band.position.y = -0.22; elbow.add(band);
       const glove = new THREE.Group(); glove.position.y = -0.3; elbow.add(glove);
       const palm = det(new RoundedBoxGeometry(0.07, 0.09, 0.045, 2, 0.02), M.glove); glove.add(palm);
@@ -1232,7 +1258,7 @@ export class Renderer {
         const hip = new THREE.Group(); hip.position.set(sx, -0.02, 0); body.add(hip);
         hip.add(new THREE.Mesh(this.limbGeo('rthigh', 0.11, 0.1, 0.075, 0.42), pants));
         const knee = new THREE.Group(); knee.position.y = -0.46; hip.add(knee);
-        knee.add(new THREE.Mesh(this.lathe('calf', [[0.0001, 0.05], [0.068, 0.03], [0.08, -0.02], [0.088, -0.12], [0.068, -0.26], [0.052, -0.38], [0.0001, -0.42]]), pants));
+        knee.add(new THREE.Mesh(this.lathe('calf2', [[0.0001, 0.05], [0.072, 0.03], [0.086, -0.02], [0.095, -0.12], [0.072, -0.26], [0.054, -0.38], [0.0001, -0.42]]), pants));
         const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), black); shoe.scale.set(1, 0.7, 1.9); shoe.position.set(0, -0.44, 0.05); knee.add(shoe);
         legs.push({ hip, knee });
       }
@@ -1249,7 +1275,7 @@ export class Renderer {
         sh.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), shirt));
         const up = new THREE.Mesh(this.limbGeo('rsleeve', 0.075, 0.07, 0.062, 0.18), shirt); sh.add(up);
         const elbow = new THREE.Group(); elbow.position.y = -0.34; sh.add(elbow);
-        elbow.add(new THREE.Mesh(this.limbGeo('fore', 0.066, 0.064, 0.048, 0.22), skin));
+        elbow.add(new THREE.Mesh(this.limbGeo('fore2', 0.071, 0.067, 0.05, 0.22), skin));
         const hand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), skin); hand.position.y = -0.28; elbow.add(hand);
         arms.push({ sh, elbow });
       }

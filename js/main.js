@@ -1,11 +1,11 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES } from './sim.js?v=1792197009';
-import { Renderer } from './render.js?v=1792197009';
-import { Sfx } from './audio.js?v=1792197009';
-import { Auth } from './auth.js?v=1792197009';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode } from './net.js?v=1792197009';
-import { getRoster, teamOvr } from './teams.js?v=1792197009';
-import * as Season from './season.js?v=1792197009';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792199425';
+import { Renderer } from './render.js?v=1792199425';
+import { Sfx } from './audio.js?v=1792199425';
+import { Auth } from './auth.js?v=1792199425';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode } from './net.js?v=1792199425';
+import { getRoster, teamOvr } from './teams.js?v=1792199425';
+import * as Season from './season.js?v=1792199425';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -13,7 +13,7 @@ const params = new URLSearchParams(location.search);
 const LOCALNET = params.has('localnet');
 
 // ---------------- settings ----------------
-const DEF_SET = { vol: 0.7, music: 0.5, ann: true, cam: 'behind', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15 };
+const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'behind', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15 };
 let SET = { ...DEF_SET };
 try { SET = { ...DEF_SET, ...JSON.parse(localStorage.getItem('ek_settings') || '{}') }; } catch (_) {}
 const saveSet = () => { try { localStorage.setItem('ek_settings', JSON.stringify(SET)); } catch (_) {} };
@@ -35,6 +35,7 @@ window.addEventListener('keydown', () => sfx.init(), { once: true });
 const st = {
   screen: 'splash', prev: 'menu', playing: false, paused: false,
   mode: null, local: 0, game: null, snap: null, acc: 0,
+  pbTab: 0, pbTabs: null,
   peer: null, remote: { mx: 0, mz: 0, sprint: false, ev: [] }, netAcc: 0, netEv: [],
   guestBuf: [], inputAcc: 0, overShown: false, resultSaved: false, names: ['', ''],
 };
@@ -274,6 +275,7 @@ function renderSettings() {
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
   seg($('#seg-cam'), [['behind', 'Behind play'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['high', 'High'], ['low', 'Fast']], SET.gfx, v => { SET.gfx = v; saveSet(); applyGfx(); });
+  seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); });
 }
 $('#set-vol').addEventListener('input', (e) => { SET.vol = +e.target.value; sfx.setVolume(SET.vol); saveSet(); });
 $('#set-music').addEventListener('input', (e) => { SET.music = +e.target.value; sfx.setMusicVolume(SET.music); saveSet(); });
@@ -367,37 +369,91 @@ function moveVec() {
   if (keys.has('KeyS') || keys.has('ArrowDown')) y -= 1;
   if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1;
   if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1;
+  if (touch.jx || touch.jy) { x = touch.jx; y = touch.jy; }
   if (!x && !y) return { mx: 0, mz: 0 };
   const b = R.basis();
   let mx = b.fx * y + b.rx * x, mz = b.fz * y + b.rz * x;
   const l = Math.hypot(mx, mz) || 1;
   return { mx: mx / l, mz: mz / l };
 }
-const sprinting = () => keys.has('ShiftLeft') || keys.has('ShiftRight');
+const sprinting = () => keys.has('ShiftLeft') || keys.has('ShiftRight') || touch.sprint || Math.hypot(touch.jx, touch.jy) > 0.92;
+
+// ---------------- touch controls ----------------
+const touch = { jx: 0, jy: 0, sprint: false, id: null, key: '' };
+const isTouchDevice = () => ('ontouchstart' in window) || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
+const touchOn = () => SET.touch === 'on' || (SET.touch === 'auto' && isTouchDevice());
+(() => {
+  const joy = $('#joy'), knob = $('.joy-knob', joy);
+  const move = (e) => {
+    const r = joy.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, rad = r.width / 2;
+    let dx = (e.clientX - cx) / rad, dy = (e.clientY - cy) / rad; const l = Math.hypot(dx, dy);
+    if (l > 1) { dx /= l; dy /= l; }
+    touch.jx = Math.abs(dx) < 0.12 ? 0 : dx; touch.jy = Math.abs(dy) < 0.12 ? 0 : -dy;
+    knob.style.transform = `translate(${dx * rad * 0.6}px, ${dy * rad * 0.6}px)`;
+  };
+  joy.addEventListener('pointerdown', (e) => { touch.id = e.pointerId; joy.setPointerCapture(e.pointerId); move(e); sfx.init(); });
+  joy.addEventListener('pointermove', (e) => { if (e.pointerId === touch.id) move(e); });
+  const end = (e) => { if (e.pointerId !== touch.id) return; touch.id = null; touch.jx = touch.jy = 0; knob.style.transform = ''; };
+  joy.addEventListener('pointerup', end); joy.addEventListener('pointercancel', end);
+})();
+function touchButtons(S) {
+  const me = st.local;
+  let btns = [];
+  if (S.ph === 'presnap') btns = S.poss === me ? [['snap', 'SNAP', 'big']] : [['switch', 'SWITCH']];
+  else if (S.ph === 'live') {
+    const carrier = S.b[3] === 0 ? S.b[5] : -1, iCarry = carrier >= 0 && carrier === S.ctrl[me];
+    if (S.canThrow && S.off === me) btns = [['t1', '1', 'r1'], ['t2', '2', 'r2'], ['t3', '3', 'r3'], ['sprint', 'SPRINT', 'hold']];
+    else if (iCarry) btns = [['juke', 'JUKE'], ['spin', 'SPIN'], ['stiff', 'STIFF'], ['hurdle', 'HURDLE'], ['sprint', 'SPRINT', 'hold']];
+    else if (S.b[3] === 1 && S.b[4]) btns = [['playball', S.off === me ? 'CATCH' : 'PLAY BALL', 'big'], ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
+    else btns = [['dive', 'DIVE', 'big'], ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
+  }
+  const key = btns.map(b => b[0]).join();
+  if (touch.key === key) return;
+  touch.key = key;
+  const box = $('#tbtns'); box.innerHTML = '';
+  for (const [id, label, cls] of btns) {
+    const b = document.createElement('button'); b.className = 'tbtn ' + (cls || ''); b.textContent = label;
+    if (cls === 'hold') {
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); touch.sprint = true; b.classList.add('down'); });
+      const up = () => { touch.sprint = false; b.classList.remove('down'); };
+      b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+    } else b.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); sfx.init();
+      const v = moveVec();
+      const ev = id === 'snap' ? { t: 'snap' } : id[0] === 't' && id.length === 2 ? { t: 'throw', n: +id[1] } : id === 'juke' ? { t: 'juke', x: v.mx, z: v.mz } : { t: id };
+      pushEv(ev);
+    });
+    box.appendChild(b);
+  }
+}
 
 function keyToEvent(k) {
   const S = st.snap; if (!S) return null;
   const me = st.local, onOff = S.poss === me;
   const digit = k.startsWith('Digit') ? +k.slice(5) : k.startsWith('Numpad') ? +k.slice(6) : 0;
   if (S.ph === 'presnap') {
+    if (k === 'KeyZ') { switchTab(-1); return null; }
+    if (k === 'KeyX') { switchTab(1); return null; }
+    if (digit >= 1 && digit <= 9) return pickCard(digit);
     if (onOff) {
-      if (digit >= 1 && digit <= OFF_PLAYS.length) { sfx.play('ui'); return { t: 'play', id: OFF_PLAYS[digit - 1].id }; }
-      if (k === 'KeyP' && S.can4) { sfx.play('ui'); return { t: 'play', id: 'punt' }; }
-      if (k === 'KeyF' && S.can4 && S.can4.fg) { sfx.play('ui'); return { t: 'play', id: 'fg' }; }
+      if (k === 'KeyP' && !(S.sp && S.sp.pat)) { sfx.play('ui'); return { t: 'play', id: 'punt' }; }
+      if (k === 'KeyF' && S.sp && S.sp.fg) { sfx.play('ui'); return { t: 'play', id: 'fg' }; }
       if (k === 'Space' || k === 'Enter') return { t: 'snap' };
-    } else {
-      if (digit >= 1 && digit <= DEF_PLAYS.length) { sfx.play('ui'); return { t: 'play', id: DEF_PLAYS[digit - 1].id }; }
-      if (k === 'KeyQ' || k === 'Tab') return { t: 'switch' };
-    }
+    } else if (k === 'KeyQ' || k === 'Tab') return { t: 'switch' };
     return null;
   }
   if (S.ph !== 'live') return null;
   if (digit >= 1 && digit <= 3 && S.canThrow && S.off === me) return { t: 'throw', n: digit };
   if (k === 'KeyQ' || k === 'Tab') return { t: 'switch' };
+  const carrier = S.b[3] === 0 ? S.b[5] : -1;
+  const iCarry = carrier >= 0 && carrier === S.ctrl[me];
+  if (k === 'KeyE') return iCarry ? { t: 'spin' } : { t: 'playball' };
+  if (k === 'KeyR' && iCarry) return { t: 'stiff' };
+  if (k === 'KeyF' && iCarry) return { t: 'hurdle' };
   if (k === 'Space') {
-    const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const v = moveVec();
-    if (carrier >= 0 && carrier === S.ctrl[me]) return { t: 'juke', x: v.mx, z: v.mz };
+    if (iCarry) return { t: 'juke', x: v.mx, z: v.mz };
+    if (S.b[3] === 1) return { t: 'playball' };
     return { t: 'dive' };
   }
   return null;
@@ -475,52 +531,122 @@ const ord = n => ['', '1st', '2nd', '3rd', '4th'][n] || n + 'th';
 const fmtClock = c => { c = Math.max(0, Math.ceil(c)); return `${Math.floor(c / 60)}:${String(c % 60).padStart(2, '0')}`; };
 
 function routeSvg(play) {
-  const X = lx => 60 + lx * 3.1, Y = d => 52 - d * 1.55;
-  const al = { WR1: [-13, -0.6], WR2: [13, -0.6], RB: [1.6, -4.9] };
-  const cols = { WR1: '#22c55e', WR2: '#3b82f6', RB: '#f97316' };
-  let s = `<svg viewBox="0 0 120 64"><line x1="0" y1="${Y(0)}" x2="120" y2="${Y(0)}" stroke="#3b82f6" stroke-width="1" opacity=".6"/>`;
-  for (const lx of [-1.75, 0, 1.75]) s += `<circle cx="${X(lx)}" cy="${Y(-1)}" r="2.6" fill="#cbd5e1"/>`;
-  s += `<circle cx="${X(0)}" cy="${Y(-4.5)}" r="2.8" fill="#fff"/>`;
-  for (const [role, pts] of Object.entries(play.routes || {})) {
-    const p = [al[role], ...pts].map(w => `${X(w[0])},${Y(Math.min(w[1], 30))}`).join(' ');
-    s += `<polyline points="${p}" fill="none" stroke="${cols[role]}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const f = FORMS[play.form || 'gun'] || FORMS.gun;
+  const X = lx => 60 + lx * 2.6, Y = d => 50 - d * 1.35;
+  const al = { WR1: f.WR1, WR2: f.WR2, RB: f.RB, QB: f.QB };
+  const cols = { WR1: '#22c55e', WR2: '#3b82f6', RB: '#f97316', QB: '#e5e7eb' };
+  let s = `<svg viewBox="0 0 120 64"><line x1="0" y1="${Y(0)}" x2="120" y2="${Y(0)}" stroke="#93c5fd" stroke-width="1" opacity=".6"/>`;
+  for (const lx of [-1.75, 0, 1.75]) s += `<circle cx="${X(lx)}" cy="${Y(-1)}" r="2.4" fill="#cbd5e1"/>`;
+  s += `<circle cx="${X(f.QB[0])}" cy="${Y(Math.max(f.QB[1], -10))}" r="2.6" fill="#fff"/>`;
+  const all = { ...(play.routes || {}) }; if (play.qbPath) all.QB = play.qbPath;
+  for (const [role, pts] of Object.entries(all)) {
+    const p = [al[role], ...pts].map(w => `${X(w[0])},${Y(Math.max(-10, Math.min(w[1], 32)))}`).join(' ');
+    const dash = play.type === 'run' && role === 'RB' ? '' : role === 'QB' ? 'stroke-dasharray="3 3"' : '';
+    s += `<polyline points="${p}" fill="none" stroke="${cols[role]}" stroke-width="${play.type === 'run' && role !== 'QB' ? 3 : 2.2}" ${dash} stroke-linejoin="round" stroke-linecap="round"/>`;
     const last = pts[pts.length - 1];
-    s += `<circle cx="${X(last[0])}" cy="${Y(Math.min(last[1], 30))}" r="2.4" fill="${cols[role]}"/>`;
+    s += `<circle cx="${X(last[0])}" cy="${Y(Math.max(-10, Math.min(last[1], 32)))}" r="2.3" fill="${cols[role]}"/>`;
   }
-  for (const r of ['WR1', 'WR2', 'RB']) if (!(play.routes || {})[r]) s += `<circle cx="${X(al[r][0])}" cy="${Y(al[r][1])}" r="2.6" fill="${cols[r]}" opacity=".7"/>`;
+  for (const r of ['WR1', 'WR2', 'RB']) if (!all[r]) s += `<circle cx="${X(al[r][0])}" cy="${Y(Math.max(al[r][1], -10))}" r="2.4" fill="${cols[r]}" opacity="${(play.block || []).includes(r) ? 1 : .55}"/>`;
   return s + '</svg>';
 }
-const DEF_SVG = {
-  man: `<svg viewBox="0 0 120 64"><line x1="0" y1="14" x2="120" y2="14" stroke="#3b82f6" opacity=".6"/><g stroke="#ef4444" stroke-width="2.2" fill="none"><path d="M18 24 18 46M102 24 102 46M60 30 66 42"/><path d="M60 54 60 58"/></g><g fill="#fca5a5"><circle cx="18" cy="24" r="3"/><circle cx="102" cy="24" r="3"/><circle cx="60" cy="30" r="3"/><circle cx="60" cy="54" r="3"/></g></svg>`,
-  zone: `<svg viewBox="0 0 120 64"><line x1="0" y1="14" x2="120" y2="14" stroke="#3b82f6" opacity=".6"/><g fill="#a855f7" opacity=".35"><ellipse cx="20" cy="46" rx="18" ry="12"/><ellipse cx="60" cy="50" rx="20" ry="11"/><ellipse cx="100" cy="46" rx="18" ry="12"/><ellipse cx="60" cy="28" rx="16" ry="7"/></g><g fill="#e9d5ff"><circle cx="20" cy="46" r="3"/><circle cx="60" cy="50" r="3"/><circle cx="100" cy="46" r="3"/><circle cx="60" cy="28" r="3"/></g></svg>`,
-  blitz: `<svg viewBox="0 0 120 64"><line x1="0" y1="14" x2="120" y2="14" stroke="#3b82f6" opacity=".6"/><g stroke="#f59e0b" stroke-width="2.4" fill="none" stroke-linecap="round"><path d="M60 34 60 8M42 20 52 6M78 20 68 6M48 22 40 8"/></g><g fill="#fde68a"><circle cx="60" cy="34" r="3"/><circle cx="42" cy="20" r="3"/><circle cx="60" cy="20" r="3"/><circle cx="78" cy="20" r="3"/></g></svg>`,
-};
+function defSvg(dp) {
+  const X = lx => 60 + lx * 2.4, Y = d => 12 + Math.min(d, 34) * 1.45;
+  const pos = { DL1: [-2.3, 1], DL2: [0.2, 1], DL3: [2.3, 1], LB: [0, 5], CB1: [-13, 5], CB2: [13, 5], S: [0, 13] };
+  const tgt = { WR1: [-13, 6], WR2: [13, 6], RB: [2, 3] };
+  let s = `<svg viewBox="0 0 120 64"><line x1="0" y1="${Y(0)}" x2="120" y2="${Y(0)}" stroke="#93c5fd" opacity=".6"/>`;
+  for (const [r, z] of Object.entries(dp.zone || {})) {
+    const deep = z[1] > 12;
+    s += `<ellipse cx="${X(z[0])}" cy="${Y(z[1])}" rx="${deep ? 16 : 11}" ry="${deep ? 7 : 5}" fill="${deep ? '#3b82f6' : '#eab308'}" opacity=".35"/>`;
+    s += `<line x1="${X(pos[r][0])}" y1="${Y(pos[r][1])}" x2="${X(z[0])}" y2="${Y(z[1])}" stroke="${deep ? '#60a5fa' : '#facc15'}" stroke-width="1.6"/>`;
+  }
+  for (const [r, w] of Object.entries(dp.man || {})) s += `<line x1="${X(pos[r][0])}" y1="${Y(pos[r][1])}" x2="${X(tgt[w][0])}" y2="${Y(tgt[w][1])}" stroke="#f87171" stroke-width="1.8" stroke-dasharray="3 2"/>`;
+  const rush = ['DL1', 'DL2', 'DL3'].filter(r => !(dp.zone || {})[r]).concat(dp.rush || []);
+  for (const r of rush) s += `<path d="M${X(pos[r][0])} ${Y(pos[r][1])} L${X(pos[r][0] * 0.6)} ${Y(-2)}" stroke="#f97316" stroke-width="2.2" marker-end=""/><circle cx="${X(pos[r][0] * 0.6)}" cy="${Y(-2)}" r="1.6" fill="#f97316"/>`;
+  for (const r of dp.spy || []) s += `<circle cx="${X(pos[r][0])}" cy="${Y(pos[r][1])}" r="5" fill="none" stroke="#a855f7" stroke-width="1.6"/>`;
+  for (const r of dp.deep || []) s += `<path d="M${X(pos[r][0])} ${Y(pos[r][1])} L${X(0)} ${Y(20)}" stroke="#60a5fa" stroke-width="1.6"/>`;
+  for (const [r, q] of Object.entries(pos)) s += `<circle cx="${X(q[0])}" cy="${Y(q[1])}" r="2.5" fill="#fecaca"/>`;
+  return s + '</svg>';
+}
 const PUNT_SVG = `<svg viewBox="0 0 120 64"><path d="M20 54 Q60 -10 104 40" fill="none" stroke="#fbbf24" stroke-width="2.4" stroke-dasharray="4 4"/><circle cx="20" cy="54" r="4" fill="#fff"/></svg>`;
 const FG_SVG = `<svg viewBox="0 0 120 64"><g stroke="#fde047" stroke-width="3"><path d="M60 60V40M44 40H76M44 40V6M76 40V6"/></g><path d="M60 62 Q58 30 60 14" stroke="#fff" stroke-dasharray="3 4" fill="none" stroke-width="2"/></svg>`;
 
-function buildPlaycall(S) {
-  const me = st.local, onOff = S.poss === me;
-  const key = `${S.id}-${onOff}-${!!S.can4}`;
-  if (hudCache.pcKey === key) return;
-  hudCache.pcKey = key;
-  const box = $('#pc-cards'); box.innerHTML = '';
-  const add = (k, id, name, tip, svg, special) => {
-    const b = document.createElement('button');
-    b.className = 'pc-card' + (special ? ' special' : ''); b.dataset.id = id;
-    b.innerHTML = `${svg}<span class="k">${k}</span><b>${name}</b><small>${tip}</small>`;
-    b.onclick = () => { sfx.play('ui'); pushEv({ t: 'play', id }); };
-    box.appendChild(b);
-  };
+// custom plays (Play Creator) live on this device
+function customPlays() { try { return JSON.parse(localStorage.getItem('ek_custom_plays') || '[]'); } catch (_) { return []; } }
+
+// Build the playbook for whoever is calling the play: tabs of cards
+function playbookTabs(S) {
+  const me = st.local, onOff = S.poss === me, ti = S.teams[me];
+  const book = teamPlaybook(ti, TEAMS[ti]);
+  const mine = customPlays();
+  const tabs = [];
   if (onOff) {
-    OFF_PLAYS.forEach(p => add(p.key, p.id, p.name, p.tip, routeSvg(p)));
-    if (S.can4) {
-      add('P', 'punt', 'Punt', 'Flip the field', PUNT_SVG, true);
-      if (S.can4.fg) add('F', 'fg', `Field Goal`, `${S.can4.fgd} yard attempt`, FG_SVG, true);
+    const pat = S.sp && S.sp.pat;
+    const offIds = book.off.slice();
+    const plays = offIds.map(id => OFF_PLAYS.find(p => p.id === id)).filter(Boolean);
+    if (book.sig) plays.unshift(book.sig);
+    if (pat) tabs.push({ name: 'Extra Point', cards: [{ id: 'xp', name: 'Extra Point', tip: 'Kick it for 1 (94%)', svg: FG_SVG, special: true }] });
+    for (const cat of OFF_CATS) {
+      if (cat === 'Special') continue;
+      const cards = plays.filter(p => p.cat === cat).map(p => ({ id: p.id, name: p.name, tip: (pat ? 'Go for 2 · ' : '') + p.tip, svg: routeSvg(p), sig: p.signature }));
+      if (cards.length) tabs.push({ name: pat ? cat + ' (2-pt)' : cat, cards });
+    }
+    const myOff = mine.filter(c => c.side === 'off');
+    if (myOff.length) tabs.push({ name: 'My Plays', cards: myOff.map(c => ({ id: c.id, name: c.name, tip: pat ? 'Go for 2' : 'Custom play', svg: routeSvg({ ...c, routes: c.routes || {} }), def: c })) });
+    if (!pat) {
+      const sp = [];
+      if (S.sp && S.sp.fg) sp.push({ id: 'fg', name: 'Field Goal', tip: `${S.sp.fgd} yard attempt`, svg: FG_SVG, special: true });
+      sp.push({ id: 'punt', name: 'Punt', tip: 'Flip the field', svg: PUNT_SVG, special: true });
+      for (const id of ['fakepunt', 'fakefg']) { const p = OFF_PLAYS.find(q => q.id === id); sp.push({ id, name: p.name, tip: p.tip, svg: routeSvg(p), special: true }); }
+      tabs.push({ name: 'Special Teams', cards: sp });
     }
   } else {
-    DEF_PLAYS.forEach(p => add(p.key, p.id, p.name, p.tip, DEF_SVG[p.id]));
+    const plays = book.def.map(id => DEF_PLAYS.find(p => p.id === id)).filter(Boolean);
+    for (const cat of DEF_CATS) {
+      const cards = plays.filter(p => p.cat === cat).map(p => ({ id: p.id, name: p.name, tip: p.tip, svg: defSvg(p) }));
+      if (cards.length) tabs.push({ name: cat, cards });
+    }
+    const myDef = mine.filter(c => c.side === 'def');
+    if (myDef.length) tabs.push({ name: 'My Plays', cards: myDef.map(c => ({ id: c.id, name: c.name, tip: 'Custom defense', svg: defSvg(c.preview || {}), def: c })) });
   }
+  return { tabs, book, onOff };
+}
+
+function buildPlaycall(S) {
+  const me = st.local, onOff = S.poss === me;
+  if (st.pbSide !== onOff || st.pbPat !== !!(S.sp && S.sp.pat)) { st.pbSide = onOff; st.pbPat = !!(S.sp && S.sp.pat); st.pbTab = 0; }
+  const key = `${S.id}-${onOff}-${S.sp && S.sp.pat}-${S.sp && S.sp.fg}-${st.pbTab}`;
+  if (hudCache.pcKey === key) return;
+  hudCache.pcKey = key;
+  const { tabs, book } = playbookTabs(S);
+  if (st.pbTab >= tabs.length || st.pbTab < 0) st.pbTab = 0;
+  st.pbTabs = tabs;
+  $('#pc-book').textContent = onOff ? `${TEAMS[S.teams[me]].abbr} · ${book.offName} playbook` : `${TEAMS[S.teams[me]].abbr} · ${book.defName}`;
+  const tb = $('#pc-tabs'); tb.innerHTML = '';
+  tabs.forEach((t, i) => {
+    const b = document.createElement('button'); b.className = 'pc-tab' + (i === st.pbTab ? ' on' : ''); b.textContent = t.name;
+    b.onclick = () => { st.pbTab = i; sfx.play('ui'); hudCache.pcKey = null; };
+    tb.appendChild(b);
+  });
+  const box = $('#pc-cards'); box.innerHTML = '';
+  (tabs[st.pbTab] ? tabs[st.pbTab].cards : []).forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'pc-card' + (c.special ? ' special' : '') + (c.sig ? ' sig' : ''); b.dataset.id = c.id;
+    b.innerHTML = `${c.svg}<span class="k">${i < 9 ? i + 1 : ''}</span>${c.sig ? '<span class="sigtag">SIGNATURE</span>' : ''}<b>${escapeHtml(c.name)}</b><small>${escapeHtml(c.tip)}</small>`;
+    b.onclick = () => { sfx.play('ui'); pushEv({ t: 'play', id: c.id, ...(c.def ? { def: c.def } : {}) }); };
+    box.appendChild(b);
+  });
+  box.scrollLeft = 0;
   hudCache.pcSel = null;
+}
+function pickCard(n) {
+  const t = st.pbTabs && st.pbTabs[st.pbTab]; if (!t) return null;
+  const c = t.cards[n - 1]; if (!c) return null;
+  sfx.play('ui');
+  return { t: 'play', id: c.id, ...(c.def ? { def: c.def } : {}) };
+}
+function switchTab(d) {
+  if (!st.pbTabs || !st.pbTabs.length) return;
+  st.pbTab = (st.pbTab + d + st.pbTabs.length) % st.pbTabs.length; hudCache.pcKey = null; sfx.play('ui');
 }
 
 function hint(items) {
@@ -546,7 +672,7 @@ function updateHud(S) {
   setTxt('#sb-clk', fmtClock(S.clk));
   const p = S.poss === 0 ? S.los : 100 - S.los;
   const goal = (S.poss === 0 ? S.fd : 100 - S.fd) >= 100;
-  setTxt('#sb-down', `${ord(S.dn)} & ${goal ? 'Goal' : S.tg}`);
+  setTxt('#sb-down', S.pat >= 0 ? 'PAT' : `${ord(S.dn)} & ${goal ? 'Goal' : S.tg}`);
   const yl = Math.round(p);
   setTxt('#sb-spot', yl === 50 ? 'MIDFIELD' : yl < 50 ? `${T[S.poss].abbr} ${yl}` : `${T[1 - S.poss].abbr} ${100 - yl}`);
   setTxt('#sb-pc', S.ph === 'presnap' ? String(S.pc) : '');
@@ -563,11 +689,20 @@ function updateHud(S) {
   const fl = $('#flash'); const ft = S.flash || '';
   if (hudCache.flash !== ft) { hudCache.flash = ft; sfx.flashCall(ft); fl.textContent = ft; fl.classList.toggle('show', !!ft); }
 
-  // stamina
+  // stamina + who you control
   const cp = S.ctrl[me] >= 0 ? S.pl[S.ctrl[me]] : null;
   $('.stam').classList.toggle('show', S.ph === 'live' && !!cp);
   if (cp) $('#stam-bar').style.width = Math.round(cp[9] * 100) + '%';
   setTxt('#me-label', cp && S.ph !== 'gameover' && S.ph !== 'kick' ? `#${cp[3]} ${cp[11]} · ${cp[12]}` : '');
+
+  // play-the-ball prompt
+  let pb = false;
+  if (S.ph === 'live' && cp && S.b[3] === 1 && S.b[4] && S.bT >= 0) {
+    const dl = Math.hypot(cp[4] - S.b[4][0], cp[5] - S.b[4][1]);
+    pb = dl < 6 + S.bT * 4 && !(cp[8] & 2048);
+    if (pb) setTxt('#pb-txt', S.off === me ? 'CATCH IT!' : 'PLAY THE BALL!');
+  }
+  $('#playball').classList.toggle('show', pb);
 
   // play call
   const pc = $('#playcall');
@@ -580,9 +715,9 @@ function updateHud(S) {
     const sel = onOff ? S.op : S.dp;
     if (hudCache.pcSel !== sel) { hudCache.pcSel = sel; $$('.pc-card', pc).forEach(c => c.classList.toggle('on', c.dataset.id === sel)); }
     const isCPU = !S.humans[1 - me];
-    setTxt('#pc-title', onOff ? (S.dn === 4 ? '4th down — your call' : 'Offense — pick a play') : 'Defense — pick a coverage');
-    const hintHtml = onOff ? (S.op ? 'Press <kbd>Space</kbd> to snap' : 'Press <kbd>1</kbd>–<kbd>6</kbd> or click a play')
-      : (isCPU ? 'CPU snaps soon… <kbd>Q</kbd> switch player' : 'Waiting for the snap… <kbd>Q</kbd> switch player');
+    setTxt('#pc-title', onOff ? (S.pat >= 0 ? 'Try for point — kick or go for 2' : S.dn === 4 ? '4th down — your call' : 'Offense') : 'Defense');
+    const hintHtml = onOff ? (S.op ? '<kbd>Space</kbd> snap · <kbd>Z</kbd><kbd>X</kbd> tabs' : '<kbd>1</kbd>–<kbd>9</kbd> pick · <kbd>Z</kbd><kbd>X</kbd> tabs')
+      : (isCPU ? 'CPU snaps soon · <kbd>Z</kbd><kbd>X</kbd> tabs · <kbd>Q</kbd> switch' : '<kbd>Z</kbd><kbd>X</kbd> tabs · <kbd>Q</kbd> switch player');
     if (hudCache.pch !== hintHtml) { hudCache.pch = hintHtml; $('#pc-hint').innerHTML = hintHtml; }
   }
 
@@ -591,10 +726,15 @@ function updateHud(S) {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
     if (S.canThrow && S.off === me) hint([['1 2 3', 'throw (or click)'], ['W A S D', 'move'], ['Shift', 'sprint']]);
-    else if (iCarry) hint([['W A S D', 'run'], ['Shift', 'sprint'], ['Space', 'juke']]);
-    else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring']]);
+    else if (iCarry) hint([['Space', 'juke'], ['E', 'spin'], ['R', 'stiff arm'], ['F', 'hurdle'], ['Shift', 'sprint']]);
+    else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring'], ['E', 'aggressive catch']]);
+    else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else hint([['Space', 'dive tackle'], ['Q', 'switch'], ['Shift', 'sprint']]);
-  } else hint([['Esc', 'pause'], ['C', 'camera']]);
+  } else hint([['Esc', 'pause'], ['C', 'camera'], ['T', 'chat']]);
+  const tOn = touchOn();
+  $('#touch').classList.toggle('hidden', !tOn || S.ph === 'gameover');
+  $('#hud').classList.toggle('touch-mode', tOn);
+  if (tOn) touchButtons(S);
 }
 
 // ---------------- online ----------------
@@ -797,4 +937,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hooks (used by automated tests; harmless in production)
-window.__ek = { st, startCPU, keys, pushEv, Auth, R, sfx, cam: null };
+window.__ek = { st, startCPU, keys, pushEv, Auth, R, sfx, cam: null, keyToEvent, pickCard };

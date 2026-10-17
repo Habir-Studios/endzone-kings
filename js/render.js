@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792197009';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792199425';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -621,6 +621,7 @@ export class Renderer {
 
   event(e) {
     if (e === 'tackle') this.shake = Math.max(this.shake, 0.22);
+    if (e === 'bighit') { this.shake = Math.max(this.shake, 0.4); this.hypeTarget = Math.max(this.hypeTarget, 0.5); this._hypeHold = 1.4; }
     if (e === 'td' || e === 'score') { this.hypeTarget = 1; this._hypeHold = 4.5; }
     if (e === 'int') { this.hypeTarget = 0.85; this._hypeHold = 3; }
     if (e === 'brokentackle' || e === 'firstdown') { this.hypeTarget = Math.max(this.hypeTarget, 0.55); this._hypeHold = 1.6; }
@@ -694,7 +695,7 @@ export class Renderer {
       if (p) sp.position.set(p[4], 3.25 + Math.sin(this.time * 4 + k) * 0.08, p[5]);
     });
 
-    const showRoutes = local >= 0 && S.ph === 'presnap' && S.poss === local && S.op && OFF_PLAYS.some(p => p.id === S.op);
+    const showRoutes = local >= 0 && S.ph === 'presnap' && S.poss === local && !!S.opDef;
     const rk = showRoutes ? `${S.id}-${S.op}` : '';
     if (rk !== this.routeKey) { this.routeKey = rk; this.buildRoutes(S, local, showRoutes); }
 
@@ -707,6 +708,7 @@ export class Renderer {
   animate(m, S, role, spd, flags, hasBall, dt) {
     const j = m.j;
     const fallen = flags & 1, diving = flags & 2, juking = flags & 4, engaged = flags & 8, throwing = flags & 16, reaching = flags & 32, celebrating = flags & 64, scorer = flags & 128;
+    const spinning = flags & 256, stiffing = flags & 512, hurdling = flags & 1024, leaping = flags & 2048, pressing = flags & 4096;
     const run = Math.min(1, spd / 8.5);
     m.phase += dt * (2.2 + spd * 1.25);
     const ph = m.phase;
@@ -745,6 +747,11 @@ export class Renderer {
     } else m.throwT = 0;
     if (reaching) { as[0] = as[1] = -2.75; ae[0] = ae[1] = 0.2; az[0] = 0.15; az[1] = -0.15; lean = Math.min(lean, 0.1); }
     if (juking) roll = Math.sin(ph * 0.5) > 0 ? 0.35 : -0.35;
+    if (stiffing) { as[0] = -1.55; ae[0] = 0.05; az[0] = 0.1; lean = 0.25; }
+    if (pressing) { as[0] = as[1] = -1.45; ae[0] = ae[1] = 0.15; lean = 0.4; }
+    if (hurdling) { m.hurT = (m.hurT || 0) + dt; const k = Math.min(1, m.hurT / 0.5); jump = Math.sin(k * Math.PI) * 0.85; lh[0] = -1.4; lk[0] = 0.4; lh[1] = 0.6; lk[1] = 1.4; lean = 0.5; } else m.hurT = 0;
+    if (leaping) { m.leapT = (m.leapT || 0) + dt; const k = Math.min(1, m.leapT / 0.6); jump = Math.sin(k * Math.PI) * 0.75; as[0] = as[1] = -3.0; ae[0] = ae[1] = 0.15; az[0] = 0.25; az[1] = -0.25; lean = -0.1; lk[0] = lk[1] = 0.5 * (1 - Math.sin(k * Math.PI)) + 0.2; } else m.leapT = 0;
+    if (spinning) { m.spinT = (m.spinT || 0) + dt; } else m.spinT = 0;
     if (diving) { fall = 0.82; as[0] = as[1] = -2.9; ae[0] = ae[1] = 0.1; lh[0] = lh[1] = 0.4; lk[0] = lk[1] = 0.2; }
     if (fallen) { fall = 1; as[0] = as[1] = -2.4; ae[0] = ae[1] = 0.3; lh[0] = 0.2; lh[1] = -0.1; lk[0] = 0.4; lk[1] = 0.2; drop = 0; }
     if (celebrating && !fallen) {
@@ -764,7 +771,8 @@ export class Renderer {
     const bob = run > 0.05 ? Math.abs(Math.cos(ph)) * 0.07 * run : 0;
     m.body.position.y = 1.0 - j.drop - j.fall * 0.62 + bob + j.jump;
     m.body.position.z = -j.fall * 0.15;
-    m.body.rotation.set(j.fall * 1.42, 0, j.roll);
+    const spinA = m.spinT ? Math.min(1, m.spinT / 0.55) * Math.PI * 2 : 0;
+    m.body.rotation.set(j.fall * 1.42, spinA, j.roll);
     m.torso.rotation.set(j.lean * (1 - j.fall * 0.7), j.twist, 0);
     for (let k = 0; k < 2; k++) {
       m.legs[k].hip.rotation.x = j.lh[k] - j.lean * 0.55 * (1 - j.fall);
@@ -778,11 +786,12 @@ export class Renderer {
   buildRoutes(S, local, show) {
     while (this.routeGroup.children.length) { const c = this.routeGroup.children.pop(); c.geometry.dispose(); }
     if (!show) return;
-    const play = OFF_PLAYS.find(p => p.id === S.op);
+    const play = S.opDef;
     const d = S.poss === 0 ? 1 : -1;
-    const cols = { WR1: 0x22c55e, WR2: 0x3b82f6, RB: 0xf97316 };
-    for (const [role, pts] of Object.entries(play.routes)) {
-      const p = S.pl.find(q => q[1] === 1 && q[2] === role);
+    const cols = { WR1: 0x22c55e, WR2: 0x3b82f6, RB: 0xf97316, QB: 0xe5e7eb };
+    const all = { ...(play.routes || {}) }; if (play.qbPath) all.QB = play.qbPath;
+    for (const [role, pts] of Object.entries(all)) {
+      const p = S.pl.find(q => q[1] === 1 && q[2] === role && q[0] === S.poss);
       if (!p) continue;
       const path = [[p[4], p[5]], ...pts.map(w => [Math.max(-HALF_W + 1, Math.min(HALF_W - 1, S.bx - w[0] * d)), S.los + Math.min(w[1], 22) * d])];
       const mat = new THREE.MeshBasicMaterial({ color: cols[role], transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false });

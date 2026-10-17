@@ -215,33 +215,36 @@
           <div>
             <h3>Offense</h3>
             <ul class="keys">
-              <li><kbd>1</kbd>–<kbd>6</kbd><span>Pick a play before the snap</span></li>
+              <li><kbd>1</kbd>–<kbd>9</kbd><span>Pick a play · <kbd>Z</kbd><kbd>X</kbd> switch playbook tabs</span></li>
               <li><kbd>Space</kbd><span>Snap the ball</span></li>
               <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Move (arrows work too)</span></li>
               <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><span>Throw to that receiver (or click them)</span></li>
+              <li><kbd>E</kbd><span>Aggressive catch while the ball's in the air</span></li>
               <li><kbd>Shift</kbd><span>Sprint (uses stamina)</span></li>
-              <li><kbd>Space</kbd><span>Juke when you have the ball</span></li>
-              <li><kbd>P</kbd> / <kbd>F</kbd><span>Punt / field goal on 4th down</span></li>
+              <li><kbd>Space</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>F</kbd><span>With the ball: juke · spin · stiff arm · hurdle</span></li>
+              <li><kbd>P</kbd> / <kbd>F</kbd><span>Quick punt / field goal (or use the Special Teams tab)</span></li>
             </ul>
           </div>
           <div>
             <h3>Defense</h3>
             <ul class="keys">
-              <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><span>Man / Zone / Blitz</span></li>
+              <li><kbd>1</kbd>–<kbd>9</kbd><span>Pick a coverage · <kbd>Z</kbd><kbd>X</kbd> tabs</span></li>
               <li><kbd>Q</kbd> or <kbd>Tab</kbd><span>Switch to player nearest the ball</span></li>
               <li><span class="mouse">Click</span><span>Pick a specific defender</span></li>
+              <li><kbd>E</kbd><span>Play the ball: jump for the INT / swat it</span></li>
               <li><kbd>Space</kbd><span>Dive tackle (miss = you're on the ground)</span></li>
               <li><kbd>Shift</kbd><span>Sprint</span></li>
             </ul>
             <h3>Other</h3>
             <ul class="keys">
               <li><kbd>C</kbd><span>Switch camera</span></li>
+              <li><kbd>T</kbd><span>Chat (online)</span></li>
               <li><kbd>M</kbd><span>Mute</span></li>
               <li><kbd>Esc</kbd><span>Pause</span></li>
             </ul>
           </div>
         </div>
-        <p class="note">Tips: Look at the colored route lines before the snap. When the ball's in the air, steer your receiver to the white ring. Sprint drains the yellow bar under the scoreboard.</p>
+        <p class="note">Tips: After a touchdown you choose: kick the extra point or go for 2 with any play. Field goals and punts work on any down from the Special Teams tab. On a phone or tablet you get a joystick + buttons automatically.</p>
         <div class="actions"><button class="btn primary" data-go="back">Got it</button></div>
       </div>
     </div>
@@ -257,6 +260,7 @@
         <label>Announcer<div class="seg" id="seg-ann"></div></label>
         <label>Camera<div class="seg" id="seg-cam"></div></label>
         <label>Graphics<div class="seg" id="seg-gfx"></div></label>
+        <label>Touch controls<div class="seg" id="seg-touch"></div></label>
         <div class="actions"><button class="btn primary" data-go="back">Done</button></div>
       </div>
     </div>
@@ -276,13 +280,19 @@
     <div id="me-label" class="me-label"></div>
     <div id="banner" class="banner"><b></b><small></small></div>
     <div id="flash" class="flash"></div>
+    <div id="playball" class="playball"><kbd>E</kbd><span id="pb-txt">PLAY THE BALL!</span></div>
     <div id="playcall" class="playcall hidden">
-      <div class="pc-head"><b id="pc-title">Pick a play</b><span id="pc-hint"></span></div>
+      <div class="pc-head"><div><b id="pc-title">Pick a play</b><small id="pc-book"></small></div><span id="pc-hint"></span></div>
+      <div class="pc-tabs" id="pc-tabs"></div>
       <div class="pc-cards" id="pc-cards"></div>
     </div>
     <div id="hint" class="hint"></div>
     <div id="net-badge" class="net-badge hidden"></div>
     <button id="pause-btn" class="pause-btn" title="Pause (Esc)">❚❚</button>
+    <div id="touch" class="touch hidden">
+      <div id="joy" class="joy"><div class="joy-knob"></div></div>
+      <div id="tbtns" class="tbtns"></div>
+    </div>
   </div>
 
   <div id="intro" class="hidden">
@@ -314,6 +324,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792197009"></script>
+  <script type="module" src="js/main.js?v=1792199425"></script>
 </body>
 </html>

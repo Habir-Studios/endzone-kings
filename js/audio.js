@@ -166,6 +166,10 @@ export class Sfx {
       case 'catch': this.thud(); this.cheer(0.2, 1.6); break;
       case 'handoff': this.thud(); break;
       case 'tackle': this.pads(1); break;
+      case 'bighit': this.pads(1.35); this.cheer(0.35, 1.8); break;
+      case 'spin': case 'hurdle': this.whoosh(0.4); this.cheer(0.18, 1); break;
+      case 'stiff': this.pads(0.5); break;
+      case 'playball': this.whoosh(0.3); break;
       case 'shed': if (Math.random() < 0.3) this.pads(0.35); break;
       case 'brokentackle': this.pads(0.7); this.cheer(0.3, 1.8); break;
       case 'juke': this.whoosh(0.25); break;
@@ -283,7 +287,11 @@ export class Sfx {
     else if (t.startsWith('GAIN OF')) { const n = +t.split(' ').pop(); if (n >= 15) this.say(pick([`Big play! ${name} for ${n} yards!`, `What a run by ${name}! ${n} yards.`])); else if (Math.random() < 0.35) this.say(`${name}, ${n} yard${n === 1 ? '' : 's'}.`); }
     else if (t.startsWith('LOSS')) this.say(pick(['Stuffed in the backfield!', 'Dropped for a loss.']));
     else if (t === 'INCOMPLETE') { if (Math.random() < 0.5) this.say(pick(['Incomplete.', 'Pass falls incomplete.', 'Off the fingertips. Incomplete.'])); }
-    else if (t === 'PASS BROKEN UP') this.say(pick(['Broken up! Great coverage.', 'Knocked away!']));
+    else if (t === 'PASS BROKEN UP' || t === 'SWATTED!') this.say(pick(['Broken up! Great coverage.', 'Knocked away!', 'He got a hand on it!']));
+    else if (t === 'EXTRA POINT GOOD') { if (Math.random() < 0.5) this.say('Extra point is good.'); }
+    else if (t === 'EXTRA POINT NO GOOD') this.say('Oh! The extra point is no good!', true);
+    else if (t === '2-POINT GOOD!') this.say('They go for two... and they get it!', true);
+    else if (t === '2-POINT FAILED') this.say('Two point try is no good.');
     else if (t === 'TURNOVER') this.say('Change of possession!');
     else if (t === 'TURNOVER ON DOWNS') this.say('They come up short. Turnover on downs!');
     else if (t === 'SAFETY!') this.say('Safety! Two points!', true);

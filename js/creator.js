@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Play Creator: draw your own offense, defense and special teams plays.
 // Plays save on this device (localStorage 'ek_custom_plays') and show up under "My Plays" in every game, online too.
-import { FORMS, cleanCustom } from './playbook.js?v=1792207431';
+import { FORMS, cleanCustom } from './playbook.js?v=1792242869';
 
 let C = null;
 const KEY = 'ek_custom_plays', MAX = 24;
@@ -53,7 +53,7 @@ function opts() {
     help.innerHTML = 'Give every defender a job. For a <b>zone</b>, pick Zone and then click the field to drop his spot. Yellow zones are short, blue zones are deep.';
     return;
   }
-  const forms = ed.special ? [['punt', 'Fake punt'], ['fg', 'Fake field goal']] : [['gun', 'Shotgun'], ['trips', 'Gun trips'], ['single', 'Singleback']];
+  const forms = ed.special ? [['punt', 'Fake punt'], ['fg', 'Fake field goal']] : [['gun', 'Shotgun'], ['trips', 'Trips'], ['single', 'Singleback'], ['pistol', 'Pistol'], ['iform', 'I-Form'], ['spread', 'Spread'], ['bunch', 'Bunch'], ['empty', 'Empty']];
   box.innerHTML = `<label>Formation<div class="seg" id="cr-form"></div></label>
     <label>Play type<div class="seg" id="cr-type"></div></label>
     ${ed.type === 'run' ? '<label>Ball carrier<div class="seg" id="cr-car"></div></label>' : '<label class="check"><input type="checkbox" id="cr-pa"> Play action fake first</label>'}

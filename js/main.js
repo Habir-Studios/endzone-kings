@@ -1,16 +1,16 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792207431';
-import { Renderer } from './render.js?v=1792207431';
-import { Sfx } from './audio.js?v=1792207431';
-import { Auth } from './auth.js?v=1792207431';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby } from './net.js?v=1792207431';
-import { getRoster, teamOvr } from './teams.js?v=1792207431';
-import * as Season from './season.js?v=1792207431';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792207431';
-import * as UTm from './ut.js?v=1792207431';
-import { initCreator, renderCreator } from './creator.js?v=1792207431';
-import { portraitURL } from './faces.js?v=1792207431';
-import { logoURL, clearLogoCache } from './logos.js?v=1792207431';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792242869';
+import { Renderer } from './render.js?v=1792242869';
+import { Sfx } from './audio.js?v=1792242869';
+import { Auth } from './auth.js?v=1792242869';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby } from './net.js?v=1792242869';
+import { getRoster, teamOvr } from './teams.js?v=1792242869';
+import * as Season from './season.js?v=1792242869';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792242869';
+import * as UTm from './ut.js?v=1792242869';
+import { initCreator, renderCreator } from './creator.js?v=1792242869';
+import { portraitURL } from './faces.js?v=1792242869';
+import { logoURL, clearLogoCache } from './logos.js?v=1792242869';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -416,6 +416,7 @@ window.addEventListener('keydown', (e) => {
   if (st.hot.open) {
     const d = k.startsWith('Digit') ? +k.slice(5) : 0;
     if (d >= 1 && d <= 3) { st.hot.role = ['WR1', 'WR2', 'RB'][d - 1]; sfx.play('ui'); hudCache.hot = null; return; }
+    if (d >= 4 && d <= 7) { setHot(d); return; }
     const dir = { ArrowUp: 0, KeyW: 0, ArrowLeft: 1, KeyA: 1, ArrowRight: 2, KeyD: 2, ArrowDown: 3, KeyS: 3 }[k];
     if (dir !== undefined) { setHot(dir); return; }
   }
@@ -536,7 +537,8 @@ canvas.tabIndex = 0;
 
 // ---------------- hot routes (press H at the line) ----------------
 st.hot = { open: false, role: 'WR1' };
-const HOT_LABELS = { WR: [['go', 'Go'], ['in', 'Slant in'], ['out', 'Out'], ['curl', 'Curl']], RB: [['wheel', 'Wheel'], ['flat', 'Flat'], ['curl', 'Check down'], ['block', 'Stay in, block']] };
+const HOT_LABELS = { WR: [['go', 'Go'], ['in', 'Slant'], ['out', 'Out'], ['curl', 'Curl'], ['post', 'Post'], ['corner', 'Corner'], ['drag', 'Drag'], ['comeback', 'Comeback']], RB: [['wheel', 'Wheel'], ['flat', 'Flat'], ['curl', 'Check down'], ['block', 'Block'], ['angle', 'Angle'], ['swing', 'Swing'], ['seam', 'Seam'], ['texas', 'Texas']] };
+const HOT_KEYS = ['↑', '←', '→', '↓', '4', '5', '6', '7'];
 const hotOk = S => S && S.ph === 'presnap' && S.poss === st.local && S.opDef && S.opDef.type === 'pass' && !(S.sp && S.sp.pat);
 function toggleHot(force) {
   const S = st.snap; const open = force !== undefined ? force : !st.hot.open;
@@ -552,7 +554,7 @@ function renderHot(S) {
   const key = st.hot.role + '|' + (S.opDef.hot || []).join();
   if (hudCache.hot === key) return; hudCache.hot = key;
   const cols = { WR1: '#22c55e', WR2: '#3b82f6', RB: '#f97316' };
-  const g = st.hot.role === 'RB' ? 'RB' : 'WR', arrows = ['↑', '←', '→', '↓'];
+  const g = st.hot.role === 'RB' ? 'RB' : 'WR', arrows = HOT_KEYS;
   el.innerHTML = `<h4>Hot route</h4><div class="who">${['WR1', 'WR2', 'RB'].map((r, i) => `<button data-r="${r}" class="${r === st.hot.role ? 'on' : ''}" style="--rc:${cols[r]}"><kbd>${i + 1}</kbd>${r === 'RB' ? 'HB' : 'WR ' + r[2]}</button>`).join('')}</div>
     <div class="kinds">${HOT_LABELS[g].map((h, i) => `<button data-k="${i}"><kbd>${arrows[i]}</kbd>${h[1]}</button>`).join('')}</div><small>Changed: ${(S.opDef.hot || []).map(r => r === 'RB' ? 'HB' : 'WR ' + r[2]).join(', ') || 'nothing yet'}. Press H or Esc when you're done.</small>`;
   $$('[data-r]', el).forEach(b => b.onclick = () => { st.hot.role = b.dataset.r; hudCache.hot = null; sfx.play('ui'); });

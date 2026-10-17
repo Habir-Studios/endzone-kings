@@ -4,14 +4,14 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792207431';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792242869';
 export { TEAMS };
 
 export const OFF_ROLES = ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB'];
 export const DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
 export const RECEIVERS = ['WR1', 'WR2', 'RB']; // keys 1,2,3
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792207431';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792242869';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -473,22 +473,36 @@ function enforceFlag(g, endP, turnover, td) {
 }
 
 // quick route changes at the line: in-breaking, out-breaking, go, curl; the back can flat, wheel or stay in to block
-export const HOT_KINDS = { WR: ['go', 'in', 'out', 'curl'], RB: ['wheel', 'flat', 'block', 'curl'] };
+export const HOT_KINDS = { WR: ['go', 'in', 'out', 'curl', 'post', 'corner', 'drag', 'comeback'], RB: ['wheel', 'flat', 'curl', 'block', 'angle', 'swing', 'seam', 'texas'] };
 function hotRoute(form, role, kind) {
   const f = FORMS[form] || FORMS.gun; const [sx, sz] = f[role] || [0, 0];
   const inside = sx === 0 ? 1 : -Math.sign(sx);
   if (role === 'RB') {
-    const side = sx >= 0 ? 1 : -1;
+    const side = sx >= 0 ? 1 : -1, wide = Math.abs(sx) > 6;
     if (kind === 'block') return null;
+    if (wide) { // back split out wide (empty): treat him like a receiver
+      if (kind === 'wheel' || kind === 'seam') return [[sx, 8], [sx + inside, 30]];
+      if (kind === 'flat' || kind === 'swing') return [[sx, 4], [sx - inside * 5, 4]];
+      if (kind === 'angle' || kind === 'texas') return [[sx, 2], [sx + inside * 8, 8]];
+      return [[sx, 7], [sx + inside, 5.5, 'stop']];
+    }
     if (kind === 'flat') return [[sx + side * 4, sz + 2], [sx + side * 12, 1]];
     if (kind === 'wheel') return [[sx + side * 7, sz + 3], [sx + side * 11, 6], [sx + side * 11, 26]];
     if (kind === 'curl') return [[sx + side * 1, 3], [sx + side * 1, 6, 'stop']];
+    if (kind === 'angle') return [[sx + side * 4, -2.5], [sx + side * 3, 3], [sx - side * 3, 6]];
+    if (kind === 'swing') return [[sx + side * 6, sz + 0.5], [sx + side * 14, -1.5]];
+    if (kind === 'seam') return [[sx + side * 2.5, 1], [sx + side * 3.5, 22]];
+    if (kind === 'texas') return [[sx - side * 4, -2.5], [sx - side * 6, 2], [sx - side * 1, 8]];
     return undefined;
   }
   if (kind === 'go') return [[sx, 8], [sx + inside * 1, 30]];
   if (kind === 'in') return [[sx, 2], [sx + inside * 8, 9], [sx + inside * 14, 12]];
   if (kind === 'out') return [[sx, 7], [sx - inside * 6, 7]];
   if (kind === 'curl') return [[sx, 11], [sx + inside * 1.5, 8.5, 'stop']];
+  if (kind === 'post') return [[sx, 11], [sx + inside * 7, 26], [sx + inside * 9, 42]];
+  if (kind === 'corner') return [[sx, 11], [sx - inside * 6, 22], [sx - inside * 8, 30]];
+  if (kind === 'drag') return [[sx, 2], [sx + inside * 9, 4], [sx + inside * 24, 5]];
+  if (kind === 'comeback') return [[sx, 15], [sx - inside * 2.5, 12, 'stop']];
   return undefined;
 }
 
@@ -1530,3 +1544,4 @@ function reaching(g, p) {
 }
 export function faceSeed(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
 export function drainEvents(g) { const e = g.events; g.events = []; return e; }
+export const __test = { alignOffense: (g) => alignOffense(g, true) };

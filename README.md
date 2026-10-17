@@ -8,7 +8,7 @@ Endzone Kings is a 3D arcade football game that runs right in your browser. Ther
 ## What's in it
 - **A full 3D night-game stadium:** a packed crowd that jumps on big plays, light rigs, jumbotrons and LED ribbon boards.
 - **A 32-team league:** teams go by their city, Retro Bowl style, with 448 made-up players. Ratings really matter: fast guys are fast, good QBs are accurate, and good tacklers don't miss.
-- **Team playbooks:** every team has its own offense and defense built around a coaching style, plus a signature play. You get quick passes, deep shots, runs, play action, screens, special teams, man, zone and blitzes.
+- **Team playbooks:** 45 offensive plays in eight formations and 20 defenses. Every team has its own offense and defense built around a coaching style, plus a signature play. You get quick passes, deep shots, runs, play action, screens, special teams, man, zone and blitzes.
 - **Real football moves:** throw to receivers with 1, 2 or 3. Juke, spin, stiff-arm and hurdle after the catch. Jump routes and play the ball on defense. Field goals, punts, fakes, extra points, two-point tries and sudden-death overtime are all in.
 - **Play Now:** pick any two teams and a difficulty.
 - **Season:** a 14-week schedule, live standings, a top-4 playoff and the Kings Bowl.

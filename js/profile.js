@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, CLUB_CAP, PACKS, squadOvr, card } from './ut.js?v=1792207431';
+import { starterIds, autoLineup, CLUB_CAP, PACKS, squadOvr, card } from './ut.js?v=1792242869';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.

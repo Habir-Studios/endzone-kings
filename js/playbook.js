@@ -7,7 +7,13 @@ export const FORMS = {
   single: { name: 'Singleback',  QB: [0, -1.2], RB: [0, -5.6], WR1: [-13, -0.6], WR2: [12, -0.6] },
   punt:   { name: 'Punt',        QB: [0, -12], RB: [2.5, -5], WR1: [-20, -0.6], WR2: [20, -0.6] },
   fg:     { name: 'Field Goal',  QB: [0, -7], RB: [1.5, -9.5], WR1: [-5, -1], WR2: [5, -1] },
+  pistol: { name: 'Pistol',      QB: [0, -3.2], RB: [0, -6.4], WR1: [-13, -0.6], WR2: [13, -0.6] },
+  iform:  { name: 'I-Form',      QB: [0, -1.2], RB: [0, -7.2], WR1: [-13, -0.6], WR2: [11, -0.6] },
+  empty:  { name: 'Empty',       QB: [0, -4.5], RB: [17, -0.8], WR1: [-14, -0.6], WR2: [-7.5, -1.3] },
+  bunch:  { name: 'Gun Bunch',   QB: [0, -4.5], RB: [-1.6, -4.9], WR1: [8, -0.6], WR2: [10, -1.8] },
+  spread: { name: 'Spread',      QB: [0, -4.5], RB: [-1.6, -4.9], WR1: [-17, -0.6], WR2: [17, -0.6] },
 };
+export const PLAY_FORMS = ['gun', 'trips', 'single', 'pistol', 'iform', 'empty', 'bunch', 'spread'];
 export const LINE = { C: [0, -0.9], LG: [-1.75, -1.0], RG: [1.75, -1.0] };
 
 export const OFF_CATS = ['Quick', 'Deep', 'Run', 'Play Action', 'Screen', 'Special'];
@@ -54,6 +60,63 @@ export const OFF_PLAYS = [
     routes: { WR1: [[-13, 30]], WR2: [[13, 30]], RB: [[5, -4], [9, -4.5, 'stop']] } }),
   P({ id: 'bubble', cat: 'Screen', form: 'trips', name: 'Bubble Screen', tip: 'Quick throw to the slot, WR blocks', drop: -5,
     routes: { WR2: [[-10, -2.5], [-12, -2.5, 'stop']], RB: [[5, -3], [10, -1, 'stop']] }, block: ['WR1'] }),
+  // ---- more quick game
+  P({ id: 'hitches', cat: 'Quick', form: 'spread', name: 'Spread Hitches', tip: 'Six yards and turn around', drop: -5,
+    routes: { WR1: [[-17, 6], [-16.5, 5, 'stop']], WR2: [[17, 6], [16.5, 5, 'stop']], RB: [[-5, -3], [-3, 3, 'stop']] } }),
+  P({ id: 'quickouts', cat: 'Quick', form: 'gun', name: 'Speed Outs', tip: 'Beat soft corners to the sideline', drop: -5,
+    routes: { WR1: [[-13, 5], [-21, 5]], WR2: [[13, 5], [21, 5]], RB: [[3, -2], [3, 3, 'stop']] } }),
+  P({ id: 'drive', cat: 'Quick', form: 'gun', name: 'Drive', tip: 'Shallow cross under a dig',
+    routes: { WR1: [[-13, 2], [-4, 3], [10, 4], [22, 5]], WR2: [[13, 11], [4, 12], [-10, 12]], RB: [[5, -3], [12, 0]] } }),
+  P({ id: 'spacing', cat: 'Quick', form: 'bunch', name: 'Bunch Spacing', tip: 'Three short options, spread the zone',
+    routes: { WR1: [[8, 5], [7.5, 5, 'stop']], WR2: [[10, 2], [17, 3, 'stop']], RB: [[-4, -2], [-3, 5, 'stop']] } }),
+  P({ id: 'whip', cat: 'Quick', form: 'trips', name: 'Slot Whip', tip: 'Slot fakes in, whips back out',
+    routes: { WR1: [[-15, 12], [-13, 10, 'stop']], WR2: [[-8, 4], [-4, 5], [-10, 5]], RB: [[5, -3], [13, 1]] } }),
+  P({ id: 'rbangle', cat: 'Quick', form: 'gun', name: 'HB Angle', tip: 'Back breaks inside on a linebacker',
+    routes: { WR1: [[-13, 14]], WR2: [[13, 14]], RB: [[5, -3], [7, 1], [2, 5]] } }),
+  P({ id: 'emptyslant', cat: 'Quick', form: 'empty', name: 'Empty Slants', tip: 'Five out, ball out fast', drop: -5,
+    routes: { WR1: [[-14, 2], [-9, 8]], WR2: [[-7.5, 2], [-2, 6]], RB: [[17, 2], [11, 8]] } }),
+  // ---- more deep shots
+  P({ id: 'dagger', cat: 'Deep', form: 'trips', name: 'Dagger', tip: 'Seam clears it out, dig sits under', drop: -8,
+    routes: { WR1: [[-15, 14], [-3, 15]], WR2: [[-8, 30], [-6, 45]], RB: [[5, -3], [12, 0]] } }),
+  P({ id: 'sluggo', cat: 'Deep', form: 'spread', name: 'Sluggo', tip: 'Slant and go, sell the slant', drop: -8,
+    routes: { WR1: [[-17, 3], [-14, 7], [-15, 18], [-15, 45]], WR2: [[17, 8], [11, 10, 'stop']], RB: [[-1, 0], [-1.5, 4, 'stop']] } }),
+  P({ id: 'yankee', cat: 'Deep', form: 'single', name: 'Yankee', tip: 'Deep post plus a deep over route', pa: 0.6, drop: -8,
+    routes: { WR1: [[-13, 12], [-6, 30], [-2, 45]], WR2: [[12, 6], [4, 14], [-14, 24]], RB: [[0.8, -3], [0.8, -1.5, 'stop']] }, block: ['RB'] }),
+  P({ id: 'wheelpost', cat: 'Deep', form: 'gun', name: 'Wheel Post', tip: 'HB wheel up the sideline under a post', drop: -8,
+    routes: { WR1: [[-13, 12], [-6, 28], [-3, 42]], WR2: [[13, 8], [7, 9, 'stop']], RB: [[8, -2], [13, 4], [14, 30]] } }),
+  P({ id: 'bunchcorner', cat: 'Deep', form: 'bunch', name: 'Bunch Corner', tip: 'Corner over a flat, high-low the corner',
+    routes: { WR1: [[8, 10], [16, 22], [20, 30]], WR2: [[10, 1], [20, 2, 'stop']], RB: [[-4, -2], [-12, 1]] } }),
+  P({ id: 'goout', cat: 'Deep', form: 'spread', name: 'Go Comeback', tip: 'Push vertical, break back to the sideline', drop: -8,
+    routes: { WR1: [[-17, 16], [-19, 13, 'stop']], WR2: [[17, 45]], RB: [[-5, -3], [-12, 1]] } }),
+  P({ id: 'emptyverts', cat: 'Deep', form: 'empty', name: 'Empty Verts', tip: 'Three verticals, nobody stays in', drop: -8,
+    routes: { WR1: [[-14, 45]], WR2: [[-7.5, 20], [-5, 45]], RB: [[17, 45]] } }),
+  // ---- more runs
+  { id: 'power', inside: true, cat: 'Run', form: 'pistol', type: 'run', name: 'Pistol Power', tip: 'Downhill between the guards', hand: 0.5,
+    routes: { RB: [[0.2, -4.5], [1.2, -1], [1.4, 2]] } },
+  { id: 'iso', inside: true, cat: 'Run', form: 'iform', type: 'run', name: 'I-Form Iso', tip: 'Run right behind the center', hand: 0.55,
+    routes: { RB: [[0, -4], [0.3, 0.5]] } },
+  { id: 'sweep', cat: 'Run', form: 'iform', type: 'run', name: 'Student Body Sweep', tip: 'Pitch it and race the edge', pitch: 0.32,
+    routes: { RB: [[-6, -7], [-13, -4], [-15, 0.5]] } },
+  { id: 'readopt', cat: 'Run', form: 'pistol', type: 'run', name: 'QB Keeper', tip: 'Fake the handoff, QB keeps it outside', qbRun: true,
+    routes: { QB: [[-1, -3.4], [-6, -3], [-9, 1]], RB: [[1.2, -4.5], [2, 0], [2, 3]] } },
+  { id: 'qbdraw', inside: true, cat: 'Run', form: 'spread', type: 'run', name: 'QB Draw', tip: 'Show pass, then QB runs up the gut', qbRun: true,
+    routes: { QB: [[0, -6], [0.5, -5.5], [0.8, 2]] } },
+  { id: 'trap', inside: true, cat: 'Run', form: 'single', type: 'run', name: 'HB Trap', tip: 'Let the tackle in, run past him', hand: 0.5,
+    routes: { RB: [[-0.8, -3], [-1, 0.5]] } },
+  { id: 'pinpull', cat: 'Run', form: 'gun', type: 'run', name: 'Outside Zone', tip: 'Press the edge, cut back if it closes', hand: 0.4,
+    routes: { RB: [[3, -4.5], [8, -3], [12, 0.5]] } },
+  // ---- more play action
+  P({ id: 'pacross', cat: 'Play Action', form: 'iform', name: 'PA Crosser', tip: 'Fake iso, crosser behind the linebackers', pa: 0.7,
+    routes: { WR1: [[-13, 10], [0, 14], [14, 16]], WR2: [[11, 40]], RB: [[0, -4], [0, -2, 'stop']] }, block: ['RB'] }),
+  P({ id: 'paflood', cat: 'Play Action', form: 'pistol', name: 'PA Flood', tip: 'Sell the run, three levels to the right', pa: 0.65, qbPath: [[4, -5], [8, -5]],
+    routes: { WR1: [[-13, 10], [2, 14], [14, 18]], WR2: [[13, 40]], RB: [[0.6, -4], [6, -2], [13, 1]] } }),
+  P({ id: 'pashot', cat: 'Play Action', form: 'iform', name: 'PA Max Protect', tip: 'Two deep shots, everyone else blocks', pa: 0.7, drop: -9,
+    routes: { WR1: [[-13, 45]], WR2: [[11, 12], [4, 28], [0, 45]] }, block: ['RB'] }),
+  // ---- more screens
+  P({ id: 'tunnel', cat: 'Screen', form: 'spread', name: 'WR Tunnel Screen', tip: 'Receiver comes back inside behind blockers', screen: 0.7, drop: -5,
+    routes: { WR1: [[-15, 0.5], [-10, -1.5, 'stop']], WR2: [[17, 20]], RB: [[3, -2], [3, 2, 'stop']] } }),
+  P({ id: 'slipscreen', cat: 'Screen', form: 'pistol', name: 'Middle Screen', tip: 'Back leaks out behind the line', screen: 1.0, drop: -8,
+    routes: { WR1: [[-13, 25]], WR2: [[13, 25]], RB: [[0.5, -3], [-1, -1.5, 'stop']] } }),
   // ---- special (fakes)
   { id: 'fakepunt', cat: 'Special', form: 'punt', type: 'run', name: 'Fake Punt', tip: 'Punter takes off', qbRun: true,
     routes: { QB: [[6, -9], [11, -2], [12, 8]] } },
@@ -78,19 +141,29 @@ export const DEF_PLAYS = [
   { id: 'cover0', cat: 'Blitz', name: 'Cover 0 Blitz', tip: 'Everybody comes, no help', man: { CB1: 'WR1', CB2: 'WR2', S: 'RB' }, rush: ['LB'], press: true },
   { id: 'sblitz', cat: 'Blitz', name: 'Safety Blitz', tip: 'Surprise heat off the edge', man: { CB1: 'WR1', CB2: 'WR2', LB: 'RB' }, rush: ['S'] },
   { id: 'firezone', cat: 'Blitz', name: 'Fire Zone', tip: 'LB blitzes, DT drops', zone: { CB1: [-13, 15], CB2: [13, 15], S: [0, 19], DL2: [0, 6] }, rush: ['LB'] },
+  { id: 'robber', cat: 'Man', name: 'Cover 1 Robber', tip: 'Man outside, safety lurks for crossers', man: { CB1: 'WR1', CB2: 'WR2', LB: 'RB' }, zone: { S: [0, 10] } },
+  { id: 'banjo', cat: 'Man', name: 'Bracket WR1', tip: 'Double the best receiver, man elsewhere', man: { CB1: 'WR1', CB2: 'WR2', LB: 'RB' }, zone: { S: [-9, 16] } },
+  { id: 'spy3', cat: 'Man', name: 'Rush 3 Spy', tip: 'Three rush, tackle spies the QB', man: { CB1: 'WR1', CB2: 'WR2', LB: 'RB' }, spy: ['DL2'], deep: ['S'] },
+  { id: 'tampa2', cat: 'Zone', name: 'Tampa 2', tip: 'Mike runs the deep middle', zone: { CB1: [-12, 4], CB2: [12, 4], LB: [0, 15], S: [0, 21] } },
+  { id: 'cover3buzz', cat: 'Zone', name: 'Cover 3 Buzz', tip: 'Safety drops to the hook, corners bail', zone: { CB1: [-13, 16], CB2: [13, 16], S: [-5, 9], LB: [3, 7] } },
+  { id: 'cover6', cat: 'Zone', name: 'Cover 6', tip: 'Quarters to one side, halves to the other', zone: { CB1: [-12, 20], CB2: [12, 5], S: [3, 19], LB: [0, 8] } },
+  { id: 'goalline', cat: 'Zone', name: 'Goal Line', tip: 'Everyone tight, stop the push', zone: { CB1: [-9, 3], CB2: [9, 3], S: [0, 5] }, rush: ['LB'] },
+  { id: 'nickelblitz', cat: 'Blitz', name: 'Nickel Blitz', tip: 'Corner comes off the edge', man: { CB1: 'WR1', S: 'WR2', LB: 'RB' }, rush: ['CB2'] },
+  { id: 'doublea', cat: 'Blitz', name: 'Double A Gap', tip: 'Linebacker and safety shoot the middle', man: { CB1: 'WR1', CB2: 'WR2' }, rush: ['LB', 'S'], press: true },
+  { id: 'zoneblitz', cat: 'Blitz', name: 'Zone Blitz', tip: 'End drops into coverage, safety blitzes', zone: { CB1: [-13, 15], CB2: [13, 15], DL3: [6, 6], LB: [0, 12] }, rush: ['S'] },
 ];
 
 // ---------------- team playbook styles ----------------
 export const OFF_STYLES = {
-  air:      { name: 'Air Raid',       plays: ['slants', 'curlflat', 'mesh', 'stick', 'postdig', 'verts', 'smash', 'flood', 'draw', 'toss', 'bubble', 'rbscreen', 'padeep'], weight: { Quick: 3, Deep: 3, Run: 1, 'Play Action': 1, Screen: 1.5 } },
-  ground:   { name: 'Smashmouth',     plays: ['dive', 'toss', 'counter', 'sneak', 'draw', 'paboot', 'padeep', 'slants', 'curlflat', 'smash', 'rbscreen'], weight: { Quick: 1.2, Deep: 0.8, Run: 4, 'Play Action': 2, Screen: 0.8 } },
-  west:     { name: 'West Coast',     plays: ['slants', 'curlflat', 'mesh', 'stick', 'smash', 'postdig', 'dive', 'toss', 'counter', 'paboot', 'rbscreen', 'bubble'], weight: { Quick: 3.5, Deep: 1.2, Run: 2, 'Play Action': 1.5, Screen: 1.5 } },
-  balanced: { name: 'Balanced',       plays: ['slants', 'curlflat', 'mesh', 'postdig', 'verts', 'flood', 'dive', 'toss', 'counter', 'draw', 'sneak', 'paboot', 'padeep', 'rbscreen'], weight: { Quick: 2, Deep: 1.5, Run: 2.5, 'Play Action': 1.2, Screen: 1 } },
+  air:      { name: 'Air Raid',       plays: ['slants', 'curlflat', 'mesh', 'stick', 'hitches', 'quickouts', 'drive', 'spacing', 'emptyslant', 'rbangle', 'postdig', 'verts', 'smash', 'flood', 'dagger', 'sluggo', 'emptyverts', 'bunchcorner', 'goout', 'draw', 'qbdraw', 'toss', 'pinpull', 'bubble', 'rbscreen', 'tunnel', 'padeep', 'paflood'], weight: { Quick: 3, Deep: 3, Run: 1, 'Play Action': 1, Screen: 1.5 } },
+  ground:   { name: 'Smashmouth',     plays: ['dive', 'toss', 'counter', 'sneak', 'draw', 'power', 'iso', 'sweep', 'trap', 'readopt', 'pinpull', 'paboot', 'padeep', 'pacross', 'paflood', 'pashot', 'yankee', 'slants', 'curlflat', 'hitches', 'whip', 'smash', 'wheelpost', 'rbscreen', 'slipscreen'], weight: { Quick: 1.2, Deep: 0.8, Run: 4, 'Play Action': 2, Screen: 0.8 } },
+  west:     { name: 'West Coast',     plays: ['slants', 'curlflat', 'mesh', 'stick', 'drive', 'spacing', 'whip', 'rbangle', 'quickouts', 'smash', 'postdig', 'dagger', 'wheelpost', 'bunchcorner', 'dive', 'toss', 'counter', 'pinpull', 'power', 'paboot', 'pacross', 'rbscreen', 'bubble', 'tunnel', 'slipscreen'], weight: { Quick: 3.5, Deep: 1.2, Run: 2, 'Play Action': 1.5, Screen: 1.5 } },
+  balanced: { name: 'Balanced',       plays: ['slants', 'curlflat', 'mesh', 'hitches', 'drive', 'spacing', 'emptyslant', 'postdig', 'verts', 'flood', 'dagger', 'sluggo', 'yankee', 'goout', 'dive', 'toss', 'counter', 'draw', 'sneak', 'power', 'iso', 'sweep', 'readopt', 'qbdraw', 'trap', 'paboot', 'padeep', 'pacross', 'pashot', 'rbscreen', 'tunnel', 'bubble'], weight: { Quick: 2, Deep: 1.5, Run: 2.5, 'Play Action': 1.2, Screen: 1 } },
 };
 export const DEF_STYLES = {
-  pressure: { name: 'Pressure 4-3', plays: ['cover1', 'press', 'cover3', 'cover2', 'cover0', 'sblitz', 'firezone', 'manspy'], weight: { Man: 2, Zone: 1.5, Blitz: 3 } },
-  zone:     { name: 'Bend Don’t Break', plays: ['cover2', 'cover3', 'cover4', 'prevent', 'cover1', 'firezone', 'manspy'], weight: { Man: 1, Zone: 4, Blitz: 1 } },
-  lockdown: { name: 'Lockdown Man', plays: ['cover1', 'press', 'manspy', 'cover3', 'cover2', 'cover0', 'sblitz'], weight: { Man: 4, Zone: 1.5, Blitz: 1.5 } },
+  pressure: { name: 'Pressure 4-3', plays: ['cover1', 'press', 'robber', 'manspy', 'cover3', 'cover2', 'cover3buzz', 'goalline', 'cover0', 'sblitz', 'firezone', 'nickelblitz', 'doublea', 'zoneblitz'], weight: { Man: 2, Zone: 1.5, Blitz: 3 } },
+  zone:     { name: 'Bend Don’t Break', plays: ['cover2', 'cover3', 'cover4', 'tampa2', 'cover3buzz', 'cover6', 'prevent', 'goalline', 'cover1', 'robber', 'spy3', 'firezone', 'zoneblitz'], weight: { Man: 1, Zone: 4, Blitz: 1 } },
+  lockdown: { name: 'Lockdown Man', plays: ['cover1', 'press', 'manspy', 'robber', 'banjo', 'spy3', 'cover3', 'cover2', 'tampa2', 'goalline', 'cover0', 'sblitz', 'nickelblitz', 'doublea'], weight: { Man: 4, Zone: 1.5, Blitz: 1.5 } },
 };
 const OFF_STYLE_KEYS = Object.keys(OFF_STYLES), DEF_STYLE_KEYS = Object.keys(DEF_STYLES);
 const SIG_NAMES = ['Special', 'Express', 'Heater', 'Thunder', 'Dagger', 'Haymaker', 'Lightning', 'Crown'];

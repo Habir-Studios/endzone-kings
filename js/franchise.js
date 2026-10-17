@@ -1,11 +1,11 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { askYes, askPick, showInfo, injuryCard } from './ui.js?v=1792272065';
-import { grade, nextForm, decay, formed, formTag } from './form.js?v=1792272065';
-import { watchSim } from './simview.js?v=1792272065';
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792272065';
-import * as Season from './season.js?v=1792272065';
+import { askYes, askPick, showInfo, injuryCard } from './ui.js?v=1792272270';
+import { grade, nextForm, decay, formed, formTag } from './form.js?v=1792272270';
+import { watchSim } from './simview.js?v=1792272270';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792272270';
+import * as Season from './season.js?v=1792272270';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -299,7 +299,7 @@ export function initFranchise(ctx) {
   C = ctx;
   C.$$('.fr-tab').forEach(b => b.addEventListener('click', () => { tab = b.dataset.fr; C.sfx.play('ui'); renderFranchise(); }));
 }
-export function franchiseSub() { const F = load(); if (!F) return 'Run a team for years: draft, contracts, progression'; const s = F.season.standings[F.team]; return `${TEAMS[F.team].city}, ${F.year}, ${F.phase === 'season' ? `${s.w}-${s.l}` : 'offseason'}`; }
+export function franchiseSub() { const F = load(); if (!F) return 'Run a team for years: draft, contracts, progression'; const s = F.season.standings[F.team]; return `${TEAMS[F.team].city}, ${F.year}, ${F.phase === 'season' ? `${s.w}W-${s.l}L` : 'offseason'}`; }
 // franchises started before 11-on-11 get the team's real tight end, slot, tackles and extra defenders
 function migrate(F) {
   const r = getRoster(F.team); let n = 0;
@@ -343,7 +343,7 @@ function hubTab(F) {
   const st = S.standings[F.team];
   const opp = g ? (g.home === F.team ? g.away : g.home) : -1;
   const bye = Season.onBye && Season.onBye(S);
-  pane.innerHTML = `<div class="fr-next">${bye ? `<div><small>${Season.phaseLabel(S)}</small><h3>Bye week</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Rest up, the rest of the league plays.</p></div><div class="cr-btns"><button class="btn primary big" id="fr-sim">Next week</button></div>` : g ? `<div><small>${Season.phaseLabel(S)}</small><h3>${g.home === F.team ? 'vs' : 'at'} ${TEAMS[opp].city}</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Opponent ${C.teamOvr(opp)} OVR.</p></div>
+  pane.innerHTML = `<div class="fr-next">${bye ? `<div><small>${Season.phaseLabel(S)}</small><h3>Bye week</h3><p class="note">You're ${st.w}W-${st.l}L${st.t ? '-' + st.t + 'T' : ''}. Rest up, the rest of the league plays.</p></div><div class="cr-btns"><button class="btn primary big" id="fr-sim">Next week</button></div>` : g ? `<div><small>${Season.phaseLabel(S)}</small><h3>${g.home === F.team ? 'vs' : 'at'} ${TEAMS[opp].city}</h3><p class="note">You're ${st.w}W-${st.l}L${st.t ? '-' + st.t + 'T' : ''}. Opponent ${C.teamOvr(opp)} OVR.</p></div>
       <div class="cr-btns"><button class="btn primary big" id="fr-play">Play game</button><button class="btn" id="fr-sim">Simulate</button></div>` : `<p class="note">${S.eliminated ? 'Your season is over.' : 'Season complete.'}</p>`}</div>
     <div class="fr-practice"><b>Practice this week</b><div class="seg" id="fr-prac"></div><small class="note">${PRACTICE[F.practice || 'normal'].n === 'Hard' ? 'Hard: players grow faster but wear down and get hurt more.' : PRACTICE[F.practice || 'normal'].n === 'Light' ? 'Light: players stay fresh, but grow slower.' : 'Normal: a balance of growth and freshness.'}</small></div>
     ${(() => { const hurt = Object.values(F.players).filter(p => p.inj || p.ling); const tired = Object.values(F.players).filter(p => !p.inj && (p.fat || 0) > 0.55 && Object.values(F.starters).includes(p.id)); return (hurt.length ? `<h3 class="store-h">Injuries</h3><ul class="fr-log">${hurt.map(p => `<li class="inj-li" data-pinfo="${p.id}"><i class="inj-cross ${p.inj ? '' : 'q'}">✚</i><b>${esc(p.first)} ${esc(p.last)}</b> (${p.group}): ${p.inj ? `${esc(p.inj.kind)}, out ${p.inj.weeks} more week${p.inj.weeks > 1 ? 's' : ''}` : `playing through ${esc(p.ling.kind.toLowerCase())}, ${p.ling.weeks} wk`}<small>details</small></li>`).join('')}</ul>` : '') + (tired.length ? `<h3 class="store-h">Worn down</h3><p class="note">${tired.map(p => `${esc(p.last)} (${Math.round(p.fat * 100)}%)`).join(', ')}. Ease up in practice or sit them to avoid injuries.</p>` : ''); })()}
@@ -379,7 +379,7 @@ function leagueTab(F) {
 }
 function legacyTab(F) {
   const pane = C.$('#fr-pane'), all = Object.values(F.players).sort((a, b) => (b.cs.td || 0) + (b.cs.py || 0) / 50 - (a.cs.td || 0) - (a.cs.py || 0) / 50).slice(0, 8);
-  pane.innerHTML = `<h3 class="store-h">Seasons</h3><div class="fr-list">${F.history.map(h => `<div class="fr-p"><span class="fr-ovr">${h.champ ? '🏆' : h.playoffs ? 'P' : '-'}</span><div><b>${h.year}: ${h.w}-${h.l}${h.t ? '-' + h.t : ''}</b><small>${h.champ ? 'Kings Bowl champions' : h.playoffs ? 'Made the playoffs' : 'Missed the playoffs'}</small></div></div>`).join('') || '<p class="note">Your first season is still going.</p>'}</div>
+  pane.innerHTML = `<h3 class="store-h">Seasons</h3><div class="fr-list">${F.history.map(h => `<div class="fr-p"><span class="fr-ovr">${h.champ ? '🏆' : h.playoffs ? 'P' : '-'}</span><div><b>${h.year}: ${h.w}W-${h.l}L${h.t ? '-' + h.t + 'T' : ''}</b><small>${h.champ ? 'Kings Bowl champions' : h.playoffs ? 'Made the playoffs' : 'Missed the playoffs'}</small></div></div>`).join('') || '<p class="note">Your first season is still going.</p>'}</div>
     <h3 class="store-h">Franchise leaders</h3><div class="fr-list">${all.map(p => pRow(p, `<small class="fr-cs">${fmt(p.cs.py || 0)} pass yds, ${fmt(p.cs.ry || 0)} rush, ${fmt(p.cs.recy || 0)} rec, ${fmt(p.cs.td || 0)} TD, ${fmt(p.cs.tk || 0)} tkl, ${fmt(p.cs.sk || 0)} sacks</small>`)).join('')}</div>
     <div class="actions"><button class="btn danger" id="fr-quit">Retire from this franchise</button></div>`;
   C.$('#fr-quit').onclick = async () => { if (!(await askYes('End this franchise for good? Everything in it is deleted.', 'End it'))) return; try { localStorage.removeItem(KEY()); } catch (_) {} renderFranchise(); };

@@ -1,22 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792272065';
-import * as Form from './form.js?v=1792272065';
-import { watchSim } from './simview.js?v=1792272065';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792272065';
-import { Renderer } from './render.js?v=1792272065';
-import { Sfx } from './audio.js?v=1792272065';
-import { Auth } from './auth.js?v=1792272065';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792272065';
-import { getRoster, teamOvr } from './teams.js?v=1792272065';
-import * as Season from './season.js?v=1792272065';
-import * as Fr from './franchise.js?v=1792272065';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792272065';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792272065';
-import * as UTm from './ut.js?v=1792272065';
-import { initCreator, renderCreator } from './creator.js?v=1792272065';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792272065';
-import { portraitURL } from './faces.js?v=1792272065';
-import { logoURL, clearLogoCache } from './logos.js?v=1792272065';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792272270';
+import * as Form from './form.js?v=1792272270';
+import { watchSim } from './simview.js?v=1792272270';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792272270';
+import { Renderer } from './render.js?v=1792272270';
+import { Sfx } from './audio.js?v=1792272270';
+import { Auth } from './auth.js?v=1792272270';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792272270';
+import { getRoster, teamOvr } from './teams.js?v=1792272270';
+import * as Season from './season.js?v=1792272270';
+import * as Fr from './franchise.js?v=1792272270';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792272270';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792272270';
+import * as UTm from './ut.js?v=1792272270';
+import { initCreator, renderCreator } from './creator.js?v=1792272270';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792272270';
+import { portraitURL } from './faces.js?v=1792272270';
+import { logoURL, clearLogoCache } from './logos.js?v=1792272270';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -254,11 +254,11 @@ function refreshProfile() {
   const u = Auth.user; if (!u) return;
   $('#tile-fr-sub').textContent = Fr.franchiseSub();
   const SS = loadSeason();
-  $('#tile-season-sub').textContent = SS ? (SS.phase === 'done' ? 'Season complete. Start a new one' : `${TEAMS[SS.team].city}, ${SS.standings[SS.team].w}-${SS.standings[SS.team].l}, ${SS.phase === 'regular' ? 'week ' + (SS.week + 1) : 'playoffs'}`) : 'Chase the Kings Bowl';
+  $('#tile-season-sub').textContent = SS ? (SS.phase === 'done' ? 'Season complete. Start a new one' : `${TEAMS[SS.team].city}, ${SS.standings[SS.team].w}W-${SS.standings[SS.team].l}L, ${SS.phase === 'regular' ? 'week ' + (SS.week + 1) : 'playoffs'}`) : 'Chase the Kings Bowl';
   $('#pc-name').textContent = u.name;
   $('#pc-avatar').textContent = u.name[0].toUpperCase();
-  { const R2 = u.recs, f = (w, l, t) => `${w || 0}-${l || 0}${t ? '-' + t : ''}`;
-    $('#pc-rec').textContent = u.kind === 'guest' ? 'Guest' : R2 ? `Overall ${f(u.wins, u.losses)} · Online ${f(R2.on_w, R2.on_l, R2.on_t)} · UT ${f(R2.ut_wins, R2.ut_l, R2.ut_t)}` : `${u.wins}-${u.losses}${u.ties ? '-' + u.ties : ''}`; }
+  { const R2 = u.recs, f = (w, l, t) => `${w || 0}W-${l || 0}L${t ? '-' + t + 'T' : ''}`;
+    $('#pc-rec').textContent = u.kind === 'guest' ? 'Guest' : R2 ? `Overall ${f(u.wins, u.losses)} · Online ${f(R2.on_w, R2.on_l, R2.on_t)} · UT ${f(R2.ut_wins, R2.ut_l, R2.ut_t)}` : f(u.wins, u.losses, u.ties); }
   $('#logout').textContent = u.kind === 'guest' ? 'Sign in' : 'Log out';
   const guest = isGuest() && !LOCALNET;
   $('.pc-meta').classList.toggle('hidden', guest);
@@ -358,7 +358,7 @@ function renderSeason() {
     return;
   }
   const me = S.team, t = TEAMS[me], rec = S.standings[me];
-  $('#hub-team').innerHTML = `<img class="hb-logo" alt="" src="${logoURL(me, 136)}"><div><b>${t.city}</b><span>${rec.w}-${rec.l}${rec.t ? '-' + rec.t : ''} record, ${teamOvr(me)} OVR</span></div>`;
+  $('#hub-team').innerHTML = `<img class="hb-logo" alt="" src="${logoURL(me, 136)}"><div><b>${t.city}</b><span>${rec.w}W-${rec.l}L${rec.t ? '-' + rec.t + 'T' : ''} record, ${teamOvr(me)} OVR</span></div>`;
   const g = Season.userGame(S);
   const nx = $('#hub-next');
   if (S.phase !== 'done' && !g) {
@@ -373,7 +373,7 @@ function renderSeason() {
   } else {
     const opp = g.home === me ? g.away : g.home, o = TEAMS[opp];
     const label = Season.phaseLabel(S); $('#season-sim').textContent = 'Simulate';
-    nx.innerHTML = `<small>${label}</small><b>${g.home === me ? 'vs' : '@'} ${o.city}</b><span><i class="dot" style="background:${o.jersey}"></i>${o.abbr}, ${teamOvr(opp)} OVR, ${S.standings[opp].w}-${S.standings[opp].l}</span>`;
+    nx.innerHTML = `<small>${label}</small><b>${g.home === me ? 'vs' : '@'} ${o.city}</b><span><i class="dot" style="background:${o.jersey}"></i>${o.abbr}, ${teamOvr(opp)} OVR, ${S.standings[opp].w}W-${S.standings[opp].l}L</span>`;
     $('#season-play').classList.remove('hidden'); $('#season-sim').classList.remove('hidden');
     $('#season-quit').textContent = 'Abandon season';
   }
@@ -1078,7 +1078,7 @@ function showGameOver(S) {
     if (F && F.phase === 'season') {
       const ups = Fr.recordResult(F, S.sc[0], S.sc[1], S.ps || [], 0, st.game && st.game.injLog ? st.game.injLog.filter(j => j.team === 0) : []);
       const done = F.phase !== 'season';
-      setTimeout(() => toast(done ? `Season over. ${F.history[0] && F.history[0].champ ? 'KINGS BOWL CHAMPIONS!' : 'Time for the offseason.'}` : ups.length ? 'Progression: ' + ups.slice(0, 3).join(', ') : `Record: ${F.season.standings[F.team].w}-${F.season.standings[F.team].l}`, 4000), 400);
+      setTimeout(() => toast(done ? `Season over. ${F.history[0] && F.history[0].champ ? 'KINGS BOWL CHAMPIONS!' : 'Time for the offseason.'}` : ups.length ? 'Progression: ' + ups.slice(0, 3).join(', ') : `Record: ${F.season.standings[F.team].w}W-${F.season.standings[F.team].l}L`, 4000), 400);
     }
   }
   if (st.seasonGame && !st.seasonSaved) {
@@ -1088,7 +1088,7 @@ function showGameOver(S) {
       { const inj = (st.game && st.game.injLog) || [], notes = Form.seasonAfterGame(SS, S.ps || [], inj, 0, S.sc[0] > S.sc[1], S.sc[0] - S.sc[1]); if (notes.length) setTimeout(() => toast(notes[0], 3500), 4200); }
       Season.finishWeek(SS, S.sc[0], S.sc[1]); saveSeason(SS);
       if (SS.phase === 'done' && SS.champion === SS.team) unlockAch('champ');
-      const note = SS.phase === 'done' ? (SS.champion === SS.team ? '🏆 KINGS BOWL CHAMPIONS!' : 'Season over.') : `Season record: ${SS.standings[SS.team].w}-${SS.standings[SS.team].l}${SS.standings[SS.team].t ? '-' + SS.standings[SS.team].t : ''}`;
+      const note = SS.phase === 'done' ? (SS.champion === SS.team ? '🏆 KINGS BOWL CHAMPIONS!' : 'Season over.') : `Season record: ${SS.standings[SS.team].w}W-${SS.standings[SS.team].l}L${SS.standings[SS.team].t ? '-' + SS.standings[SS.team].t + 'T' : ''}`;
       setTimeout(() => toast(note, 3500), 400);
     }
   }
@@ -1137,7 +1137,7 @@ function showGameOver(S) {
       const NAME = { on: 'Online 1v1', ut: 'Ultimate Team', fr: 'Franchise' };
       const SV = { on: ['on_w', 'on_l', 'on_t'], ut: ['ut_wins', 'ut_l', 'ut_t'], fr: ['fr_w', 'fr_l', 'fr_t'] };
       const draw = () => {
-        const line = kinds.map(k => { const r = u.recs ? SV[k].map(f => u.recs[f] || 0) : ((P && P.p.recs && P.p.recs[k]) || [0, 0, 0]); return `${NAME[k]} record: ${r[0]}-${r[1]}${r[2] ? '-' + r[2] : ''}`; }).join(' · ');
+        const line = kinds.map(k => { const r = u.recs ? SV[k].map(f => u.recs[f] || 0) : ((P && P.p.recs && P.p.recs[k]) || [0, 0, 0]); return `${NAME[k]} record: ${r[0]}W-${r[1]}L${r[2] ? '-' + r[2] + 'T' : ''}`; }).join(' · ');
         $('#go-rec').textContent = u.kind === 'guest' ? 'Make an account to save your record.' : line || 'CPU games don\'t count toward your record. Play online 1v1, Ultimate Team or Franchise.';
       };
       draw(); setTimeout(draw, 3000);   // the leaderboard copy lands a moment later

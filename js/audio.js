@@ -203,9 +203,20 @@ export class Sfx {
   fanfare() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => { this.tone(f, 0.3, 'square', 0.05); this.tone(f / 2, 0.3, 'triangle', 0.06); }, 250 + i * 130)); }
 
   // crowd mood for the current situation (called by the game loop)
+  // background crowd chatter: lots of quiet overlapping voices, always under everything else
+  startMurmur() {
+    if (this._murT || !this.ctx) return;
+    const tick = () => {
+      if (!this.ctx || this.muted || !this._sit) return;
+      const t = this.ctx.currentTime, V = ['eh', 'oh', 'ah', 'ee'];
+      for (let i = 0; i < 2; i++) this.voiceBurst(t + Math.random() * 0.2, 0.25 + Math.random() * 0.45, 120 + Math.random() * 170, 0.0035 + Math.random() * 0.005 * (this._sit === 'live' ? 1.4 : 1), V[(Math.random() * 4) | 0]);
+    };
+    this._murT = setInterval(tick, 260);
+  }
+  stopMurmur() { clearInterval(this._murT); this._murT = 0; this._sit = null; }
   setSituation(sit) {
     if (!this.ctx || sit === this._sit) return;
-    this._sit = sit;
+    this._sit = sit; this.startMurmur();
     clearInterval(this._chantT);
     if (sit === 'homeDefense') {
       this.crowdBase = 0.09;
@@ -216,7 +227,7 @@ export class Sfx {
 
   // ---------------- menu music ----------------
   startMusic() {
-    this.musicOn = true;
+    this.musicOn = true; this.stopMurmur();
     if (!this.ctx) return;
     this.musicBus.gain.setTargetAtTime(this.musicVol * 0.55, this.ctx.currentTime, 0.4);
     if (this._musicT) return;
@@ -280,10 +291,9 @@ export class Sfx {
     const score = v => { const i = RANK.findIndex(r => v.name.includes(r)); return (i < 0 ? 100 : i) - (/natural|online|neural|premium|enhanced/i.test(v.name) ? 50 : 0) - (/en-US/i.test(v.lang) ? 3 : 0); };
     return speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang) && !FEMALE.test(v.name)).sort((a, b) => score(a) - score(b));
   }
-  pickVoice(name) {
-    if (name !== undefined) this.voiceName = name;
+  pickVoice() {
     const ms = this.maleVoices();
-    this.voice = (this.voiceName && ms.find(v => v.name === this.voiceName)) || ms[0] || null;
+    this.voice = ms[0] || null;   // always the best-sounding male voice on the device: no picking
     this.fallback = !this.voice;   // no male voice on this device: deepen whatever there is
   }
   // hype = touchdowns, picks, big plays: faster, higher energy. Normal calls stay smooth and low.
@@ -296,8 +306,8 @@ export class Sfx {
       if (this.voice) { u.voice = this.voice; u.lang = this.voice.lang; }
       const j = (Math.random() - 0.5) * 0.06, natural = this.voice && /natural|online|neural/i.test(this.voice.name);
       const hy = hype || /!$/.test(text) && urgent;
-      u.rate = (hy ? 1.17 : urgent ? 1.1 : 1.03) + j;
-      u.pitch = this.fallback ? 0.55 : natural ? (hy ? 1.08 : 1) : (hy ? 0.98 : 0.86) + j;
+      u.rate = (hy ? 1.24 : urgent ? 1.14 : 1.08) + j;   // broadcast pace: quick and punchy
+      u.pitch = this.fallback ? 0.6 : natural ? (hy ? 1.12 : 1.02) : (hy ? 1.02 : 0.9) + j;
       u.volume = Math.min(1, this.vol * 1.3);
       speechSynthesis.speak(u);
       if (hy && this.crowdSwell) this.crowdSwell();

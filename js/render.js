@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792277584';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792277584';
-import { drawLogo } from './logos.js?v=1792277584';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792277584';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792278021';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792278021';
+import { drawLogo } from './logos.js?v=1792278021';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792278021';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -101,6 +101,7 @@ export class Renderer {
     const was = this.quality;
     this.quality = q;
     this.r.shadowMap.enabled = q === 'high';
+    if (this.shafts) this.shafts.visible = q !== 'potato';
     this.key.castShadow = q === 'high';
     this.scene.traverse(o => { if (o.material && !Array.isArray(o.material)) o.material.needsUpdate = true; });
     this.pr = this.basePR(q); this.r.setPixelRatio(this.pr);
@@ -417,6 +418,12 @@ export class Renderer {
       if (i % 3 === 0) glows.push(x, 61.5, z);
     }
     s.add(lamps);
+    // light shafts: faint beams from the roof lights down to the field (Fast and High; Chromebook skips the extra overdraw)
+    { const shaftMat = new THREE.MeshBasicMaterial({ color: 0xfff1d0, transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false });
+      const geo = new THREE.ConeGeometry(16, 62, 18, 1, true); geo.translate(0, -31, 0);
+      this.shafts = new THREE.Group();
+      for (let i = 0; i < 10; i++) { const t = (i + 0.5) / 10 * Math.PI * 2, [x, z] = this.bowlPoint(t, 1.6); const m = new THREE.Mesh(geo, shaftMat); m.position.set(x, 62, z); m.lookAt(0, -30, 50); m.rotateX(-Math.PI / 2); m.renderOrder = 2; this.shafts.add(m); }
+      this.shafts.visible = this.quality !== 'potato'; s.add(this.shafts); }
     const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(glows, 3));
     s.add(new THREE.Points(gg, new THREE.PointsMaterial({ map: glowTex, size: 16, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xfff1d6, fog: false })));
 
@@ -1107,11 +1114,23 @@ export class Renderer {
       twist = -sw * 0.16 * run; hipTwist = sw * 0.2 * run;
       roll = Math.cos(ph) * 0.03 * run;
       drop = 0.03 + 0.03 * run;
+      // body rises and falls twice a stride (push-off / landing), a lot more at a sprint
+      drop -= Math.abs(Math.sin(ph)) * (0.025 + 0.035 * run);
     } else {
       // idle: breathe and shift weight from foot to foot
       const b = Math.sin(this.time * 1.3 + m.celT * 3);
       lean = 0.06 + Math.sin(this.time * 2 + m.celT) * 0.015; lk[0] = 0.14 + Math.max(0, b) * 0.12; lk[1] = 0.14 + Math.max(0, -b) * 0.12;
       roll = b * 0.025; hipTwist = b * 0.04;
+    }
+    // real-runner weight: lean forward when accelerating, sit back when braking, bank into turns, keep the eyes level
+    if (!presnap) {
+      const acc = dt > 0 ? (spd - (m.lastSpd ?? spd)) / dt : 0; m.lastSpd = spd;
+      m.accS = (m.accS || 0) + (Math.max(-12, Math.min(12, acc)) - (m.accS || 0)) * Math.min(1, dt * 6);
+      lean += Math.max(-0.22, Math.min(0.24, m.accS * 0.022));
+      const yaw = m.root.rotation.y; let dy = yaw - (m.lastYaw ?? yaw); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); m.lastYaw = yaw;
+      m.yawS = (m.yawS || 0) + ((dt > 0 ? dy / dt : 0) - (m.yawS || 0)) * Math.min(1, dt * 8);
+      roll += Math.max(-0.28, Math.min(0.28, m.yawS * 0.045 * (0.3 + run)));   // lean into the cut
+      headX -= lean * 0.35;   // head stays up, looking downfield
     }
     if (presnap) {
       if (lineman) {

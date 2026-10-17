@@ -77,6 +77,9 @@ function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >
 export function drawFaceTexture(c, w, h, seed) {
   const F = faceParams(seed);
   c.fillStyle = F.skin; c.fillRect(0, 0, w, h);
+  // skin texture: faint pores and uneven tone so faces don't look like plastic (drawn once per player)
+  for (let i = 0; i < 900; i++) { c.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.035)'; c.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random(), 1 + Math.random()); }
+  for (let i = 0; i < 6; i++) { const x = Math.random() * w, y = Math.random() * h, r = w * (0.05 + Math.random() * 0.08), gg = c.createRadialGradient(x, y, 0, x, y, r); gg.addColorStop(0, 'rgba(120,40,30,0.05)'); gg.addColorStop(1, 'rgba(120,40,30,0)'); c.fillStyle = gg; c.fillRect(x - r, y - r, r * 2, r * 2); }
   const g = c.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.5, w * 0.5);
   g.addColorStop(0, 'rgba(255,255,255,0.08)'); g.addColorStop(1, 'rgba(0,0,0,0.25)');
   c.fillStyle = g; c.fillRect(0, 0, w, h);

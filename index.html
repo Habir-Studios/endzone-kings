@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792277584">
+  <link rel="stylesheet" href="css/style.css?v=1792278021">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#f6c445"/><stop offset="1" stop-color="#d98a00"/></linearGradient></defs></svg>
@@ -368,7 +368,7 @@
               <li><span class="kk"><kbd>N</kbd></span><span>No huddle: run the same play again, fast</span></li>
               <li><span class="kk"><kbd>K</kbd></span><span>Spike the ball to stop the clock (costs a down)</span></li>
               <li><span class="kk"><kbd>O</kbd></span><span>Before the snap: call an onside kick for your next kickoff. As the QB: throw it away (outside the tackles, or it's grounding)</span></li>
-              <li><span class="kk">hold <kbd>Tab</kbd></span><span>Celebration wheel: point at one and let go. Works after any play.</span></li>
+              <li><span class="kk">hold <kbd>Tab</kbd></span><span>Emote wheel: point at one and let go. Works after any play.</span></li>
               <li><span class="kk"><kbd>Space</kbd></span><span>Skip the break between plays</span></li>
               <li><span class="kk"><kbd>C</kbd></span><span>Change camera</span></li>
               <li><span class="kk"><kbd>M</kbd></span><span>Mute</span></li>
@@ -431,7 +431,7 @@
         <h3>Game day</h3>
         <p>Every game can be played in clear skies, rain, snow or fog, during the day, at dusk or under the lights. Rain makes the ball slippery and snow slows everyone down. At the half you get a halftime show with team stats and each side's leaders. Referees are on the field and throw flags for holding, pass interference, false starts, offsides, roughing the passer and facemasks. Big plays swing the momentum meter, and the team that owns it plays a step faster. Between plays you can watch an instant replay, and every game ends with a Player of the Game and the night's highlights.</p>
         <h3>At the line</h3>
-        <p>After you pick a pass play, press H to change any receiver's route on the spot with eight options each: go, slant, out, curl, post, corner, drag or comeback for receivers, and wheel, flat, angle, swing, seam, Texas, check down or block for the back. Pick your own touchdown celebration in Settings, with more unlocking as you level up.</p>
+        <p>After you pick a pass play, press H to change any receiver's route on the spot with eight options each: go, slant, out, curl, post, corner, drag or comeback for receivers, and wheel, flat, angle, swing, seam, Texas, check down or block for the back. Pick your emote in the Locker Room and hold Tab after any play to hit it.</p>
         <h3>The grind</h3>
         <p>Every game you play pays coins and XP. Level up for coin bonuses and free packs, climb ranked divisions from Bronze to Kings, knock out daily and weekly challenges for big rewards, and unlock 24 achievements. Coins only come from playing. Nothing in Endzone Kings costs real money.</p>
         <h3>Your account</h3>
@@ -552,7 +552,7 @@
           <label>Pattern<div class="seg" id="seg-lk-pat"></div></label>
           <label>Chest patch<div class="seg" id="seg-lk-patch"></div></label>
           <label>Visor<div class="seg" id="seg-lk-visor"></div></label>
-          <div class="lk-cels"><b>Celebrations</b><p class="note">Buy them with coins. In a game, hold <kbd>Tab</kbd> (or <kbd>Y</kbd>/<kbd>△</kbd>) after any play and point at one on the wheel.</p><div id="lk-cel-list" class="lk-cel-list"></div></div>
+          <div class="lk-cels"><b>Emotes</b><p class="note">Buy them with coins. In a game, hold <kbd>Tab</kbd> (or <kbd>Y</kbd>/<kbd>△</kbd>) after any play and point at one on the wheel.</p><div id="lk-cel-list" class="lk-cel-list"></div></div>
           <p class="note">Your team wears this on your screen. Your opponent still sees your team's normal uniform online.</p>
           <div class="lk-acts"><button class="btn" id="lk-reset" type="button">Reset to team colors</button><button class="btn primary" data-go="menu" type="button">Done</button></div>
         </div>
@@ -567,7 +567,6 @@
         <label>Game volume<input type="range" id="set-vol" min="0" max="1" step="0.05"></label>
         <label>Menu music<input type="range" id="set-music" min="0" max="1" step="0.05"></label>
         <label>Announcer<div class="seg" id="seg-ann"></div></label>
-        <label>Announcer voice<div class="ann-voice"><select id="ann-voice"></select><button class="btn sm" id="ann-test" type="button">Test</button></div></label>
         <label>Notifications<div class="seg" id="seg-notif"></div></label>
 
         <label>Camera<div class="seg" id="seg-cam"></div></label>
@@ -618,7 +617,7 @@
     <div id="hint" class="hint"></div>
     <div id="wind-ind" class="wind-ind hidden" aria-label="Wind"><i id="wind-arrow">➤</i><b id="wind-mph"></b></div>
     <div id="inj-ask" class="inj-ask hidden" role="alertdialog"><b id="inj-ask-t"></b><div><button class="btn sm primary" id="inj-back" type="button">Put him back in</button><button class="btn sm" id="inj-keep" type="button">Keep him out</button></div></div>
-    <div id="cel-pick" class="cel-pick hidden" role="dialog" aria-label="Pick a celebration"><div id="cel-opts"></div><small>Point at one and let go of Tab · or press 1-9</small></div>
+    <div id="cel-pick" class="cel-pick hidden" role="dialog" aria-label="Pick an emote"><div id="cel-opts"></div><small>Point at one and let go of Tab · or press 1-9</small></div>
     <div id="net-badge" class="net-badge hidden"></div>
     <button id="pause-btn" class="pause-btn" title="Pause (Esc)" aria-label="Pause"><span></span><span></span></button>
     <div id="touch" class="touch hidden">
@@ -687,6 +686,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792277584"></script>
+  <script type="module" src="js/main.js?v=1792278021"></script>
 </body>
 </html>

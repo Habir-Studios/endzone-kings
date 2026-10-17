@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792277584';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792277584';
-import * as UT from './ut.js?v=1792277584';
-import { portraitURL } from './faces.js?v=1792277584';
-import { TEAMS } from './teams.js?v=1792277584';
+import { askYes } from './ui.js?v=1792278021';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792278021';
+import * as UT from './ut.js?v=1792278021';
+import { portraitURL } from './faces.js?v=1792278021';
+import { TEAMS } from './teams.js?v=1792278021';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -424,7 +424,7 @@ export const CELS = [[-1, 'Random', 0], [0, 'Jump', 0], [1, 'Dance', 0], [2, 'Fl
 export const celOwned = P => { const own = new Set([-1, 0, 1, 2, ...((P && P.p.cels) || [])]); if (P && P.p.lvl >= 5) own.add(5); if (P && P.p.lvl >= 15) own.add(6); return own; };   // old level unlocks still count
 export const celUnlocked = (lvlOrP) => [...celOwned(typeof lvlOrP === 'object' ? lvlOrP : null)];
 export function buyCel(P, id) {
-  const c = CELS.find(x => x[0] === id); if (!c || !P) return 'No such celebration';
+  const c = CELS.find(x => x[0] === id); if (!c || !P) return 'No such emote';
   if (celOwned(P).has(id)) return 'You already own it';
   if (P.p.coins < c[2]) return `You need ${(c[2] - P.p.coins).toLocaleString()} more coins`;
   P.p.coins -= c[2]; P.p.cels = [...(P.p.cels || []), id]; P.save(); return null;

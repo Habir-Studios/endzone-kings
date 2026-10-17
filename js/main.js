@@ -1,25 +1,25 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792277584';
-import * as Form from './form.js?v=1792277584';
-import { watchSim } from './simview.js?v=1792277584';
-import { bracketHTML } from './bracket.js?v=1792277584';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792277584';
-import { Renderer } from './render.js?v=1792277584';
-import { Sfx } from './audio.js?v=1792277584';
-import { Auth } from './auth.js?v=1792277584';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792277584';
-import { getRoster, teamOvr } from './teams.js?v=1792277584';
-import * as Season from './season.js?v=1792277584';
-import * as Fr from './franchise.js?v=1792277584';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792277584';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792277584';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792277584';
-import * as UTm from './ut.js?v=1792277584';
-import { initCreator, renderCreator } from './creator.js?v=1792277584';
-import { filmCapture, filmSave } from './social.js?v=1792277584';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792277584';
-import { portraitURL } from './faces.js?v=1792277584';
-import { logoURL, clearLogoCache } from './logos.js?v=1792277584';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792278021';
+import * as Form from './form.js?v=1792278021';
+import { watchSim } from './simview.js?v=1792278021';
+import { bracketHTML } from './bracket.js?v=1792278021';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792278021';
+import { Renderer } from './render.js?v=1792278021';
+import { Sfx } from './audio.js?v=1792278021';
+import { Auth } from './auth.js?v=1792278021';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792278021';
+import { getRoster, teamOvr } from './teams.js?v=1792278021';
+import * as Season from './season.js?v=1792278021';
+import * as Fr from './franchise.js?v=1792278021';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792278021';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792278021';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792278021';
+import * as UTm from './ut.js?v=1792278021';
+import { initCreator, renderCreator } from './creator.js?v=1792278021';
+import { filmCapture, filmSave } from './social.js?v=1792278021';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792278021';
+import { portraitURL } from './faces.js?v=1792278021';
+import { logoURL, clearLogoCache } from './logos.js?v=1792278021';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -53,7 +53,7 @@ let wheelAcc = 0, wheelT = 0;
 canvas.addEventListener('wheel', (e) => { if (!st.playing) return; e.preventDefault(); wheelAcc += e.deltaY; const now = performance.now(); if (Math.abs(wheelAcc) < 120 || now - wheelT < 180) return; zoomCam(wheelAcc > 0 ? 1 : -1); wheelAcc = 0; wheelT = now; }, { passive: false });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { clearLogoCache(); R.refreshText(); if (st.screen && st.screen !== 'splash' && st.screen !== 'game') show(st.screen); });
 R.setTeams([SET.team, SET.cpuTeam]);
-const sfx = new Sfx(); sfx.setVolume(SET.vol); sfx.musicVol = SET.music; sfx.announcer = SET.ann; sfx.voiceName = SET.annVoice || ''; sfx.startMusic();
+const sfx = new Sfx(); sfx.setVolume(SET.vol); sfx.musicVol = SET.music; sfx.announcer = SET.ann; sfx.startMusic();
 window.addEventListener('pointerdown', () => sfx.init(), { once: false });
 window.addEventListener('keydown', () => sfx.init(), { once: true });
 
@@ -111,13 +111,13 @@ function renderCelShop() {
   const P = !isGuest() ? profile() : null, own = celOwned(P);
   box.innerHTML = CELS.filter(c => c[0] >= 0).map(([id, n, price]) => {
     const have = own.has(id), on = SET.cel === id;
-    return `<div class="lk-cel ${on ? 'on' : ''} ${have ? '' : 'locked'}"><span class="lk-ic">${CEL_IC[id] || CEL_IC[-1]}</span><b>${n}</b>${have ? `<button class="btn sm ${on ? 'primary' : ''}" data-celeq="${id}" type="button">${on ? 'Equipped' : 'Equip'}</button>` : `<button class="btn sm" data-celbuy="${id}" type="button" ${!P ? 'disabled title="Make an account to buy celebrations"' : ''}><i class="coin"></i> ${price.toLocaleString()}</button>`}<button class="btn sm ghost" data-celhear="${id}" type="button" aria-label="Hear it">♪</button></div>`;
+    return `<div class="lk-cel ${on ? 'on' : ''} ${have ? '' : 'locked'}"><span class="lk-ic">${CEL_IC[id] || CEL_IC[-1]}</span><b>${n}</b>${have ? `<button class="btn sm ${on ? 'primary' : ''}" data-celeq="${id}" type="button">${on ? 'Equipped' : 'Equip'}</button>` : `<button class="btn sm" data-celbuy="${id}" type="button" ${!P ? 'disabled title="Make an account to buy emotes"' : ''}><i class="coin"></i> ${price.toLocaleString()}</button>`}<button class="btn sm ghost" data-celhear="${id}" type="button" aria-label="Hear it">♪</button></div>`;
   }).join('') + `<div class="lk-cel ${SET.cel === -1 ? 'on' : ''}"><span class="lk-ic">${CEL_IC[-1]}</span><b>Random</b><button class="btn sm ${SET.cel === -1 ? 'primary' : ''}" data-celeq="-1" type="button">${SET.cel === -1 ? 'Equipped' : 'Equip'}</button></div>`;
   $$('[data-celeq]', box).forEach(b => b.onclick = () => { SET.cel = +b.dataset.celeq; saveSet(); sfx.play('ui'); renderCelShop(); });
   $$('[data-celhear]', box).forEach(b => b.onclick = () => { sfx.init(); sfx.play('cel' + b.dataset.celhear); });
   $$('[data-celbuy]', box).forEach(b => b.onclick = async () => {
     const id = +b.dataset.celbuy, c = CELS.find(x => x[0] === id);
-    if (!(await askYes(`Buy the ${c[1]} celebration for ${c[2].toLocaleString()} coins?`, 'Buy'))) return;
+    if (!(await askYes(`Buy the ${c[1]} emote for ${c[2].toLocaleString()} coins?`, 'Buy'))) return;
     const err = buyCel(profile(), id); if (err) return toast(err);
     SET.cel = id; saveSet(); sfx.play('cel' + id); toast(`${c[1]} unlocked and equipped`); refreshChip && refreshChip(); renderCelShop();
   });
@@ -165,7 +165,7 @@ window.addEventListener('mousemove', (e) => {
   const i = Math.round(a / (Math.PI * 2 / n)) % n; if (i !== celSel) celHighlight(i);
 });
 function closeCelPick() { $('#cel-pick').classList.add('hidden'); }
-function pickCel(id) { SET.cel = id; saveSet(); pushEv({ t: 'cel', id }); closeCelPick(); toast(`Celebration: ${(CELS.find(c => c[0] === id) || [0, 'Random'])[1]}`, 1200); }
+function pickCel(id) { SET.cel = id; saveSet(); pushEv({ t: 'cel', id }); closeCelPick(); toast(`Emote: ${(CELS.find(c => c[0] === id) || [0, 'Random'])[1]}`, 1200); }
 function show(id) {
   if (st.screen !== id && !['howto', 'settings'].includes(st.screen)) st.prev = st.screen;
   $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
@@ -509,10 +509,6 @@ function renderSettings() {
   $('#set-vol').value = SET.vol; $('#set-music').value = SET.music;
 
   seg($('#seg-notif'), [['on', 'On'], ['off', 'Mute']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications muted: no pop-ups or badges, they still show in the bell' : 'Notifications on'); });
-  { const sel = $('#ann-voice'), fill = () => { const vs = sfx.maleVoices(); sel.innerHTML = `<option value="">Best available</option>` + vs.map(v => `<option value="${escapeHtml(v.name)}" ${v.name === SET.annVoice ? 'selected' : ''}>${escapeHtml(v.name.replace(/^Microsoft /, '').replace(/ - English.*$/, ''))}</option>`).join('') + (vs.length ? '' : '<option disabled>No male voice on this device</option>'); };
-    fill(); if (window.speechSynthesis && !sel.dataset.w) { sel.dataset.w = 1; speechSynthesis.addEventListener('voiceschanged', fill); }
-    sel.onchange = () => { SET.annVoice = sel.value; saveSet(); sfx.pickVoice(sel.value); sfx.init(); sfx.say('Touchdown! He is IN!', true, true); };
-    $('#ann-test').onclick = () => { sfx.init(); sfx.say(['And he breaks free! Forty, thirty, twenty... TOUCHDOWN!', 'Intercepted! What a play by the defense!', 'Third and long here, big moment in this one.'][(Math.random() * 3) | 0], true, true); }; }
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
   seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
@@ -644,7 +640,7 @@ window.addEventListener('keydown', (e) => {
     if (k === 'Tab') { e.preventDefault(); return; }
     return;
   }
-  if (k === 'Tab' && st.playing) e.preventDefault();   // Tab is the celebration button in a game, not focus-hopping
+  if (k === 'Tab' && st.playing) e.preventDefault();   // Tab is the emote button in a game, not focus-hopping
   if (k === 'Tab' && !e.repeat && st.snap && (st.snap.ph === 'dead' || st.snap.ph === 'presnap') && st.mode !== 'spec' && st.mode !== 'clip') { openCelPick(); return; }
   const ev = keyToEvent(k);
   if (ev) pushEv(ev);
@@ -1504,8 +1500,8 @@ function updateHud(S) {
     if (on) { const s = st.local === 1 ? -1 : 1, ang = Math.atan2(-Math.sin(W.dir) * s, Math.cos(W.dir) * s) * 180 / Math.PI, key = W.mph + '|' + Math.round(ang);
       if (hudCache.wind !== key) { hudCache.wind = key; $('#wind-arrow').style.transform = `rotate(${ang - 90}deg)`; setTxt('#wind-mph', `${W.mph} mph`); } } }
   // contextual hints
-  if (S.ph === 'dead' && st.mode !== 'clip' && st.mode !== 'spec') hint(S.poss === me ? [['hold Tab', 'celebrate'], ['Space', 'skip'], ['N', 'no huddle'], ['O', (S.osd || [])[me] ? 'cancel onside' : 'onside kick']] : [['hold Tab', 'celebrate'], ['Space', 'skip']]);
-  else if (S.ph === 'presnap' && S.poss === me && st.mode !== 'clip' && st.mode !== 'spec' && !(S.sp && S.sp.pat) && S.mode !== 'drill') hint([['Space', 'snap'], ['Backspace', 'audible'], ['L', S.flip ? 'unflip' : 'flip play'], ['J', 'motion'], ['N', 'same play'], ['K', 'spike'], ['V', 'timeout'], ['hold Tab', 'celebrate']]);
+  if (S.ph === 'dead' && st.mode !== 'clip' && st.mode !== 'spec') hint(S.poss === me ? [['hold Tab', 'emote'], ['Space', 'skip'], ['N', 'no huddle'], ['O', (S.osd || [])[me] ? 'cancel onside' : 'onside kick']] : [['hold Tab', 'emote'], ['Space', 'skip']]);
+  else if (S.ph === 'presnap' && S.poss === me && st.mode !== 'clip' && st.mode !== 'spec' && !(S.sp && S.sp.pat) && S.mode !== 'drill') hint([['Space', 'snap'], ['Backspace', 'audible'], ['L', S.flip ? 'unflip' : 'flip play'], ['J', 'motion'], ['N', 'same play'], ['K', 'spike'], ['V', 'timeout'], ['hold Tab', 'emote']]);
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
@@ -1515,7 +1511,7 @@ function updateHud(S) {
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else if (S.b[3] === 3) hint([['Space', 'dive on the ball'], ['W A S D', 'get to it first'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else hint([['Space', 'dive tackle'], ['H', 'hit stick'], ['Q', 'switch'], ['Shift', 'sprint']]);
-  } else hint(st.mode === 'spec' || st.mode === 'clip' ? [['Esc', 'leave'], ['C', 'camera'], ['- +', 'zoom']] : st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay'], ['hold Tab', 'celebrate']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat'], ['hold Tab', 'celebrate']]);
+  } else hint(st.mode === 'spec' || st.mode === 'clip' ? [['Esc', 'leave'], ['C', 'camera'], ['- +', 'zoom']] : st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay'], ['hold Tab', 'emote']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat'], ['hold Tab', 'emote']]);
   const tOn = touchOn();
   $('#touch').classList.toggle('hidden', !tOn || S.ph === 'gameover');
   $('#hud').classList.toggle('touch-mode', tOn);

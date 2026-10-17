@@ -1,16 +1,16 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792242869';
-import { Renderer } from './render.js?v=1792242869';
-import { Sfx } from './audio.js?v=1792242869';
-import { Auth } from './auth.js?v=1792242869';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby } from './net.js?v=1792242869';
-import { getRoster, teamOvr } from './teams.js?v=1792242869';
-import * as Season from './season.js?v=1792242869';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792242869';
-import * as UTm from './ut.js?v=1792242869';
-import { initCreator, renderCreator } from './creator.js?v=1792242869';
-import { portraitURL } from './faces.js?v=1792242869';
-import { logoURL, clearLogoCache } from './logos.js?v=1792242869';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js';
+import { Renderer } from './render.js';
+import { Sfx } from './audio.js';
+import { Auth } from './auth.js';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby } from './net.js';
+import { getRoster, teamOvr } from './teams.js';
+import * as Season from './season.js';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js';
+import * as UTm from './ut.js';
+import { initCreator, renderCreator } from './creator.js';
+import { portraitURL } from './faces.js';
+import { logoURL, clearLogoCache } from './logos.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -471,7 +471,7 @@ function touchButtons(S) {
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1, iCarry = carrier >= 0 && carrier === S.ctrl[me];
     if (S.canThrow && S.off === me) btns = [['t1', '1', 'r1'], ['t2', '2', 'r2'], ['t3', '3', 'r3'], ['sprint', 'SPRINT', 'hold']];
-    else if (iCarry) btns = [['juke', 'JUKE'], ['spin', 'SPIN'], ['stiff', 'STIFF'], ['hurdle', 'HURDLE'], ['sprint', 'SPRINT', 'hold']];
+    else if (iCarry) btns = [['juke', 'JUKE'], ['spin', 'SPIN'], ['stiff', 'STIFF'], ['hurdle', 'HURDLE'], ['cdive', 'DIVE'], ['slide', 'DOWN'], ['sprint', 'SPRINT', 'hold']];
     else if (S.b[3] === 1 && S.b[4]) btns = [['playball', S.off === me ? 'CATCH' : 'PLAY BALL', 'big'], ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
     else btns = [['dive', 'DIVE', 'big'], ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
   }
@@ -519,6 +519,8 @@ function keyToEvent(k) {
   if (k === 'KeyE') return iCarry ? { t: 'spin' } : { t: 'playball' };
   if (k === 'KeyR' && iCarry) return { t: 'stiff' };
   if (k === 'KeyF' && iCarry) return { t: 'hurdle' };
+  if (k === 'KeyX' && iCarry) return { t: 'cdive' };
+  if (k === 'KeyG' && iCarry) return { t: 'slide' };
   if (k === 'Space') {
     const v = moveVec();
     if (iCarry) return { t: 'juke', x: v.mx, z: v.mz };
@@ -964,7 +966,7 @@ function updateHud(S) {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
     if (S.canThrow && S.off === me) hint([['1 2 3', 'throw (or click)'], ['W A S D', 'move'], ['Shift', 'sprint']]);
-    else if (iCarry) hint([['Space', 'juke'], ['E', 'spin'], ['R', 'stiff arm'], ['F', 'hurdle'], ['Shift', 'sprint']]);
+    else if (iCarry) hint([['Space', 'juke'], ['E', 'spin'], ['R', 'stiff arm'], ['F', 'hurdle'], ['X', 'dive'], ['G', 'go down'], ['Shift', 'sprint']]);
     else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring'], ['E', 'aggressive catch']]);
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else hint([['Space', 'dive tackle'], ['Q', 'switch'], ['Shift', 'sprint']]);

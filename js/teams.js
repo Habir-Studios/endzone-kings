@@ -60,6 +60,23 @@ function rng(seed) {
 }
 const clampR = v => Math.max(40, Math.min(99, Math.round(v)));
 
+// Team strength follows Madden NFL 27's launch ratings for the matching city (team OVR / OFF / DEF), and each
+// club's starting QB and biggest stars carry the same overall as their real-life counterpart. Names stay made up.
+// [OVR, OFF, DEF, QB, { role: overall } stars]
+const M27 = {
+  ARI: [76, 77, 74, 74, { WR2: 99 }], ATL: [81, 83, 78, 75, { WR1: 92, RB: 95, S: 94 }], BAL: [88, 91, 86, 95, { RB: 93 }],
+  BUF: [85, 90, 80, 99, { RB: 94 }], CAR: [80, 79, 80, 80, {}], CHI: [83, 85, 82, 91, {}], CIN: [83, 88, 77, 97, { WR1: 99 }],
+  CLE: [78, 75, 81, 70, {}], DAL: [84, 87, 80, 93, { WR1: 93 }], DEN: [87, 86, 88, 82, { CB1: 97 }], DET: [86, 92, 83, 89, { WR1: 95, RB: 98, LG: 98 }],
+  GB: [81, 82, 81, 86, { RB: 91, DL1: 98 }], HOU: [82, 80, 88, 79, {}], IND: [82, 84, 79, 76, { RB: 96 }], JAX: [79, 79, 79, 87, {}],
+  KC: [84, 90, 80, 94, { RB: 90 }], LV: [77, 79, 76, 76, { WR2: 93, DL1: 97 }], LA: [90, 93, 89, 99, { WR1: 98, RB: 89, DL1: 99 }],
+  SD: [82, 85, 79, 83, {}], MIA: [74, 74, 73, 72, {}], MIN: [80, 82, 78, 77, { WR1: 94 }], BOS: [87, 87, 85, 88, { CB1: 98 }],
+  NO: [78, 81, 75, 80, {}], NY: [79, 80, 78, 78, {}], NJ: [77, 75, 77, 74, {}], PHI: [88, 88, 87, 81, { WR1: 92, RB: 92, RG: 97 }],
+  PIT: [83, 78, 87, 78, {}], SF: [85, 89, 82, 90, { WR1: 91, WR2: 96, RB: 97, LB: 97 }], SEA: [86, 86, 86, 85, { WR1: 99 }],
+  TB: [81, 83, 79, 81, {}], TEN: [76, 74, 78, 73, {}], WAS: [79, 81, 77, 79, { WR1: 91 }],
+};
+const OFF_ROLES = ['QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG'], DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
+const setOvr = (p, role, v) => { p.ovr = Math.max(40, Math.min(99, Math.round(v))); for (const k of KEYS[role]) p[k] = Math.max(40, Math.min(99, Math.round(v - 2 + (k === KEYS[role][0] ? 0.6 : -0.6)))); };
+
 const cache = {};
 export function getRoster(ti) {
   if (cache[ti]) return cache[ti];
@@ -84,10 +101,30 @@ export function getRoster(ti) {
     p.name = `${p.first[0]}. ${p.last}`;
     players[role] = p;
   }
-  const avg = (rs) => Math.round(rs.reduce((s, k) => s + players[k].ovr, 0) / rs.length);
-  const off = avg(['QB', 'QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG']);
-  const def = avg(['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S']);
-  cache[ti] = { players, order: ORDER, off, def, ovr: Math.round((off + def) / 2) };
+  const avg = (rs) => rs.reduce((s, k) => s + players[k].ovr, 0) / rs.length;
+  const OFFW = ['QB', 'QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG'];
+  const m = M27[TEAMS[ti].abbr];
+  if (m) {
+    const [, offT, defT, qb, stars] = m;
+    const fixed = { QB: qb, ...stars };
+    for (const [role, v] of Object.entries(fixed)) setOvr(players[role], role, v);
+    // everyone else moves together until the unit matches its Madden rating
+    for (const [roles, target, w] of [[OFF_ROLES, offT, OFFW], [DEF_ROLES, defT, DEF_ROLES]]) {
+      for (let it = 0; it < 6; it++) {
+        const free = roles.filter(r => !(r in fixed)); if (!free.length) break;
+        const delta = target - avg(w); if (Math.abs(delta) < 0.25) break;
+        const share = w.length / w.filter(r => !(r in fixed)).length;
+        for (const r of free) {
+          const p = players[r], nv = p.ovr + delta * share;
+          const shift = Math.max(40, Math.min(97, nv)) - p.ovr;
+          p.ovr = Math.max(40, Math.min(97, Math.round(nv)));
+          for (const k of ['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov']) p[k] = clampR(p[k] + shift);
+        }
+      }
+    }
+  }
+  const off = m ? m[1] : Math.round(avg(OFFW)), def = m ? m[2] : Math.round(avg(DEF_ROLES));
+  cache[ti] = { players, order: ORDER, off, def, ovr: m ? m[0] : Math.round((off + def) / 2) };
   return cache[ti];
 }
 

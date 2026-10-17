@@ -4,14 +4,14 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792242869';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js';
 export { TEAMS };
 
 export const OFF_ROLES = ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB'];
 export const DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
 export const RECEIVERS = ['WR1', 'WR2', 'RB']; // keys 1,2,3
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792242869';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -92,7 +92,7 @@ export function createGame(opts = {}) {
     ctrl: [-1, -1], play: null, playId: 0, runoff: 0,
     msg: null, flash: null, events: [], kick: null, winner: -1,
     stats: [mkStats(), mkStats()],
-    custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
+    custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], to: [3, 3], lastRunoff: 0, books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
   };
   if (o.practice) { g.poss = o.practice === 'off' ? 0 : 1; g.firstReceiver = g.poss; }
   if (o.drill) { g.poss = 0; g.firstReceiver = 0; g.quarter = 4; }
@@ -194,7 +194,7 @@ function setupPlay(g) {
   g.ctrl = [-1, -1];
   g.ctrl[off] = 0; // QB
   g.ctrl[def] = byRole(g, 'LB').id;
-  g.kick = null; g.celebrate = -1; g.lastFlag = null; g.hot = {}; g.mom *= 0.94;
+  g.kick = null; g.celebrate = -1; g.lastFlag = null; g.hot = {}; g.mom *= 0.94; g.cadence = 0; g.cpuSnapAt = 4.8 + g.rng() * 2.4;
   g.playId++;
   if (!g.opts.humans[off]) cpuCallOffense(g);
   if (!g.opts.humans[def]) { g.defPlay = cpuCallDefense(g); g.defChosen = true; }
@@ -292,6 +292,14 @@ function handleEvent(g, team, ev) {
   const P = g.play;
   if (ev.t === 'custom') { const c = cleanCustom(ev.def); if (c) g.custom[team][c.id] = c; return; }
   if (g.phase === 'half') { if (ev.t === 'snap' || ev.t === 'ready') g.halfReady[team] = true; return; }
+  if (g.phase === 'kickset') { if (team === g.poss && (ev.t === 'kick' || ev.t === 'snap')) advanceKick(g); return; }
+  if (ev.t === 'timeout' && (g.phase === 'presnap' || g.phase === 'dead') && g.to[team] > 0 && !g.opts.practice && g.timeoutCd <= 0) {
+    g.to[team]--; g.timeoutCd = 3;
+    if (g.phase === 'dead') g.runoff = 0; else { g.clock = Math.min(g.opts.quarterLen, g.clock + g.lastRunoff); g.lastRunoff = 0; g.playClock = 25; }
+    g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[team]].name} · ${g.to[team]} left`, until: 2 };
+    g.events.push('whistle');
+    return;
+  }
   if (g.phase === 'presnap') {
     if (team === g.poss) {
       if (ev.t === 'play') {
@@ -340,6 +348,16 @@ function handleEvent(g, team, ev) {
       const p = g.players[ev.id];
       if (p && p.team === team && !(carrier && carrier.team === team)) g.ctrl[team] = p.id;
     }
+  } else if (ev.t === 'cdive' && iCarry && !me.cdive && !(me.id === 0 && P.type === 'pass' && !P.thrown && !P.crossed)) {
+    // ball carrier lays out forward: extra yards, or stretch it over the goal line
+    me.cdive = 0.55; me.dive = 0.55; const sp = Math.max(7.5, hyp(me.vx, me.vz) + 2);
+    const fx = Math.sin(me.face), fz = Math.cos(me.face); me.vx = fx * sp; me.vz = fz * sp;
+    g.events.push('dive');
+    return;
+  } else if (ev.t === 'slide' && iCarry) {
+    // give yourself up: down where you are, no hit, clock keeps rolling
+    me.fallen = 2; g.msgNote = me.id === 0 ? 'QB slides' : 'gives himself up';
+    return endPlay(g, 'tackle', me, null);
   } else if (ev.t === 'juke') {
     if (iCarry && me.moveCd <= 0) {
       me.juke = 0.4; me.moveCd = 1.0;
@@ -508,15 +526,15 @@ function hotRoute(form, role, kind) {
 
 function snap(g) {
   const P = g.play;
-  if (g.offPlay === 'punt' || g.offPlay === 'fg' || g.offPlay === 'xp') { startKick(g, g.offPlay); return; }
+  if (g.offPlay === 'punt' || g.offPlay === 'fg' || g.offPlay === 'xp') { if (g.opts.humans[g.poss] || g.opts.humans[1 - g.poss]) beginKickSet(g, g.offPlay); else startKick(g, g.offPlay); return; }
   if (g.pat < 0 && !g.opts.practice) {
     const r = g.rng();
-    if (r < 0.012 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'fs', g.players[1 + ((g.rng() * 3) | 0)]);
-    if (r < 0.022 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'offside', g.players[7 + ((g.rng() * 3) | 0)]);
+    if (!g.opts.humans[g.poss] && r < 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'fs', g.players[1 + ((g.rng() * 3) | 0)]);
+    if (!g.opts.humans[1 - g.poss] && r > 1 - 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'offside', g.players[7 + ((g.rng() * 3) | 0)]);
   }
   const play = getPlay(g, g.poss, g.offPlay);
   P.type = play.type; P.playDef = play; P.snapT = g.t;
-  P.readT = 1.7 + g.rng() * 1.1;
+  P.readT = (g.opts.humans[1 - g.poss] ? 2.0 : 1.7) + g.rng() * 1.2;
   P.def = 1 - g.poss;
   P.flag = null; P.holdT = 0.6 + g.rng() * 2.2; P.holdRoll = g.rng();
   g.phase = 'live'; g.phaseT = 0;
@@ -580,18 +598,95 @@ function throwBall(g, qb, r, err) {
   launchBall(g, tx, tz, Math.max(0.4, D / speed), 0.7 + D * 0.12, r.id, false);
   P.thrown = true; P.target = r.id; P.throwT = g.t; qb.throwAt = g.t;
   g.stats[P.off].att++;
-  for (const d of g.players) if (d.team !== P.off && d.dmode === 'rush' && dist(d, qb) < 1.7 && g.rng() < 0.15 * FOUL_RATE) { throwFlag(g, 'rough', d, qb.z); break; }
+  for (const d of g.players) if (d.team !== P.off && !g.opts.humans[d.team] && d.dmode === 'rush' && dist(d, qb) < 1.5 && g.rng() < 0.1 * FOUL_RATE) { throwFlag(g, 'rough', d, qb.z); break; }
   g.events.push('throw');
   if (g.opts.humans[P.off]) g.ctrl[P.off] = r.id;
 }
 
 // ---------------- kicks ----------------
-function startKick(g, type) {
+// ---------------- kick meter (human kickers) ----------------
+// Madden-style three press: aim with left/right, press to start the meter, press to lock power,
+// press again on the line as it drops back for accuracy. Early or late hooks the kick.
+const KICK_SWEET = 0.1;
+function legOf(g, team) { const q = rosterFor(g, team).players.QB; return clamp(((q.arm || 70) * 0.7 + (q.acc || 70) * 0.3), 50, 99); }
+function kickRange(g, team, type) { const leg = legOf(g, team); return type === 'punt' ? 40 + (leg - 70) * 0.3 : clamp(50 + (leg - 70) * 0.35, 44, 62); }
+function beginKickSet(g, type) {
+  const off = g.poss, d = dirOf(off);
+  g.phase = 'kickset'; g.phaseT = 0;
+  const fd = type === 'xp' ? 20 : type === 'fg' ? fgDistance(g) : 0;
+  g.ks = { type, stage: 'aim', aim: type === 'punt' ? clamp(g.ballX, -12, 12) : 0, m: 0, dir: 1, power: 0, fd, maxR: kickRange(g, off, type), t: 0 };
+  if (!g.opts.humans[off]) {
+    // CPU kicker: decide the swing up front, then let the meter play out so it looks (and takes as long as) a real kick
+    const k = g.ks, sk = (legOf(g, off) - 50) / 49;
+    const need = type === 'punt' ? 0.82 + g.rng() * 0.16 : clamp(fd / (k.maxR * 1.08) + 0.06 + (g.rng() - 0.5) * 0.08, 0.3, 1);
+    const sd = type === 'punt' ? 0.05 : 0.04 + fd * 0.0034 - sk * 0.025;
+    const gauss = () => (g.rng() + g.rng() + g.rng() - 1.5) / 1.5;
+    k.cpu = { aim: type === 'punt' ? clamp(g.ballX * 0.4 + (g.rng() - 0.5) * 12, -18, 18) : (g.rng() - 0.5) * 0.8, power: need, acc: gauss() * sd * 1.6 };
+  }
+  const holder = g.players[0]; holder.x = g.ballX; holder.z = g.losZ - (type === 'punt' ? 12 : 7) * d;
+  const b = g.ball; b.state = 'held'; b.carrier = 0; b.x = holder.x; b.z = holder.z; b.y = 0.35;
+  g.events.push('snap');
+}
+function advanceKick(g) {
+  const k = g.ks; if (!k) return;
+  if (k.stage === 'aim') { k.stage = 'power'; k.m = 0; k.dir = 1; g.events.push('ui'); }
+  else if (k.stage === 'power') { k.power = Math.max(0.05, k.m); k.stage = 'acc'; g.events.push('ui'); }
+  else if (k.stage === 'acc') finishKick(g, k.m - KICK_SWEET);
+}
+function finishKick(g, acc) { const k = g.ks; g.ks = null; startKick(g, k.type, { power: k.power, acc: clamp(acc, -0.4, 0.4), aim: k.aim }); }
+function updateKickSet(g, dt, inputs) {
+  const k = g.ks; if (!k) return;
+  k.t += dt;
+  const inp = inputs[g.poss] || {};
+  const lim = k.type === 'punt' ? 24 : 14;
+  if (k.cpu) {
+    if (k.stage === 'aim') { k.aim += (k.cpu.aim - k.aim) * Math.min(1, dt * 2.5); if (g.phaseT > 1.6) advanceKick(g); }
+    else if (k.stage === 'power') { k.m += dt / 1.05; if (k.m >= k.cpu.power) { k.m = k.cpu.power; advanceKick(g); } }
+    else if (k.stage === 'acc') { k.m -= dt / 0.9; if (k.m <= KICK_SWEET + k.cpu.acc) finishKick(g, k.m - KICK_SWEET); }
+    return;
+  }
+  if (k.stage !== 'acc') k.aim = clamp(k.aim + (inp.mx || 0) * dt * (k.type === 'punt' ? 14 : 7), -lim, lim);
+  if (k.stage === 'power') { k.m += dt / 1.05 * k.dir; if (k.m >= 1) { k.m = 1; k.dir = -1; } if (k.m <= 0 && k.dir < 0) { k.m = 0; k.dir = 1; } }
+  else if (k.stage === 'acc') { k.m -= dt / 0.9; if (k.m < -0.18) return finishKick(g, -0.3); }
+  if (g.phaseT > 14 && !k.cpu) { if (k.stage === 'aim') advanceKick(g); else if (k.stage === 'power') { k.m = 0.7; advanceKick(g); } else finishKick(g, 0.2); }
+}
+
+function startKick(g, type, sk) {
   const off = g.poss, d = dirOf(off);
   const p = prog(off, g.losZ);
   g.phase = 'kick'; g.phaseT = 0;
-  const k = { type, t: 0 };
+  const k = { type, t: 0, human: !!sk };
   k.fx = g.ballX; k.fz = g.losZ - 7 * d;
+  if (sk) {
+    const skill = (legOf(g, off) - 50) / 49;
+    if (type === 'punt') {
+      k.fz = g.losZ - 12 * d;
+      const shank = Math.abs(sk.acc) > 0.2;
+      let dist0 = 6 + sk.power * kickRange(g, off, 'punt') * (shank ? 0.55 : 1) + (g.rng() - 0.5) * 4;
+      let land = p + 12 + dist0 - 12;
+      let tx = sk.aim + sk.acc * 22 + (g.rng() - 0.5) * (2.5 - skill * 1.5);
+      const oob = Math.abs(tx) > HALF_W;
+      tx = clamp(tx, -HALF_W - 1, HALF_W + 1);
+      k.tx = tx; k.T = 1.6 + sk.power * 1.6; k.h = 6 + sk.power * 11;
+      if (land >= 100) { k.result = 'touchback'; k.newP = 20; land = Math.min(land, 108); }
+      else { k.result = oob ? 'oob' : 'punt'; k.newP = 100 - land; }
+      k.tz = zOf(off, land); k.yds = Math.round(Math.min(land, 100) - p); k.shank = shank;
+    } else {
+      const fd = type === 'xp' ? 20 : fgDistance(g);
+      const reach = sk.power * kickRange(g, off, type) * 1.08;
+      const hook = sk.acc * 13 * (0.55 + fd / 45);
+      const xPost = sk.aim + hook + (g.rng() - 0.5) * (1.6 - skill * 1.1);
+      const short = reach < fd;
+      k.good = !short && Math.abs(xPost) < 3.05; k.dist = fd;
+      k.miss = short ? 'short' : Math.abs(xPost) >= 3.05 ? ((xPost * d > 0) ? 'wide left' : 'wide right') : '';
+      k.tx = clamp(xPost, -14, 14);
+      k.tz = short ? zOf(off, p - 7 + reach + 2) : zOf(off, 110); k.T = 1.2 + fd * 0.012; k.h = short ? 4 : 6 + fd * 0.12;
+    }
+    g.kick = k;
+    const b = g.ball; b.state = 'kick'; b.carrier = -1; b.x = k.fx; b.z = k.fz; b.y = 0.5;
+    g.events.push('kick');
+    return;
+  }
   if (type === 'punt') {
     let dist0 = 38 + g.rng() * 12;
     if (g.rng() < 0.06) dist0 = 22 + g.rng() * 8; // shank
@@ -631,11 +726,11 @@ function updateKick(g, dt) {
     g.events.push('whistle');
     if (k.type === 'xp') {
       if (k.good) { score(g, off, 1); g.events.push('score'); }
-      g.msg = k.good ? { text: 'EXTRA POINT GOOD', sub: '', until: 2 } : { text: 'EXTRA POINT NO GOOD', sub: '', until: 2 };
+      g.msg = k.good ? { text: 'EXTRA POINT GOOD', sub: '', until: 2 } : { text: 'EXTRA POINT NO GOOD', sub: k.miss || '', until: 2 };
       g.pat = -1; kickoffTo(g, 1 - off);
     } else if (k.type === 'punt') {
       g.poss = 1 - off; g.losZ = zOf(g.poss, k.newP); g.ballX = 0; setFirstDown(g);
-      g.msg = k.result === 'touchback' ? { text: 'TOUCHBACK', sub: `${k.yds} yd punt`, until: 2 } : { text: 'PUNT', sub: `${k.yds} yards`, until: 2 };
+      g.msg = k.result === 'touchback' ? { text: 'TOUCHBACK', sub: `${k.yds} yd punt`, until: 2 } : { text: k.shank ? 'SHANKED PUNT' : k.result === 'oob' ? 'PUNT OUT OF BOUNDS' : 'PUNT', sub: `${k.yds} yards`, until: 2 };
       sudden(g);
     } else if (k.good) {
       score(g, off, 3); mom(g, off, 7); highlight(g, 'FIELD GOAL', `${k.dist} yards`, off);
@@ -644,7 +739,7 @@ function updateKick(g, dt) {
       kickoffTo(g, 1 - off);
       g.deadDur = 2.8;
     } else {
-      g.msg = { text: 'NO GOOD', sub: `${k.dist} yd attempt`, until: 2.2 };
+      g.msg = { text: 'NO GOOD', sub: `${k.dist} yd attempt${k.miss ? ' · ' + k.miss : ''}`, until: 2.2 };
       g.poss = 1 - off; g.ballX = 0; setFirstDown(g);
       sudden(g);
     }
@@ -664,7 +759,7 @@ function kickoffTo(g, team) {
 // ---------------- main step ----------------
 export function step(g, dt, inputs = [{}, {}]) {
   if (g.phase === 'gameover') return;
-  g.t += dt; g.phaseT += dt;
+  g.t += dt; g.phaseT += dt; g.timeoutCd = Math.max(0, (g.timeoutCd || 0) - dt);
   if (g.msg && (g.msg.until -= dt) <= 0) g.msg = null;
   if (g.flash && (g.flash.until -= dt) <= 0) g.flash = null;
   for (let t = 0; t < 2; t++) {
@@ -680,6 +775,7 @@ export function step(g, dt, inputs = [{}, {}]) {
     return;
   }
   if (g.phase === 'presnap') return updatePresnap(g, dt, inputs);
+  if (g.phase === 'kickset') return updateKickSet(g, dt, inputs);
   if (g.phase === 'live') return updateLive(g, dt, inputs);
   if (g.phase === 'kick') return updateKick(g, dt);
   if (g.phase === 'dead') {
@@ -710,13 +806,16 @@ function updatePresnap(g, dt, inputs) {
       me.x = clamp(me.x + (inp.mx || 0) * 3 * dt, home.x - 4, home.x + 4);
       const nz = me.z + (inp.mz || 0) * 3 * dt;
       // keep on defensive side of the ball
-      me.z = (nz - g.losZ) * d < 0.8 ? g.losZ + 0.8 * d : nz;
+      me.z = nz;
+      if ((me.z - g.losZ) * d < 0.25 && g.pat < 0 && !g.opts.practice) return presnapFoul(g, 'offside', me);   // you jumped across the line
+      if ((me.z - g.losZ) * d < 0.25) me.z = g.losZ + 0.25 * d;
     }
   }
   if (!g.opts.humans[off]) {
     if (!g.offPlay) cpuCallOffense(g);
     const humanDef = g.opts.humans[def];
-    const ready = !humanDef ? g.phaseT > 2.0 : (g.defChosen ? g.phaseT > 2.2 : g.phaseT > 7);
+    const ready = !humanDef ? g.phaseT > 2.0 : (g.defChosen ? g.phaseT > g.cpuSnapAt : g.phaseT > 13);
+    if (humanDef && !g.cadence && g.phaseT > g.cpuSnapAt - 1.4 && g.defChosen) { g.cadence = 1; g.events.push('cadence'); }
     if (ready || g.playClock <= 0) snap(g);
   } else if (g.playClock <= 0) {
     if (g.pat < 0 && g.phaseT > 3) return presnapFoul(g, 'dog', null);
@@ -725,7 +824,16 @@ function updatePresnap(g, dt, inputs) {
   }
 }
 
+function cpuTimeout(g) {
+  for (let t = 0; t < 2; t++) {
+    if (g.opts.humans[t] || g.to[t] <= 0 || g.opts.practice || g.opts.drill) continue;
+    const late = (g.quarter === 2 || g.quarter >= 4) && g.clock < 50 && g.clock > 3 && g.runoff > 0;
+    if (late && g.poss === t && g.score[t] <= g.score[1 - t]) { g.to[t]--; g.runoff = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
+  }
+}
 function nextPlay(g) {
+  cpuTimeout(g);
+  g.lastRunoff = Math.min(g.runoff || 0, g.clock);
   if (g.opts.practice) {
     const side = g.opts.practice === 'off' ? 0 : 1;
     g.clock = g.opts.quarterLen; g.runoff = 0; g.pat = -1; g.score = [0, 0];
@@ -744,7 +852,7 @@ function nextPlay(g) {
   if (g.clock <= 0 && g.pat < 0) {
     const q = g.quarter;
     if (q === 2) {
-      g.quarter = 3; g.clock = g.opts.quarterLen;
+      g.quarter = 3; g.clock = g.opts.quarterLen; g.to = [3, 3];
       kickoffTo(g, 1 - g.firstReceiver);
       if (g.opts.halftime > 0) {
         g.phase = 'half'; g.phaseT = 0; g.halfReady = [!g.opts.humans[0], !g.opts.humans[1]];
@@ -778,11 +886,16 @@ function endGame(g) {
 function updateLive(g, dt, inputs) {
   g._dt = dt;
   { const P = g.play;
+    if (P && P.thrown && !P.flag && !P.isPat && g.t - P.throwT < 1.0) {
+      const qb = g.players[0], dt2 = g.ctrl[1 - P.off];
+      const me = dt2 >= 0 ? g.players[dt2] : null;
+      if (me && g.opts.humans[me.team] && me.dive > 0 && dist(me, qb) < 1.1 && g.t - P.throwT > 0.2) throwFlag(g, 'rough', me, qb.z);
+    }
     if (P && !P.flag && !P.isPat && P.holdT && g.phaseT >= P.holdT) {
       P.holdT = 0;
       const ol = g.players.filter(p => p.team === P.off && (p.role === 'C' || p.role === 'LG' || p.role === 'RG') && p.blockOn >= 0);
-      if (ol.length && P.holdRoll < 0.045 * FOUL_RATE) throwFlag(g, 'hold', ol[(g.rng() * ol.length) | 0]);
-      else if (P.holdRoll > 1 - 0.015 * FOUL_RATE) { const cb = g.players.find(p => p.team !== P.off && (p.role === 'CB1' || p.role === 'CB2') && p.dmode === 'man'); if (cb && P.type === 'pass' && !P.thrown) throwFlag(g, 'dhold', cb); }
+      if (ol.length && !g.opts.humans[P.off] && P.holdRoll < 0.035 * FOUL_RATE) throwFlag(g, 'hold', ol[(g.rng() * ol.length) | 0]);
+      else if (!g.opts.humans[1 - P.off] && P.holdRoll > 1 - 0.012 * FOUL_RATE) { const cb = g.players.find(p => p.team !== P.off && (p.role === 'CB1' || p.role === 'CB2') && p.dmode === 'man'); if (cb && P.type === 'pass' && !P.thrown) throwFlag(g, 'dhold', cb); }
     }
   }
   const P = g.play, b = g.ball, cfg = g.cfg;
@@ -826,12 +939,19 @@ function updateLive(g, dt, inputs) {
   if (pocket && !g.opts.humans[P.off]) aiQB(g, tl);
 
   // desired velocities
+  let diveDone = null;
   for (const p of g.players) {
+    if (p.cdive > 0) {   // committed to the dive: no steering, he flies forward and slows as he hits the turf
+      p.cdive -= dt; const k = Math.max(0, 1 - dt * 1.5); p.vx *= k; p.vz *= k; p.x += p.vx * dt; p.z += p.vz * dt;
+      if (p.cdive <= 0) diveDone = p;
+      continue;
+    }
     const human = g.opts.humans[p.team] && g.ctrl[p.team] === p.id;
     const inp = human ? (inputs[p.team] || {}) : null;
     let want; // {x,z,s} direction * speedFactor
     const idle = !inp || (Math.abs(inp.mx || 0) + Math.abs(inp.mz || 0) < 0.12);
-    if (human && !(idle && assistIdle(g, p, carrier))) {
+    const tracking = airPass && p.id === b.target && p.team === P.off;
+    if (human && !tracking && !(idle && assistIdle(g, p, carrier))) {
       let mx = inp.mx || 0, mz = inp.mz || 0;
       if (p.id === 0 && pocket && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) { want = qbPocketMove(g, p); }
       else if (P.type === 'run' && p.id === 0 && !P.handed) { want = aiMove(g, p, carrier, pocket, airPass, tl); }
@@ -841,6 +961,14 @@ function updateLive(g, dt, inputs) {
         if (canSprint && l > 0.1) p.stam = Math.max(0, p.stam - dt * 0.24); else p.stam = Math.min(1, p.stam + dt * 0.13);
         const s = canSprint ? 1 : 0.8;
         want = { x: mx, z: mz, s };
+        if (carrier && carrier.team !== p.team && g.phase === 'live' && !(inp.mx === 0 && inp.mz === 0)) {
+          const dx = carrier.x + carrier.vx * 0.2 - p.x, dz = carrier.z + carrier.vz * 0.2 - p.z, l = hyp(dx, dz);
+          if (l < 4.5 && l > 0.01 && (dx * mx + dz * mz) / l > 0.1) {   // only if you're already heading roughly at him
+            const pull = 0.55 * (1 - l / 4.5);
+            const nx = mx * (1 - pull) + dx / l * pull, nz = mz * (1 - pull) + dz / l * pull, nl = hyp(nx, nz) || 1;
+            want = { x: nx / nl, z: nz / nl, s };
+          }
+        }
       }
     } else {
       want = aiMove(g, p, carrier, pocket, airPass, tl);
@@ -851,6 +979,12 @@ function updateLive(g, dt, inputs) {
 
   updateBlocks(g, dt, pocket);
   separate(g);
+  if (diveDone && g.ball.state === 'held' && g.ball.carrier === diveDone.id) {
+    const c = diveDone;
+    if (prog(c.team, c.z) >= 100) return touchdown(g, c);
+    c.fallen = 2; g.msgNote = 'dives forward';
+    return endPlay(g, 'tackle', c, null);
+  }
 
   // ball
   if (b.state === 'held') {
@@ -861,6 +995,15 @@ function updateLive(g, dt, inputs) {
     const s = Math.min(1, b.t / b.T);
     b.x = b.fx + (b.tx - b.fx) * s; b.z = b.fz + (b.tz - b.fz) * s;
     b.y = b.fy + (1.3 - b.fy) * s + 4 * b.h * s * (1 - s);
+    // the ball gets to somebody before its landing spot: resolve it right there instead of flying through him
+    if (!b.auto && s > 0.35 && s < 1 && b.y < 2.9) {
+      for (const p of g.players) {
+        if (p.stun > 0 && p.dive <= 0) continue;
+        const reachable = p.team === g.play.off ? RECEIVERS.includes(p.role) : true;
+        if (reachable && hyp(p.x - b.x, p.z - b.z) < (p.playBall > 0 ? 1.0 : 0.75)) { b.tx = b.x; b.tz = b.z; resolveBall(g); break; }
+      }
+      if (b.state !== 'air' || g.phase !== 'live') return;
+    }
     if (s >= 1) resolveBall(g);
     if (g.phase !== 'live') return;
   }
@@ -880,7 +1023,8 @@ function updateLive(g, dt, inputs) {
     for (const d of g.players) {
       if (d.team === ct || d.stun > 0 || d.tackleCd > 0 || d.fallen > 0) continue;
       if (d.engagedBy >= 0 && dist(d, c2) > 0.55) continue;
-      const tr = (d.dive > 0 ? 1.9 : 1.3) * (0.5 + 0.5 * (d.size + c2.size) / 2);
+      const vsCpu = g.opts.humans[d.team] && !g.opts.humans[ct];
+      const tr = (d.dive > 0 ? 2.1 : 1.3) * (0.5 + 0.5 * (d.size + c2.size) / 2) * (vsCpu ? 1.18 : 1);
       if (dist(d, c2) < tr) {
         const humanCarrier = g.opts.humans[ct] && g.ctrl[ct] === c2.id;
         let brk = c2.role === 'RB' ? cfg.brk + 0.06 : cfg.brk;
@@ -894,6 +1038,7 @@ function updateLive(g, dt, inputs) {
         if (c2.role === 'QB' && !P.thrown && !P.crossed) brk *= 0.6;
         if (d.dive > 0 && c2.hurdle <= 0) brk *= 0.75;
         brk *= (1.5 - d.rt.tkl / 100) * (0.6 + c2.rt.elu / 100 * 0.6);
+        if (vsCpu) brk *= g.ctrl[d.team] === d.id ? 0.45 : 0.65;
         if (g.rng() < brk) {
           d.stun = 0.85; d.fallen = 0.85; d.tackleCd = 1.2; d.dive = 0;
           c2.vx *= 0.6; c2.vz *= 0.6;
@@ -1002,7 +1147,8 @@ function updateBlocks(g, dt, pocket) {
     const bl = g.players[t.engagedBy];
     if (!bl || dist(bl, t) > 1.9 || bl.stun > 0 || bl.blockOn !== t.id) { t.engagedBy = -1; continue; }
     const line = t.role.startsWith('DL') && g.phaseT < 2.6;
-    let rate = (pocket || line) ? cfg.shed * (pocket ? 1 : 1.4) : cfg.shed * 2.2 + 0.3;
+    const shed = g.opts.humans[t.team] && !g.opts.humans[1 - t.team] ? Math.max(cfg.shed, 0.17) : cfg.shed;   // your rushers aren't nerfed by the CPU's difficulty
+    let rate = (pocket || line) ? shed * (pocket ? 1 : 1.4) : shed * 2.2 + 0.3;
     rate *= (0.5 + Math.max(t.rt.rush, t.rt.tkl * 0.8) / 100) / (0.5 + bl.rt.blk / 100);
     if (g.rng() < rate * dt) {
       t.engagedBy = -1; t.shedCd = 1.3; bl.stun = 0.4; bl.blockOn = -1;
@@ -1013,7 +1159,7 @@ function updateBlocks(g, dt, pocket) {
 
 // ---------------- AI movement ----------------
 function aiMove(g, p, carrier, pocket, airPass, tl) {
-  const P = g.play, b = g.ball, cfg = g.cfg, ai = cfg.ai;
+  const P = g.play, b = g.ball, cfg = g.cfg, ai = g.opts.humans[p.team] && !g.opts.humans[1 - p.team] ? 0.99 : cfg.ai;
   const isOff = p.team === P.off;
   const d = dirOf(P.off);
   const qb = g.players[0];
@@ -1033,8 +1179,9 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
     const since = g.t - P.throwT;
     if (p.id === b.target) return seek(p, b.tx, b.tz, 1, 0.4);
     if (!isOff) {
-      const dl = hyp(p.x - b.tx, p.z - b.tz);
-      if (since > cfg.react && (p.assign === b.target || dl < 13)) return seek(p, b.tx, b.tz, ai + 0.04, 0.3);
+      const dl = hyp(p.x - b.tx, p.z - b.tz), mine = g.opts.humans[p.team] && !g.opts.humans[1 - p.team];
+      const react = mine ? Math.min(cfg.react, 0.2) : cfg.react;
+      if (since > react && (p.assign === b.target || dl < (mine ? 18 : 13))) return seek(p, b.tx, b.tz, ai + 0.04, 0.3);
       if (p.role.startsWith('DL')) return seek(p, b.tx, b.tz, 0.5);
     } else if (p.role.startsWith('WR') || p.role === 'RB') {
       // other receivers drift toward the ball late
@@ -1179,7 +1326,10 @@ function aiQB(g, tl) {
   }
   const urgent = pressure < 2.3;
   const want = tl > P.readT ? 2.2 : 3.4;
-  if (best && ((tl > 1.3 && bs > want) || (urgent && bs > 0.8) || tl > 4.6)) {
+  // finish the drop before throwing: quick game is out fast, deep shots take a real five or seven step drop
+  const minT = pdq.screen ? pdq.screen + 0.15 : pdq.cat === 'Quick' ? 1.2 : (pdq.drop || -7) <= -8 ? 2.3 : 1.85;
+  if (best && ((tl > minT && bs > want) || (urgent && bs > 0.8 && tl > 0.9) || tl > 4.6)) {
+    const vsHuman = g.opts.humans[1 - qb.team] && !g.opts.humans[qb.team];
     throwBall(g, qb, best, cfg.qbErr * (urgent ? 1.5 : 1) * (1.45 - qb.rt.acc / 100));
   } else if (urgent && tl > 1.2 && !P.scramble && g.rng() < 0.02) {
     P.scramble = true;
@@ -1209,10 +1359,22 @@ function carrierSteer(g, p, s) {
 }
 
 function pursue(g, p, c, s) {
-  const l = dist(p, c);
-  const t = Math.min(1.1, l / (p.max + 0.1)) * 0.85;
-  const tx = c.x + c.vx * t, tz = c.z + c.vz * t;
-  return seek(p, tx, tz, Math.min(1, s + 0.1), 0.2);   // pursuit is full effort
+  // solve for an intercept point: where can I meet him if he keeps going this way?
+  let t = 0;
+  for (let k = 0; k < 3; k++) { const tx = c.x + c.vx * t, tz = c.z + c.vz * t; t = Math.min(1.6, hyp(tx - p.x, tz - p.z) / (p.max + 0.1)); }
+  const dc = dist(p, c);
+  // rank among pursuers: the closest takes him head on, the rest fan out into lanes so he can't beat them all with one cut
+  let rank = 0, side = 0;
+  for (const q of g.players) if (q.team === p.team && q !== p && q.stun <= 0 && q.fallen <= 0 && dist(q, c) < dc) rank++;
+  if (rank > 0) side = (p.x >= c.x ? 1 : -1);
+  const lead = dc < 2.2 ? 0.25 : 1;
+  const d = dirOf(c.team);
+  const LW = (globalThis.EK_LANES ?? 0.35);
+  const laneX = rank === 0 ? 0 : side * Math.min(2.5, 0.8 + rank * 0.5) * LW;     // inside / outside leverage
+  const laneZ = rank === 0 ? 0 : d * Math.min(3, rank * 0.8) * LW;                 // later pursuers cut further downfield (the alley)
+  const k = Math.min(1, Math.max(0, (dc - 2.5) / 6));                      // lanes collapse onto him as they close
+  const tx = c.x + c.vx * t * lead + laneX * k, tz = c.z + c.vz * t * lead + laneZ * k;
+  return seek(p, tx, tz, 1, 0.2);   // pursuit is full effort
 }
 
 function blockFor(g, p, carrier) {
@@ -1321,7 +1483,9 @@ function resolveBall(g) {
     if (p.team === offTeam) { if (RECEIVERS.includes(p.role) && dd < dO) { dO = dd; ro = p; } }
     else if (dd < dD) { dD = dd; rd = p; }
   }
-  const cO = ro && dO < 1.5, cD = rd && dD < 1.4;
+  const myD = rd && g.opts.humans[rd.team] && !g.opts.humans[offTeam];
+  const cO = ro && dO < 1.7, cD = rd && dD < (myD ? 1.85 : 1.4);
+  let diving = false;
   const target = g.players[P.target];
   let outcome = 'inc';
   const defPlay = cD && rd.playBall > 0, offAgg = cO && ro.playBall > 0;
@@ -1342,18 +1506,39 @@ function resolveBall(g) {
     else if (g.rng() < (dD < dO ? cfg.intP * 0.6 * cov : 0.12)) outcome = 'int';
   } else if (cO) {
     const hands = (0.8 + ro.rt.hands / 100 * 0.22) * wxHands(g);
-    outcome = g.rng() < Math.min(0.98, (dO < 1.0 ? 0.92 : 0.82) * hands) ? 'catch' : 'inc';
+    outcome = g.rng() < Math.min(0.98, (dO < 1.0 ? 0.95 : 0.87) * hands + (offAgg ? 0.05 : 0)) ? 'catch' : 'inc';
+  } else if (ro && !outOfBounds && dO < 3.0 && (!rd || dD > dO + 0.4)) {
+    // just out of reach: he lays out for it
+    const pr = (0.22 + ro.rt.hands / 100 * 0.32 + (ro.playBall > 0 ? 0.12 : 0)) * wxHands(g) * (1.2 - (dO - 1.7) / 3);
+    if (g.rng() < pr) { outcome = 'catch'; diving = true; }
   } else if (cD) {
     outcome = g.rng() < cfg.intP * (0.6 + rd.rt.cov / 100 * 0.6) ? 'int' : 'inc';
   }
   if (!outOfBounds && cO && cD && !P.isPat) {
     const r = g.rng();
-    if (outcome !== 'catch' && dD < 1.1 && r < (rd.dive > 0 ? 0.3 : 0.16) * FOUL_RATE) { throwFlag(g, 'dpi', rd, L.z); outcome = 'inc'; }
-    else if (outcome === 'catch' && r < 0.035 * FOUL_RATE) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
+    const humanD = g.opts.humans[rd.team] && g.ctrl[rd.team] === rd.id, humanO = g.opts.humans[ro.team] && g.ctrl[ro.team] === ro.id;
+    const bump = hyp(rd.x - ro.x, rd.z - ro.z) < 1.05;
+    if (humanD) {
+      // you dove or jumped into him and got there before the ball did
+      if (outcome !== 'catch' && bump && (rd.dive > 0 || (rd.playBall > 0 && dD > dO + 0.3))) { throwFlag(g, 'dpi', rd, L.z); outcome = 'inc'; }
+    } else if (!g.opts.humans[rd.team] && outcome !== 'catch' && dD < 1.1 && r < (rd.dive > 0 ? 0.2 : 0.08) * FOUL_RATE) { throwFlag(g, 'dpi', rd, L.z); outcome = 'inc'; }
+    if (outcome === 'catch' && humanO && ro.playBall > 0 && bump && r < 0.3) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
+    else if (outcome === 'catch' && !g.opts.humans[ro.team] && r < 0.02 * FOUL_RATE) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
   }
   if (outcome === 'catch') {
     b.state = 'held'; b.carrier = ro.id;
     P.catchZ = ro.z; ro.caughtAt = g.t;
+    ro.vx *= 0.6; ro.vz *= 0.6;   // securing the catch costs a step
+    if (diving) {
+      ro.x = L.x; ro.z = L.z; ro.dive = 0.55; ro.vx *= 0.3; ro.vz *= 0.3;
+      g.flash = { text: 'DIVING CATCH!', until: 1.4 }; g.events.push('catch', 'bighit');
+      highlight(g, 'DIVING CATCH', ro.rt.name, offTeam); mom(g, offTeam, 6);
+      g.stats[offTeam].comp++; pst(g, ro).rec++;
+      if (g.opts.humans[offTeam]) g.ctrl[offTeam] = ro.id;
+      if (P.isPat && prog(offTeam, L.z) < 100) return endPlay(g, 'tackle', ro, null);
+      if (prog(offTeam, L.z) >= 100) return touchdown(g, ro);
+      return endPlay(g, 'tackle', ro, null);
+    }
     g.stats[offTeam].comp++; pst(g, ro).rec++;
     if (g.opts.humans[offTeam]) g.ctrl[offTeam] = ro.id;
     g.events.push('catch');
@@ -1421,9 +1606,9 @@ function addYards(g, c, endP) {
 
 function endPlay(g, kind, c, tackler, note) {
   const P = g.play;
-  g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.1; g.runoff = 0;
+  g.phase = 'dead'; g.phaseT = 0; g.deadDur = g.opts.humans[0] || g.opts.humans[1] ? 2.7 : 2.1; g.runoff = 0;
   g.events.push('whistle');
-  if (!P.isPat && !g.opts.practice && kind === 'tackle' && tackler && c && c.team === P.off && !P.flag && g.rng() < 0.012 * FOUL_RATE) throwFlag2(g, 'mask', tackler, c.z);
+  if (!P.isPat && !g.opts.practice && kind === 'tackle' && tackler && !g.opts.humans[tackler.team] && c && c.team === P.off && !P.flag && g.rng() < 0.01 * FOUL_RATE) throwFlag2(g, 'mask', tackler, c.z);
   if (P.flag && !P.isPat) {
     const endP = kind === 'incomplete' ? null : (c && c.team === P.off ? prog(P.off, c.z) : null);
     if (enforceFlag(g, endP, !!P.turnover, false)) return;
@@ -1473,14 +1658,15 @@ function endPlay(g, kind, c, tackler, note) {
   if (p >= prog(ct, g.fdZ)) {
     setFirstDown(g);
     g.stats[ct].firstDowns++; mom(g, ct, 3);
-    g.msg = { text: 'FIRST DOWN', sub: `${c.rt.name} +${Math.max(0, gained)} yds`, until: 1.9 };
+    g.msg = { text: 'FIRST DOWN', sub: `${c.rt.name} +${Math.max(0, gained)} yds${g.msgNote ? ' · ' + g.msgNote : ''}`, until: 1.9 }; g.msgNote = null;
     g.events.push('firstdown');
   } else {
     g.down++;
     g.togo = Math.max(1, Math.round(prog(ct, g.fdZ) - spot));
     g.msg = sack ? { text: 'SACKED!', sub: `${tackler ? tackler.rt.name + ' · ' : ''}${gained} yds`, until: 1.9 }
       : kind === 'oob' ? { text: 'OUT OF BOUNDS', sub: `${c.rt.name} ${gained >= 0 ? '+' : ''}${gained} yds`, until: 1.9 }
-      : { text: gained > 0 ? `GAIN OF ${gained}` : gained === 0 ? 'NO GAIN' : `LOSS OF ${-gained}`, sub: c.rt.name + (tackler ? ` · tackle ${tackler.rt.name}` : ''), until: 1.9 };
+      : { text: gained > 0 ? `GAIN OF ${gained}` : gained === 0 ? 'NO GAIN' : `LOSS OF ${-gained}`, sub: c.rt.name + (tackler ? ` · tackle ${tackler.rt.name}` : g.msgNote ? ` ${g.msgNote}` : ''), until: 1.9 };
+    g.msgNote = null;
     checkDowns(g);
   }
 }
@@ -1529,6 +1715,8 @@ export function snapshot(g) {
     pat: g.pat, form: g.form,
     opDef: g.phase === 'presnap' && g.offPlay ? (() => { const q = getPlay(g, g.poss, g.offPlay); return q && q.routes ? { form: q.form, routes: Object.fromEntries(Object.entries({ ...q.routes, ...g.hot }).filter(([, v]) => v && v.length)), qbPath: q.qbPath || null, hot: Object.keys(g.hot), type: q.type } : null; })() : null,
     bT: g.ball.state === 'air' && !g.ball.auto ? r2(g.ball.T - g.ball.t) : -1,
+    ks: g.phase === 'kickset' && g.ks ? { type: g.ks.type, stage: g.ks.stage, m: r2(g.ks.m), aim: r2(g.ks.aim), power: r2(g.ks.power), fd: g.ks.fd, maxR: r2(g.ks.maxR), sweet: KICK_SWEET } : null,
+    to: g.to.slice(), pcMax: 25,
     wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
     hls: g.phase === 'gameover' ? g.hl : null,
     hr: g.phase === 'half' ? g.halfReady.slice() : null, hl: g.opts.halftime,
@@ -1540,8 +1728,9 @@ function reaching(g, p) {
   const b = g.ball;
   if (g.phase !== 'live' || b.state !== 'air' || b.auto) return false;
   const left = b.T - b.t;
-  return left < 0.45 && hyp(p.x - b.tx, p.z - b.tz) < 2.6 && RECEIVERS.concat(['CB1', 'CB2', 'S', 'LB']).includes(p.role);
+  const dd = hyp(p.x - b.tx, p.z - b.tz);
+  return (left < 0.45 && dd < 2.6 && RECEIVERS.concat(['CB1', 'CB2', 'S', 'LB']).includes(p.role)) || (left < 0.75 && dd < 3.4 && p.id === b.target);
 }
 export function faceSeed(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
 export function drainEvents(g) { const e = g.events; g.events = []; return e; }
-export const __test = { alignOffense: (g) => alignOffense(g, true) };
+export const __test = { alignOffense: (g) => alignOffense(g, true), setup: (g) => setupPlay(g) };

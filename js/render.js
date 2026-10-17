@@ -6,9 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792242869';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792242869';
-import { drawLogo } from './logos.js?v=1792242869';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js';
+import { drawFaceTexture, faceParams } from './faces.js';
+import { drawLogo } from './logos.js';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -23,6 +24,15 @@ function canvasTex(w, h, draw, srgb = true) {
   return t;
 }
 const lerp = (a, b, t) => a + (b - a) * t;
+function mergeTwo(a, b) {
+  const g = new THREE.BufferGeometry();
+  const ai = a.index ? a.toNonIndexed() : a, bi = b.index ? b.toNonIndexed() : b;
+  for (const key of ['position', 'normal']) {
+    const A = ai.attributes[key].array, B = bi.attributes[key].array, out = new Float32Array(A.length + B.length);
+    out.set(A); out.set(B, A.length); g.setAttribute(key, new THREE.BufferAttribute(out, 3));
+  }
+  return g;
+}
 const damp = (a, b, rate, dt) => a + (b - a) * (1 - Math.exp(-rate * dt));
 
 export class Renderer {
@@ -79,7 +89,7 @@ export class Renderer {
     this.r.setSize(w, h, false);
     if (this.composer) { this.composer.setPixelRatio(this.r.getPixelRatio()); this.composer.setSize(w, h); }
     this.cam.aspect = w / h;
-    this.cam.fov = w / h < 1 ? 66 : 48;
+    this.cam.fov = w / h < 1 ? 68 : 54;
     this.cam.updateProjectionMatrix();
   }
 
@@ -115,7 +125,7 @@ export class Renderer {
     this.buildBowl();
     this.buildGoalposts();
     this.buildPylons();
-    this.buildBenches();
+    buildSidelines(this);
 
     const lineGeo = new THREE.PlaneGeometry(W, 0.3);
     this.losLine = new THREE.Mesh(lineGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false }));
@@ -288,19 +298,20 @@ export class Renderer {
     const s = this.scene;
     const N = 220;
     const concrete = new THREE.MeshStandardMaterial({ color: 0x1b2140, roughness: 0.9 });
-    const seatMat = new THREE.MeshStandardMaterial({ color: 0x252c55, roughness: 0.85, side: THREE.DoubleSide });
+    const seatTex = seatTexture();
+    const seatMat = new THREE.MeshStandardMaterial({ map: seatTex, roughness: 0.85, side: THREE.DoubleSide });
     const deck = (s0, y0, s1, y1, rows) => {
-      const pos = [], idx = [];
+      const pos = [], idx = [], uv = [];
       for (let r = 0; r <= rows; r++) {
         const f = r / rows, sc = lerp(s0, s1, f), y = lerp(y0, y1, f);
-        for (let i = 0; i <= N; i++) { const [x, z] = this.bowlPoint(i / N * Math.PI * 2, sc); pos.push(x, y, z); }
+        for (let i = 0; i <= N; i++) { const [x, z] = this.bowlPoint(i / N * Math.PI * 2, sc); pos.push(x, y, z); uv.push(i / N * 26, r / 16 * 2); }
       }
       for (let r = 0; r < rows; r++) for (let i = 0; i < N; i++) {
         const a = r * (N + 1) + i, b = a + 1, c = a + N + 1, d = c + 1;
         idx.push(a, c, b, b, c, d);
       }
-      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-      s.add(new THREE.Mesh(g, seatMat));
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+      const dm = new THREE.Mesh(g, seatMat); dm.receiveShadow = true; s.add(dm);
       return { s0, y0, s1, y1, rows };
     };
     const ring = (sc, y0, y1, mat, tiles = 24) => {
@@ -361,12 +372,16 @@ export class Renderer {
       g.position.set(0, 70, z); g.lookAt(0, 20, 50);
       s.add(g);
     }
+    buildBowlExtras(this, ring);
     this.buildCrowd([lower, upper]);
   }
 
   buildCrowd(decks) {
-    const bodyGeo = new THREE.BoxGeometry(0.62, 0.8, 0.42); bodyGeo.translate(0, 0.45, 0);
-    const headGeo = new THREE.IcosahedronGeometry(0.21, 1); headGeo.translate(0, 1.07, 0);
+    // torso with a little shape, a head, two arms (they shoot up when the place goes nuts), caps on some, signs here and there
+    const bodyGeo = this.lathe('fan_torso', [[0.0001, 0.86], [0.17, 0.84], [0.27, 0.74], [0.26, 0.45], [0.23, 0.12], [0.2, 0.0], [0.0001, 0]], 8); bodyGeo.scale(1, 1, 0.68);
+    const headGeo = new THREE.IcosahedronGeometry(0.17, 1); headGeo.translate(0, 1.04, 0);
+    const armGeo = (() => { const l = new THREE.CapsuleGeometry(0.055, 0.42, 2, 5); l.translate(0, -0.2, 0); const L = l.clone(); L.translate(-0.3, 0.8, 0); const Rr = l.clone(); Rr.translate(0.3, 0.8, 0); return mergeTwo(L, Rr); })();
+    const capGeo = new THREE.SphereGeometry(0.18, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2); capGeo.translate(0, 1.07, 0);
     const spots = [];
     const N = 220;
     for (const d of decks) {
@@ -376,13 +391,13 @@ export class Renderer {
         for (let i = 1; i <= N * 8; i++) {
           const t = i / (N * 8) * Math.PI * 2, p = this.bowlPoint(t, sc);
           acc += Math.hypot(p[0] - prev[0], p[1] - prev[1]); prev = p;
-          if (acc >= 1.15) { acc = 0; if (Math.random() < 0.9) spots.push([p[0], y, p[1]]); }
+          if (acc >= 1.0) { acc = 0; const ang = Math.atan2(p[0], p[1] - 50); const aisle = Math.abs(((t * 26 / (Math.PI * 2)) % 1) - 0.52) < 0.04; if (!aisle && Math.random() < 0.93) spots.push([p[0], y, p[1]]); }
         }
       }
     }
     const count = spots.length;
     this.crowdU = { uTime: { value: 0 }, uHype: { value: 0.2 } };
-    const mkMat = () => {
+    const mkMat = (arms) => {
       const m = new THREE.MeshLambertMaterial({ color: 0xffffff });
       m.onBeforeCompile = (sh) => {
         sh.uniforms.uTime = this.crowdU.uTime; sh.uniforms.uHype = this.crowdU.uHype;
@@ -390,35 +405,81 @@ export class Renderer {
           `#include <begin_vertex>
            float jump = max(0.0, sin(uTime * (5.0 + fract(aPhase * 7.3) * 3.0) + aPhase * 6.2831));
            float idle = sin(uTime * 1.3 + aPhase * 6.2831) * 0.03;
-           transformed.y += idle + jump * jump * 0.55 * uHype;
-           if (position.y > 0.9) transformed.x += sin(uTime * 3.0 + aPhase * 9.0) * 0.05 * uHype;`);
+           ${arms ? `
+           float up = clamp(uHype * 1.6 - 0.25 + fract(aPhase * 13.7) * 0.5 - 0.25, 0.0, 1.0) * (0.75 + 0.25 * jump);
+           float wave = sin(uTime * 4.0 + aPhase * 20.0) * 0.25 * up;
+           float ang = -2.6 * up + wave;
+           vec3 piv = vec3(0.0, 0.8, 0.0);
+           vec3 q = transformed - piv;
+           float cs = cos(ang), sn = sin(ang);
+           transformed = piv + vec3(q.x * (1.0 - 0.25 * up), q.y * cs - q.z * sn, q.y * sn + q.z * cs);` : ''}
+           transformed.y += idle + jump * jump * 0.5 * uHype;
+           if (position.y > 0.95) transformed.x += sin(uTime * 3.0 + aPhase * 9.0) * 0.04 * uHype;`);
       };
       return m;
     };
-    const bodies = new THREE.InstancedMesh(bodyGeo, mkMat(), count);
-    const heads = new THREE.InstancedMesh(headGeo, mkMat(), count);
+    const bodies = new THREE.InstancedMesh(bodyGeo, mkMat(false), count);
+    const heads = new THREE.InstancedMesh(headGeo, mkMat(false), count);
+    const arms = new THREE.InstancedMesh(armGeo, mkMat(true), count);
+    const caps = new THREE.InstancedMesh(capGeo, mkMat(false), count);
     const phase = new Float32Array(count);
-    const o = new THREE.Object3D();
+    const o = new THREE.Object3D(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
     const skin = SKIN.map(c => new THREE.Color(c));
+    const hair = ['#0d0906', '#2b1a10', '#4a2e1a', '#a0662f', '#c9a15a'].map(c => new THREE.Color(c));
+    this.signSpots = [];
     for (let i = 0; i < count; i++) {
       const [x, y, z] = spots[i];
       o.position.set(x, y, z); o.lookAt(0, y, 50);
       o.rotation.y += (Math.random() - 0.5) * 0.4;
-      const sc = 0.92 + Math.random() * 0.2; o.scale.set(sc, sc, sc);
+      const kid = Math.random() < 0.08, sc = kid ? 0.72 : 0.9 + Math.random() * 0.22; o.scale.set(sc, sc, sc);
       o.updateMatrix();
-      bodies.setMatrixAt(i, o.matrix); heads.setMatrixAt(i, o.matrix);
-      heads.setColorAt(i, skin[(Math.random() * skin.length) | 0]);
-      bodies.setColorAt(i, skin[0]);
+      bodies.setMatrixAt(i, o.matrix); heads.setMatrixAt(i, o.matrix); arms.setMatrixAt(i, o.matrix);
+      const capped = Math.random() < 0.3;
+      caps.setMatrixAt(i, capped ? o.matrix : zero);
+      const sk = skin[(Math.random() * skin.length) | 0];
+      heads.setColorAt(i, Math.random() < 0.18 ? hair[(Math.random() * hair.length) | 0].clone().lerp(sk, 0.35) : sk);
+      arms.setColorAt(i, sk);
+      bodies.setColorAt(i, skin[0]); caps.setColorAt(i, skin[0]);
       phase[i] = Math.random();
+      if (Math.random() < 0.025) this.signSpots.push({ m: o.matrix.clone(), ph: phase[i] });
     }
-    bodies.geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phase, 1));
-    heads.geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phase, 1));
-    bodies.frustumCulled = false; heads.frustumCulled = false;
-    this.scene.add(bodies); this.scene.add(heads);
-    this.crowdBodies = bodies; this.crowdSpots = spots;
-    bodies.userData.full = count; heads.userData.full = count;
-    this.fans = [bodies, heads];
+    for (const m of [bodies, heads, arms, caps]) { m.geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phase, 1)); m.frustumCulled = false; this.scene.add(m); }
+    this.crowdBodies = bodies; this.crowdCaps = caps; this.crowdSpots = spots;
+    for (const m of [bodies, heads, arms, caps]) m.userData.full = count;
+    this.fans = [bodies, heads, arms, caps];
     if (this.quality !== 'high') this.fans.forEach(f => f.count = Math.floor(count * 0.5));
+    this.buildSigns();
+  }
+
+  buildSigns() {
+    // hand-made signs held up in the crowd
+    const texts = ['DEFENSE!', 'LET\'S GO!', '#1 FAN', 'TOUCHDOWN!', 'KINGS!', 'GAME DAY', 'HOLD THAT LINE', 'HI MOM!'];
+    const cols = [['#ffffff', '#c1121f'], ['#ffd400', '#111111'], ['#ffffff', '#1d4ed8'], ['#111111', '#ffd400'], ['#ffffff', '#15803d'], ['#f97316', '#111111'], ['#ffffff', '#7c3aed'], ['#fde68a', '#be185d']];
+    const geo = new THREE.PlaneGeometry(1.25, 0.62); geo.translate(0, 1.75, 0.15);
+    const per = Math.ceil(this.signSpots.length / texts.length);
+    this.signs = [];
+    texts.forEach((t, k) => {
+      const tx = canvasTex(256, 128, (c, w, h) => {
+        c.fillStyle = cols[k][0]; c.fillRect(0, 0, w, h); c.lineWidth = 6; c.strokeStyle = cols[k][1]; c.strokeRect(4, 4, w - 8, h - 8);
+        c.fillStyle = cols[k][1]; c.font = `900 ${t.length > 9 ? 34 : 46}px "Big Shoulders Display", Impact, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.save(); c.translate(w / 2, h / 2); c.rotate((Math.random() - 0.5) * 0.12); c.fillText(t, 0, 4); c.restore();
+      });
+      const mat = new THREE.MeshLambertMaterial({ map: tx, side: THREE.DoubleSide });
+      const spots = this.signSpots.slice(k * per, (k + 1) * per); if (!spots.length) return;
+      const im = new THREE.InstancedMesh(geo, mat, spots.length);
+      const ph = new Float32Array(spots.length);
+      spots.forEach((sp, i) => { im.setMatrixAt(i, sp.m); ph[i] = sp.ph; });
+      mat.onBeforeCompile = (sh) => {
+        sh.uniforms.uTime = this.crowdU.uTime; sh.uniforms.uHype = this.crowdU.uHype;
+        sh.vertexShader = 'uniform float uTime;\nuniform float uHype;\nattribute float aPhase;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+          `#include <begin_vertex>
+           float jump = max(0.0, sin(uTime * (5.0 + fract(aPhase * 7.3) * 3.0) + aPhase * 6.2831));
+           transformed.y += jump * jump * 0.5 * uHype + sin(uTime * 2.0 + aPhase * 9.0) * 0.06;
+           transformed.x += sin(uTime * 2.5 + aPhase * 5.0) * 0.12 * (0.3 + uHype);`);
+      };
+      im.geometry = geo.clone(); im.geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(ph, 1));
+      im.frustumCulled = false; this.scene.add(im); this.signs.push(im);
+    });
   }
 
   colorCrowd(teams) {
@@ -431,8 +492,10 @@ export class Renderer {
       const r = Math.random();
       const c = r < 0.6 ? cols[side][0] : r < 0.75 ? cols[side][2] : r < 0.85 ? cols[side][1] : misc[(Math.random() * misc.length) | 0];
       this.crowdBodies.setColorAt(i, c);
+      if (this.crowdCaps) this.crowdCaps.setColorAt(i, Math.random() < 0.6 ? cols[side][Math.random() < 0.5 ? 0 : 2] : misc[(Math.random() * misc.length) | 0]);
     }
     this.crowdBodies.instanceColor.needsUpdate = true;
+    if (this.crowdCaps) this.crowdCaps.instanceColor.needsUpdate = true;
   }
 
   drawRibbon(teams) {
@@ -499,22 +562,6 @@ export class Renderer {
     const mat = new THREE.MeshStandardMaterial({ color: 0xff6a00, roughness: 0.5, emissive: 0x401400 });
     for (const z of [0, -10, 100, 110]) for (const x of [-HALF_W - 0.2, HALF_W + 0.2]) {
       const p = new THREE.Mesh(geo, mat); p.position.set(x, 0, z); p.castShadow = true; this.scene.add(p);
-    }
-  }
-
-  buildBenches() {
-    this.benchMats = [new THREE.MeshStandardMaterial({ color: 0x333333 }), new THREE.MeshStandardMaterial({ color: 0x333333 })];
-    for (const k of [0, 1]) {
-      const x = k === 0 ? -HALF_W - 5.5 : HALF_W + 5.5;
-      const bench = new THREE.Mesh(new RoundedBoxGeometry(1.4, 0.9, 30, 2, 0.15), this.benchMats[k]); bench.position.set(x, 0.45, 50); bench.castShadow = true; this.scene.add(bench);
-      const g = new THREE.CapsuleGeometry(0.32, 1.0, 3, 6); g.translate(0, 0.85, 0);
-      const inst = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 }), 26);
-      const o = new THREE.Object3D();
-      for (let i = 0; i < 26; i++) {
-        o.position.set(x + (k === 0 ? 1.8 : -1.8) + (Math.random() - 0.5) * 1.4, 0, 33 + i * 1.3 + Math.random() * 0.5); o.updateMatrix(); inst.setMatrixAt(i, o.matrix);
-      }
-      inst.castShadow = true; this.scene.add(inst);
-      this['sideline' + k] = inst;
     }
   }
 
@@ -770,7 +817,7 @@ export class Renderer {
     this.drawRibbon(teams);
     this.colorCrowd(teams);
     this.drawBoard(null);
-    teams.forEach((ti, k) => { this.benchMats[k].color.set(vis(TEAMS[ti], 'jersey')); this['sideline' + k].material.color.set(TEAMS[ti].jersey); });
+    colorSidelines(this, teams); colorFlags(this, teams);
   }
 
   // re-draw text canvases once web fonts have loaded
@@ -793,9 +840,12 @@ export class Renderer {
     if (this.crowdU) { this.crowdU.uTime.value = this.time; this.crowdU.uHype.value = this.hype; }
     if (this.ribbonTex) this.ribbonTex.offset.x = (this.time * 0.03) % 1;
     if (this.precip) this.stepWeather(dt);
+    waveFlags(this);
+    if (this.side) updateSidelines(this, this._lastS, dt);
   }
 
   update(S, dt, local) {
+    this._lastS = S;
     if (S.wx && (S.wx !== this.wx || S.tod !== this.tod)) this.setWeather(S.wx, S.tod);
     this.ambient(dt);
     if (!this.teams) return;
@@ -925,7 +975,12 @@ export class Renderer {
       else { const k = Math.min(1, (t - 0.18) / 0.15); as[1] = lerp(-2.7, -0.8, k); ae[1] = lerp(1.5, 0.1, k); twist = lerp(-0.6, 0.55, k); hipTwist = lerp(-0.25, 0.25, k); lean = 0.32; lh[0] = lerp(-0.25, -0.6, k); lk[1] = 0.6; }
       as[0] = -0.7; ae[0] = 1.2; az[0] = 0.4;
     } else m.throwT = 0;
-    if (reaching) { as[0] = as[1] = -2.75; ae[0] = ae[1] = 0.25; az[0] = 0.18; az[1] = -0.18; lean = Math.min(lean, 0.1); headX = 0.35; }
+    if (reaching) {
+      const by = S.b[1];
+      if (by > 1.9) { as[0] = as[1] = -2.85; ae[0] = ae[1] = 0.2; az[0] = 0.22; az[1] = -0.22; headX = 0.5; lean = Math.min(lean, 0.05); }   // high: hands over the head
+      else if (by > 1.05) { as[0] = as[1] = -1.6; ae[0] = ae[1] = 0.55; az[0] = -0.18; az[1] = 0.18; headX = 0.15; lean = Math.max(lean, 0.18); } // chest: hands out in a diamond
+      else { as[0] = as[1] = -0.9; ae[0] = ae[1] = 0.25; az[0] = -0.2; az[1] = 0.2; headX = -0.25; lean = Math.max(lean, 0.45); drop += 0.12; } // low: scoop it
+    }
     if (juking) { const side = Math.sin(ph * 0.5) > 0 ? 1 : -1; roll = 0.38 * side; drop += 0.1; lk[0] += 0.3; lk[1] += 0.3; }
     if (stiffing) { as[0] = -1.6; ae[0] = 0.04; az[0] = 0.12; lean = 0.25; twist = 0.25; }
     if (pressing) { as[0] = as[1] = -1.45; ae[0] = ae[1] = 0.15; lean = 0.4; }
@@ -1130,6 +1185,7 @@ export class Renderer {
     const [bx, , bz, bstate, tgt] = S.b;
     let fx = bx * 0.75, fz = bz;
     if (S.ph === 'presnap') { fx = S.bx * 0.6; fz = S.los + (S.poss === view ? 1 : 3) * s; }
+    if (S.ph === 'kickset') { fx = S.bx; fz = S.los - 6 * (S.poss === 0 ? 1 : -1); }
     if (bstate === 1 && tgt) { fx = (bx + tgt[0]) / 2 * 0.8; fz = (bz + tgt[1]) / 2; }
     if (bstate === 2) { fx = bx * 0.5; fz = bz; }
     const k = 1 - Math.exp(-dt * (bstate === 2 ? 2.2 : 3.2));
@@ -1142,8 +1198,9 @@ export class Renderer {
       const portrait = this.cam.aspect < 1;
       const celebrate = S.msg && S.msg.big && S.ph === 'dead';
       const zoom = celebrate ? 0.72 : 1;
-      px = this.focus.x * 0.93; py = (portrait ? 16 : 12.5) * zoom; pz = this.focus.z - (portrait ? 18 : 17) * s * zoom;
-      lx = this.focus.x; ly = celebrate ? 1.5 : 0; lz = this.focus.z + 5 * s;
+      const kicking = S.ph === 'kickset' || S.ph === 'kick';
+      px = this.focus.x * 0.93; py = (portrait ? 13 : (kicking ? 6.5 : 9)) * zoom; pz = this.focus.z - (portrait ? 16 : (kicking ? 11 : 13.5)) * s * zoom;
+      lx = this.focus.x; ly = celebrate ? 1.5 : 0.8; lz = this.focus.z + (kicking ? 30 : 9) * s;
     }
     const kp = 1 - Math.exp(-dt * 5);
     this.camPos.x += (px - this.camPos.x) * kp; this.camPos.y += (py - this.camPos.y) * kp; this.camPos.z += (pz - this.camPos.z) * kp;

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792273307';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792273494';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792273307';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792273494';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -302,7 +302,7 @@ function setupPlay(g) {
   g.ctrl = [-1, -1];
   g.ctrl[off] = 0; // QB
   g.ctrl[def] = byRole(g, 'LB').id;
-  g.kick = null; g.flip = false; g.motion = null; g.noHuddle = false; g.spiked = false; g.celebrate = -1; g.deadInit = false; g.deadSkip = [false, false]; g.lastFlag = null; g.hot = {}; g.mom *= 0.94; g.cadence = 0; g.cpuSnapAt = 4.8 + g.rng() * 2.4;
+  g.kick = null; g.ballFly = null; g.flip = false; g.motion = null; g.noHuddle = false; g.spiked = false; g.celebrate = -1; g.deadInit = false; g.deadSkip = [false, false]; g.lastFlag = null; g.hot = {}; g.mom *= 0.94; g.cadence = 0; g.cpuSnapAt = 4.8 + g.rng() * 2.4;
   g.playId++;
   if (!g.opts.humans[off]) cpuCallOffense(g);
   if (!g.opts.humans[def]) { g.defPlay = cpuCallDefense(g); g.defChosen = true; }
@@ -950,13 +950,27 @@ function throughPosts(k, off, xPost, cross) {
   k.tz = zOf(off, zEnd); k.T = k.T / sc;
   k.h = Math.max(k.h, (cross - 0.5 - 3 * sc) / (4 * sc * (1 - sc)));
 }
+// a loose kicked ball after the play: gravity, a bounce, then it rolls to a stop
+function flyBall(g, dt) {
+  const f = g.ballFly, b = g.ball; if (!f) return;
+  f.vy -= 9.8 * dt; b.x += f.vx * dt; b.z += f.vz * dt; b.y += f.vy * dt;
+  if (b.y <= 0.14) { b.y = 0.14; if (Math.abs(f.vy) > 1.5) { f.vy = -f.vy * 0.35; f.vx *= 0.6; f.vz *= 0.6; } else { f.vy = 0; f.vx *= Math.max(0, 1 - dt * 3); f.vz *= Math.max(0, 1 - dt * 3); } }
+  if (Math.abs(b.z - 50) > 64) { f.vz = 0; f.vx = 0; }   // the stands stop it
+  if (f.vy === 0 && Math.hypot(f.vx, f.vz) < 0.05) g.ballFly = null;
+}
 function updateKick(g, dt) {
   const k = g.kick;
   k.t += dt;
   const s = Math.min(1, k.t / k.T);
   const b = g.ball;
-  b.x = k.fx + (k.tx - k.fx) * s; b.z = k.fz + (k.tz - k.fz) * s;
-  b.y = 0.5 + 4 * k.h * s * (1 - s) + (k.type !== 'punt' ? s * 3 : 0);
+  if (k.type !== 'punt' && k.t > k.T) {
+    // past the posts the ball keeps going and comes down behind the end zone instead of hanging in the air
+    if (!g.ballFly) g.ballFly = { vx: (k.tx - k.fx) / k.T, vz: (k.tz - k.fz) / k.T, vy: (3 - 4 * k.h) / k.T };
+    flyBall(g, dt);
+  } else {
+    b.x = k.fx + (k.tx - k.fx) * s; b.z = k.fz + (k.tz - k.fz) * s;
+    b.y = 0.5 + 4 * k.h * s * (1 - s) + (k.type !== 'punt' ? s * 3 : 0);
+  }
   g.clock = Math.max(0, g.clock - dt);
   if (k.type === 'punt' && k.result === 'punt') {
     // hang time: the coverage team sprints downfield, the returner settles under it, his teammates set up a wall
@@ -1129,7 +1143,8 @@ function stepInner(g, dt, inputs) {
     if (g.flagNote && g.msg) { g.msg.sub = (g.msg.sub ? g.msg.sub + ' · ' : '') + g.flagNote; g.flagNote = null; }
     for (const p of g.players) { p.vx *= Math.max(0, 1 - dt * 4); p.vz *= Math.max(0, 1 - dt * 4); p.x += p.vx * dt; p.z += p.vz * dt; }
     separate(g, 1);
-    if (g.ball.state === 'held' && g.players[g.ball.carrier]) { const c = g.players[g.ball.carrier]; g.ball.x = c.x; g.ball.z = c.z; }
+    if (g.ballFly) flyBall(g, dt);
+    else if (g.ball.state === 'held' && g.players[g.ball.carrier]) { const c = g.players[g.ball.carrier]; g.ball.x = c.x; g.ball.z = c.z; }
     if (g.phaseT >= g.deadDur) nextPlay(g);
   }
 }

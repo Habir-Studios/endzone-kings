@@ -1,8 +1,8 @@
 // ENDZONE KINGS — stadium dressing: sidelines (benches, players, coaches, coolers), chain gang, camera crews,
 // skycam, railings, roof trusses, speakers, flags and facade boards.
 import * as THREE from 'three';
-import { TEAMS, HALF_W } from './sim.js?v=1792273307';
-import { drawLogo } from './logos.js?v=1792273307';
+import { TEAMS, HALF_W } from './sim.js?v=1792273494';
+import { drawLogo } from './logos.js?v=1792273494';
 
 const vis = (t, k) => (t[k] === '#121a14' ? '#18c964' : t[k]);
 function tex(w, h, draw) {
@@ -83,17 +83,17 @@ export function buildSidelines(R) {
     tent.traverse(o => { if (o.isMesh) o.castShadow = true; }); g.add(tent);
   }
 
-  // sideline players: 24 per team, standing along the coaches' box or sitting on the bench
-  const N = 48, parts = {};
+  // sideline players: a full 40 per team, standing along the coaches' box or sitting on the bench
+  const N = 80, parts = {};
   const mk = (geo, color) => { const m = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }), N); m.castShadow = true; m.frustumCulled = false; s.add(m); return m; };
   for (const [k, geo] of [['torso', P.torso], ['pads', P.pads], ['head', P.head], ['helmet', P.helmet], ['legL', P.leg], ['legR', P.leg], ['armL', P.arm], ['armR', P.arm]]) parts[k] = mk(geo);
   side.people = parts; side.poses = [];
   const skins = ['#4a2c18', '#6b4226', '#8d5524', '#c68642', '#e0ac69', '#f1c27d'].map(c => new THREE.Color(c));
   for (let i = 0; i < N; i++) {
     const k = i < N / 2 ? 0 : 1, sx = k === 0 ? -1 : 1, j = i % (N / 2);
-    const sitting = j >= 17;
+    const sitting = j >= 28;
     const x = sitting ? sx * (HALF_W + 9.1) : sx * (HALF_W + 4.0 + Math.random() * 2.6);
-    const z = sitting ? 34 + (j - 17) * 4.4 + Math.random() : 31 + j * 2.25 + (Math.random() - 0.5) * 1.2;
+    const z = sitting ? 34.5 + (j - 28) * 2.85 + Math.random() * 0.4 : 25 + j * 1.85 + (Math.random() - 0.5) * 0.8;
     const helmOn = !sitting && Math.random() < 0.55;
     side.poses.push({ k, x, z, sitting, helmOn, face: (sx < 0 ? Math.PI / 2 : -Math.PI / 2) + (Math.random() - 0.5) * 0.6, ph: Math.random() * 6, skin: skins[(Math.random() * skins.length) | 0], size: 0.95 + Math.random() * 0.25 });
   }
@@ -264,6 +264,16 @@ export function seatTexture() {
     for (let y = 0; y < h; y += 16) {
       c.fillStyle = '#121838'; c.fillRect(0, y + 11, w, 5);                  // row step shadow
       for (let x = 0; x < w; x += 10) { c.fillStyle = (x / 10 + y / 16) % 7 === 0 ? '#2f3a78' : '#283265'; c.fillRect(x + 1, y + 2, 8, 8); } // seat backs
+    }
+    // painted-in fans on every seat, so even far-off or thinned-out sections read as a packed house
+    const shirts = ['#c8102e', '#003594', '#ffb612', '#ffffff', '#111111', '#4f2683', '#00843d', '#fb4f14', '#69be28', '#a5acaf', '#203731', '#e31837'];
+    const skin = ['#4a2c18', '#6b4226', '#8d5524', '#c68642', '#e0ac69', '#f1c27d'];
+    for (let y = 0; y < h; y += 16) for (let x = 0; x < w; x += 10) {
+      if (x >= 116 && x < 138) continue;
+      if (Math.random() < 0.06) continue;
+      c.fillStyle = shirts[(Math.random() * shirts.length) | 0]; c.fillRect(x + 2, y + 5, 6, 7);
+      c.fillStyle = skin[(Math.random() * skin.length) | 0]; c.beginPath(); c.arc(x + 5, y + 3.5, 2.4, 0, Math.PI * 2); c.fill();
+      if (Math.random() < 0.25) { c.fillStyle = shirts[(Math.random() * shirts.length) | 0]; c.fillRect(x + 2.5, y + 0.6, 5, 1.8); }   // caps
     }
     c.fillStyle = '#4a5070'; c.fillRect(120, 0, 16, h);                       // aisle stairs
     for (let y = 0; y < h; y += 8) { c.fillStyle = '#5c6386'; c.fillRect(120, y, 16, 2); }

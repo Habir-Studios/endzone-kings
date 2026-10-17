@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792273307';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792273307';
-import { drawLogo } from './logos.js?v=1792273307';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792273307';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792273494';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792273494';
+import { drawLogo } from './logos.js?v=1792273494';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792273494';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -111,7 +111,7 @@ export class Renderer {
   applyCrowdQuality() {
     if (!this.fans) return;
     const q = this.quality, full = this.fans[0].userData.full;
-    const n = q === 'high' ? full : q === 'low' ? Math.floor(full * 0.55) : Math.floor(full * 0.32);
+    const n = q === 'high' ? full : q === 'low' ? Math.floor(full * 0.85) : Math.floor(full * 0.6);   // packed house on every setting; slow machines get simpler fans, not empty seats
     const [bodies, heads, arms, caps] = this.fans;
     bodies.count = n; heads.count = n;
     arms.count = q === 'potato' ? 0 : n; caps.count = q === 'potato' ? 0 : n;
@@ -427,7 +427,7 @@ export class Renderer {
         for (let i = 1; i <= N * 8; i++) {
           const t = i / (N * 8) * Math.PI * 2, p = this.bowlPoint(t, sc);
           acc += Math.hypot(p[0] - prev[0], p[1] - prev[1]); prev = p;
-          if (acc >= 1.0) { acc = 0; const ang = Math.atan2(p[0], p[1] - 50); const aisle = Math.abs(((t * 26 / (Math.PI * 2)) % 1) - 0.52) < 0.04; if (!aisle && Math.random() < 0.93) spots.push([p[0], y, p[1]]); }
+          if (acc >= 1.0) { acc = 0; const ang = Math.atan2(p[0], p[1] - 50); const aisle = Math.abs(((t * 26 / (Math.PI * 2)) % 1) - 0.52) < 0.04; if (!aisle && Math.random() < 0.985) spots.push([p[0], y, p[1]]); }
         }
       }
     }

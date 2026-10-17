@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792265731';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792265988';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792265731';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792265988';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -58,6 +58,16 @@ const DIFF = [
   { name: 'Legend',  ai: 1.0, shed: 0.2, intP: 0.6, qbErr: 0.45, react: 0.16, brk: 0.15 },
 ];
 export const DIFFICULTIES = DIFF.map(d => d.name);
+// the CPU adapts: your chosen difficulty is the base, then 'adapt' (from how you've been playing) slides it up or down,
+// even past Legend
+const LEGEND_PLUS = { name: 'Legend+', ai: 1.04, shed: 0.24, intP: 0.66, qbErr: 0.34, react: 0.12, brk: 0.18 };
+export function cfgFor(diff, adapt = 0) {
+  const d = Math.max(0, Math.min(4, (diff ?? 1) + Math.max(-1, Math.min(1.4, adapt || 0))));
+  const rows = [...DIFF, LEGEND_PLUS], i = Math.min(3, Math.floor(d)), t = d - i, A = rows[i], B = rows[i + 1];
+  const out = { name: A.name };
+  for (const k of ['ai', 'shed', 'intP', 'qbErr', 'react', 'brk']) out[k] = A[k] + (B[k] - A[k]) * t;
+  return out;
+}
 
 const R = 0.55; // player radius
 const dirOf = t => (t === 0 ? 1 : -1);
@@ -97,7 +107,7 @@ export function createGame(opts = {}) {
   const rng = mulberry(o.seed);
   const first = rng() < 0.5 ? 0 : 1;
   const g = {
-    opts: o, rng, cfg: DIFF[o.difficulty] || DIFF[1],
+    opts: o, rng, cfg: o.adapt ? cfgFor(o.difficulty, o.adapt) : (DIFF[o.difficulty] || DIFF[1]),
     t: 0, phase: 'presnap', phaseT: 0, deadDur: 2,
     quarter: 1, clock: o.quarterLen, score: [0, 0],
     poss: first, firstReceiver: first,

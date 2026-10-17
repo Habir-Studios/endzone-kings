@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792265731';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792265731';
-import { Renderer } from './render.js?v=1792265731';
-import { Sfx } from './audio.js?v=1792265731';
-import { Auth } from './auth.js?v=1792265731';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792265731';
-import { getRoster, teamOvr } from './teams.js?v=1792265731';
-import * as Season from './season.js?v=1792265731';
-import * as Fr from './franchise.js?v=1792265731';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792265731';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792265731';
-import * as UTm from './ut.js?v=1792265731';
-import { initCreator, renderCreator } from './creator.js?v=1792265731';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792265731';
-import { portraitURL } from './faces.js?v=1792265731';
-import { logoURL, clearLogoCache } from './logos.js?v=1792265731';
+import { askYes } from './ui.js?v=1792265988';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792265988';
+import { Renderer } from './render.js?v=1792265988';
+import { Sfx } from './audio.js?v=1792265988';
+import { Auth } from './auth.js?v=1792265988';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792265988';
+import { getRoster, teamOvr } from './teams.js?v=1792265988';
+import * as Season from './season.js?v=1792265988';
+import * as Fr from './franchise.js?v=1792265988';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792265988';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792265988';
+import * as UTm from './ut.js?v=1792265988';
+import { initCreator, renderCreator } from './creator.js?v=1792265988';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792265988';
+import { portraitURL } from './faces.js?v=1792265988';
+import { logoURL, clearLogoCache } from './logos.js?v=1792265988';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -84,6 +84,21 @@ function renderLocker() {
   for (const k of ['jersey', 'trim', 'num', 'pants', 'helmet']) { const el = $('#lk-' + k); el.value = K[k]; el.oninput = () => { K[k] = el.value; redraw(); }; }
   $('#lk-reset').onclick = () => { SET.kit = { ...teamKit(), on: K.on }; renderLocker(); };
   redraw();
+}
+// ---------------- adaptive CPU ----------------
+// The CPU learns how good you are: blowout wins push it harder, losses ease it off. Your level and rank add a little
+// on top. It stacks with the difficulty you pick, and can go past Legend.
+function adaptiveCpu(opts) {
+  if (SET.adapt === 'off' || opts.practice || opts.drill) return 0;
+  const P = profile(); if (!P) return 0;
+  const skill = P.p.skill || 0, lvl = Math.min(0.25, ((P.p.lvl || 1) - 1) * 0.008), rank = Math.min(0.2, (P.p.rp || 0) / 5000);
+  return Math.max(-0.8, Math.min(1.4, skill + lvl + rank));
+}
+function learnSkill(res, mine, theirs) {
+  const P = profile(); if (!P || SET.adapt === 'off') return;
+  const m = (mine || 0) - (theirs || 0);
+  const d = res === 'W' ? 0.06 + Math.min(28, m) / 28 * 0.1 : res === 'L' ? -0.08 - Math.min(28, -m) / 28 * 0.06 : 0;
+  P.p.skill = Math.max(-0.8, Math.min(1.2, (P.p.skill || 0) + d)); P.save();
 }
 function show(id) {
   if (st.screen !== id && !['howto', 'settings'].includes(st.screen)) st.prev = st.screen;
@@ -385,6 +400,7 @@ $('#go-drill').addEventListener('click', () => startCPU({ teams: [SET.team, rand
 
 function renderSettings() {
   $('#set-vol').value = SET.vol; $('#set-music').value = SET.music;
+  seg($('#seg-adapt'), [['on', 'On'], ['off', 'Off']], SET.adapt === 'off' ? 'off' : 'on', v => { SET.adapt = v; saveSet(); toast(v === 'off' ? 'The CPU stays at the difficulty you pick' : 'The CPU adapts to how you play'); });
   seg($('#seg-notif'), [['on', 'On'], ['off', 'Blocked']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications blocked: no pop-ups or badges' : 'Notifications on'); });
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
   seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
@@ -443,9 +459,11 @@ function startCPU(opts = {}) {
   st.seasonGame = !!opts.season; st.franchiseGame = !!opts.franchise;
   st.lastCpu = opts;
   const teams = opts.teams || [SET.team, SET.cpuTeam];
-  st.ut = !!opts.ut; st.solo = opts.solo || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
+  st.learned = false; st.ut = !!opts.ut; st.solo = opts.solo || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
   const weather = opts.weather || (opts.season || opts.franchise ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season || opts.franchise ? pickTod('random') : pickTod(SET.tod));
-  st.game = createGame({ teams, humans: [true, false], quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
+  const adapt = adaptiveCpu(opts);
+  if (Math.abs(adapt) >= 0.15) setTimeout(() => toast(adapt > 0 ? `The CPU has been studying you: ${adapt > 1 ? 'way' : adapt > 0.5 ? 'a lot' : 'a bit'} harder than ${DIFFICULTIES[opts.diff ?? SET.diff]}` : `The CPU is going a little easier on you`, 3200), 1500);
+  st.game = createGame({ teams, humans: [true, false], adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', 'CPU'];
   R.setTeams(st.game.opts.teams);
@@ -905,6 +923,7 @@ function showGameOver(S) {
     return;
   }
   const res = S.win === -1 ? 'T' : S.win === me ? 'W' : 'L';
+  if (st.mode === 'cpu' && S.mode === 'game' && !st.learned) { st.learned = true; learnSkill(res, S.sc[me], S.sc[other]); }
   const el = $('#go-res');
   el.textContent = res === 'W' ? 'VICTORY' : res === 'L' ? 'DEFEAT' : 'TIE GAME';
   el.className = 'go-res ' + (res === 'W' ? 'win' : res === 'L' ? 'loss' : '');

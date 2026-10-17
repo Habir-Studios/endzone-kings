@@ -14,7 +14,9 @@ export function makeRoomCode(len = CODE_MIN) {
 
 // --- spectating: the host streams game state to anyone watching the code (one way, no input) ---
 export class SpecChannel {
-  constructor(client, code) { this.client = client; this.code = code; this.cb = null; }
+  constructor(client, code, meta) { this.client = client; this.code = code; this.cb = null; this.meta = meta || null; }
+  // the game streaming on this channel, if any (its owner tracks itself with host info)
+  hostInfo() { if (!this.ch) return null; const ps = this.ch.presenceState(); for (const k in ps) for (const m of ps[k]) if (m && m.host) return m; return null; }
   async open(cb) {
     this.cb = cb;
     if (this.client) {
@@ -23,7 +25,7 @@ export class SpecChannel {
       this.ch.on('presence', { event: 'sync' }, () => { this.watchers = Math.max(0, Object.keys(this.ch.presenceState()).length - 1); });
       await new Promise((res, rej) => {
         const to = setTimeout(() => rej(new Error('Could not reach the game server.')), 10000);
-        this.ch.subscribe(async (st) => { if (st === 'SUBSCRIBED') { clearTimeout(to); try { await this.ch.track({ w: 1 }); } catch (_) {} res(); } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(to); rej(new Error('Realtime connection failed')); } });
+        this.ch.subscribe(async (st) => { if (st === 'SUBSCRIBED') { clearTimeout(to); try { await this.ch.track(this.meta || { w: 1 }); } catch (_) {} res(); } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(to); rej(new Error('Realtime connection failed')); } });
       });
     } else {
       this.bc = new BroadcastChannel('ek-spec-' + this.code);

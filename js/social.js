@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792268622';
-import { TEAMS } from './teams.js?v=1792268622';
+import { askYes } from './ui.js?v=1792268813';
+import { TEAMS } from './teams.js?v=1792268813';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -145,6 +145,7 @@ async function openProfile(id) {
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
     </div>
+    <div id="pf-live" class="pf-live hidden"></div>
     <div class="pf-stats">
       <div class="pf-grp"><h4>Offense</h4><div class="pf-row">${stat('Pass yds', fmt(p.pass_yds))}${stat('Pass TD', fmt(p.pass_td))}${stat('Rush yds', fmt(p.rush_yds))}${stat('Rush TD', fmt(p.rush_td))}${stat('Rec yds', fmt(p.rec_yds))}${stat('Catches', fmt(p.rec))}${stat('Rec TD', fmt(p.rec_td))}</div></div>
       <div class="pf-grp"><h4>Defense</h4><div class="pf-row">${stat('Tackles', fmt(p.tackles))}${stat('Sacks', fmt(p.sacks))}${stat('INTs', fmt(p.ints))}</div></div>
@@ -165,6 +166,13 @@ async function openProfile(id) {
   const tb = C.$('#pf-trade'); if (tb) tb.onclick = () => C.openTrade && C.openTrade(id, p.name);
   wireReport(id, p.name);
   wireClipCards(pane, id);
+  // playing right now? show what kind of game and let people watch it
+  if (!mine && C.peekLive) C.peekLive(id).then(info => {
+    const box = C.$('#pf-live'); if (!box || !info || view.id !== id) return;
+    box.innerHTML = `<span class="live-dot"></span><div><b>Live now · ${esc(info.kind || 'Game')}</b><small>${esc(p.name)} vs ${esc(info.vs || 'CPU')}</small></div><button class="btn primary" id="pf-watch" type="button">Watch</button>`;
+    box.classList.remove('hidden');
+    C.$('#pf-watch').onclick = () => C.watchUser(id);
+  });
 }
 function editProfile(p) {
   const pane = C.$('#so-pane');

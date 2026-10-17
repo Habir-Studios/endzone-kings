@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792268622';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792268622';
-import { Renderer } from './render.js?v=1792268622';
-import { Sfx } from './audio.js?v=1792268622';
-import { Auth } from './auth.js?v=1792268622';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792268622';
-import { getRoster, teamOvr } from './teams.js?v=1792268622';
-import * as Season from './season.js?v=1792268622';
-import * as Fr from './franchise.js?v=1792268622';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792268622';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792268622';
-import * as UTm from './ut.js?v=1792268622';
-import { initCreator, renderCreator } from './creator.js?v=1792268622';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792268622';
-import { portraitURL } from './faces.js?v=1792268622';
-import { logoURL, clearLogoCache } from './logos.js?v=1792268622';
+import { askYes } from './ui.js?v=1792268813';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792268813';
+import { Renderer } from './render.js?v=1792268813';
+import { Sfx } from './audio.js?v=1792268813';
+import { Auth } from './auth.js?v=1792268813';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792268813';
+import { getRoster, teamOvr } from './teams.js?v=1792268813';
+import * as Season from './season.js?v=1792268813';
+import * as Fr from './franchise.js?v=1792268813';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792268813';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792268813';
+import * as UTm from './ut.js?v=1792268813';
+import { initCreator, renderCreator } from './creator.js?v=1792268813';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792268813';
+import { portraitURL } from './faces.js?v=1792268813';
+import { logoURL, clearLogoCache } from './logos.js?v=1792268813';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -123,10 +123,29 @@ function celPickOpen() { return !$('#cel-pick').classList.contains('hidden'); }
 function openCelPick() {
   const P = !isGuest() ? profile() : null, own = celOwned(P);
   const list = CELS.filter(c => own.has(c[0]));
-  $('#cel-opts').innerHTML = list.map(([id, n], i) => `<button type="button" class="${SET.cel === id ? 'on' : ''}" data-cp="${id}"><kbd>${i + 1}</kbd>${n}</button>`).join('');
-  $$('#cel-opts [data-cp]').forEach(b => b.onclick = () => pickCel(+b.dataset.cp));
+  const n = list.length, R0 = n > 8 ? 128 : 112;
+  $('#cel-opts').innerHTML = `<div class="cw-ring"></div><div class="cw-center"><b id="cw-name">Pick one</b><small>let go of E</small></div>` + list.map(([id, nm], i) => {
+    const a = i / n * Math.PI * 2 - Math.PI / 2, x = Math.cos(a) * R0, y = Math.sin(a) * R0;
+    return `<button type="button" class="cw-slot ${SET.cel === id ? 'on' : ''}" data-cp="${id}" data-nm="${escapeHtml(nm)}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px"><span class="cw-ic">${CEL_IC[id] || '★'}</span><small>${escapeHtml(nm)}</small><kbd>${i + 1}</kbd></button>`;
+  }).join('');
+  $$('#cel-opts [data-cp]').forEach((b, i) => { b.onclick = () => pickCel(+b.dataset.cp); b.onmouseenter = () => celHighlight(i); });
   celSel = -1; $('#cel-pick').classList.remove('hidden'); sfx.play('ui');
 }
+const CEL_IC = { '-1': '🎲', 0: '🦘', 1: '💃', 2: '💪', 3: '☝️', 4: '🌀', 5: '🙇', 6: '🌙', 7: '🫡', 8: '🕺' };
+function celHighlight(i) {
+  const btns = $$('#cel-opts [data-cp]'); if (!btns.length) return;
+  celSel = ((i % btns.length) + btns.length) % btns.length;
+  btns.forEach((b, k) => b.classList.toggle('sel', k === celSel));
+  const nm = $('#cw-name'); if (nm) nm.textContent = btns[celSel].dataset.nm;
+}
+// aim with the mouse like a real emote wheel: whatever direction you point from the middle
+window.addEventListener('mousemove', (e) => {
+  if (!celPickOpen()) return;
+  const box = $('#cel-opts').getBoundingClientRect(), cx = box.left + box.width / 2, cy = box.top + box.height / 2, dx = e.clientX - cx, dy = e.clientY - cy;
+  if (Math.hypot(dx, dy) < 34) return;
+  const n = $$('#cel-opts [data-cp]').length, a = (Math.atan2(dy, dx) + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
+  const i = Math.round(a / (Math.PI * 2 / n)) % n; if (i !== celSel) celHighlight(i);
+});
 function closeCelPick() { $('#cel-pick').classList.add('hidden'); }
 function pickCel(id) { SET.cel = id; saveSet(); pushEv({ t: 'cel', id }); closeCelPick(); toast(`Celebration: ${(CELS.find(c => c[0] === id) || [0, 'Random'])[1]}`, 1200); }
 function show(id) {
@@ -170,6 +189,13 @@ $$('[data-go]').forEach(b => b.addEventListener('click', () => {
 $$('.logo-slot').forEach(s => s.appendChild($('#tpl-logo').content.cloneNode(true)));
 $('#yr').textContent = new Date().getFullYear();
 
+function injBanner(t, mine) {
+  const el = document.getElementById('inj-top') || Object.assign(document.createElement('div'), { id: 'inj-top', className: 'inj-top', role: 'status' });
+  if (!el.parentNode) (document.getElementById('hud') || document.body).appendChild(el);
+  el.innerHTML = `<b>${mine ? 'Injury' : 'Opponent injury'}</b><span></span>`; el.querySelector('span').textContent = t;
+  el.classList.toggle('opp', !mine); el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(injBanner._t); injBanner._t = setTimeout(() => el.classList.remove('show'), 4500);
+}
 function toast(t, ms = 2400) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), ms); }
 
 // ---------------- splash → auth ----------------
@@ -445,6 +471,7 @@ function applyGfx() { R.setQuality(SET.gfx); }
 
 // ---------------- game start / end ----------------
 function enterGame() {
+  setTimeout(startUserCast, 50);
   $$('.screen').forEach(s => s.classList.remove('active'));
   st.screen = 'game';
   $('#hud').classList.remove('hidden');
@@ -503,7 +530,7 @@ function startCPU(opts = {}) {
 }
 
 function leaveGame() {
-  stopSpec();
+  stopSpec(); stopUserCast();
   if (st.mode === 'spec') st.mode = 'cpu';
   $('#hud').classList.remove('spec');
   st.playing = false; st.game = null; st.snap = null; st.guestBuf = []; st.bench = null;
@@ -556,7 +583,7 @@ window.addEventListener('keydown', (e) => {
   if (celPickOpen()) {
     const btns = $$('#cel-opts [data-cp]'), d = k.startsWith('Digit') ? +k.slice(5) : 0;
     if (d >= 1 && d <= btns.length) { pickCel(+btns[d - 1].dataset.cp); return; }
-    if (k === 'ArrowDown' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowLeft') { celSel = (celSel + (k === 'ArrowDown' || k === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length; btns.forEach((b, i) => b.classList.toggle('sel', i === celSel)); return; }
+    if (k === 'ArrowDown' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowLeft') { celHighlight(celSel + (k === 'ArrowDown' || k === 'ArrowRight' ? 1 : -1)); return; }
     if (k === 'Enter' || k === 'Space') { if (celSel >= 0) pickCel(+btns[celSel].dataset.cp); return; }
     if (k === 'KeyE' || k === 'Escape') { closeCelPick(); return; }
     return;
@@ -1391,7 +1418,7 @@ function updateHud(S) {
   }
 
   // injuries: a heads-up when someone goes down, and the "put him back in?" question
-  if (S.msgInj && S.msgInj.text !== hudCache.injMsg) { hudCache.injMsg = S.msgInj.text; if (st.mode !== 'clip') toast((S.msgInj.team === me ? '' : 'Opponent: ') + S.msgInj.text, 4200); }
+  if (S.msgInj && S.msgInj.text !== hudCache.injMsg) { hudCache.injMsg = S.msgInj.text; if (st.mode !== 'clip') injBanner((S.msgInj.team === me ? '' : 'Opponent: ') + S.msgInj.text, S.msgInj.team === me); }
   { const need = S.subAsk && S.subAsk[me], dlg = document.getElementById('subs-dlg');
     if (need && S.ph !== 'live' && st.mode !== 'clip' && hudCache.subAsk !== need && st.bench) { hudCache.subAsk = need; renderSubs(); }
     if (!need) { hudCache.subAsk = null; if (dlg && dlg.dataset.ask && !dlg.classList.contains('hidden')) dlg.classList.add('hidden'); } }
@@ -1467,15 +1494,39 @@ function specPush(events) {
   spec.send({ t: 's', s: st.snap, e: events || [], names: st.names, teamNames: st.teamNames, teams: st.snap.teams });
   liveTrack(false);
 }
+// every signed-in game streams on your own channel so friends can watch it from your profile.
+// Nothing is sent until someone is actually watching.
+let ucast = null, ucastAcc = 0;
+const ucastEv = [];
+function gameKind() { return st.ut ? 'Ultimate Team' : st.franchiseGame ? 'Franchise' : st.seasonGame ? 'Season' : st.mode === 'cpu' ? 'Quick Play' : 'Online 1v1'; }
+function startUserCast() {
+  stopUserCast();
+  const u = Auth.user; if (!st.playing && st.screen !== 'game') return;
+  if (!u || u.kind !== 'account' || Auth.mode !== 'supabase' || LOCALNET || st.practice || st.drill || st.mode === 'spec' || st.mode === 'clip') return;
+  const ch = ucast = new SpecChannel(Auth.client, 'u' + u.id, { host: 1, kind: gameKind(), vs: st.names[1 - st.local] || 'CPU', at: Date.now() });
+  ch.open(() => {}).catch(() => { if (ucast === ch) ucast = null; });
+}
+function stopUserCast() { if (ucast) { ucast.close(); ucast = null; } ucastEv.length = 0; }
+function userCastPush() {
+  if (!ucast || !st.snap || !(ucast.watchers > 0)) { ucastEv.length = 0; return; }
+  ucastAcc++; if (ucastAcc < 7 && !ucastEv.length) return; ucastAcc = 0;
+  ucast.send({ t: 's', s: st.snap, e: ucastEv.splice(0, 30), names: st.names, teamNames: st.teamNames, teams: st.snap.teams, kind: ucast.meta.kind });
+}
+async function peekLive(uid) {
+  if (Auth.mode !== 'supabase' || LOCALNET || !Auth.client) return null;
+  const ch = new SpecChannel(Auth.client, 'u' + uid);
+  try { await ch.open(() => {}); await new Promise(r => setTimeout(r, 1400)); return ch.hostInfo(); } catch (e) { return null; } finally { ch.close(); }
+}
+function watchUser(uid) { startSpectate('u' + uid, true); }
 function stopSpec() { if (spec) { spec.close(); spec = null; } if (liveLobby) { liveLobby.close(); liveLobby = null; } }
-async function startSpectate(code) {
+async function startSpectate(code, fromProfile) {
   sfx.init(); stopSpec(); onlineMsg('');
   const client = Auth.mode === 'supabase' && !LOCALNET ? Auth.client : null;
   $('#online-main').classList.add('hidden'); $('#online-wait').classList.remove('hidden');
   $('#room-code').textContent = code; $('#wait-label').textContent = 'Watching game'; $('#copy-code').classList.add('hidden');
   $('#wait-status').innerHTML = '<span class="spinner"></span>Looking for a live game…';
   const ch = spec = new SpecChannel(client, code);
-  const give = setTimeout(() => { if (spec === ch && !st.playing) { stopSpec(); onlineMsg('No live game with that code right now. It might not have kicked off yet.', true); resetOnlineUI(); } }, 15000);
+  const give = setTimeout(() => { if (spec === ch && !st.playing) { stopSpec(); if (fromProfile) toast('Their game just ended.'); onlineMsg('No live game with that code right now. It might not have kicked off yet.', true); resetOnlineUI(); } }, 15000);
   try {
     await ch.open((m) => {
       if (spec !== ch || !m || m.t !== 's' || !m.s) return;
@@ -1484,9 +1535,9 @@ async function startSpectate(code) {
         clearTimeout(give); stopLobby();
         st.mode = 'spec'; st.local = 0; st.names = m.names || ['Home', 'Away']; st.teamNames = m.teamNames || null; st.ut = false; st.practice = null; st.drill = false; st.rec = []; st.replay = null;
         R.setTeams(m.teams); st.guestBuf = []; st.snap = null;
-        $('#net-badge').textContent = 'Spectating'; $('#net-badge').classList.remove('hidden');
+        $('#net-badge').textContent = m.kind ? `Spectating · ${m.kind}` : 'Spectating'; $('#net-badge').classList.remove('hidden');
         enterGame(); $('#hud').classList.add('spec'); st.intro = 0;
-        toast(`Watching ${st.names[0]} vs ${st.names[1]}. Press Esc to leave.`, 3500);
+        toast(`Watching ${st.names[0]} vs ${st.names[1]}${m.kind ? ` (${m.kind})` : ''}. Press Esc to leave.`, 3500);
       }
       if (m.s && m.s.bench) st.bench = m.s.bench; st.guestBuf.push({ at: performance.now(), s: m.s }); if (st.guestBuf.length > 40) st.guestBuf.shift();
       if (m.e) for (const e of m.e) { sfx.play(e); R.event(e); }
@@ -1624,7 +1675,7 @@ function guestRx(m) {
     if (!st.playing) return;
     if (m.s && m.s.bench) st.bench = m.s.bench; st.guestBuf.push({ at: performance.now(), s: m.s });
     if (st.guestBuf.length > 40) st.guestBuf.shift();
-    if (m.e) for (const e of m.e) { sfx.play(e); R.event(e); }
+    if (m.e) for (const e of m.e) { sfx.play(e); R.event(e); ucastEv.push(e); }
   } else if (m.t === 'bye') { st.peer && st.peer.handlers.close && st.peer.handlers.close('Opponent left'); }
 }
 
@@ -1724,7 +1775,7 @@ function frameBody(now) {
         if (st.mode === 'host') { inputs[1] = { mx: st.remote.mx, mz: st.remote.mz, sprint: st.remote.sprint, ev: n === 0 ? st.remote.ev : [] }; }
         step(st.game, DT, inputs);
         if (n === 0) { evq = []; st.remote.ev = []; }
-        for (const e of drainEvents(st.game)) { sfx.play(e); R.event(e); if (st.mode === 'host') st.netEv.push(e); }
+        for (const e of drainEvents(st.game)) { sfx.play(e); R.event(e); if (st.mode === 'host') st.netEv.push(e); ucastEv.push(e); }
         st.acc -= DT; n++;
       }
       if (n >= 6) st.acc = 0;
@@ -1735,6 +1786,7 @@ function frameBody(now) {
       }
     }
     if (st.snap) {
+      userCastPush();
       R.ball.visible = true;
       R.update(st.snap, dt, st.local);
       if (st.snap.ph === 'half') {
@@ -1784,7 +1836,7 @@ requestAnimationFrame(frame);
 // used by friend challenges: host a private game with a given code, or join one
 function hostGame(code) { show('online'); SET.vis = 'private'; saveSet(); renderOnline(); $('#host-code').value = code; setTimeout(() => $('#host-btn').click(), 50); }
 function joinGame(code) { if (st.playing) { toast('Finish your game first'); return; } show('online'); $('#join-code').value = code; setTimeout(() => $('#join-btn').click(), 50); }
-const CTX = { openTrade: (id, name) => { setTradeTarget(id, name); show('ut'); }, SET, leaveGame, refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+const CTX = { peekLive, watchUser, openTrade: (id, name) => { setTradeTarget(id, name); show('ut'); }, SET, leaveGame, refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
 initSocial(CTX);

@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792251063';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792251063';
-import { drawLogo } from './logos.js?v=1792251063';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792251063';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792251972';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792251972';
+import { drawLogo } from './logos.js?v=1792251972';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792251972';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -39,8 +39,9 @@ export class Renderer {
   constructor(canvas, quality = 'high') {
     this.canvas = canvas;
     this.quality = quality;
-    const r = this.r = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    const r = this.r = new THREE.WebGLRenderer({ canvas, antialias: quality === 'high', powerPreference: 'high-performance' });
+    this.pr = this.basePR(quality);
+    r.setPixelRatio(this.pr);
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.0;
@@ -74,14 +75,39 @@ export class Renderer {
     window.addEventListener('resize', () => this.resize());
   }
 
+  // three tiers: high (everything), low ("Fast": no shadows/bloom, half crowd), potato ("Chromebook": low-res,
+  // simple players and crowd, fewest draw calls)
+  basePR(q) { return q === 'high' ? Math.min(window.devicePixelRatio || 1, 1.75) : q === 'low' ? 1 : 0.7; }
   setQuality(q) {
+    const was = this.quality;
     this.quality = q;
     this.r.shadowMap.enabled = q === 'high';
     this.key.castShadow = q === 'high';
     this.scene.traverse(o => { if (o.material && !Array.isArray(o.material)) o.material.needsUpdate = true; });
-    this.r.setPixelRatio(q === 'high' ? Math.min(window.devicePixelRatio || 1, 1.75) : 1);
-    if (this.fans) this.fans.forEach(f => f.count = q === 'high' ? f.userData.full : Math.floor(f.userData.full * 0.5));
+    this.pr = this.basePR(q); this.r.setPixelRatio(this.pr);
+    this.applyCrowdQuality();
+    if (this.precip) this.precip.geometry.setDrawRange(0, q === 'potato' ? Math.floor(this.precip.geometry.attributes.position.count * 0.3) : Infinity);
+    if ((was === 'potato') !== (q === 'potato')) this.clearPlayers();   // rebuild players at the new detail level
     this.resize();
+  }
+  // dynamic resolution for slow machines: nudge the render scale to hold the frame rate
+  adaptResolution(fps) {
+    if (this.quality === 'high') return;
+    const lo = this.quality === 'potato' ? 0.45 : 0.6, hi = this.basePR(this.quality);
+    let pr = this.pr;
+    if (fps < 42) pr = Math.max(lo, pr - 0.08); else if (fps > 57) pr = Math.min(hi, pr + 0.04);
+    if (Math.abs(pr - this.pr) > 0.001) { this.pr = pr; this.r.setPixelRatio(pr); this.resize(); }
+  }
+  applyCrowdQuality() {
+    if (!this.fans) return;
+    const q = this.quality, full = this.fans[0].userData.full;
+    const n = q === 'high' ? full : q === 'low' ? Math.floor(full * 0.55) : Math.floor(full * 0.32);
+    const [bodies, heads, arms, caps] = this.fans;
+    bodies.count = n; heads.count = n;
+    arms.count = q === 'potato' ? 0 : n; caps.count = q === 'potato' ? 0 : n;
+    // potato: swap to a few-triangle body and head
+    const sw = (m, key) => { const g = q === 'potato' ? m.userData.lite : m.userData.fullGeo; if (g && m.geometry !== g) m.geometry = g; };
+    sw(bodies); sw(heads);
   }
 
   resize() {
@@ -395,6 +421,8 @@ export class Renderer {
         }
       }
     }
+    // shuffle so a reduced crowd still fills every section instead of emptying the upper deck
+    for (let i = spots.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [spots[i], spots[j]] = [spots[j], spots[i]]; }
     const count = spots.length;
     this.crowdU = { uTime: { value: 0 }, uHype: { value: 0.2 } };
     const mkMat = (arms) => {
@@ -445,9 +473,13 @@ export class Renderer {
     }
     for (const m of [bodies, heads, arms, caps]) { m.geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phase, 1)); m.frustumCulled = false; this.scene.add(m); }
     this.crowdBodies = bodies; this.crowdCaps = caps; this.crowdSpots = spots;
-    for (const m of [bodies, heads, arms, caps]) m.userData.full = count;
+    for (const m of [bodies, heads, arms, caps]) { m.userData.full = count; m.userData.fullGeo = m.geometry; }
+    // few-triangle stand-ins for slow machines
+    const liteBody = new THREE.BoxGeometry(0.44, 0.86, 0.3); liteBody.translate(0, 0.43, 0); liteBody.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phase, 1));
+    const liteHead = new THREE.IcosahedronGeometry(0.17, 0); liteHead.translate(0, 1.04, 0); liteHead.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phase, 1));
+    bodies.userData.lite = liteBody; heads.userData.lite = liteHead;
     this.fans = [bodies, heads, arms, caps];
-    if (this.quality !== 'high') this.fans.forEach(f => f.count = Math.floor(count * 0.5));
+    this.applyCrowdQuality();
     this.buildSigns();
   }
 
@@ -694,24 +726,27 @@ export class Renderer {
     const body = new THREE.Group(); root.add(body); body.position.y = 1.0;
     const torso = new THREE.Group(); body.add(torso);
     const mesh = (g, m) => new THREE.Mesh(g, m);
+    // on the Chromebook setting the little details are skipped: far fewer draw calls per player
+    const lite = this.quality === 'potato';
+    const det = (g, m) => (lite ? new THREE.Object3D() : mesh(g, m));
 
     // hips + pants
     const hips = mesh(this.lathe('hips2', [[0.0001, 0.24], [0.2, 0.23], [0.215, 0.12], [0.222, 0.0], [0.2, -0.1], [0.0001, -0.15]], 18), M.pants);
     hips.scale.z = 0.74; hips.position.y = 0.0; body.add(hips);
-    const belt = mesh(new THREE.CylinderGeometry(0.208, 0.21, 0.04, 18, 1, true), black); belt.scale.z = 0.75; belt.position.y = 0.2; body.add(belt);
+    const belt = det(new THREE.CylinderGeometry(0.208, 0.21, 0.04, 18, 1, true), black); belt.scale.z = 0.75; belt.position.y = 0.2; body.add(belt);
     const legs = [];
     for (const sx of [-0.125, 0.125]) {
       const hip = new THREE.Group(); hip.position.set(sx, -0.02, 0); body.add(hip);
       const thigh = mesh(this.limbGeo('thigh', 0.13, 0.115, 0.085, 0.42), M.pants); hip.add(thigh);
-      const stripe = mesh(new THREE.BoxGeometry(0.018, 0.4, 0.06), M.trim); stripe.position.set(sx > 0 ? 0.118 : -0.118, -0.2, 0); hip.add(stripe);
+      const stripe = det(new THREE.BoxGeometry(0.018, 0.4, 0.06), M.trim); stripe.position.set(sx > 0 ? 0.118 : -0.118, -0.2, 0); hip.add(stripe);
       const knee = new THREE.Group(); knee.position.y = -0.46; hip.add(knee);
-      const kpad = mesh(new THREE.SphereGeometry(0.075, 12, 8), M.pants); kpad.position.set(0, 0.0, 0.035); kpad.scale.set(1.05, 0.95, 0.85); knee.add(kpad);
+      const kpad = det(new THREE.SphereGeometry(0.075, 12, 8), M.pants); kpad.position.set(0, 0.0, 0.035); kpad.scale.set(1.05, 0.95, 0.85); knee.add(kpad);
       const calf = mesh(this.lathe('calf', [[0.0001, 0.05], [0.068, 0.03], [0.08, -0.02], [0.088, -0.12], [0.068, -0.26], [0.052, -0.38], [0.0001, -0.42]]), M.sock); knee.add(calf);
-      const sockTop = mesh(new THREE.CylinderGeometry(0.083, 0.087, 0.05, 12), M.trim); sockTop.position.y = -0.1; knee.add(sockTop);
+      const sockTop = det(new THREE.CylinderGeometry(0.083, 0.087, 0.05, 12), M.trim); sockTop.position.y = -0.1; knee.add(sockTop);
       const cleat = new THREE.Group(); cleat.position.set(0, -0.43, 0.05); knee.add(cleat);
-      const upper = mesh(new THREE.SphereGeometry(0.075, 14, 10), num % 3 === 1 ? white : black); upper.scale.set(1.05, 0.72, 1.95); upper.position.set(0, 0.0, 0.02); cleat.add(upper);
-      const sole = mesh(new RoundedBoxGeometry(0.15, 0.03, 0.3, 2, 0.012), num % 3 === 1 ? black : white); sole.position.set(0, -0.045, 0.02); cleat.add(sole);
-      const swoosh = mesh(new THREE.BoxGeometry(0.158, 0.02, 0.13), M.trim); swoosh.position.set(0, 0.0, 0.0); cleat.add(swoosh);
+      const upper = det(new THREE.SphereGeometry(0.075, 14, 10), num % 3 === 1 ? white : black); upper.scale.set(1.05, 0.72, 1.95); upper.position.set(0, 0.0, 0.02); cleat.add(upper);
+      const sole = det(new RoundedBoxGeometry(0.15, 0.03, 0.3, 2, 0.012), num % 3 === 1 ? black : white); sole.position.set(0, -0.045, 0.02); cleat.add(sole);
+      const swoosh = det(new THREE.BoxGeometry(0.158, 0.02, 0.13), M.trim); swoosh.position.set(0, 0.0, 0.0); cleat.add(swoosh);
       legs.push({ hip, knee });
     }
 
@@ -721,17 +756,17 @@ export class Renderer {
     jersey.scale.z = tz; torso.add(jersey);
     const chest = jersey;
     const pads = mesh(new THREE.SphereGeometry(0.3, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), M.jersey); pads.scale.set(1.4, 0.5, 0.8); pads.position.y = 0.73; torso.add(pads);
-    const collar = mesh(new THREE.TorusGeometry(0.105, 0.028, 8, 18), M.trim); collar.rotation.x = Math.PI / 2; collar.position.y = 0.92; torso.add(collar);
-    torso.add(this.wrapDecal(nTex, 0.283, 0.36, 0.5, 0, 1.25, tz));
+    const collar = det(new THREE.TorusGeometry(0.105, 0.028, 8, 18), M.trim); collar.rotation.x = Math.PI / 2; collar.position.y = 0.92; torso.add(collar);
+    if (!lite) torso.add(this.wrapDecal(nTex, 0.283, 0.36, 0.5, 0, 1.25, tz));
     torso.add(this.wrapDecal(nTex, 0.283, 0.34, 0.43, Math.PI, 1.25, tz));
-    if (last) { const nm = this.nameTex(last, t.num, outline); torso.add(this.wrapDecal(nm, 0.284, 0.07, 0.655, Math.PI, 1.5, tz)); }
-    for (const sx of [-1, 1]) {
+    if (last && !lite) { const nm = this.nameTex(last, t.num, outline); torso.add(this.wrapDecal(nm, 0.284, 0.07, 0.655, Math.PI, 1.5, tz)); }
+    if (!lite) for (const sx of [-1, 1]) {
       const sn = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), new THREE.MeshBasicMaterial({ map: nTex, transparent: true, depthWrite: false }));
       sn.position.set(sx * 0.35, 0.86, 0); sn.rotation.set(-Math.PI / 2, 0, 0); sn.rotation.order = 'YXZ'; sn.rotation.z = sx * 0.35; torso.add(sn);
     }
-    const neck = mesh(new THREE.CylinderGeometry(0.075, 0.095, 0.16, 12), skin); neck.position.y = 0.97; torso.add(neck);
-    if (big || role === 'LB') { const roll = mesh(new THREE.TorusGeometry(0.13, 0.055, 8, 18), M.jersey); roll.rotation.x = Math.PI / 2; roll.position.y = 0.93; torso.add(roll); }
-    if (!big && num % 4 === 0) { const towel = mesh(new THREE.PlaneGeometry(0.09, 0.22), this._towel || (this._towel = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9, side: THREE.DoubleSide }))); towel.position.set(0.12, -0.02, 0.17); towel.rotation.x = 0.15; body.add(towel); }
+    const neck = det(new THREE.CylinderGeometry(0.075, 0.095, 0.16, 12), skin); neck.position.y = 0.97; torso.add(neck);
+    if (big || role === 'LB') { const roll = det(new THREE.TorusGeometry(0.13, 0.055, 8, 18), M.jersey); roll.rotation.x = Math.PI / 2; roll.position.y = 0.93; torso.add(roll); }
+    if (!big && num % 4 === 0) { const towel = det(new THREE.PlaneGeometry(0.09, 0.22), this._towel || (this._towel = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9, side: THREE.DoubleSide }))); towel.position.set(0.12, -0.02, 0.17); towel.rotation.x = 0.15; body.add(towel); }
 
     // head + helmet
     const head = new THREE.Group(); head.position.y = 1.15; torso.add(head);
@@ -739,23 +774,24 @@ export class Renderer {
       new THREE.SphereGeometry(0.235, 28, 9, 0, Math.PI * 2, 0, 1.12),
       new THREE.SphereGeometry(0.235, 28, 12, Math.PI / 2 + 0.78, Math.PI * 2 - 1.56, 1.12, 1.32),
     ]);
-    for (const gq of shellGeo) { const sh = mesh(gq, M.helmet); sh.scale.set(0.98, 1.0, 1.12); sh.position.z = -0.02; head.add(sh); }
-    const liner = mesh(new THREE.SphereGeometry(0.222, 16, 10), this._liner || (this._liner = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.9, side: THREE.BackSide })));
+    if (lite) { const sh = mesh(this._shellLite || (this._shellLite = new THREE.SphereGeometry(0.235, 14, 8, Math.PI / 2 + 0.7, Math.PI * 2 - 1.4, 0, 2.44)), M.helmet); sh.scale.set(0.98, 1.0, 1.12); sh.position.z = -0.02; head.add(sh); }
+    else for (const gq of shellGeo) { const sh = mesh(gq, M.helmet); sh.scale.set(0.98, 1.0, 1.12); sh.position.z = -0.02; head.add(sh); }
+    const liner = det(new THREE.SphereGeometry(0.222, 16, 10), this._liner || (this._liner = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.9, side: THREE.BackSide })));
     liner.scale.set(0.98, 1, 1.1); liner.position.z = -0.02; head.add(liner);
     const face = mesh(new THREE.SphereGeometry(0.165, 24, 18), faceMat); face.position.set(0, -0.045, 0.075); face.scale.set(0.95, 1.08, 0.85); head.add(face);
-    for (const sx of [-1, 1]) { const dec = mesh(new THREE.CircleGeometry(0.085, 20), this.helmetDecal(teamIdx)); dec.position.set(sx * 0.231, 0.07, -0.06); dec.rotation.y = sx * Math.PI / 2; head.add(dec); }
-    const strip = mesh(new THREE.TorusGeometry(0.238, 0.022, 6, 28, Math.PI), M.trim); strip.rotation.y = Math.PI / 2; strip.scale.set(1.12, 1, 1); strip.position.z = -0.02; head.add(strip);
-    for (const sx of [-1, 1]) { const ear = mesh(new THREE.CircleGeometry(0.035, 12), dark); ear.position.set(sx * 0.236, -0.03, 0.02); ear.rotation.y = sx * Math.PI / 2; head.add(ear); }
+    for (const sx of [-1, 1]) { const dec = det(new THREE.CircleGeometry(0.085, 20), this.helmetDecal(teamIdx)); dec.position.set(sx * 0.231, 0.07, -0.06); dec.rotation.y = sx * Math.PI / 2; head.add(dec); }
+    const strip = det(new THREE.TorusGeometry(0.238, 0.022, 6, 28, Math.PI), M.trim); strip.rotation.y = Math.PI / 2; strip.scale.set(1.12, 1, 1); strip.position.z = -0.02; head.add(strip);
+    for (const sx of [-1, 1]) { const ear = det(new THREE.CircleGeometry(0.035, 12), dark); ear.position.set(sx * 0.236, -0.03, 0.02); ear.rotation.y = sx * Math.PI / 2; head.add(ear); }
     // facemask cage: three curved bars, two uprights, and side mounts
-    for (const [y, r] of [[-0.02, 0.215], [-0.095, 0.205], [-0.165, 0.17]]) {
+    for (const [y, r] of (lite ? [[-0.095, 0.205]] : [[-0.02, 0.215], [-0.095, 0.205], [-0.165, 0.17]])) {
       const bar = mesh(new THREE.TorusGeometry(r, 0.013, 6, 20, Math.PI * 0.82), mask);
       bar.rotation.set(Math.PI / 2, 0, Math.PI * 0.09); bar.position.set(0, y, 0.04); head.add(bar);
     }
-    for (const sx of [-0.055, 0.055]) { const vb = mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.16, 6), mask); vb.position.set(sx, -0.09, 0.248); vb.rotation.x = -0.12; head.add(vb); }
-    for (const sx of [-1, 1]) { const mt = mesh(new THREE.SphereGeometry(0.022, 8, 6), mask); mt.position.set(sx * 0.2, -0.03, 0.09); head.add(mt); }
-    const chin = mesh(new THREE.TorusGeometry(0.085, 0.017, 6, 14, Math.PI), white); chin.rotation.set(Math.PI, 0, 0); chin.position.set(0, -0.16, 0.12); chin.scale.set(1, 0.6, 1); head.add(chin);
+    for (const sx of [-0.055, 0.055]) { const vb = det(new THREE.CylinderGeometry(0.011, 0.011, 0.16, 6), mask); vb.position.set(sx, -0.09, 0.248); vb.rotation.x = -0.12; head.add(vb); }
+    for (const sx of [-1, 1]) { const mt = det(new THREE.SphereGeometry(0.022, 8, 6), mask); mt.position.set(sx * 0.2, -0.03, 0.09); head.add(mt); }
+    const chin = det(new THREE.TorusGeometry(0.085, 0.017, 6, 14, Math.PI), white); chin.rotation.set(Math.PI, 0, 0); chin.position.set(0, -0.16, 0.12); chin.scale.set(1, 0.6, 1); head.add(chin);
     if (num % 3 === 0) {
-      const visor = mesh(new THREE.SphereGeometry(0.236, 18, 8, Math.PI / 2 - 0.75, 1.5, 1.25, 0.38), this._visor || (this._visor = new THREE.MeshPhysicalMaterial({ color: 0x223355, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.82 })));
+      const visor = det(new THREE.SphereGeometry(0.236, 18, 8, Math.PI / 2 - 0.75, 1.5, 1.25, 0.38), this._visor || (this._visor = new THREE.MeshPhysicalMaterial({ color: 0x223355, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.82 })));
       visor.position.z = -0.02; visor.scale.set(0.98, 1, 1.12); head.add(visor);
     }
 
@@ -763,17 +799,17 @@ export class Renderer {
     const arms = [];
     for (const sx of [-0.4, 0.4]) {
       const sh = new THREE.Group(); sh.position.set(sx, 0.77, 0); torso.add(sh);
-      const cap0 = mesh(new THREE.SphereGeometry(0.15, 16, 12), M.jersey); cap0.scale.set(1.0, 0.9, 1.0); sh.add(cap0);
-      const sleeveTop = mesh(this.limbGeo('sleeve', 0.105, 0.098, 0.09, 0.14), M.jersey); sleeveTop.position.y = -0.04; sh.add(sleeveTop);
-      const sstripe = mesh(new THREE.CylinderGeometry(0.104, 0.104, 0.03, 14, 1, true), M.trim); sstripe.position.y = -0.13; sh.add(sstripe);
+      const cap0 = det(new THREE.SphereGeometry(0.15, 16, 12), M.jersey); cap0.scale.set(1.0, 0.9, 1.0); sh.add(cap0);
+      const sleeveTop = det(this.limbGeo('sleeve', 0.105, 0.098, 0.09, 0.14), M.jersey); sleeveTop.position.y = -0.04; sh.add(sleeveTop);
+      const sstripe = det(new THREE.CylinderGeometry(0.104, 0.104, 0.03, 14, 1, true), M.trim); sstripe.position.y = -0.13; sh.add(sstripe);
       const bicep = mesh(this.limbGeo('bicep', 0.085, 0.084, 0.062, 0.2), sleeve); bicep.position.y = -0.16; sh.add(bicep);
       const elbow = new THREE.Group(); elbow.position.y = -0.37; sh.add(elbow);
       const fore = mesh(this.limbGeo('fore', 0.066, 0.064, 0.048, 0.22), sleeve); elbow.add(fore);
-      const band = mesh(new THREE.CylinderGeometry(0.056, 0.058, 0.07, 12), num % 2 ? white : M.trim); band.position.y = -0.22; elbow.add(band);
+      const band = det(new THREE.CylinderGeometry(0.056, 0.058, 0.07, 12), num % 2 ? white : M.trim); band.position.y = -0.22; elbow.add(band);
       const glove = new THREE.Group(); glove.position.y = -0.3; elbow.add(glove);
-      const palm = mesh(new RoundedBoxGeometry(0.07, 0.09, 0.045, 2, 0.02), M.glove); glove.add(palm);
-      const fingers = mesh(new RoundedBoxGeometry(0.068, 0.06, 0.036, 2, 0.016), M.glove); fingers.position.set(0, -0.065, 0.008); fingers.rotation.x = 0.35; glove.add(fingers);
-      const thumb = mesh(new THREE.CapsuleGeometry(0.016, 0.04, 3, 6), M.glove); thumb.position.set(sx > 0 ? -0.045 : 0.045, -0.02, 0.02); thumb.rotation.z = sx > 0 ? 0.6 : -0.6; glove.add(thumb);
+      const palm = det(new RoundedBoxGeometry(0.07, 0.09, 0.045, 2, 0.02), M.glove); glove.add(palm);
+      const fingers = det(new RoundedBoxGeometry(0.068, 0.06, 0.036, 2, 0.016), M.glove); fingers.position.set(0, -0.065, 0.008); fingers.rotation.x = 0.35; glove.add(fingers);
+      const thumb = det(new THREE.CapsuleGeometry(0.016, 0.04, 3, 6), M.glove); thumb.position.set(sx > 0 ? -0.045 : 0.045, -0.02, 0.02); thumb.rotation.z = sx > 0 ? 0.6 : -0.6; glove.add(thumb);
       arms.push({ sh, elbow });
     }
     const wide = size, tall = 0.97 + (size - 1) * 0.25;

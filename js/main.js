@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792251063';
-import { Renderer } from './render.js?v=1792251063';
-import { Sfx } from './audio.js?v=1792251063';
-import { Auth } from './auth.js?v=1792251063';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792251063';
-import { getRoster, teamOvr } from './teams.js?v=1792251063';
-import * as Season from './season.js?v=1792251063';
-import * as Fr from './franchise.js?v=1792251063';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792251063';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792251063';
-import * as UTm from './ut.js?v=1792251063';
-import { initCreator, renderCreator } from './creator.js?v=1792251063';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792251063';
-import { portraitURL } from './faces.js?v=1792251063';
-import { logoURL, clearLogoCache } from './logos.js?v=1792251063';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792251972';
+import { Renderer } from './render.js?v=1792251972';
+import { Sfx } from './audio.js?v=1792251972';
+import { Auth } from './auth.js?v=1792251972';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792251972';
+import { getRoster, teamOvr } from './teams.js?v=1792251972';
+import * as Season from './season.js?v=1792251972';
+import * as Fr from './franchise.js?v=1792251972';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792251972';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792251972';
+import * as UTm from './ut.js?v=1792251972';
+import { initCreator, renderCreator } from './creator.js?v=1792251972';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792251972';
+import { portraitURL } from './faces.js?v=1792251972';
+import { logoURL, clearLogoCache } from './logos.js?v=1792251972';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -25,6 +25,11 @@ const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'behind',
 let SET = { ...DEF_SET };
 try { SET = { ...DEF_SET, ...JSON.parse(localStorage.getItem('ek_settings') || '{}') }; } catch (_) {}
 const saveSet = () => { try { localStorage.setItem('ek_settings', JSON.stringify(SET)); } catch (_) {} };
+// graphics: unless the player picked a setting themselves, start low on weak machines (Chromebooks, 4 cores or less,
+// little memory) and keep stepping down while the frame rate is bad
+if (SET.gfxAuto === undefined) SET.gfxAuto = true;
+const weakMachine = () => /CrOS/.test(navigator.userAgent) || (navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+if (SET.gfxAuto) SET.gfx = weakMachine() ? 'potato' : (SET.gfx === 'potato' ? 'potato' : SET.gfx || 'high');
 
 // ---------------- core objects ----------------
 const canvas = $('#gl');
@@ -332,7 +337,7 @@ function renderSettings() {
   $('#set-vol').value = SET.vol; $('#set-music').value = SET.music;
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
   seg($('#seg-cam'), [['behind', 'Behind play'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
-  seg($('#seg-gfx'), [['high', 'High'], ['low', 'Fast']], SET.gfx, v => { SET.gfx = v; saveSet(); applyGfx(); });
+  seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
   seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); });
   const P = !isGuest() ? profile() : null, lvl = P ? P.p.lvl : 0, ok = celUnlocked(lvl);
   if (!ok.includes(SET.cel)) SET.cel = -1;
@@ -1372,9 +1377,25 @@ setInterval(() => {
   st.snap = snapshot(st.game);
   if (st.peer) { st.peer.send({ t: 's', s: st.snap, e: st.netEv }, false); specPush(st.netEv); st.netEv = []; }
 }, 100);
+// frame-rate watchdog: resolution scaling every 2 seconds, and in Auto mode a step down a tier if it stays slow
+const fpsMon = { t: 0, n: 0, bad: 0 };
+function watchFps(dt) {
+  if (!st.playing || st.paused || document.hidden || st.intro > 0) { fpsMon.t = 0; fpsMon.n = 0; return; }
+  fpsMon.t += dt; fpsMon.n++;
+  if (fpsMon.t < 2) return;
+  const fps = fpsMon.n / fpsMon.t; fpsMon.t = 0; fpsMon.n = 0;
+  R.adaptResolution(fps);
+  if (!SET.gfxAuto) return;
+  fpsMon.bad = fps < 40 ? fpsMon.bad + 1 : 0;
+  if (fpsMon.bad >= 2 && SET.gfx !== 'potato') {
+    fpsMon.bad = 0; SET.gfx = SET.gfx === 'high' ? 'low' : 'potato'; saveSet(); applyGfx();
+    toast(SET.gfx === 'low' ? 'Switched to faster graphics so the game runs smoother' : 'Switched to Chromebook graphics so the game runs smoother', 3000);
+  }
+}
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  watchFps(dt);
   if (st.playing) {
     if (st.replay) {
       stepReplay(dt);
@@ -1448,8 +1469,11 @@ function frame(now) {
     R.losLine.visible = false; R.fdLine.visible = false;
   }
   if (window.__ek && window.__ek.cam) { const c = window.__ek.cam; R.cam.position.set(c[0], c[1], c[2]); R.cam.lookAt(c[3], c[4], c[5]); }
+  // menus on slow machines: the stadium behind the menu only needs ~20 frames a second
+  if (!st.playing && SET.gfx !== 'high') { menuSkip = (menuSkip + 1) % (SET.gfx === 'potato' ? 3 : 2); if (menuSkip) return; }
   R.render();
 }
+let menuSkip = 0;
 requestAnimationFrame(frame);
 
 // ---------------- menus that live in their own modules ----------------

@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792278399';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792278399';
-import { drawLogo } from './logos.js?v=1792278399';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792278399';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792278521';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792278521';
+import { drawLogo } from './logos.js?v=1792278521';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792278521';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -648,8 +648,10 @@ export class Renderer {
     this.scene.add(this.ball);
     // clips/replays: a glow around the ball that shows through players, so you can always find it
     const glowTex = canvasTex(64, 64, (c) => { const g = c.createRadialGradient(32, 32, 4, 32, 32, 32); g.addColorStop(0, 'rgba(255,230,120,0.95)'); g.addColorStop(0.45, 'rgba(255,200,60,0.45)'); g.addColorStop(1, 'rgba(255,200,60,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); });
-    this.ballGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, depthTest: false, transparent: true, toneMapped: false }));
-    this.ballGlow.scale.set(1.6, 1.6, 1); this.ballGlow.renderOrder = 11; this.ballGlow.visible = false; this.scene.add(this.ballGlow);
+    // clips: a gold ring around the ball (hollow in the middle) so you can find it without hiding it
+    const ringTex = canvasTex(128, 128, (c) => { const g = c.createRadialGradient(64, 64, 26, 64, 64, 62); g.addColorStop(0, 'rgba(255,214,90,0)'); g.addColorStop(0.35, 'rgba(255,214,90,0.85)'); g.addColorStop(0.55, 'rgba(255,190,40,0.35)'); g.addColorStop(1, 'rgba(255,190,40,0)'); c.fillStyle = g; c.fillRect(0, 0, 128, 128); });
+    this.ballGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTex, depthTest: true, depthWrite: false, transparent: true, toneMapped: false, opacity: 0.9 }));
+    this.ballGlow.scale.set(1.6, 1.6, 1); this.ballGlow.renderOrder = 3; this.ballGlow.visible = false; this.scene.add(this.ballGlow);
   }
 
   buildMarkers() {
@@ -1036,8 +1038,7 @@ export class Renderer {
 
     const [bx, by, bz, bstate, tgt, bc] = S.b;
     this.ball.position.set(bx, by, bz);
-    { const sc = this.ballBoost ? 1.9 : 1; if (this.ball.scale.x !== sc) this.ball.scale.setScalar(sc); }   // easier to follow in clips
-    this.ballGlow.visible = !!this.ballBoost; if (this.ballBoost) { this.ballGlow.position.set(bx, by, bz); const p = 1.5 + Math.sin(this.time * 6) * 0.15; this.ballGlow.scale.set(p, p, 1); }
+    if (this.ballBoost && this.ball.scale.x !== 1.35) this.ball.scale.setScalar(1.35);   // a bit bigger in clips, but still clearly a football
     if (bstate === 1 || bstate === 2 || bstate === 3) {
       this.ball.rotation.z += dt * 20;
       const dx = (this._pbx !== undefined ? bx - this._pbx : 0), dz = (this._pbz !== undefined ? bz - this._pbz : 0), dy = by - (this._pby ?? by);
@@ -1061,6 +1062,7 @@ export class Renderer {
     // real football size in a player's hands; a bit bigger in the air so you can track it
     { const want = bstate === 0 && S.ph !== 'presnap' ? 0.62 : 1; if (!this.ballBoost) this.ball.scale.setScalar(this.ball.scale.x + (want - this.ball.scale.x) * Math.min(1, dt * 12)); }
     this._pbx = bx; this._pbz = bz; this._pby = by;
+    this.ballGlow.visible = !!this.ballBoost; if (this.ballBoost) { this.ballGlow.position.copy(this.ball.position); const p = 1.25 + Math.sin(this.time * 6) * 0.1; this.ballGlow.scale.set(p, p, 1); }
 
     this.target.visible = !!tgt;
     if (tgt) { this.target.position.set(tgt[0], 0.05, tgt[1]); const s = 1 + Math.sin(this.time * 10) * 0.1; this.target.scale.set(s, s, s); this.target.rotation.z += dt; }

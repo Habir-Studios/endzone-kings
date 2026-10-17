@@ -1,11 +1,11 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792199573';
-import { Renderer } from './render.js?v=1792199573';
-import { Sfx } from './audio.js?v=1792199573';
-import { Auth } from './auth.js?v=1792199573';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode } from './net.js?v=1792199573';
-import { getRoster, teamOvr } from './teams.js?v=1792199573';
-import * as Season from './season.js?v=1792199573';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792200186';
+import { Renderer } from './render.js?v=1792200186';
+import { Sfx } from './audio.js?v=1792200186';
+import { Auth } from './auth.js?v=1792200186';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode } from './net.js?v=1792200186';
+import { getRoster, teamOvr } from './teams.js?v=1792200186';
+import * as Season from './season.js?v=1792200186';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -120,7 +120,7 @@ $('#logout').addEventListener('click', async () => { await Auth.signOut(); show(
 function refreshProfile() {
   const u = Auth.user; if (!u) return;
   const SS = loadSeason();
-  $('#tile-season-sub').textContent = SS ? (SS.phase === 'done' ? 'Season complete · start a new one' : `${TEAMS[SS.team].city} · ${SS.standings[SS.team].w}-${SS.standings[SS.team].l} · ${SS.phase === 'regular' ? 'Week ' + (SS.week + 1) : 'Playoffs'}`) : 'Chase the Kings Bowl';
+  $('#tile-season-sub').textContent = SS ? (SS.phase === 'done' ? 'Season complete. Start a new one' : `${TEAMS[SS.team].city}, ${SS.standings[SS.team].w}-${SS.standings[SS.team].l}, ${SS.phase === 'regular' ? 'week ' + (SS.week + 1) : 'playoffs'}`) : 'Chase the Kings Bowl';
   $('#pc-name').textContent = u.name;
   $('#pc-avatar').textContent = u.name[0].toUpperCase();
   $('#pc-rec').textContent = u.kind === 'guest' ? 'Guest' : `${u.wins}-${u.losses}${u.ties ? '-' + u.ties : ''}`;
@@ -134,7 +134,7 @@ function teamCard(el, ti) {
   el.style.background = `linear-gradient(160deg, ${t.jersey}, ${shade(t.jersey, -0.55)})`;
   el.style.color = '#fff';
   el.style.setProperty('--trim', t.trim);
-  el.innerHTML = `<div class="helm" style="background:${t.helmet}"></div><b>${t.city}</b><span>${t.abbr} · ${r.ovr} OVR</span><em>OFF ${r.off} · DEF ${r.def}</em>`;
+  el.innerHTML = `<div class="helm" style="background:${t.helmet}"></div><b>${t.city}</b><span>${t.abbr} ${r.ovr} OVR</span><em>Offense ${r.off}, defense ${r.def}</em>`;
   el.title = 'Click to pick a team';
 }
 let pickCb = null;
@@ -195,7 +195,7 @@ function renderSeason() {
     return;
   }
   const me = S.team, t = TEAMS[me], rec = S.standings[me];
-  $('#hub-team').innerHTML = `<div class="hb-badge" style="--c:${t.jersey};--c2:${t.trim}">${t.abbr}</div><div><b>${t.city}</b><span>${rec.w}-${rec.l}${rec.t ? '-' + rec.t : ''} · ${teamOvr(me)} OVR</span></div>`;
+  $('#hub-team').innerHTML = `<div class="hb-badge" style="--c:${t.jersey};--c2:${t.trim}">${t.abbr}</div><div><b>${t.city}</b><span>${rec.w}-${rec.l}${rec.t ? '-' + rec.t : ''} record, ${teamOvr(me)} OVR</span></div>`;
   const g = Season.userGame(S);
   const nx = $('#hub-next');
   if (S.phase === 'done') {
@@ -205,8 +205,8 @@ function renderSeason() {
     $('#season-quit').textContent = 'Start new season';
   } else {
     const opp = g.home === me ? g.away : g.home, o = TEAMS[opp];
-    const label = S.phase === 'regular' ? `WEEK ${S.week + 1} OF ${Season.WEEKS}` : S.phase === 'semis' ? 'PLAYOFFS · SEMIFINAL' : 'THE KINGS BOWL';
-    nx.innerHTML = `<small>${label}</small><b>${g.home === me ? 'vs' : '@'} ${o.city}</b><span><i class="dot" style="background:${o.jersey}"></i>${o.abbr} · ${teamOvr(opp)} OVR · ${S.standings[opp].w}-${S.standings[opp].l}</span>`;
+    const label = S.phase === 'regular' ? `Week ${S.week + 1} of ${Season.WEEKS}` : S.phase === 'semis' ? 'Playoff semifinal' : 'The Kings Bowl';
+    nx.innerHTML = `<small>${label}</small><b>${g.home === me ? 'vs' : '@'} ${o.city}</b><span><i class="dot" style="background:${o.jersey}"></i>${o.abbr}, ${teamOvr(opp)} OVR, ${S.standings[opp].w}-${S.standings[opp].l}</span>`;
     $('#season-play').classList.remove('hidden'); $('#season-sim').classList.remove('hidden');
     $('#season-quit').textContent = 'Abandon season';
   }
@@ -225,7 +225,7 @@ function renderSeason() {
   }
   $('#sched').innerHTML = rows.join('');
   const tb = Season.table(S);
-  $('#stand-h').textContent = S.phase === 'regular' ? 'Standings · top 4 make playoffs' : 'Final standings';
+  $('#stand-h').textContent = S.phase === 'regular' ? 'Standings (top 4 make the playoffs)' : 'Final standings';
   $('#stand').innerHTML = '<tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>PF</th><th>PA</th></tr>' + tb.map((r, i) =>
     `<tr class="${r.team === me ? 'me' : ''} ${i === 3 ? 'cut' : ''}"><td>${i + 1}</td><td><i class="dot" style="background:${TEAMS[r.team].jersey}"></i>${TEAMS[r.team].city}</td><td>${r.w}</td><td>${r.l}</td><td>${r.t}</td><td>${r.pf}</td><td>${r.pa}</td></tr>`).join('');
 }
@@ -254,7 +254,7 @@ function renderRosters() {
   const strip = $('#roster-strip');
   if (!strip.childElementCount) fillGrid(strip, rosterTeam, -1, (ti) => { rosterTeam = ti; renderRosters(); });
   const t = TEAMS[rosterTeam], R2 = getRoster(rosterTeam);
-  $('#roster-head').innerHTML = `<div class="hb-badge" style="--c:${t.jersey};--c2:${t.trim}">${t.abbr}</div><div><b>${t.city}</b><span>${R2.ovr} OVR · Offense ${R2.off} · Defense ${R2.def}</span></div>`;
+  $('#roster-head').innerHTML = `<div class="hb-badge" style="--c:${t.jersey};--c2:${t.trim}">${t.abbr}</div><div><b>${t.city}</b><span>${R2.ovr} OVR, offense ${R2.off}, defense ${R2.def}</span></div>`;
   const cell = (v) => `<td class="rt ${v >= 90 ? 'elite' : v >= 80 ? 'good' : v < 65 ? 'low' : ''}">${v}</td>`;
   $('#roster-tbl').innerHTML = '<tr><th>#</th><th>Name</th><th>Pos</th><th>OVR</th><th>SPD</th><th>HND</th><th>ACC</th><th>ARM</th><th>ELU</th><th>BLK</th><th>RSH</th><th>TKL</th><th>COV</th><th>Age</th></tr>' +
     R2.order.map(k => { const p = R2.players[k]; return `<tr><td>${p.num}</td><td class="nm">${p.first} ${p.last}</td><td>${p.pos}</td>${cell(p.ovr)}${cell(p.spd)}${cell(p.hands)}${cell(p.acc)}${cell(p.arm)}${cell(p.elu)}${cell(p.blk)}${cell(p.rush)}${cell(p.tkl)}${cell(p.cov)}<td>${p.age}</td></tr>`; }).join('');
@@ -587,7 +587,7 @@ function playbookTabs(S) {
     if (pat) tabs.push({ name: 'Extra Point', cards: [{ id: 'xp', name: 'Extra Point', tip: 'Kick it for 1 (94%)', svg: FG_SVG, special: true }] });
     for (const cat of OFF_CATS) {
       if (cat === 'Special') continue;
-      const cards = plays.filter(p => p.cat === cat).map(p => ({ id: p.id, name: p.name, tip: (pat ? 'Go for 2 · ' : '') + p.tip, svg: routeSvg(p), sig: p.signature }));
+      const cards = plays.filter(p => p.cat === cat).map(p => ({ id: p.id, name: p.name, tip: (pat ? 'Go for 2. ' : '') + p.tip, svg: routeSvg(p), sig: p.signature }));
       if (cards.length) tabs.push({ name: pat ? cat + ' (2-pt)' : cat, cards });
     }
     const myOff = mine.filter(c => c.side === 'off');
@@ -620,7 +620,7 @@ function buildPlaycall(S) {
   const { tabs, book } = playbookTabs(S);
   if (st.pbTab >= tabs.length || st.pbTab < 0) st.pbTab = 0;
   st.pbTabs = tabs;
-  $('#pc-book').textContent = onOff ? `${TEAMS[S.teams[me]].abbr} · ${book.offName} playbook` : `${TEAMS[S.teams[me]].abbr} · ${book.defName}`;
+  $('#pc-book').textContent = onOff ? `${TEAMS[S.teams[me]].abbr} ${book.offName} playbook` : `${TEAMS[S.teams[me]].abbr} ${book.defName} playbook`;
   const tb = $('#pc-tabs'); tb.innerHTML = '';
   tabs.forEach((t, i) => {
     const b = document.createElement('button'); b.className = 'pc-tab' + (i === st.pbTab ? ' on' : ''); b.textContent = t.name;
@@ -683,7 +683,7 @@ function updateHud(S) {
   const mtxt = S.msg && S.ph !== 'gameover' ? S.msg.text + '|' + S.msg.sub + '|' + S.msg.big : '';
   if (hudCache.msg !== mtxt) {
     hudCache.msg = mtxt;
-    if (mtxt) { sfx.call(S.msg, { team: (S.msg.sub || '').split(' · ')[1] }); $('b', ban).textContent = S.msg.text; $('small', ban).textContent = S.msg.sub || ''; ban.className = 'banner show' + (S.msg.big ? ' big' : ''); }
+    if (mtxt) { sfx.call(S.msg, { team: (S.msg.sub || '').split(' · ')[1] }); $('b', ban).textContent = S.msg.text; $('small', ban).innerHTML = (S.msg.sub || '').split(' · ').filter(Boolean).map(x => `<span>${escapeHtml(x)}</span>`).join(''); ban.className = 'banner show' + (S.msg.big ? ' big' : ''); }
     else ban.className = 'banner';
   }
   const fl = $('#flash'); const ft = S.flash || '';
@@ -693,7 +693,7 @@ function updateHud(S) {
   const cp = S.ctrl[me] >= 0 ? S.pl[S.ctrl[me]] : null;
   $('.stam').classList.toggle('show', S.ph === 'live' && !!cp);
   if (cp) $('#stam-bar').style.width = Math.round(cp[9] * 100) + '%';
-  setTxt('#me-label', cp && S.ph !== 'gameover' && S.ph !== 'kick' ? `#${cp[3]} ${cp[11]} · ${cp[12]}` : '');
+  { const v = cp && S.ph !== 'gameover' && S.ph !== 'kick' ? `#${cp[3]} ${escapeHtml(cp[11])}<i>${escapeHtml(cp[12])}</i>` : ''; if (hudCache.me !== v) { hudCache.me = v; $('#me-label').innerHTML = v; } }
 
   // play-the-ball prompt
   let pb = false;
@@ -715,9 +715,9 @@ function updateHud(S) {
     const sel = onOff ? S.op : S.dp;
     if (hudCache.pcSel !== sel) { hudCache.pcSel = sel; $$('.pc-card', pc).forEach(c => c.classList.toggle('on', c.dataset.id === sel)); }
     const isCPU = !S.humans[1 - me];
-    setTxt('#pc-title', onOff ? (S.pat >= 0 ? 'Try for point — kick or go for 2' : S.dn === 4 ? '4th down — your call' : 'Offense') : 'Defense');
-    const hintHtml = onOff ? (S.op ? '<kbd>Space</kbd> snap · <kbd>Z</kbd><kbd>X</kbd> tabs' : '<kbd>1</kbd>–<kbd>9</kbd> pick · <kbd>Z</kbd><kbd>X</kbd> tabs')
-      : (isCPU ? 'CPU snaps soon · <kbd>Z</kbd><kbd>X</kbd> tabs · <kbd>Q</kbd> switch' : '<kbd>Z</kbd><kbd>X</kbd> tabs · <kbd>Q</kbd> switch player');
+    setTxt('#pc-title', onOff ? (S.pat >= 0 ? 'Kick the extra point or go for 2' : S.dn === 4 ? 'Fourth down, your call' : 'Offense') : 'Defense');
+    const hintHtml = onOff ? (S.op ? '<span><kbd>Space</kbd> snap</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>' : '<span><kbd>1</kbd>–<kbd>9</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>')
+      : (isCPU ? '<span>CPU snaps soon</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch</span>' : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch player</span>');
     if (hudCache.pch !== hintHtml) { hudCache.pch = hintHtml; $('#pc-hint').innerHTML = hintHtml; }
   }
 
@@ -764,7 +764,7 @@ function wirePeer(peer, role) {
     $('#wait-status').innerHTML = `<span class="spinner"></span>${escapeHtml(info.name)} ${role === 'host' ? 'joined' : 'found'}! Connecting…`;
   });
   peer.on('open', (mode) => {
-    $('#net-badge').textContent = mode === 'p2p' ? 'Online · direct' : 'Online · relay';
+    $('#net-badge').textContent = mode === 'p2p' ? 'Online, direct connection' : 'Online, relay connection';
     if (role === 'host') startHostGame();
     else $('#wait-status').innerHTML = '<span class="spinner"></span>Connected! Starting…';
   });

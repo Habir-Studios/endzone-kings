@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792199573';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792200186';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -165,7 +165,7 @@ export class Renderer {
         for (let x = -ch; x < cw + ch; x += PX * 3) { c.beginPath(); c.moveTo(x, Z(z0 + 10)); c.lineTo(x + 10 * PX, Z(z0)); c.stroke(); }
         c.restore();
         c.save(); c.translate(cw / 2, Z(z0 + 5)); if (k === 0) c.rotate(Math.PI);
-        c.font = `${PX * 7}px "Bebas Neue", Impact, "Arial Black", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.font = `900 ${PX * 7}px "Big Shoulders Display", Impact, "Arial Black", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
         c.lineWidth = PX * 0.5; c.strokeStyle = vis(t, 'trim') === vis(t, 'jersey') ? '#000' : t.trim; c.lineJoin = 'round';
         c.strokeText(t.name.toUpperCase(), 0, PX * 0.3);
         c.fillStyle = '#ffffff'; c.fillText(t.name.toUpperCase(), 0, PX * 0.3);
@@ -179,7 +179,7 @@ export class Renderer {
         if (y % 5 === 0) continue;
         for (const hx of [-HALF_W + 1.3, -2.1, 4.1, HALF_W - 0.3]) c.fillRect(X(hx), Z(y) - 2, PX * 1, 4);
       }
-      c.font = `${PX * 3}px "Bebas Neue", Impact, "Arial Black", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = `900 ${PX * 3}px "Big Shoulders Display", Impact, "Arial Black", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
       for (let y = 10; y <= 90; y += 10) {
         const lab = String(y <= 50 ? y : 100 - y);
         for (const side of [-1, 1]) {
@@ -199,7 +199,7 @@ export class Renderer {
       const sz = PX * 0.028;
       c.beginPath(); c.moveTo(-118 * sz, 30 * sz); c.lineTo(-138 * sz, -78 * sz); c.lineTo(-62 * sz, -24 * sz); c.lineTo(0, -108 * sz); c.lineTo(62 * sz, -24 * sz); c.lineTo(138 * sz, -78 * sz); c.lineTo(118 * sz, 30 * sz); c.closePath();
       const gg = c.createLinearGradient(0, -110 * sz, 0, 30 * sz); gg.addColorStop(0, '#fff0a8'); gg.addColorStop(1, '#e08a00'); c.fillStyle = gg; c.fill();
-      c.fillStyle = '#ffc83d'; c.font = `${PX * 1.7}px "Bebas Neue", Impact, sans-serif`; c.fillText('ENDZONE KINGS', 0, PX * 2.4);
+      c.fillStyle = '#ffc83d'; c.font = `900 ${PX * 1.7}px "Big Shoulders Display", Impact, sans-serif`; c.fillText('ENDZONE KINGS', 0, PX * 2.4);
       c.restore();
     });
     tex.anisotropy = Math.min(16, this.r.capabilities.getMaxAnisotropy());
@@ -373,7 +373,7 @@ export class Renderer {
     segs.forEach(([txt, fg, bg], i) => {
       const g = x.createLinearGradient(0, 0, 0, 64); g.addColorStop(0, shadeHex(bg, 0.2)); g.addColorStop(1, shadeHex(bg, -0.3));
       x.fillStyle = g; x.fillRect(i * w, 0, w, 64);
-      x.fillStyle = fg; x.font = '44px "Bebas Neue", Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, i * w + w / 2, 35);
+      x.fillStyle = fg; x.font = '900 44px "Big Shoulders Display", Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, i * w + w / 2, 35);
     });
     this.ribbonTex.needsUpdate = true;
   }
@@ -386,17 +386,17 @@ export class Renderer {
     x.textAlign = 'center'; x.textBaseline = 'middle';
     if (msg) {
       const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#ffe066'); g.addColorStop(1, '#ff7a00');
-      x.fillStyle = g; x.font = '210px "Bebas Neue", Impact, sans-serif';
+      x.fillStyle = g; x.font = '900 210px "Big Shoulders Display", Impact, sans-serif';
       x.fillText(msg.replace('!', '').replace('’', "'"), w / 2, h / 2 + 10);
     } else {
       for (let k = 0; k < 2; k++) {
         const cx = k === 0 ? w * 0.25 : w * 0.75;
         x.fillStyle = vis(T[k], 'jersey'); x.fillRect(k === 0 ? 30 : w / 2 + 15, 30, w / 2 - 45, 120);
-        x.fillStyle = '#fff'; x.font = '100px "Bebas Neue", Impact, sans-serif';
+        x.fillStyle = '#fff'; x.font = '900 100px "Big Shoulders Display", Impact, sans-serif';
         x.fillText(T[k].abbr, cx, 96);
-        x.font = '220px "Bebas Neue", Impact, sans-serif'; x.fillText(S ? String(S.sc[k]) : '0', cx, 300);
+        x.font = '900 220px "Big Shoulders Display", Impact, sans-serif'; x.fillText(S ? String(S.sc[k]) : '0', cx, 300);
       }
-      x.fillStyle = '#ffc83d'; x.font = '80px "Bebas Neue", Impact, sans-serif';
+      x.fillStyle = '#ffc83d'; x.font = '900 80px "Big Shoulders Display", Impact, sans-serif';
       if (S) {
         const clk = Math.max(0, Math.ceil(S.clk));
         x.fillText(`${S.q >= 5 ? 'OT' : 'Q' + S.q}   ${Math.floor(clk / 60)}:${String(clk % 60).padStart(2, '0')}`, w / 2, 450);
@@ -493,7 +493,7 @@ export class Renderer {
   // ======================= PLAYERS =======================
   numTex(num, col, outline) {
     return canvasTex(128, 128, (c) => {
-      c.font = '104px "Bebas Neue", Impact, "Arial Black", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '900 104px "Big Shoulders Display", Impact, "Arial Black", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.lineJoin = 'round'; c.lineWidth = 12; c.strokeStyle = outline; c.strokeText(String(num), 64, 70);
       c.fillStyle = col; c.fillText(String(num), 64, 70);
     });

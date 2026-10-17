@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792254041';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792254092';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792254041';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792254092';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -438,7 +438,8 @@ function humanErr(g) {
   const sp = hyp(qb.vx, qb.vz);
   let pressure = 0;
   for (const p of g.players) if (p.team !== qb.team) { const d = dist(p, qb); if (d < 3) pressure = Math.max(pressure, (3 - d) / 3); }
-  return (0.35 + sp * 0.1 + pressure * 1.3) * (1.45 - qb.rt.acc / 100);
+  // feet set and clean pocket = on the money; throwing on the run or with a guy in your face sprays it
+  return (0.7 + sp * 0.2 + pressure * 1.8) * (1.45 - qb.rt.acc / 100);
 }
 
 export function canThrow(g) {
@@ -1705,9 +1706,11 @@ function resolveBall(g) {
     else if ((dD < 0.5 && dD < dO - 0.6) || (edge < -0.6 && dD < 1.1 && (defPlay || timing(rd) > 0.45))) outcome = 'int';   // ball thrown into the defender's chest gets picked
     else outcome = 'inc';
   } else if (cO) {
-    // open: catch it unless he had to stretch and doesn't have the hands for it
-    const need = dO < 1.0 ? 0 : (dO - 1.0) / 0.7 * 0.55;
-    outcome = (ro.rt.hands * wx) / 100 - 0.35 + timing(ro) * 0.2 + noise() * 0.5 > need ? 'catch' : 'inc';
+    // open-ish: how hard was this catch? reaching for it, a defender closing on him, running full speed across the field
+    const near = rd ? dD : 9, spdK = hyp(ro.vx, ro.vz) / (ro.max || 8);
+    const need = Math.max(0, dO - 0.6) * 0.5 + (near < 2.6 ? (2.6 - near) * 0.2 : 0) + (spdK > 0.85 ? 0.06 : 0);
+    outcome = (ro.rt.hands * wx) / 100 * 0.9 - 0.27 + timing(ro) * 0.25 + noise() * 0.5 > need ? 'catch' : 'inc';
+    if (outcome === 'inc' && !g.flash) g.flash = { text: near < 2.6 ? 'BROKEN UP' : 'DROPPED', until: 1.0 };
   } else if (ro && !outOfBounds && dO < 3.0 && (!rd || dD > dO + 0.4)) {
     // just out of reach: he lays out for it if he's fast and sure-handed enough
     const reachOk = (ro.rt.hands * wx) / 100 * 1.2 + timing(ro) * 0.4 + (ro.playBall > 0 ? 0.15 : 0) - (dO - 1.7) * 0.45 + noise();
@@ -1716,7 +1719,7 @@ function resolveBall(g) {
     // only a defender there: a pick if he's in front of it and timed it, otherwise he knocks it down
     // thrown right at him (within arm's length) is a pick almost every time; farther away he needs timing or ball skills
     const pick = (1.4 - dD) * 0.9 + timing(rd) * 0.6 + rd.rt.cov / 100 * 0.4 + noise();
-    outcome = (dD < 0.45 && rd.rt.cov + rd.rt.hands > 80) || (pick > 1.3 && dD < 0.9) ? 'int' : 'inc';
+    outcome = (dD < 0.38 && rd.rt.cov + rd.rt.hands > 80) || (pick > 1.3 && dD < 0.9) ? 'int' : 'inc';
   }
   if (!outOfBounds && cO && cD && !P.isPat) {
     const r = g.rng();

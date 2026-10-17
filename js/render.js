@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792261128';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792261128';
-import { drawLogo } from './logos.js?v=1792261128';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792261128';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792261315';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792261315';
+import { drawLogo } from './logos.js?v=1792261315';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792261315';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -653,14 +653,40 @@ export class Renderer {
   }
 
   // ======================= PLAYERS =======================
-  kit(ti, away) { return away ? awayKit(TEAMS[ti], this.teams ? TEAMS[this.teams[0]] : null) : TEAMS[ti]; }
-  teamMats(ti, away = false) {
+  kit(ti, away, uk) {
+    if (uk) return { ...TEAMS[ti], jersey: uk.jersey, pants: uk.pants, helmet: uk.helmet, trim: uk.trim, num: uk.num || '#ffffff' };
+    return away ? awayKit(TEAMS[ti], this.teams ? TEAMS[this.teams[0]] : null) : TEAMS[ti];
+  }
+  // custom uniform from the Locker Room: patterned jersey texture with an optional chest patch
+  kitTex(uk) {
+    const key = JSON.stringify(uk); this._kt = this._kt || {};
+    if (this._kt[key]) return this._kt[key];
+    const t = canvasTex(256, 256, (c, w, h) => {
+      c.fillStyle = uk.jersey; c.fillRect(0, 0, w, h);
+      const P = uk.pattern;
+      if (P === 'gradient') { const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, uk.trim); g.addColorStop(1, uk.jersey); c.fillStyle = g; c.fillRect(0, 0, w, h); }
+      else if (P === 'stripes') { c.fillStyle = uk.trim; for (let x = 0; x < w; x += 32) c.fillRect(x, 0, 10, h); }
+      else if (P === 'camo') { let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647; for (let i = 0; i < 70; i++) { c.fillStyle = [uk.trim, shadeHex(uk.jersey, -0.35), shadeHex(uk.jersey, 0.25)][i % 3]; c.beginPath(); const x = r() * w, y = r() * h; for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2, rr = 10 + r() * 18; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.7); } c.fill(); } }
+      else if (P === 'chrome') { const g = c.createLinearGradient(0, 0, w, h); [0, 0.3, 0.5, 0.7, 1].forEach((o, i) => g.addColorStop(o, i % 2 ? '#ffffff' : uk.jersey)); c.fillStyle = g; c.globalAlpha = 0.65; c.fillRect(0, 0, w, h); c.globalAlpha = 1; }
+      else if (P === 'galaxy') { const g = c.createRadialGradient(w * 0.6, h * 0.4, 10, w / 2, h / 2, w * 0.7); g.addColorStop(0, uk.trim); g.addColorStop(0.5, uk.jersey); g.addColorStop(1, '#05030f'); c.fillStyle = g; c.fillRect(0, 0, w, h); let s = 3; const r = () => (s = (s * 16807) % 2147483647) / 2147483647; c.fillStyle = '#fff'; for (let i = 0; i < 160; i++) { c.globalAlpha = 0.4 + r() * 0.6; c.fillRect(r() * w, r() * h, r() < 0.1 ? 2 : 1, r() < 0.1 ? 2 : 1); } c.globalAlpha = 1; }
+      if (uk.patch && uk.patch !== 'none') {
+        c.save(); c.translate(w * 0.62, h * 0.32); c.fillStyle = uk.trim; c.strokeStyle = '#000'; c.lineWidth = 2;
+        const shapes = { star: () => { c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 6 : 14; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath(); },
+          crown: () => { c.beginPath(); c.moveTo(-14, 8); c.lineTo(-14, -6); c.lineTo(-7, 2); c.lineTo(0, -10); c.lineTo(7, 2); c.lineTo(14, -6); c.lineTo(14, 8); c.closePath(); },
+          bolt: () => { c.beginPath(); c.moveTo(4, -14); c.lineTo(-8, 2); c.lineTo(0, 2); c.lineTo(-4, 14); c.lineTo(8, -2); c.lineTo(0, -2); c.closePath(); },
+          flame: () => { c.beginPath(); c.moveTo(0, 14); c.bezierCurveTo(-14, 6, -6, -6, 0, -14); c.bezierCurveTo(2, -4, 14, 0, 0, 14); c.closePath(); } };
+        (shapes[uk.patch] || shapes.star)(); c.fill(); c.stroke(); c.restore();
+      }
+    });
+    return (this._kt[key] = t);
+  }
+  teamMats(ti, away = false, uk = null) {
     this._tm = this._tm || {};
-    const ck = ti + (away ? 'a' + (this.teams ? this.teams[0] : '') : '');
+    const ck = ti + (uk ? 'k' + JSON.stringify(uk) : away ? 'a' + (this.teams ? this.teams[0] : '') : '');
     if (this._tm[ck]) return this._tm[ck];
-    const t = this.kit(ti, away);
+    const t = this.kit(ti, away, uk);
     const m = {
-      jersey: new THREE.MeshStandardMaterial({ color: t.jersey, roughness: 0.62, bumpMap: this.fabric(), bumpScale: 0.6 }),
+      jersey: uk ? new THREE.MeshStandardMaterial({ color: '#ffffff', map: this.kitTex(uk), roughness: uk.pattern === 'chrome' ? 0.25 : 0.62, metalness: uk.pattern === 'chrome' ? 0.45 : 0, bumpMap: this.fabric(), bumpScale: 0.6 }) : new THREE.MeshStandardMaterial({ color: t.jersey, roughness: 0.62, bumpMap: this.fabric(), bumpScale: 0.6 }),
       pants: new THREE.MeshStandardMaterial({ color: t.pants, roughness: 0.48, metalness: 0.05 }),
       helmet: new THREE.MeshPhysicalMaterial({ color: t.helmet, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.08, side: THREE.DoubleSide }),
       trim: new THREE.MeshStandardMaterial({ color: vis(t, 'trim') === vis(t, 'jersey') ? '#ffffff' : t.trim, roughness: 0.6 }),
@@ -723,9 +749,10 @@ export class Renderer {
     return m;
   }
 
-  makePlayer(teamIdx, role, num, size, fseed = 1, last = '', away = false) {
-    const t = this.kit(teamIdx, away);
-    const M = this.teamMats(teamIdx, away);
+  makePlayer(teamIdx, role, num, size, fseed = 1, last = '', away = false, uk = null) {
+    const t = this.kit(teamIdx, away, uk);
+    const M = this.teamMats(teamIdx, away, uk);
+    this._curKit = uk;
     const F = faceParams(fseed);
     const skin = new THREE.MeshStandardMaterial({ color: F.skin, roughness: 0.55 });
     const faceMat = new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => drawFaceTexture(c, w, h, fseed)), roughness: 0.6 });
@@ -806,7 +833,7 @@ export class Renderer {
     for (const sx of [-1, 1]) { const mt = det(new THREE.SphereGeometry(0.022, 8, 6), mask); mt.position.set(sx * 0.2, -0.03, 0.09); head.add(mt); }
     const chin = det(new THREE.TorusGeometry(0.085, 0.017, 6, 14, Math.PI), white); chin.rotation.set(Math.PI, 0, 0); chin.position.set(0, -0.16, 0.12); chin.scale.set(1, 0.6, 1); head.add(chin);
     if (num % 3 === 0) {
-      const visor = det(new THREE.SphereGeometry(0.236, 18, 8, Math.PI / 2 - 0.75, 1.5, 1.25, 0.38), this._visor || (this._visor = new THREE.MeshPhysicalMaterial({ color: 0x223355, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.82 })));
+      const visor = det(new THREE.SphereGeometry(0.236, 18, 8, Math.PI / 2 - 0.75, 1.5, 1.25, 0.38), (this._curKit && this._curKit.visor && this._curKit.visor !== 'none' ? (this._visorK = this._visorK || {}, this._visorK[this._curKit.visor] || (this._visorK[this._curKit.visor] = new THREE.MeshPhysicalMaterial({ color: this._curKit.visor, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.85 }))) : this._visor || (this._visor = new THREE.MeshPhysicalMaterial({ color: 0x223355, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.82 }))));
       visor.position.z = -0.02; visor.scale.set(0.98, 1, 1.12); head.add(visor);
     }
 
@@ -852,9 +879,10 @@ export class Renderer {
   }
 
   getMesh(team, unit, role, num, size, fseed, name) {
-    const key = `${this.teams[team]}-${team}-${unit}-${role}-${num}-${fseed || 0}`;
+    const uk = this.userKit && team === this.userSlot ? this.userKit : null;   // your Locker Room uniform on your own team
+    const key = `${this.teams[team]}-${team}-${unit}-${role}-${num}-${fseed || 0}${uk ? '-k' + JSON.stringify(uk) : ''}`;
     let m = this.pmeshes.get(key);
-    if (!m) { const last = String(name || '').replace(/^.\.\s*/, ''); m = this.makePlayer(this.teams[team], role, num, size, fseed || (num * 7919 + this.teams[team] * 104729), last, team === 1); this.pmeshes.set(key, m); }   // team slot 1 wears the away uniform
+    if (!m) { const last = String(name || '').replace(/^.\.\s*/, ''); m = this.makePlayer(this.teams[team], role, num, size, fseed || (num * 7919 + this.teams[team] * 104729), last, team === 1, uk); this.pmeshes.set(key, m); }   // team slot 1 wears the away uniform
     return m;
   }
 

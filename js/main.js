@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792261128';
-import { Renderer } from './render.js?v=1792261128';
-import { Sfx } from './audio.js?v=1792261128';
-import { Auth } from './auth.js?v=1792261128';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792261128';
-import { getRoster, teamOvr } from './teams.js?v=1792261128';
-import * as Season from './season.js?v=1792261128';
-import * as Fr from './franchise.js?v=1792261128';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792261128';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792261128';
-import * as UTm from './ut.js?v=1792261128';
-import { initCreator, renderCreator } from './creator.js?v=1792261128';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792261128';
-import { portraitURL } from './faces.js?v=1792261128';
-import { logoURL, clearLogoCache } from './logos.js?v=1792261128';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792261315';
+import { Renderer } from './render.js?v=1792261315';
+import { Sfx } from './audio.js?v=1792261315';
+import { Auth } from './auth.js?v=1792261315';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792261315';
+import { getRoster, teamOvr } from './teams.js?v=1792261315';
+import * as Season from './season.js?v=1792261315';
+import * as Fr from './franchise.js?v=1792261315';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792261315';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792261315';
+import * as UTm from './ut.js?v=1792261315';
+import { initCreator, renderCreator } from './creator.js?v=1792261315';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792261315';
+import { portraitURL } from './faces.js?v=1792261315';
+import { logoURL, clearLogoCache } from './logos.js?v=1792261315';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -58,6 +58,30 @@ const st = {
 };
 
 // ---------------- screens ----------------
+// ---------------- Locker Room: custom uniform ----------------
+function teamKit() { const t = TEAMS[SET.team] || TEAMS[0]; return { on: true, jersey: t.jersey, trim: t.trim, num: t.num || '#ffffff', pants: t.pants, helmet: t.helmet, pattern: 'none', patch: 'none', visor: 'none' }; }
+function renderLocker() {
+  if (!SET.kit) { SET.kit = { ...teamKit(), on: false }; saveSet(); }
+  const K = SET.kit;
+  const redraw = () => {
+    saveSet();
+    const cv = $('#lk-canvas'), c = cv.getContext('2d'), tex = R.kitTex({ jersey: K.jersey, trim: K.trim, pattern: K.pattern, patch: K.patch });
+    c.clearRect(0, 0, 220, 220);
+    // jersey silhouette filled with the real pattern texture
+    c.save(); c.beginPath(); c.moveTo(70, 20); c.lineTo(20, 50); c.lineTo(36, 92); c.lineTo(58, 82); c.lineTo(58, 200); c.lineTo(162, 200); c.lineTo(162, 82); c.lineTo(184, 92); c.lineTo(200, 50); c.lineTo(150, 20); c.quadraticCurveTo(110, 48, 70, 20); c.closePath();
+    c.clip(); c.drawImage(tex._canvas, -18, -18, 256, 256); c.restore();
+    c.lineWidth = 4; c.strokeStyle = K.trim; c.beginPath(); c.moveTo(70, 20); c.quadraticCurveTo(110, 48, 150, 20); c.stroke();
+    c.font = '900 64px Impact, "Arial Black", sans-serif'; c.textAlign = 'center'; c.lineWidth = 6; c.strokeStyle = K.trim; c.strokeText('12', 110, 150); c.fillStyle = K.num; c.fillText('12', 110, 150);
+    if (K.visor !== 'none') { c.fillStyle = K.helmet; c.beginPath(); c.arc(190, 190, 22, Math.PI, 0); c.fill(); c.fillStyle = K.visor; c.fillRect(170, 186, 40, 8); }
+  };
+  seg($('#seg-lk-on'), [['on', 'On'], ['off', 'Off']], K.on ? 'on' : 'off', v => { K.on = v === 'on'; redraw(); });
+  seg($('#seg-lk-pat'), [['none', 'Solid'], ['gradient', 'Gradient'], ['stripes', 'Stripes'], ['camo', 'Camo'], ['chrome', 'Chrome'], ['galaxy', 'Galaxy']], K.pattern, v => { K.pattern = v; redraw(); });
+  seg($('#seg-lk-patch'), [['none', 'None'], ['star', 'Star'], ['crown', 'Crown'], ['bolt', 'Bolt'], ['flame', 'Flame']], K.patch, v => { K.patch = v; redraw(); });
+  seg($('#seg-lk-visor'), [['none', 'Clear'], ['#111111', 'Black'], ['#c9a227', 'Gold'], ['#2b7bff', 'Blue'], ['#ff2e63', 'Red'], ['#b9f3ff', 'Ice']], K.visor, v => { K.visor = v; redraw(); });
+  for (const k of ['jersey', 'trim', 'num', 'pants', 'helmet']) { const el = $('#lk-' + k); el.value = K[k]; el.oninput = () => { K[k] = el.value; redraw(); }; }
+  $('#lk-reset').onclick = () => { SET.kit = { ...teamKit(), on: K.on }; renderLocker(); };
+  redraw();
+}
 function show(id) {
   if (st.screen !== id && !['howto', 'settings'].includes(st.screen)) st.prev = st.screen;
   $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
@@ -66,6 +90,7 @@ function show(id) {
   if (id === 'setup') renderSetup();
   if (id === 'online') renderOnline();
   if (id === 'settings') renderSettings();
+  if (id === 'locker') renderLocker();
   if (id === 'season') renderSeason();
   if (id === 'rosters') renderRosters();
   if (id === 'ut') renderUT();
@@ -1507,6 +1532,8 @@ function frame(now) {
 }
 function frameBody(now) {
   renderThrowMeter();
+  R.userKit = SET.kit && SET.kit.on && st.mode !== 'spec' && st.mode !== 'clip' ? { jersey: SET.kit.jersey, trim: SET.kit.trim, num: SET.kit.num, pants: SET.kit.pants, helmet: SET.kit.helmet, pattern: SET.kit.pattern, patch: SET.kit.patch, visor: SET.kit.visor } : null;
+  R.userSlot = st.local;
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   watchFps(dt);
   if (st.playing) {

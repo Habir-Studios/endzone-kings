@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792261128">
+  <link rel="stylesheet" href="css/style.css?v=1792261315">
 </head>
 <body>
   <canvas id="gl"></canvas>
@@ -105,6 +105,7 @@
         <button class="tile t-online" data-go="online" id="online-btn"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M13.5 2 4 13.5h6.5L9 22l11-12.5h-6.8z"/></svg></i><span class="tl-k">Online 1v1</span><small>Play a friend with a game code</small></button>
         <button class="tile t-franchise" data-go="franchise"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 21V9l9-6 9 6v12h-6v-7H9v7zm8-12h2V7h-2z"/></svg></i><span class="tl-k">Franchise</span><small id="tile-fr-sub">Run a team for years: draft, contracts, progression</small></button>
         <button class="tile t-social" data-go="social"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm8.5 1a3 3 0 1 1 0-6 3 3 0 0 1 0 6zM1 20c.4-4 3.2-6.5 7-6.5s6.6 2.5 7 6.5zm15.2 0c-.2-2.3-1-4.2-2.4-5.6.8-.3 1.7-.4 2.7-.4 3.2 0 5.3 2 5.5 6z"/></svg></i><span class="tl-k">Community <i class="dotn hidden so-unread"></i></span><small>Live leaderboards, clips, friends and messages</small></button>
+        <button class="tile t-locker" data-go="locker"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M8 3l-5 3 2 5 2-1v11h10V10l2 1 2-5-5-3c-.5 1.7-2 3-4 3S8.5 4.7 8 3z"/></svg></i><span class="tl-k">Locker Room</span><small>Design your own uniform</small></button>
         <button class="tile t-progress" data-go="progress"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 16.9 6.1 20l1.2-6.5L2.5 8.9 9.1 8z"/></svg></i><span class="tl-k">Progress</span><small id="tile-prog-sub">Level, rank and challenges</small></button>
         <button class="tile t-creator" data-go="creator"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zm2 2v12h14V6zm2 9.5L9.5 12 12 14l4-5 1.5 1.2L12.3 17 9.6 14.8 8.2 16.6zM7 8h3v2H7z"/></svg></i><span class="tl-k">Play Creator</span><small>Draw your own plays</small></button>
         <button class="tile t-modes" data-go="modes"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 3h2v5.4l3.6 2.1-1 1.7L11 13.6z"/></svg></i><span class="tl-k">Practice</span><small>Offense, defense and special teams practice, plus drills</small></button>
@@ -522,6 +523,24 @@
   </section>
 
   <!-- ===================== SETTINGS ===================== -->
+  <section id="locker" class="screen">
+    <div class="center-col">
+      <h2 class="title">Locker Room</h2>
+      <div class="panel form lk">
+        <div class="lk-prev"><canvas id="lk-canvas" width="220" height="220" aria-label="Uniform preview"></canvas></div>
+        <div class="lk-form">
+          <label>Wear my uniform in games<div class="seg" id="seg-lk-on"></div></label>
+          <div class="lk-cols"><label>Jersey<input type="color" id="lk-jersey"></label><label>Trim<input type="color" id="lk-trim"></label><label>Numbers<input type="color" id="lk-num"></label><label>Pants<input type="color" id="lk-pants"></label><label>Helmet<input type="color" id="lk-helmet"></label></div>
+          <label>Pattern<div class="seg" id="seg-lk-pat"></div></label>
+          <label>Chest patch<div class="seg" id="seg-lk-patch"></div></label>
+          <label>Visor<div class="seg" id="seg-lk-visor"></div></label>
+          <p class="note">Your team wears this on your screen. Your opponent still sees your team's normal uniform online.</p>
+          <div class="lk-acts"><button class="btn" id="lk-reset" type="button">Reset to team colors</button><button class="btn primary" data-go="menu" type="button">Done</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="settings" class="screen">
     <div class="center-col">
       <h2 class="title">Settings</h2>
@@ -642,6 +661,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792261128"></script>
+  <script type="module" src="js/main.js?v=1792261315"></script>
 </body>
 </html>

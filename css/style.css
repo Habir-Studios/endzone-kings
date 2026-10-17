@@ -1075,3 +1075,15 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .uc-xf { bottom: 54px; background: #ff3d6e; color: #fff; box-shadow: 0 0 8px #ff3d6e; }
 .cd-abs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
 .cd-abs b { width: 100%; font-size: 12px; opacity: .8; }
+
+/* Locker Room */
+.lk { display: grid; grid-template-columns: 240px 1fr; gap: 18px; align-items: start; width: min(860px, 100%); }
+.lk-prev { display: grid; place-items: center; padding: 10px; background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.08), transparent 70%); border: 1px solid var(--line); }
+.lk-cols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.lk-cols input[type=color] { width: 100%; height: 34px; padding: 0; border: 1px solid var(--line); background: none; cursor: pointer; }
+.lk-acts { display: flex; gap: 8px; justify-content: flex-end; }
+@media (max-width: 700px) { .lk { grid-template-columns: 1fr; } .lk-cols { grid-template-columns: repeat(3, 1fr); } }
+#locker .center-col { width: min(900px, 100%); max-width: none; }
+#locker .lk-form { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+#locker .lk-form .seg { flex-wrap: wrap; }
+#locker .lk-form .seg button { flex: 1 1 auto; min-width: 72px; }

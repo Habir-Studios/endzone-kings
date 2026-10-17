@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Endzone Kings — Habir Studios</title>
+  <meta name="description" content="Endzone Kings: 3D arcade football by Habir Studios. Play the CPU or go 1v1 online.">
+  <meta name="theme-color" content="#070a18">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta property="og:title" content="Endzone Kings">
+  <meta property="og:description" content="3D arcade football by Habir Studios">
+  <meta property="og:image" content="assets/icon-512.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="gl"></canvas>
+
+  <!-- ===================== SPLASH ===================== -->
+  <section id="splash" class="screen active">
+    <div class="studio">
+      <svg class="studio-logo" viewBox="0 0 640 200" aria-label="Habir Studios">
+        <defs>
+          <linearGradient id="hs-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd54a"/><stop offset=".55" stop-color="#ff8a1f"/><stop offset="1" stop-color="#ff3d6e"/></linearGradient>
+          <linearGradient id="hs-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2147"/><stop offset="1" stop-color="#0a0e22"/></linearGradient>
+        </defs>
+        <g transform="translate(100 100)" class="hex">
+          <path d="M0-88 76-44V44L0 88-76 44V-44Z" fill="url(#hs-bg)" stroke="url(#hs-g)" stroke-width="8" stroke-linejoin="round"/>
+          <path d="M-40-46h20v34h40v-34h20v92h-20v-38h-40v38h-20z" fill="url(#hs-g)"/>
+          <path d="M-52 14 52-22" stroke="#0a0e22" stroke-width="7" stroke-linecap="round"/>
+          <circle cx="0" cy="-64" r="5" fill="#ffd54a"/>
+        </g>
+        <g class="word">
+          <text x="212" y="112" font-family="'Bebas Neue',Impact,sans-serif" font-size="104" letter-spacing="6" fill="#fff">HABIR</text>
+          <rect x="214" y="128" width="404" height="4" rx="2" fill="url(#hs-g)"/>
+          <text x="216" y="172" font-family="Barlow,Arial,sans-serif" font-weight="700" font-size="34" letter-spacing="22" fill="#c8cff5">STUDIOS</text>
+        </g>
+      </svg>
+      <p class="presents">presents</p>
+    </div>
+    <p class="skip">click to skip</p>
+  </section>
+
+  <!-- shared game logo template -->
+  <template id="tpl-logo">
+    <div class="game-logo">
+      <svg class="crown" viewBox="-150 -110 300 190"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset=".45" stop-color="#ffc83d"/><stop offset="1" stop-color="#e08a00"/></linearGradient></defs>
+        <path d="M-118 46-138-62-62-8 0-92 62-8 138-62 118 46Z" fill="url(#cg)" stroke="#7a4a00" stroke-width="8" stroke-linejoin="round"/><rect x="-122" y="40" width="244" height="30" rx="10" fill="url(#cg)" stroke="#7a4a00" stroke-width="8"/>
+        <circle cx="0" cy="-92" r="14" fill="#ff3d6e" stroke="#7a4a00" stroke-width="6"/><circle cx="-138" cy="-62" r="12" fill="#38bdf8" stroke="#7a4a00" stroke-width="6"/><circle cx="138" cy="-62" r="12" fill="#38bdf8" stroke="#7a4a00" stroke-width="6"/><circle cx="0" cy="12" r="13" fill="#ff3d6e" stroke="#7a4a00" stroke-width="5"/></svg>
+      <h1><span class="t1">ENDZONE</span><span class="t2">KINGS</span></h1>
+      <p class="by">A HABIR STUDIOS GAME</p>
+    </div>
+  </template>
+
+  <!-- ===================== AUTH ===================== -->
+  <section id="auth" class="screen">
+    <div class="center-col">
+      <div class="logo-slot"></div>
+      <div class="panel auth-panel">
+        <div class="tabs">
+          <button class="tab active" data-tab="login">Log in</button>
+          <button class="tab" data-tab="signup">Sign up</button>
+        </div>
+        <form id="form-login" class="form">
+          <label><span class="lbl-id">Email</span><input id="li-id" autocomplete="username" required></label>
+          <label>Password<input id="li-pw" type="password" autocomplete="current-password" required></label>
+          <button class="btn primary" type="submit">Log in</button>
+          <button class="link" type="button" id="forgot">Forgot password?</button>
+        </form>
+        <form id="form-signup" class="form hidden">
+          <label>Username<input id="su-name" maxlength="16" autocomplete="nickname" required placeholder="3-16 letters, numbers, _"></label>
+          <label class="email-row">Email<input id="su-email" type="email" autocomplete="email"></label>
+          <label>Password<input id="su-pw" type="password" autocomplete="new-password" required minlength="6"></label>
+          <button class="btn primary" type="submit">Create account</button>
+        </form>
+        <p id="auth-msg" class="msg"></p>
+        <div class="divider"><span>or</span></div>
+        <button class="btn ghost" id="guest-btn">Play as guest (vs CPU only)</button>
+        <p id="auth-mode" class="note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== MAIN MENU ===================== -->
+  <section id="menu" class="screen">
+    <div class="profile-chip">
+      <div class="avatar" id="pc-avatar">?</div>
+      <div><b id="pc-name">Player</b><small id="pc-rec">0-0</small></div>
+      <button class="link" id="logout">Log out</button>
+    </div>
+    <div class="menu-wrap">
+      <div class="logo-slot"></div>
+      <div class="tiles">
+        <button class="tile hero" data-go="setup"><i class="tl-ico">▶</i><span class="tl-k">Play Now</span><small>Exhibition vs CPU · pick any 2 teams</small></button>
+        <button class="tile" data-go="season"><i class="tl-ico">🏆</i><span class="tl-k">Season</span><small id="tile-season-sub">Chase the Kings Bowl</small></button>
+        <button class="tile" data-go="online" id="online-btn"><i class="tl-ico">⚡</i><span class="tl-k">Online 1v1</span><small>Play your friend live</small></button>
+        <button class="tile" data-go="rosters"><i class="tl-ico">📋</i><span class="tl-k">Rosters</span><small>32 teams · 448 players</small></button>
+        <button class="tile" data-go="howto"><i class="tl-ico">🎮</i><span class="tl-k">How to Play</span><small>Controls, plays &amp; tips</small></button>
+        <button class="tile wide" data-go="settings"><i class="tl-ico">⚙️</i><span class="tl-k">Settings</span><small>Sound · announcer · camera · graphics</small></button>
+      </div>
+    </div>
+    <footer class="foot">© <span id="yr"></span> Habir Studios · Endzone Kings v1.0</footer>
+  </section>
+
+  <!-- ===================== CPU SETUP ===================== -->
+  <section id="setup" class="screen">
+    <div class="center-col wide">
+      <h2 class="title">Exhibition</h2>
+      <div class="panel">
+        <div class="matchup">
+          <div class="team-pick" id="tp-me"><small>YOUR TEAM</small><div class="team-card"></div><div class="arrows"><button class="btn sm" data-d="-1">◀</button><button class="btn sm" data-d="1">▶</button></div></div>
+          <div class="vs">VS</div>
+          <div class="team-pick" id="tp-cpu"><small>CPU</small><div class="team-card"></div><div class="arrows"><button class="btn sm" data-d="-1">◀</button><button class="btn sm" data-d="1">▶</button></div></div>
+        </div>
+        <div class="opts">
+          <label>Difficulty<div class="seg" id="seg-diff"></div></label>
+          <label>Quarter length<div class="seg" id="seg-qlen"></div></label>
+        </div>
+        <div class="actions"><button class="btn" data-go="menu">Back</button><button class="btn primary big" id="start-cpu">Kick off</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SEASON ===================== -->
+  <section id="season" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title">Season</h2>
+      <div id="season-new" class="panel">
+        <p class="note center">Pick your team. 14-week season, top 4 make the playoffs, winner takes the Kings Bowl.</p>
+        <div class="team-grid" id="season-grid"></div>
+        <div class="actions"><button class="btn" data-go="menu">Back</button><button class="btn primary big" id="season-start" disabled>Start season</button></div>
+      </div>
+      <div id="season-hub" class="hidden">
+        <div class="panel hub-top">
+          <div class="hub-team" id="hub-team"></div>
+          <div class="hub-next" id="hub-next"></div>
+          <div class="hub-btns"><button class="btn primary big" id="season-play">Play game</button><button class="btn" id="season-sim">Sim game</button></div>
+        </div>
+        <div class="two-col hub-cols">
+          <div class="panel"><h3 class="h3">Schedule</h3><div id="sched" class="sched"></div></div>
+          <div class="panel"><h3 class="h3" id="stand-h">Standings</h3><div class="tbl-wrap"><table id="stand" class="tbl"></table></div></div>
+        </div>
+        <div class="actions"><button class="btn danger" id="season-quit">Abandon season</button><button class="btn" data-go="menu">Main menu</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ROSTERS ===================== -->
+  <section id="rosters" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title">Rosters</h2>
+      <div class="panel">
+        <div class="team-strip" id="roster-strip"></div>
+        <div class="roster-head" id="roster-head"></div>
+        <div class="tbl-wrap"><table id="roster-tbl" class="tbl"></table></div>
+        <div class="actions"><button class="btn primary" data-go="menu">Back</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- team picker modal -->
+  <div id="teampick" class="modal hidden">
+    <div class="panel picker">
+      <div class="pk-head"><h2 class="title sm" id="pk-title">Choose a team</h2><button class="btn sm" id="pk-close">✕</button></div>
+      <div class="team-grid" id="pk-grid"></div>
+    </div>
+  </div>
+
+  <!-- ===================== ONLINE ===================== -->
+  <section id="online" class="screen">
+    <div class="center-col wide">
+      <h2 class="title">Online 1v1</h2>
+      <div class="panel">
+        <p id="online-warn" class="warn hidden"></p>
+        <div id="online-main">
+          <div class="team-pick inline" id="tp-online"><small>YOUR TEAM</small><div class="team-card"></div><div class="arrows"><button class="btn sm" data-d="-1">◀</button><button class="btn sm" data-d="1">▶</button></div></div>
+          <div class="two-col">
+            <div class="box">
+              <h3>Host a game</h3>
+              <p class="note">You'll get a code to send to your friend.</p>
+              <label class="mini">Quarter length<div class="seg" id="seg-qlen2"></div></label>
+              <button class="btn primary" id="host-btn">Create game</button>
+            </div>
+            <div class="box">
+              <h3>Join a game</h3>
+              <p class="note">Enter your friend's 5-letter code.</p>
+              <input id="join-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
+              <button class="btn primary" id="join-btn">Join</button>
+            </div>
+          </div>
+        </div>
+        <div id="online-wait" class="hidden wait">
+          <p class="note" id="wait-label">Your game code</p>
+          <div class="code" id="room-code">-----</div>
+          <p id="wait-status" class="status"><span class="spinner"></span>Waiting for opponent…</p>
+          <button class="btn" id="copy-code">Copy code</button>
+        </div>
+        <p id="online-msg" class="msg"></p>
+        <div class="actions"><button class="btn" id="online-back">Back</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HOW TO ===================== -->
+  <section id="howto" class="screen">
+    <div class="center-col wide">
+      <h2 class="title">How to play</h2>
+      <div class="panel howto">
+        <div class="two-col">
+          <div>
+            <h3>Offense</h3>
+            <ul class="keys">
+              <li><kbd>1</kbd>–<kbd>6</kbd><span>Pick a play before the snap</span></li>
+              <li><kbd>Space</kbd><span>Snap the ball</span></li>
+              <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Move (arrows work too)</span></li>
+              <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><span>Throw to that receiver (or click them)</span></li>
+              <li><kbd>Shift</kbd><span>Sprint (uses stamina)</span></li>
+              <li><kbd>Space</kbd><span>Juke when you have the ball</span></li>
+              <li><kbd>P</kbd> / <kbd>F</kbd><span>Punt / field goal on 4th down</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Defense</h3>
+            <ul class="keys">
+              <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><span>Man / Zone / Blitz</span></li>
+              <li><kbd>Q</kbd> or <kbd>Tab</kbd><span>Switch to player nearest the ball</span></li>
+              <li><span class="mouse">Click</span><span>Pick a specific defender</span></li>
+              <li><kbd>Space</kbd><span>Dive tackle (miss = you're on the ground)</span></li>
+              <li><kbd>Shift</kbd><span>Sprint</span></li>
+            </ul>
+            <h3>Other</h3>
+            <ul class="keys">
+              <li><kbd>C</kbd><span>Switch camera</span></li>
+              <li><kbd>M</kbd><span>Mute</span></li>
+              <li><kbd>Esc</kbd><span>Pause</span></li>
+            </ul>
+          </div>
+        </div>
+        <p class="note">Tips: Look at the colored route lines before the snap. When the ball's in the air, steer your receiver to the white ring. Sprint drains the yellow bar under the scoreboard.</p>
+        <div class="actions"><button class="btn primary" data-go="back">Got it</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SETTINGS ===================== -->
+  <section id="settings" class="screen">
+    <div class="center-col">
+      <h2 class="title">Settings</h2>
+      <div class="panel form">
+        <label>Game volume<input type="range" id="set-vol" min="0" max="1" step="0.05"></label>
+        <label>Menu music<input type="range" id="set-music" min="0" max="1" step="0.05"></label>
+        <label>Announcer<div class="seg" id="seg-ann"></div></label>
+        <label>Camera<div class="seg" id="seg-cam"></div></label>
+        <label>Graphics<div class="seg" id="seg-gfx"></div></label>
+        <div class="actions"><button class="btn primary" data-go="back">Done</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HUD ===================== -->
+  <div id="hud" class="hidden">
+    <div class="scorebug">
+      <div class="sb-team" id="sb-t0"><span class="poss">●</span><b class="abbr"></b><span class="pts">0</span></div>
+      <div class="sb-mid"><span id="sb-q">Q1</span><span id="sb-clk">2:00</span></div>
+      <div class="sb-team" id="sb-t1"><span class="pts">0</span><b class="abbr"></b><span class="poss">●</span></div>
+      <div class="sb-down" id="sb-down">1st &amp; 10</div>
+      <div class="sb-spot" id="sb-spot">OWN 25</div>
+      <div class="sb-pc" id="sb-pc">20</div>
+    </div>
+    <div class="stam"><i id="stam-bar"></i></div>
+    <div id="me-label" class="me-label"></div>
+    <div id="banner" class="banner"><b></b><small></small></div>
+    <div id="flash" class="flash"></div>
+    <div id="playcall" class="playcall hidden">
+      <div class="pc-head"><b id="pc-title">Pick a play</b><span id="pc-hint"></span></div>
+      <div class="pc-cards" id="pc-cards"></div>
+    </div>
+    <div id="hint" class="hint"></div>
+    <div id="net-badge" class="net-badge hidden"></div>
+    <button id="pause-btn" class="pause-btn" title="Pause (Esc)">❚❚</button>
+  </div>
+
+  <div id="intro" class="hidden">
+    <div class="in-top"><span class="in-studio">HABIR STUDIOS</span><span class="in-dot">•</span><span>ENDZONE KINGS</span></div>
+    <div id="intro-teams" class="in-teams"></div>
+    <p class="in-skip">Press <kbd>Space</kbd> to skip</p>
+  </div>
+
+  <div id="pause" class="modal hidden">
+    <div class="panel">
+      <h2 class="title sm">Paused</h2>
+      <button class="btn primary" id="resume">Resume</button>
+      <button class="btn" id="p-howto">Controls</button>
+      <button class="btn" id="p-cam">Camera: <span id="p-cam-l"></span></button>
+      <button class="btn danger" id="quit">Quit to menu</button>
+    </div>
+  </div>
+
+  <div id="gameover" class="modal hidden">
+    <div class="panel go">
+      <p class="go-res" id="go-res">VICTORY</p>
+      <div class="go-score" id="go-score"></div>
+      <table class="go-stats" id="go-stats"></table>
+      <p class="note" id="go-rec"></p>
+      <div class="actions"><button class="btn" id="go-menu">Main menu</button><button class="btn primary" id="go-again">Play again</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

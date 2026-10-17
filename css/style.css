@@ -1334,3 +1334,6 @@ select { color: var(--chalk); border: 1px solid var(--line-2); padding: 8px 10px
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } .cel-pick .cw-slot { transition: none; } }
 .ann-voice { display: flex; gap: 8px; align-items: center; }
 .ann-voice select { flex: 1; min-width: 0; }
+/* tab badges stay inside their tab: the tab grows to fit label + count */
+.ut-tab { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.ut-tab .dotn { margin-left: 0; flex: 0 0 auto; vertical-align: 0; }

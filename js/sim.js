@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792257129';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792257439';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792257129';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792257439';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -406,7 +406,7 @@ function handleEvent(g, team, ev) {
     if (me && b.state === 'air' && !b.auto && me.playBall <= 0 && me.stun <= 0) {
       const dl = hyp(me.x - b.tx, me.z - b.tz), left = b.T - b.t;
       if (dl < 4.5 + left * me.max * 0.6) { me.playBall = 0.75; g.events.push('playball'); }
-      else { me.playBall = 0.4; me.stun = 0.35; }
+      else { me.playBall = 0.45; }
     }
   } else if (ev.t === 'dive') {
     if (me && carrier && carrier.team !== team && me.dive <= 0 && me.stun <= 0 && me.engagedBy < 0) {
@@ -1193,11 +1193,14 @@ function updateLive(g, dt, inputs) {
     b.x = b.fx + (b.tx - b.fx) * s; b.z = b.fz + (b.tz - b.fz) * s;
     b.y = b.fy + (1.3 - b.fy) * s + 4 * b.h * s * (1 - s);
     // the ball gets to somebody before its landing spot: resolve it right there instead of flying through him
-    if (!b.auto && s > 0.35 && s < 1 && b.y < 2.9) {
+    if (!b.auto && s > 0.12 && s < 1 && b.y < 3.6) {
       for (const p of g.players) {
         if (p.stun > 0 && p.dive <= 0) continue;
-        const reachable = p.team === g.play.off ? RECEIVERS.includes(p.role) : true;
-        if (reachable && hyp(p.x - b.x, p.z - b.z) < (p.playBall > 0 ? 1.0 : 0.75)) { b.tx = b.x; b.tz = b.z; resolveBall(g); break; }
+        const off = p.team === g.play.off, reachable = off ? RECEIVERS.includes(p.role) && s > 0.35 : true;
+        const you = g.opts.humans[p.team] && g.ctrl[p.team] === p.id;
+        // how high and how far he can get to it: a jump (play ball) gets you way up there, the guy you control gets a bit more
+        const top = p.playBall > 0 ? 3.5 : (you ? 2.9 : 2.6), rad = (p.playBall > 0 ? 1.15 : 0.8) + (you && !off ? 0.15 : 0);
+        if (reachable && b.y < top && hyp(p.x - b.x, p.z - b.z) < rad) { b.tx = b.x; b.tz = b.z; resolveBall(g); break; }
       }
       if (b.state !== 'air' || g.phase !== 'live') return;
     }
@@ -1324,6 +1327,7 @@ function assistIdle(g, p, carrier) {
   // AI takes over an idle human-controlled player when they don't have the ball (prevents frozen defenders/receivers)
   if (carrier && carrier.id === p.id) return false;
   if (p.id === 0 && carrier && carrier.id === 0) return false;
+  if (g.play && p.team !== g.play.off) return false;   // the defender you control only moves when YOU move him
   return true;
 }
 
@@ -1455,8 +1459,20 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
     if (!isOff) {
       const dl = hyp(p.x - b.tx, p.z - b.tz), mine = g.opts.humans[p.team] && !g.opts.humans[1 - p.team];
       const react = mine ? Math.max(cfg.react, 0.3) : cfg.react;
-      if (since > react * 0.8 && (p.assign === b.target || dl < (mine ? 12 : 16))) return seek(p, b.tx, b.tz, Math.max(ai, 0.97) + 0.06, 0.3);   // break on the ball
-      if (p.role.startsWith('DL')) return seek(p, b.tx, b.tz, 0.5);
+      const tr = g.players[b.target];
+      // the man covering the target stays in his hip pocket, then attacks the catch point
+      if (tr && p.assign === b.target) {
+        if (since < react * 0.5) return seek(p, tr.x + (b.tx - tr.x) * 0.3, tr.z + (b.tz - tr.z) * 0.3, Math.max(ai, 0.95), 0.2);
+        return seek(p, b.tx, b.tz, Math.max(ai, 0.97) + 0.06, 0.3);
+      }
+      if (since > react * 0.6 && dl < (mine ? 14 : 20)) {
+        // nearby: drive on the receiver and the ball together so he's there to contest or make the tackle
+        const k = clamp(since / ((b.T || 1) * 0.8), 0, 1), rx = tr ? tr.x : b.tx, rz = tr ? tr.z : b.tz;
+        return seek(p, rx + (b.tx - rx) * k, rz + (b.tz - rz) * k, Math.max(ai, 0.95) + 0.05, 0.3);
+      }
+      if (p.role.startsWith('DL')) return seek(p, b.tx, b.tz, 0.55);
+      // everyone else rallies to where the ball is coming down instead of standing in his zone
+      if (since > react) return seek(p, b.tx, b.tz - dirOf(P.off) * -2, ai * 0.92, 1);
     } else if (RECEIVERS.includes(p.role)) {
       // other receivers drift toward the ball late
       if (since > 0.6) return seek(p, b.tx, b.tz, 0.7, 2);
@@ -1833,13 +1849,14 @@ function resolveBall(g) {
     const edge = (dD - dO) * 1.25 + (timing(ro) - timing(rd)) * 0.7 + (ro.rt.hands * wx - rd.rt.cov) / 100 * 0.9 + (rd.dive > 0 ? 0.15 : 0) + noise();
     if (edge > 0.05) outcome = 'catch';
     else if ((dD < 0.5 && dD < dO - 0.6) || (edge < -0.6 && dD < 1.1 && (defPlay || timing(rd) > 0.45))
-      || (myD && dD < 1.0 && dD < dO - 0.15) || (myD && defPlay && edge < -0.3 && dD < 1.5)) outcome = 'int';   // you beat him to it: it's yours   // ball thrown into the defender's chest gets picked
+      || (myD && dD < 1.0 && dD < dO - 0.15) || (myD && defPlay && edge < -0.3 && dD < 1.5)
+      || (myD && defPlay && timing(rd) > 0.3 && dD < 0.95 && dD <= dO + 0.35)) outcome = 'int';   // you went up with good timing and it hit your hands: yours   // you beat him to it: it's yours   // ball thrown into the defender's chest gets picked
     else outcome = 'inc';
   } else if (cO) {
     // open-ish: how hard was this catch? reaching for it, a defender closing on him, running full speed across the field
     const near = rd ? dD : 9, spdK = hyp(ro.vx, ro.vz) / (ro.max || 8);
     const hot = Math.max(0, (b.pw || 0.6) - 0.9) * 0.45 + Math.max(0, (b.pwOff || 0) - 0.1) * 0.5;   // a fastball he wasn't ready for
-    const need = Math.max(0, dO - 0.55) * 0.55 + (near < 2.8 ? (2.8 - near) * 0.2 : 0) + (spdK > 0.85 ? 0.07 : 0) + hot + 0.02;
+    const need = Math.max(0, dO - 0.55) * 0.55 + (near < 3.1 ? (3.1 - near) * 0.21 : 0) + (spdK > 0.85 ? 0.07 : 0) + hot + 0.02;
     outcome = (ro.rt.hands * wx) / 100 * 0.9 - 0.27 + timing(ro) * 0.25 + noise() > need ? 'catch' : 'inc';
     if (outcome === 'inc' && !g.flash) g.flash = { text: near < 2.6 ? 'BROKEN UP' : 'DROPPED', until: 1.0 };
   } else if (ro && !outOfBounds && dO < 3.0 && (!rd || dD > dO + 0.4)) {
@@ -1850,7 +1867,7 @@ function resolveBall(g) {
     // only a defender there: a pick if he's in front of it and timed it, otherwise he knocks it down
     // thrown right at him (within arm's length) is a pick almost every time; farther away he needs timing or ball skills
     const pick = (1.4 - dD) * 0.9 + timing(rd) * 0.6 + rd.rt.cov / 100 * 0.4 + noise();
-    outcome = (dD < 0.6) || (myD && dD < 1.1) || (pick > 1.3 && dD < 0.9) || (myD && defPlay && pick > 0.95 && dD < 1.7) ? 'int' : 'inc';   // the ball's coming right at you = you catch it
+    outcome = (dD < 0.45) || (myD && dD < 1.1) || (pick > 1.3 && dD < 0.9) || (myD && defPlay && pick > 0.95 && dD < 1.7) ? 'int' : 'inc';   // the ball's coming right at you = you catch it
   }
   if (!outOfBounds && cO && cD && !P.isPat) {
     const r = g.rng();

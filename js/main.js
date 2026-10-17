@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792250937';
-import { Renderer } from './render.js?v=1792250937';
-import { Sfx } from './audio.js?v=1792250937';
-import { Auth } from './auth.js?v=1792250937';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792250937';
-import { getRoster, teamOvr } from './teams.js?v=1792250937';
-import * as Season from './season.js?v=1792250937';
-import * as Fr from './franchise.js?v=1792250937';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792250937';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792250937';
-import * as UTm from './ut.js?v=1792250937';
-import { initCreator, renderCreator } from './creator.js?v=1792250937';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792250937';
-import { portraitURL } from './faces.js?v=1792250937';
-import { logoURL, clearLogoCache } from './logos.js?v=1792250937';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792251063';
+import { Renderer } from './render.js?v=1792251063';
+import { Sfx } from './audio.js?v=1792251063';
+import { Auth } from './auth.js?v=1792251063';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792251063';
+import { getRoster, teamOvr } from './teams.js?v=1792251063';
+import * as Season from './season.js?v=1792251063';
+import * as Fr from './franchise.js?v=1792251063';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792251063';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792251063';
+import * as UTm from './ut.js?v=1792251063';
+import { initCreator, renderCreator } from './creator.js?v=1792251063';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792251063';
+import { portraitURL } from './faces.js?v=1792251063';
+import { logoURL, clearLogoCache } from './logos.js?v=1792251063';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -533,7 +533,7 @@ function keyToEvent(k) {
   if (S.ph === 'presnap') {
     if (k === 'KeyZ') { switchTab(-1); return null; }
     if (k === 'KeyX') { switchTab(1); return null; }
-    if (digit >= 1 && digit <= 9) return pickCard(digit);
+    if (digit >= 1 && digit <= PER_TAB) return pickCard(digit);
     if (onOff) {
       if (k === 'KeyP' && !(S.sp && S.sp.pat)) { sfx.play('ui'); return { t: 'play', id: 'punt' }; }
       if (k === 'KeyF' && S.sp && S.sp.fg) { sfx.play('ui'); return { t: 'play', id: 'fg' }; }
@@ -880,6 +880,7 @@ const FG_SVG = `<svg viewBox="0 0 120 64"><g stroke="#fde047" stroke-width="3"><
 function customPlays() { try { return JSON.parse(localStorage.getItem('ek_custom_plays') || '[]'); } catch (_) { return []; } }
 
 // Build the playbook for whoever is calling the play: tabs of cards
+const PER_TAB = 6;
 function playbookTabs(S) {
   const me = st.local, onOff = S.poss === me, ti = S.teams[me];
   const book = teamPlaybook(ti, TEAMS[ti]);
@@ -914,7 +915,14 @@ function playbookTabs(S) {
     const myDef = mine.filter(c => c.side === 'def');
     if (myDef.length) tabs.push({ name: 'My Plays', cards: myDef.map(c => ({ id: c.id, name: c.name, tip: 'Custom defense', svg: defSvg(c.preview || {}), def: c })) });
   }
-  return { tabs, book, onOff };
+  // six plays per tab at most: bigger groups split into "Quick 1", "Quick 2"...
+  const out = [];
+  for (const t of tabs) {
+    if (t.cards.length <= PER_TAB) { out.push(t); continue; }
+    const n = Math.ceil(t.cards.length / PER_TAB);
+    for (let i = 0; i < n; i++) out.push({ name: `${t.name} ${i + 1}`, cards: t.cards.slice(i * PER_TAB, (i + 1) * PER_TAB) });
+  }
+  return { tabs: out, book, onOff };
 }
 
 function buildPlaycall(S) {
@@ -937,7 +945,7 @@ function buildPlaycall(S) {
   (tabs[st.pbTab] ? tabs[st.pbTab].cards : []).forEach((c, i) => {
     const b = document.createElement('button');
     b.className = 'pc-card' + (c.special ? ' special' : '') + (c.sig ? ' sig' : ''); b.dataset.id = c.id;
-    b.innerHTML = `${c.svg}<span class="k">${i < 9 ? i + 1 : ''}</span>${c.sig ? '<span class="sigtag">SIGNATURE</span>' : ''}<b>${escapeHtml(c.name)}</b><small>${escapeHtml(c.tip)}</small>`;
+    b.innerHTML = `${c.svg}<span class="k">${i + 1}</span>${c.sig ? '<span class="sigtag">SIGNATURE</span>' : ''}<b>${escapeHtml(c.name)}</b><small>${escapeHtml(c.tip)}</small>`;
     b.onclick = () => { sfx.play('ui'); pushEv({ t: 'play', id: c.id, ...(c.def ? { def: c.def } : {}) }); };
     box.appendChild(b);
   });
@@ -1102,7 +1110,7 @@ function updateHud(S) {
     if (hudCache.pcSel !== sel) { hudCache.pcSel = sel; $$('.pc-card', pc).forEach(c => c.classList.toggle('on', c.dataset.id === sel)); }
     const isCPU = !S.humans[1 - me];
     setTxt('#pc-title', onOff ? (S.pat >= 0 ? 'Kick the extra point or go for 2' : S.dn === 4 ? 'Fourth down, your call' : 'Offense') : 'Defense');
-    const hintHtml = onOff ? (S.op ? `<span><kbd>Space</kbd> snap</span>${hotOk(S) ? '<span><kbd>H</kbd> hot route</span>' : ''}<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>` : '<span><kbd>1</kbd>–<kbd>9</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>')
+    const hintHtml = onOff ? (S.op ? `<span><kbd>Space</kbd> snap</span>${hotOk(S) ? '<span><kbd>H</kbd> hot route</span>' : ''}<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>` : `<span><kbd>1</kbd>–<kbd>${Math.min(PER_TAB, ((st.pbTabs || [])[st.pbTab] || { cards: [] }).cards.length) || 1}</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>`)
       : (isCPU ? '<span>CPU snaps soon</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch</span>' : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch player</span>');
     if (hudCache.pch !== hintHtml) { hudCache.pch = hintHtml; $('#pc-hint').innerHTML = hintHtml; }
     const clk = $('#pc-clock'), pcv = S.pc;

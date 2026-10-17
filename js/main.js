@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792266119';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266119';
-import { Renderer } from './render.js?v=1792266119';
-import { Sfx } from './audio.js?v=1792266119';
-import { Auth } from './auth.js?v=1792266119';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266119';
-import { getRoster, teamOvr } from './teams.js?v=1792266119';
-import * as Season from './season.js?v=1792266119';
-import * as Fr from './franchise.js?v=1792266119';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266119';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266119';
-import * as UTm from './ut.js?v=1792266119';
-import { initCreator, renderCreator } from './creator.js?v=1792266119';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266119';
-import { portraitURL } from './faces.js?v=1792266119';
-import { logoURL, clearLogoCache } from './logos.js?v=1792266119';
+import { askYes } from './ui.js?v=1792266143';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266143';
+import { Renderer } from './render.js?v=1792266143';
+import { Sfx } from './audio.js?v=1792266143';
+import { Auth } from './auth.js?v=1792266143';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266143';
+import { getRoster, teamOvr } from './teams.js?v=1792266143';
+import * as Season from './season.js?v=1792266143';
+import * as Fr from './franchise.js?v=1792266143';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266143';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266143';
+import * as UTm from './ut.js?v=1792266143';
+import { initCreator, renderCreator } from './creator.js?v=1792266143';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266143';
+import { portraitURL } from './faces.js?v=1792266143';
+import { logoURL, clearLogoCache } from './logos.js?v=1792266143';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];

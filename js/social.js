@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792280485';
-import { TEAMS } from './teams.js?v=1792280485';
+import { askYes } from './ui.js?v=1792280853';
+import { TEAMS } from './teams.js?v=1792280853';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();

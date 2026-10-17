@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792260627';
+import { TEAMS } from './teams.js?v=1792261089';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
@@ -62,18 +62,48 @@ export function card(id) {
 // a card as you own it, with training boosts applied
 export function owned(inst) {
   const c = card(inst.id), b = inst.b || 0;
-  if (!b) return { ...c, u: inst.u, b: 0 };
   const o = { ...c, u: inst.u, b };
-  for (const k of KEYS[c.group]) o[k] = Math.min(99, c[k] + b);
-  o.ovr = Math.min(99, c.ovr + b);
+  if (inst.x && VARIANTS[inst.x]) VARIANTS[inst.x].apply(o);
+  for (const k of KEYS[c.group]) o[k] = Math.min(99, o[k] + b);
+  o.ovr = Math.min(99, o.ovr + b);
+  // abilities and X-Factors unlocked with Training Points (they change the ratings the game actually uses)
+  const A = inst.ab && abilityOf(c.group, inst.ab);
+  if (A) { for (const [k, v] of Object.entries(A.add)) o[k] = Math.min(99, o[k] + v); o.ab = A; }
+  if (inst.xf) { const X = XFACTORS[c.group]; for (const k of KEYS[c.group]) o[k] = Math.min(99, o[k] + 3); o.xf = X; o.ovr = Math.min(99, o.ovr + 1); }
   return o;
 }
+
+// ---------------- special program cards (only come out of themed packs) ----------------
+const lift = (o, ks, to) => { for (const k of ks) o[k] = Math.max(o[k], to); };
+export const VARIANTS = {
+  legend: { program: 'Ultimate Legend', apply(o) { o.program = 'Ultimate Legend'; for (const k of KEYS[o.group]) o[k] = Math.min(99, o[k] + 4); o.ovr = Math.min(99, o.ovr + 4); o.legend = true; } },
+  cyclone: { program: 'Cyclone', apply(o) { o.program = 'Cyclone'; lift(o, ['spd'], 98); o.elu = Math.min(99, o.elu + 6); o.ovr = Math.min(99, o.ovr + 2); } },
+  frost: { program: 'Cold-Blooded', apply(o) { o.program = 'Cold-Blooded'; lift(o, ['cov'], 97); o.ovr = Math.min(99, o.ovr + 2); } },
+  venom: { program: 'Venom', apply(o) { o.program = 'Venom'; lift(o, ['tkl'], 97); o.ovr = Math.min(99, o.ovr + 2); } },
+};
+
+// ---------------- abilities and X-Factors ----------------
+export const ABILITIES = {
+  QB: [{ k: 'dime', n: 'Dime Dropper', d: '+5 Accuracy', add: { acc: 5 } }, { k: 'cannon', n: 'Cannon', d: '+5 Arm', add: { arm: 5 } }],
+  HB: [{ k: 'jukebox', n: 'Juke Box', d: '+5 Elusive', add: { elu: 5 } }, { k: 'burner', n: 'Afterburner', d: '+3 Speed', add: { spd: 3 } }],
+  WR: [{ k: 'glue', n: 'Glue Hands', d: '+5 Hands', add: { hands: 5 } }, { k: 'deep', n: 'Deep Threat', d: '+3 Speed', add: { spd: 3 } }],
+  TE: [{ k: 'mismatch', n: 'Mismatch', d: '+5 Hands', add: { hands: 5 } }, { k: 'sealer', n: 'Edge Sealer', d: '+5 Block', add: { blk: 5 } }],
+  OL: [{ k: 'wall', n: 'Brick Wall', d: '+5 Block', add: { blk: 5 } }, { k: 'mauler', n: 'Mauler', d: '+3 Block, +3 Speed', add: { blk: 3, spd: 3 } }],
+  DL: [{ k: 'edge', n: 'Edge Threat', d: '+5 Pass rush', add: { rush: 5 } }, { k: 'clamp', n: 'Run Clamp', d: '+5 Tackle', add: { tkl: 5 } }],
+  LB: [{ k: 'stuffer', n: 'Run Stuffer', d: '+5 Tackle', add: { tkl: 5 } }, { k: 'lurker', n: 'Lurker', d: '+5 Coverage', add: { cov: 5 } }],
+  CB: [{ k: 'shutdown', n: 'Shutdown', d: '+5 Coverage', add: { cov: 5 } }, { k: 'pickartist', n: 'Pick Artist', d: '+5 Hands', add: { hands: 5 } }],
+  S: [{ k: 'enforcer', n: 'Enforcer', d: '+5 Tackle (more fumbles)', add: { tkl: 5 } }, { k: 'hawk', n: 'Ball Hawk', d: '+5 Coverage', add: { cov: 5 } }],
+};
+export const XFACTORS = { QB: 'Field General', HB: 'Freight Train', WR: 'Double Me', TE: 'Red Zone Threat', OL: 'Fortress', DL: 'Unstoppable Force', LB: 'Heat Seeker', CB: 'Lockdown', S: 'No Fly Zone' };
+export const abilityOf = (group, k) => (ABILITIES[group] || []).find(a => a.k === k) || null;
+export const TP_ABILITY = [0, 0, 120, 200, 300];   // gold and up
+export const TP_XFACTOR = 500;                     // Kings and Ultimate Legends only
 export const quicksell = inst => { const c = owned(inst); return Math.round(TIERS[c.tier].qs * (1 + (c.ovr - TIERS[c.tier].lo) * 0.06) + (inst.b || 0) * TIERS[c.tier].train * 0.25); };
 // training costs Training Points (earned by playing and quickselling), not coins
 export const TP_TRAIN = [12, 25, 50, 100, 200];
-export const TP_QS = [2, 5, 12, 30, 75];
+export const TP_QS = [5, 12, 30, 80, 200];   // quickselling is the main way to earn TP
 export const trainCost = inst => { const c = card(inst.id); const b = inst.b || 0; return b >= MAX_BOOST[c.tier] ? 0 : TP_TRAIN[c.tier] * (b + 1); };
-export const quicksellTp = inst => TP_QS[card(inst.id).tier] || 0;
+export const quicksellTp = inst => Math.round((TP_QS[card(inst.id).tier] || 0) * (inst.x ? 2 : 1) + (inst.b || 0) * 4);
 
 // ---------------- packs ----------------
 export const PACKS = [
@@ -82,16 +112,35 @@ export const PACKS = [
   { key: 'gold', name: 'Prime Time Pack', art: ['Prime', 'Time'], stars: 3, cost: 5500, n: 5, w: [0, 45, 50, 5, 0], guar: 2, blurb: '5 players, at least 1 gold' },
   { key: 'elite', name: 'Showtime Pack', art: ['Show', 'Time'], stars: 4, cost: 15000, n: 5, w: [0, 0, 70, 27, 3], guar: 3, blurb: '5 players, at least 1 elite. Small shot at a Kings card' },
   { key: 'kings', name: 'Crown Vault', art: ['Crown', 'Vault'], stars: 5, cost: 40000, n: 3, w: [0, 0, 0, 70, 30], guar: 4, blurb: '3 players, 1 Kings card guaranteed' },
+  // themed and risk packs
+  { key: 'boom', name: 'Boom or Bust Pack', art: ['Boom', 'or Bust'], stars: 2, cost: 1200, n: 4, w: [90, 7, 1.6, 1, 0.4], guar: 0, blurb: 'Cheap and risky. Usually junk, tiny shot at an Elite or Kings card' },
+  { key: 'cyclone', name: 'Cyclone Pack', art: ['Cyclone', ''], stars: 3, cost: 4000, n: 5, w: [60, 35, 5, 0, 0], guar: 0, groups: ['WR', 'CB', 'HB'], special: { x: 'cyclone', chance: 0.06, tier: 4, groups: ['WR', 'CB', 'HB'] }, blurb: 'Fast WRs, CBs and backs. Rare shot at a 98-speed Cyclone star' },
+  { key: 'blizzard', name: 'Sub-Zero Blizzard', art: ['Sub-Zero', 'Blizzard'], stars: 3, cost: 4500, n: 5, w: [55, 38, 7, 0, 0], guar: 0, groups: ['DL', 'DL', 'LB', 'CB', 'S'], special: { x: 'frost', chance: 0.06, tier: 4, groups: ['CB', 'S'] }, blurb: 'Defense pack. Rare shot at a Cold-Blooded lockdown corner or safety' },
+  { key: 'venom', name: 'Venom Spike Pack', art: ['Venom', 'Spike'], stars: 3, cost: 4500, n: 5, w: [55, 38, 7, 0, 0], guar: 0, groups: ['LB', 'S', 'DL'], special: { x: 'venom', chance: 0.06, tier: 3, groups: ['LB', 'S'] }, blurb: 'Hard hitters. Rare shot at a Venom safety or linebacker who forces fumbles' },
+  { key: 'supernova', name: 'Supernova Pack', art: ['Super', 'nova'], stars: 4, cost: 7000, n: 1, w: [100, 0, 0, 0, 0], guar: 0, nova: true, blurb: 'Most of the time: 1 bronze player and 150 TP. 15% of the time it explodes into 3 Elite players' },
+  { key: 'vortex', name: 'Vortex Chaos Pack', art: ['Vortex', 'Chaos'], stars: 4, cost: 8000, n: 3, w: [20, 20, 20, 20, 20], guar: 0, blurb: 'Pure chaos. Every tier has the same odds, bronze to Kings' },
+  { key: 'legends', name: 'Ultimate Legends Pack', art: ['Ultimate', 'Legends'], stars: 5, cost: 60000, n: 3, w: [0, 0, 0, 80, 20], guar: 3, special: { x: 'legend', chance: 1, tier: 4, guaranteed: true }, blurb: '3 players, 1 Ultimate Legend guaranteed: an all-time great of the league' },
+  { key: 'camp', name: 'Training Camp Pack', art: ['Training', 'Camp'], stars: 3, cost: 0, tpCost: 350, n: 4, w: [0, 60, 35, 5, 0], guar: 2, blurb: 'Bought with Training Points. 4 players, at least 1 gold' },
 ];
 export const packByKey = k => PACKS.find(p => p.key === k);
 function pickTier(w, r) { const tot = w.reduce((a, b) => a + b, 0); let x = r() * tot; for (let i = 0; i < w.length; i++) { x -= w[i]; if (x <= 0) return i; } return 0; }
 // returns card ids, best last (for the reveal)
+// returns entries ({ id, x }) best last, plus bonus TP for Supernova duds
 export function rollPack(key, seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) {
   const P = packByKey(key); const r = rng(seed);
-  const ids = [];
-  for (let i = 0; i < P.n; i++) ids.push(makeId(pickTier(P.w, r), (r() * GROUP_KEYS.length) | 0, (r() * 1e7) | 0));
-  if (!ids.some(id => Math.floor(id / 1e8) >= P.guar)) ids[0] = makeId(P.guar, (r() * GROUP_KEYS.length) | 0, (r() * 1e7) | 0);
-  return ids.sort((a, b) => card(a).ovr - card(b).ovr);
+  const grp = () => P.groups ? GROUP_KEYS.indexOf(P.groups[(r() * P.groups.length) | 0]) : (r() * GROUP_KEYS.length) | 0;
+  let out = [];
+  if (P.nova) {
+    if (r() < 0.15) for (let i = 0; i < 3; i++) out.push({ id: makeId(3, (r() * GROUP_KEYS.length) | 0, (r() * 1e7) | 0) });
+    else { out.push({ id: makeId(0, grp(), (r() * 1e7) | 0) }); out.tp = 150; }
+  } else {
+    for (let i = 0; i < P.n; i++) out.push({ id: makeId(pickTier(P.w, r), grp(), (r() * 1e7) | 0) });
+    if (!out.some(e => Math.floor(e.id / 1e8) >= P.guar)) out[0] = { id: makeId(P.guar, grp(), (r() * 1e7) | 0) };
+    const S = P.special;
+    if (S && (S.guaranteed || r() < S.chance)) { const g = S.groups ? GROUP_KEYS.indexOf(S.groups[(r() * S.groups.length) | 0]) : (r() * GROUP_KEYS.length) | 0; out[out.length - 1] = { id: makeId(S.tier, g, (r() * 1e7) | 0), x: S.x }; }
+  }
+  const tp = out.tp; out = out.sort((a, b) => owned(a).ovr - owned(b).ovr); out.tp = tp;
+  return out;
 }
 // the starter squad: one bronze-ish player for every slot
 export function starterIds(seed) {

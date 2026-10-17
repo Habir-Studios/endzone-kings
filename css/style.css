@@ -1057,3 +1057,21 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 
 .tp-pill { margin-left: 8px; }
 .tp-ic { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; background: linear-gradient(160deg, #7df9ff, #2b6cff); color: #04122e; font: 900 9px/1 var(--display, system-ui); font-style: normal; margin-right: 6px; }
+
+/* themed packs */
+.pack.boom .pack-art { --c1: #ff6a00; --c2: #2b0a00; --edge: #ffd166; }
+.pack.cyclone .pack-art { --c1: #3fd0ff; --c2: #0a1f3a; --edge: #c9f6ff; }
+.pack.blizzard .pack-art { --c1: #e8f6ff; --c2: #5a8fbf; --edge: #ffffff; --ink: #0b2440; }
+.pack.venom .pack-art { --c1: #7dff3a; --c2: #0b2a06; --edge: #c8ff9a; --ink: #eaffd8; }
+.pack.supernova .pack-art { --c1: #ff3dc8; --c2: #1a0638; --edge: #ffd1f4; }
+.pack.vortex .pack-art { --c1: #8a5cff; --c2: #06021a; --edge: #00ffd0; }
+.pack.legends .pack-art { --c1: #fff0c2; --c2: #7a4a00; --edge: #fff6dc; --ink: #2a1600; box-shadow: inset 0 0 0 2px var(--edge), 0 0 22px rgba(255,214,120,.45); }
+.pack.camp .pack-art { --c1: #7df9ff; --c2: #10306b; --edge: #d6fdff; }
+.pack.blizzard .pack-art .pa-2, .pack.legends .pack-art .pa-2 { color: var(--ink); opacity: .8; }
+.pack.blizzard .pack-art .pa-stars, .pack.legends .pack-art .pa-stars { color: var(--ink); text-shadow: none; }
+/* abilities on cards */
+.uc-ab, .uc-xf { position: absolute; left: 8px; z-index: 2; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font: 900 11px/1 var(--display, system-ui); }
+.uc-ab { bottom: 32px; background: #f6c445; color: #2a1800; }
+.uc-xf { bottom: 54px; background: #ff3d6e; color: #fff; box-shadow: 0 0 8px #ff3d6e; }
+.cd-abs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.cd-abs b { width: 100%; font-size: 12px; opacity: .8; }

@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792260627';
-import * as UT from './ut.js?v=1792260627';
-import { portraitURL } from './faces.js?v=1792260627';
-import { TEAMS } from './teams.js?v=1792260627';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792261089';
+import * as UT from './ut.js?v=1792261089';
+import { portraitURL } from './faces.js?v=1792261089';
+import { TEAMS } from './teams.js?v=1792261089';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -65,6 +65,7 @@ export function cardHTML(c, o = {}) {
     <img class="uc-img" alt="" src="${portraitURL(c.face, t.jersey, t.trim, 128)}">
     <span class="uc-name"><small>${C.escapeHtml(c.first)}</small><b>${C.escapeHtml(c.last)}</b></span>
     <span class="uc-stats">${TOP3[c.group].map(k => `<span>${c[k]}<small>${SHORT[k]}</small></span>`).join('')}</span>
+    ${c.xf ? `<span class="uc-xf" title="X-Factor: ${c.xf}">X</span>` : ''}${c.ab ? `<span class="uc-ab" title="${c.ab.n}: ${c.ab.d}">★</span>` : ''}
     <span class="uc-prog">${c.program || c.tierName}</span></${tag}>`;
 }
 
@@ -126,11 +127,16 @@ function cardDetail(u) {
   const P = profile(), U = P.p.ut, inst = U.cards.find(c => c.u === u); if (!inst) return;
   const c = UT.owned(inst), t = TEAMS[c.team];
   const qs = UT.quicksell(inst), qtp = UT.quicksellTp(inst), tc = UT.trainCost(inst), inLu = P.inLineup(u);
+  const abs = UT.ABILITIES[c.group] || [], abCost = UT.TP_ABILITY[c.tier], canXf = c.tier >= 4 || inst.x === 'legend';
+  const abHTML = c.tier < 2 ? '<p class="note">Abilities unlock on Gold cards and up.</p>'
+    : `<div class="cd-abs"><b>Ability</b>${abs.map(a => `<button class="btn sm ${inst.ab === a.k ? 'primary' : ''}" data-ab="${a.k}" ${inst.ab === a.k ? 'disabled' : ''}>${a.n} (${a.d})${inst.ab === a.k ? ' ✓' : ` · ${abCost} TP`}</button>`).join('')}
+      ${canXf ? `<b>X-Factor</b><button class="btn sm ${inst.xf ? 'primary' : ''}" id="cd-xf" ${inst.xf ? 'disabled' : ''}>${UT.XFACTORS[c.group]} (+3 to key ratings)${inst.xf ? ' ✓' : ` · ${UT.TP_XFACTOR} TP`}</button>` : ''}</div>`;
   const rate = k => `<div class="cd-rate"><span>${UT.RATING_NAMES[k]}</span><b>${c[k]}</b><i style="--v:${c[k]}%;--bar:${c[k] >= 85 ? 'var(--go)' : c[k] >= 70 ? 'var(--gold)' : '#ff8b97'}"></i></div>`;
   const slots = UT.GROUPS[c.group];
   const el = openDlg(`${cardHTML(c)}<div class="cd-info"><h3>${C.escapeHtml(c.first)} ${C.escapeHtml(c.last)}</h3>
     <p class="note">${c.tierName} ${c.pos}${c.program ? `, ${c.program}` : ''}. #${c.num}. Card art in ${t.city} colors. Trained ${c.b} of ${UT.MAX_BOOST[c.tier]} times.</p>
     <div class="cd-rates">${['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'].map(rate).join('')}</div>
+    ${abHTML}
     <div class="cd-acts">
       ${slots.map(s => `<button class="btn${U.lineup[s] === u ? ' primary' : ''}" data-slot="${s}" ${U.lineup[s] === u ? 'disabled' : ''}>${U.lineup[s] === u ? 'Starting at' : 'Start at'} ${UT.SLOT_LABEL[s]}${slots.length > 1 ? ' ' + (slots.indexOf(s) + 1) : ''}</button>`).join('')}
       <button class="btn" id="cd-train" ${tc ? '' : 'disabled'}>${tc ? `Train +1 OVR (${fmt(tc)} TP, you have ${fmt(P.p.tp || 0)})` : 'Fully trained'}</button>
@@ -138,6 +144,8 @@ function cardDetail(u) {
       <button class="btn ghost" id="cd-x">Close</button>
     </div></div>`);
   C.$$('[data-slot]', el).forEach(b => b.onclick = () => { P.setSlot(b.dataset.slot, u); C.toast(`${c.last} is starting at ${UT.SLOT_LABEL[b.dataset.slot]}`); cardDetail(u); renderUT(); });
+  C.$$('[data-ab]', el).forEach(b => b.onclick = () => { const a = UT.abilityOf(c.group, b.dataset.ab); if (inst.ab && !confirm(`Swap ${inst.ab ? UT.abilityOf(c.group, inst.ab).n : ''} for ${a.n}? This costs ${abCost} TP.`)) return; const err = P.unlockAbility(u, b.dataset.ab); if (err) C.toast(err); else { C.sfx.play('firstdown'); C.toast(`${c.last} unlocked ${a.n}`); } cardDetail(u); renderUT(); });
+  { const xb = C.$('#cd-xf', el); if (xb) xb.onclick = () => { const err = P.unlockXFactor(u); if (err) C.toast(err); else { C.sfx.play('td'); C.toast(`X-Factor unlocked: ${UT.XFACTORS[c.group]}!`); } cardDetail(u); renderUT(); }; }
   C.$('#cd-train', el).onclick = () => { const err = P.train(u, tc); if (err) C.toast(err); else { C.sfx.play('firstdown'); C.toast(`${c.last} trained to ${c.ovr + 1} OVR`); } cardDetail(u); renderUT(); };
   C.$('#cd-sell', el).onclick = () => {
     if (c.tier >= 3 && !confirm(`Quicksell ${c.first} ${c.last} (${c.ovr} ${c.tierName}) for ${fmt(qs)} coins?`)) return;
@@ -174,7 +182,7 @@ function renderPacks(P) {
   const art = k => `<div class="pack-art"><i class="pa-tear"></i><span class="pa-brand">Endzone Kings</span><strong>${(k.art || [k.name])[0]}</strong><strong class="pa-2">${(k.art || [])[1] || ''}</strong><span class="pa-stars">${'★'.repeat(k.stars || 1)}</span><span class="pa-n">${k.n} players</span></div>`;
   pane.innerHTML = `${mine.length ? `<h3 class="store-h">My packs</h3><div class="store">${mine.map(k => `<div class="pack ${k.key}"><span class="own">x${P.p.packs[k.key]}</span>${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn primary" data-open="${k.key}">Open</button></div>`).join('')}</div>` : ''}
     <h3 class="store-h">Store</h3><p class="note">Paid for with coins you earn by playing. No real money, ever.</p>
-    <div class="store">${UT.PACKS.map(k => `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn" data-buy="${k.key}" ${P.p.coins < k.cost ? 'disabled' : ''}><i class="coin"></i> ${fmt(k.cost)}</button></div>`).join('')}</div>`;
+    <div class="store">${UT.PACKS.map(k => `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small>${k.tpCost ? `<button class="btn" data-buy="${k.key}" ${(P.p.tp || 0) < k.tpCost ? 'disabled' : ''}><i class="tp-ic">TP</i> ${fmt(k.tpCost)}</button>` : `<button class="btn" data-buy="${k.key}" ${P.p.coins < k.cost ? 'disabled' : ''}><i class="coin"></i> ${fmt(k.cost)}</button>`}</div>`).join('')}</div>`;
   C.$$('[data-buy]', pane).forEach(b => b.onclick = () => { const err = P.buyPack(b.dataset.buy); if (err) return C.toast(err); C.sfx.play('ui'); openPack(b.dataset.buy); });
   C.$$('[data-open]', pane).forEach(b => b.onclick = () => openPack(b.dataset.open));
 }
@@ -186,6 +194,8 @@ function openPack(k) {
   if (!Array.isArray(added)) { C.toast(added); renderUT(); return; }
   const { $ } = C;
   $('#po-title').textContent = UT.packByKey(k).name;
+  if (ids.tp) setTimeout(() => C.toast(`Supernova fizzled: +${ids.tp} Training Points`, 2600), 900);
+  else if (k === 'supernova') setTimeout(() => C.toast('SUPERNOVA! 3 Elite players!', 3000), 900);
   const box = $('#po-cards');
   box.innerHTML = added.map(inst => { const c = UT.owned(inst); return `<button class="flip" data-tier="${c.tier}" type="button" aria-label="Reveal player"><div class="back">${BACK_SVG}</div>${cardHTML(c)}</button>`; }).join('');
   $('#po-done').classList.add('hidden'); $('#po-all').classList.remove('hidden');

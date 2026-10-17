@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason } from './ut.js?v=1792260627';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792261089';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -91,7 +91,7 @@ const blank = () => ({
 
 // tamper seal over the parts of a save that matter (coins, packs, cards). Editing the save by hand breaks it.
 function seal(p, key) {
-  const body = [p.coins, p.xp, p.lvl, p.rp, JSON.stringify(p.packs || {}), (p.ut && p.ut.cards || []).map(c => c.id + ':' + (c.b || 0)).join(','), key, 'ek-v2-habir'].join('|') + (p.tpv ? '|tp' + (p.tp || 0) : '');   // saves from before Training Points seal the old way
+  const body = [p.coins, p.xp, p.lvl, p.rp, JSON.stringify(p.packs || {}), (p.ut && p.ut.cards || []).map(c => c.id + ':' + (c.b || 0) + (c.x ? 'x' + c.x : '') + (c.ab ? 'a' + c.ab : '') + (c.xf ? 'f' : '')).join(','), key, 'ek-v2-habir'].join('|') + (p.tpv ? '|tp' + (p.tp || 0) : '');   // saves from before Training Points seal the old way
   let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
   for (let i = 0; i < body.length; i++) { const c = body.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 ^ c, 2246822519) ^ (h2 >>> 13); }
   return ((h1 >>> 0).toString(36) + (h2 >>> 0).toString(36));
@@ -216,7 +216,7 @@ export class Profile {
     let coins = lines.reduce((s, l) => s + l.c, 0), xp = lines.reduce((s, l) => s + l.x, 0);
     P.coins += coins; P.games++; P.tds += r.me.tds || 0;
     // Training Points: every rewarded game earns some, Ultimate Team games earn the most
-    const tp = Math.round((20 + (r.res === 'W' ? 15 : 0) + (r.me.tds || 0) * 3) * len * (r.ut ? 1.5 : 1));
+    const tp = r.ut ? Math.round((15 + (r.res === 'W' ? 15 : 0) + (r.me.tds || 0) * 2) * len) : 0;   // Training Points only come from Ultimate Team
     P.tp = (P.tp || 0) + tp;
     if (r.res === 'W') { P.wins++; P.streak++; P.bestStreak = Math.max(P.bestStreak, P.streak); } else if (r.res === 'L') P.streak = 0;
     // ranked points
@@ -247,7 +247,7 @@ export class Profile {
       if (sd && !P.ut.solos.done.includes(sd.k)) {
         let ok = false; try { ok = !!sd.f(r); } catch (_) {}
         solo = { ...sd, ok };
-        if (ok) { P.ut.solos.done.push(sd.k); P.coins += sd.give.coins || 0; coins += sd.give.coins || 0; if (sd.give.pack) this.addPack(sd.give.pack); fp += sd.give.fp || 0; }
+        if (ok) { P.ut.solos.done.push(sd.k); P.coins += sd.give.coins || 0; coins += sd.give.coins || 0; P.tp = (P.tp || 0) + (sd.give.tp || 75); if (sd.give.pack) this.addPack(sd.give.pack); fp += sd.give.fp || 0; }
       }
     }
     const fpBefore = this.fpTier; P.fp.xp += fp;
@@ -269,15 +269,16 @@ export class Profile {
   }
   addCards(ids) {
     const U = this.p.ut; const added = [];
-    for (const id of ids) { const inst = { u: U.next++, id, b: 0 }; U.cards.push(inst); added.push(inst); }
+    for (const e of ids) { const inst = typeof e === 'number' ? { u: U.next++, id: e, b: 0 } : { u: U.next++, id: e.id, b: 0, ...(e.x ? { x: e.x } : {}) }; U.cards.push(inst); added.push(inst); }
     return added;
   }
   clubFull() { return this.p.ut.cards.length >= CLUB_CAP; }
   buyPack(k) {
     const P = PACKS.find(x => x.key === k); if (!P) return 'No such pack';
-    if (this.p.coins < P.cost) return `You need ${(P.cost - this.p.coins).toLocaleString()} more coins`;
-    if (this.p.ut.cards.length + P.n > CLUB_CAP) return `Your club is full (${CLUB_CAP} players). Quicksell some players first`;
-    this.p.coins -= P.cost; this.addPack(k);
+    if (P.tpCost) { if ((this.p.tp || 0) < P.tpCost) return `You need ${(P.tpCost - (this.p.tp || 0)).toLocaleString()} more Training Points`; }
+    else if (this.p.coins < P.cost) return `You need ${(P.cost - this.p.coins).toLocaleString()} more coins`;
+    if (this.p.ut.cards.length + Math.max(P.n, 3) > CLUB_CAP) return `Your club is full (${CLUB_CAP} players). Quicksell some players first`;
+    if (P.tpCost) this.p.tp -= P.tpCost; else this.p.coins -= P.cost; this.addPack(k);
     this.save();
     return null;
   }
@@ -287,6 +288,7 @@ export class Profile {
     if (this.p.ut.cards.length + ids.length > CLUB_CAP) return `Your club is full (${CLUB_CAP} players). Quicksell some players first`;
     this.p.packs[k]--; this.p.ut.opened++;
     const added = this.addCards(ids);
+    if (ids.tp) this.p.tp = (this.p.tp || 0) + ids.tp;
     this.bump('pack');
     this.lastAch = this.checkAch(null);
     this.save();
@@ -297,6 +299,19 @@ export class Profile {
     const U = this.p.ut; if (this.inLineup(u)) return false;
     const i = U.cards.findIndex(c => c.u === u); if (i < 0) return false;
     U.cards.splice(i, 1); this.p.coins += value; this.p.tp = (this.p.tp || 0) + (tp || 0); this.save(); return true;
+  }
+  unlockAbility(u, k) {
+    const inst = this.p.ut.cards.find(c => c.u === u); if (!inst) return 'No such player';
+    const c = card(inst.id); if (c.tier < 2) return 'Abilities unlock on Gold cards and up';
+    const cost = TP_ABILITY[c.tier]; if ((this.p.tp || 0) < cost) return `You need ${(cost - (this.p.tp || 0)).toLocaleString()} more Training Points`;
+    this.p.tp -= cost; inst.ab = k; this.save(); return null;
+  }
+  unlockXFactor(u) {
+    const inst = this.p.ut.cards.find(c => c.u === u); if (!inst) return 'No such player';
+    if (card(inst.id).tier < 4 && inst.x !== 'legend') return 'X-Factors are for Kings and Ultimate Legend cards';
+    if (inst.xf) return 'Already unlocked';
+    if ((this.p.tp || 0) < TP_XFACTOR) return `You need ${(TP_XFACTOR - (this.p.tp || 0)).toLocaleString()} more Training Points`;
+    this.p.tp -= TP_XFACTOR; inst.xf = 1; this.save(); return null;
   }
   train(u, cost) {
     const inst = this.p.ut.cards.find(c => c.u === u); if (!inst || !cost) return 'This player is maxed out';

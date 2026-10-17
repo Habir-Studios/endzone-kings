@@ -1,14 +1,15 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792270837';
-import { grade, nextForm, decay, formed } from './form.js?v=1792270837';
+import { TEAMS } from './teams.js?v=1792271344';
+import { grade, nextForm, decay, formed } from './form.js?v=1792271344';
 
 export const TIERS = [
-  { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
-  { key: 'silver', name: 'Silver', lo: 66, hi: 75, qs: 50, train: 480, mv: 600 },
-  { key: 'gold', name: 'Gold', lo: 75, hi: 83, qs: 160, train: 1000, mv: 1700 },
-  { key: 'elite', name: 'Elite', lo: 83, hi: 89, qs: 600, train: 2200, mv: 8000 },
-  { key: 'kings', name: 'Kings', lo: 89, hi: 96, qs: 2000, train: 4800, mv: 36000 },
+  // mv = what the market pays. Kept well under what packs cost, so buying packs to resell always loses coins
+  { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 10, train: 220, mv: 55 },
+  { key: 'silver', name: 'Silver', lo: 66, hi: 75, qs: 35, train: 480, mv: 220 },
+  { key: 'gold', name: 'Gold', lo: 75, hi: 83, qs: 110, train: 1000, mv: 700 },
+  { key: 'elite', name: 'Elite', lo: 83, hi: 89, qs: 420, train: 2200, mv: 3400 },
+  { key: 'kings', name: 'Kings', lo: 89, hi: 96, qs: 1400, train: 4800, mv: 15000 },
 ];
 export const MAX_BOOST = [5, 5, 5, 4, 3];
 export const CLUB_CAP = 200;
@@ -119,7 +120,7 @@ export const PACKS = [
   { key: 'blizzard', name: 'Sub-Zero Blizzard', art: ['Sub-Zero', 'Blizzard'], stars: 3, cost: 6400, n: 5, w: [55, 38, 7, 0, 0], guar: 0, groups: ['DL', 'DL', 'LB', 'CB', 'S'], special: { x: 'frost', chance: 0.06, tier: 4, groups: ['CB', 'S'] }, blurb: 'Defense pack. Rare shot at a Cold-Blooded lockdown corner or safety' },
   { key: 'venom', name: 'Venom Spike Pack', art: ['Venom', 'Spike'], stars: 3, cost: 6400, n: 5, w: [55, 38, 7, 0, 0], guar: 0, groups: ['LB', 'S', 'DL'], special: { x: 'venom', chance: 0.06, tier: 3, groups: ['LB', 'S'] }, blurb: 'Hard hitters. Rare shot at a Venom safety or linebacker who forces fumbles' },
   { key: 'supernova', name: 'Supernova Pack', art: ['Super', 'nova'], stars: 4, cost: 9800, n: 1, w: [100, 0, 0, 0, 0], guar: 0, nova: true, blurb: 'Most of the time: 1 bronze player and 150 TP. 15% of the time it explodes into 3 Elite players' },
-  { key: 'vortex', name: 'Vortex Chaos Pack', art: ['Vortex', 'Chaos'], stars: 4, cost: 11500, n: 3, w: [20, 20, 20, 20, 20], guar: 0, blurb: 'Pure chaos. Every tier has the same odds, bronze to Kings' },
+  { key: 'vortex', name: 'Vortex Chaos Pack', art: ['Vortex', 'Chaos'], stars: 4, cost: 11500, n: 3, w: [40, 30, 18, 9, 3], guar: 0, blurb: 'Pure chaos. Any tier can drop, bronze to Kings' },
   { key: 'legends', name: 'Ultimate Legends Pack', art: ['Ultimate', 'Legends'], stars: 5, cost: 85000, n: 3, w: [0, 0, 0, 80, 20], guar: 3, special: { x: 'legend', chance: 1, tier: 4, guaranteed: true }, blurb: '3 players, 1 Ultimate Legend guaranteed: an all-time great of the league' },
   { key: 'camp', name: 'Training Camp Pack', art: ['Training', 'Camp'], stars: 3, cost: 0, tpCost: 480, n: 4, w: [0, 60, 35, 5, 0], guar: 2, blurb: 'Bought with Training Points. 4 players, at least 1 gold' },
 ];
@@ -252,25 +253,25 @@ export function masterId(weekSeed) { const r = rng(weekSeed); let id; for (let i
 // ---------------- solo challenges ----------------
 // One CPU game each, any Ultimate Team lineup. Each can be beaten once a week.
 export const SOLOS = [
-  { k: 'open', n: 'Opening Drive', d: 'Win the game', opp: 19, diff: 0, f: r => r.res === 'W', give: { coins: 900, fp: 300 } },
-  { k: 'air', n: 'Air Show', d: 'Throw for 250 yards and win', opp: 0, diff: 1, f: r => r.res === 'W' && r.me.passYds >= 250, give: { coins: 1500, pack: 'bronze', fp: 400 } },
-  { k: 'ground', n: 'Ground and Pound', d: 'Run for 120 yards and win', opp: 30, diff: 1, f: r => r.res === 'W' && r.me.rushYds >= 120, give: { coins: 1500, fp: 400 } },
-  { k: 'hawk', n: 'Ball Hawk', d: 'Intercept 2 passes', opp: 23, diff: 1, f: r => r.opp.ints >= 2, give: { coins: 1800, fp: 400 } },
-  { k: 'sacks', n: 'Sack Master', d: 'Get 4 sacks', opp: 14, diff: 1, f: r => r.me.sacks >= 4, give: { coins: 1800, fp: 400 } },
-  { k: 'wall', n: 'Brick Wall', d: 'Win and allow 7 points or fewer', opp: 12, diff: 1, f: r => r.res === 'W' && r.sc[1] <= 7, give: { coins: 2500, pack: 'silver', fp: 500 } },
-  { k: 'state', n: 'Statement Win', d: 'Win by 21 or more', opp: 11, diff: 2, f: r => r.res === 'W' && r.sc[0] - r.sc[1] >= 21, give: { coins: 4000, pack: 'gold', fp: 700 } },
-  { k: 'legend', n: 'Legend Killer', d: 'Beat the best team in the league', opp: 17, diff: 3, f: r => r.res === 'W', give: { coins: 8000, pack: 'elite', fp: 1000 } },
+  { k: 'open', n: 'Opening Drive', d: 'Win the game', opp: 19, diff: 0, f: r => r.res === 'W', give: { coins: 450, fp: 300 } },
+  { k: 'air', n: 'Air Show', d: 'Throw for 250 yards and win', opp: 0, diff: 1, f: r => r.res === 'W' && r.me.passYds >= 250, give: { coins: 750, pack: 'bronze', fp: 400 } },
+  { k: 'ground', n: 'Ground and Pound', d: 'Run for 120 yards and win', opp: 30, diff: 1, f: r => r.res === 'W' && r.me.rushYds >= 120, give: { coins: 750, fp: 400 } },
+  { k: 'hawk', n: 'Ball Hawk', d: 'Intercept 2 passes', opp: 23, diff: 1, f: r => r.opp.ints >= 2, give: { coins: 900, fp: 400 } },
+  { k: 'sacks', n: 'Sack Master', d: 'Get 4 sacks', opp: 14, diff: 1, f: r => r.me.sacks >= 4, give: { coins: 900, fp: 400 } },
+  { k: 'wall', n: 'Brick Wall', d: 'Win and allow 7 points or fewer', opp: 12, diff: 1, f: r => r.res === 'W' && r.sc[1] <= 7, give: { coins: 1250, pack: 'silver', fp: 500 } },
+  { k: 'state', n: 'Statement Win', d: 'Win by 21 or more', opp: 11, diff: 2, f: r => r.res === 'W' && r.sc[0] - r.sc[1] >= 21, give: { coins: 2000, pack: 'gold', fp: 700 } },
+  { k: 'legend', n: 'Legend Killer', d: 'Beat the best team in the league', opp: 17, diff: 3, f: r => r.res === 'W', give: { coins: 4000, pack: 'elite', fp: 1000 } },
 ];
 
 // ---------------- field pass ----------------
 // A free season pass: earn pass XP by playing, claim a reward at every tier. Resets each month.
-export const FP_TIERS = 30, FP_XP = 600;
+export const FP_TIERS = 30, FP_XP = 1100;   // a Field Pass tier takes real playing time
 export function fpReward(t) {
-  if (t === FP_TIERS) return { coins: 10000, pack: 'kings' };
-  if (t % 10 === 0) return { coins: 2500, pack: 'elite' };
-  if (t % 5 === 0) return { coins: 1500, pack: 'gold' };
-  if (t % 3 === 0) return { coins: 600, pack: 'silver' };
-  return { coins: 500 + t * 60 };
+  if (t === FP_TIERS) return { coins: 5000, pack: 'kings' };
+  if (t % 10 === 0) return { coins: 1200, pack: 'elite' };
+  if (t % 5 === 0) return { coins: 700, pack: 'gold' };
+  if (t % 3 === 0) return { coins: 300, pack: 'silver' };
+  return { coins: 200 + t * 25 };
 }
 export const fpSeason = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}`;
 

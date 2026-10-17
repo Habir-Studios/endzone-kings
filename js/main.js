@@ -1,22 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792270837';
-import * as Form from './form.js?v=1792270837';
-import { watchSim } from './simview.js?v=1792270837';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792270837';
-import { Renderer } from './render.js?v=1792270837';
-import { Sfx } from './audio.js?v=1792270837';
-import { Auth } from './auth.js?v=1792270837';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792270837';
-import { getRoster, teamOvr } from './teams.js?v=1792270837';
-import * as Season from './season.js?v=1792270837';
-import * as Fr from './franchise.js?v=1792270837';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792270837';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792270837';
-import * as UTm from './ut.js?v=1792270837';
-import { initCreator, renderCreator } from './creator.js?v=1792270837';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792270837';
-import { portraitURL } from './faces.js?v=1792270837';
-import { logoURL, clearLogoCache } from './logos.js?v=1792270837';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792271344';
+import * as Form from './form.js?v=1792271344';
+import { watchSim } from './simview.js?v=1792271344';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792271344';
+import { Renderer } from './render.js?v=1792271344';
+import { Sfx } from './audio.js?v=1792271344';
+import { Auth } from './auth.js?v=1792271344';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792271344';
+import { getRoster, teamOvr } from './teams.js?v=1792271344';
+import * as Season from './season.js?v=1792271344';
+import * as Fr from './franchise.js?v=1792271344';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792271344';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792271344';
+import * as UTm from './ut.js?v=1792271344';
+import { initCreator, renderCreator } from './creator.js?v=1792271344';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792271344';
+import { portraitURL } from './faces.js?v=1792271344';
+import { logoURL, clearLogoCache } from './logos.js?v=1792271344';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -119,14 +119,14 @@ function renderCelShop() {
     SET.cel = id; saveSet(); sfx.play('cel' + id); toast(`${c[1]} unlocked and equipped`); refreshChip && refreshChip(); renderCelShop();
   });
 }
-// in-game celebration picker: hold E (Y / triangle on a controller)
+// in-game celebration picker: hold Tab (Y / triangle on a controller)
 let celSel = -1;
 function celPickOpen() { return !$('#cel-pick').classList.contains('hidden'); }
 function openCelPick() {
   const P = !isGuest() ? profile() : null, own = celOwned(P);
   const list = CELS.filter(c => own.has(c[0]));
   const n = list.length, R0 = n > 8 ? 128 : 112;
-  $('#cel-opts').innerHTML = `<div class="cw-ring"></div><div class="cw-center"><b id="cw-name">Pick one</b><small>let go of E</small></div>` + list.map(([id, nm], i) => {
+  $('#cel-opts').innerHTML = `<div class="cw-ring"></div><div class="cw-center"><b id="cw-name">Pick one</b><small>let go of Tab</small></div>` + list.map(([id, nm], i) => {
     const a = i / n * Math.PI * 2 - Math.PI / 2, x = Math.cos(a) * R0, y = Math.sin(a) * R0;
     return `<button type="button" class="cw-slot ${SET.cel === id ? 'on' : ''}" data-cp="${id}" data-nm="${escapeHtml(nm)}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px"><span class="cw-ic">${CEL_IC[id] || '★'}</span><small>${escapeHtml(nm)}</small><kbd>${i + 1}</kbd></button>`;
   }).join('');
@@ -620,14 +620,16 @@ window.addEventListener('keydown', (e) => {
     if (d >= 1 && d <= btns.length) { pickCel(+btns[d - 1].dataset.cp); return; }
     if (k === 'ArrowDown' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowLeft') { celHighlight(celSel + (k === 'ArrowDown' || k === 'ArrowRight' ? 1 : -1)); return; }
     if (k === 'Enter' || k === 'Space') { if (celSel >= 0) pickCel(+btns[celSel].dataset.cp); return; }
-    if (k === 'KeyE' || k === 'Escape') { closeCelPick(); return; }
+    if (k === 'Escape') { closeCelPick(); return; }
+    if (k === 'Tab') { e.preventDefault(); return; }
     return;
   }
-  if (k === 'KeyE' && st.snap && (st.snap.ph === 'dead' || st.snap.ph === 'presnap') && st.mode !== 'spec' && st.mode !== 'clip') { openCelPick(); return; }
+  if (k === 'Tab' && st.playing) e.preventDefault();   // Tab is the celebration button in a game, not focus-hopping
+  if (k === 'Tab' && !e.repeat && st.snap && (st.snap.ph === 'dead' || st.snap.ph === 'presnap') && st.mode !== 'spec' && st.mode !== 'clip') { openCelPick(); return; }
   const ev = keyToEvent(k);
   if (ev) pushEv(ev);
 });
-window.addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'KeyE' && celPickOpen() && celSel >= 0) { const b = $$('#cel-opts [data-cp]')[celSel]; if (b) pickCel(+b.dataset.cp); } if (st.charge && st.charge.code === e.code) releaseCharge(); if (st.playing && (e.code === 'Space' || e.code === 'Enter') && !e.target.closest('.modal')) e.preventDefault(); });
+window.addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'Tab' && celPickOpen() && celSel >= 0) { const b = $$('#cel-opts [data-cp]')[celSel]; if (b) pickCel(+b.dataset.cp); } if (st.charge && st.charge.code === e.code) releaseCharge(); if (st.playing && (e.code === 'Space' || e.code === 'Enter') && !e.target.closest('.modal')) e.preventDefault(); });
 window.addEventListener('blur', () => keys.clear());
 
 // ---- throw power: hold a receiver's button to wind up, release to throw. Green = right amount for that distance ----
@@ -762,12 +764,12 @@ function keyToEvent(k) {
       if (k === 'KeyP' && !(S.sp && S.sp.pat)) { sfx.play('ui'); return { t: 'play', id: 'punt' }; }
       if (k === 'KeyF' && S.sp && S.sp.fg) { sfx.play('ui'); return { t: 'play', id: 'fg' }; }
       if (k === 'Space' || k === 'Enter') return { t: 'snap' };
-    } else if (k === 'KeyQ' || k === 'Tab') return { t: 'switch' };
+    } else if (k === 'KeyQ') return { t: 'switch' };
     return null;
   }
   if (S.ph !== 'live') return null;
   if (digit >= 1 && digit <= 5 && S.canThrow && S.off === me) { startCharge(digit, k); return null; }
-  if (k === 'KeyQ' || k === 'Tab') return { t: 'switch' };
+  if (k === 'KeyQ') return { t: 'switch' };
   const carrier = S.b[3] === 0 ? S.b[5] : -1;
   const iCarry = carrier >= 0 && carrier === S.ctrl[me];
   if (k === 'KeyE') return iCarry ? { t: 'spin' } : { t: 'playball' };
@@ -1297,7 +1299,7 @@ function padHint(items) {
     air: { 'W A S D': g.LS, E: g.Y, Q: g.B, Shift: g.RT },
     def: { Space: g.X, Q: g.B, Shift: g.RT, E: g.Y },
   }[c] || {};
-  const G = { Esc: g.Menu, C: g.R3, R: g.X, T: '', 'hold E': `hold ${g.Y}` };
+  const G = { Esc: g.Menu, C: g.R3, R: g.X, T: '', 'hold Tab': `hold ${g.Y}` };
   return items.map(([k, t]) => [M[k] || G[k] || k, t]).filter(([k]) => k);
 }
 function hint(items) {
@@ -1467,7 +1469,7 @@ function updateHud(S) {
     if (on) { const s = st.local === 1 ? -1 : 1, ang = Math.atan2(-Math.sin(W.dir) * s, Math.cos(W.dir) * s) * 180 / Math.PI, key = W.mph + '|' + Math.round(ang);
       if (hudCache.wind !== key) { hudCache.wind = key; $('#wind-arrow').style.transform = `rotate(${ang - 90}deg)`; setTxt('#wind-mph', `${W.mph} mph`); } } }
   // contextual hints
-  if (S.ph === 'dead' && st.mode !== 'clip' && st.mode !== 'spec') hint([['hold E', 'celebrate'], ['Space', 'skip']]);
+  if (S.ph === 'dead' && st.mode !== 'clip' && st.mode !== 'spec') hint([['hold Tab', 'celebrate'], ['Space', 'skip']]);
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
@@ -1477,7 +1479,7 @@ function updateHud(S) {
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else if (S.b[3] === 3) hint([['Space', 'dive on the ball'], ['W A S D', 'get to it first'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else hint([['Space', 'dive tackle'], ['H', 'hit stick'], ['Q', 'switch'], ['Shift', 'sprint']]);
-  } else hint(st.mode === 'spec' || st.mode === 'clip' ? [['Esc', 'leave'], ['C', 'camera'], ['- +', 'zoom']] : st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay'], ['hold E', 'celebrate']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat'], ['hold E', 'celebrate']]);
+  } else hint(st.mode === 'spec' || st.mode === 'clip' ? [['Esc', 'leave'], ['C', 'camera'], ['- +', 'zoom']] : st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay'], ['hold Tab', 'celebrate']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat'], ['hold Tab', 'celebrate']]);
   const tOn = touchOn();
   $('#touch').classList.toggle('hidden', !tOn || S.ph === 'gameover');
   $('#hud').classList.toggle('touch-mode', tOn);
@@ -1552,7 +1554,7 @@ function userCastPush() {
 async function peekLive(uid) {
   if (Auth.mode !== 'supabase' || LOCALNET || !Auth.client) return null;
   const ch = new SpecChannel(Auth.client, 'u' + uid);
-  try { await ch.open(() => {}); await new Promise(r => setTimeout(r, 1400)); return ch.hostInfo(); } catch (e) { return null; } finally { ch.close(); }
+  try { await ch.open(() => {}); for (let i = 0; i < 6; i++) { await new Promise(r => setTimeout(r, 500)); const h = ch.hostInfo(); if (h) return h; } return null; } catch (e) { return null; } finally { ch.close(); }
 }
 function watchUser(uid) { startSpectate('u' + uid, true); }
 function stopSpec() { if (spec) { spec.close(); spec = null; } if (liveLobby) { liveLobby.close(); liveLobby = null; } }

@@ -84,7 +84,7 @@ function press(i) {
     kick: { 0: 'Space' },
     half: { 0: 'Space' },
     replay: { 0: 'Space', 1: 'Escape' },
-    dead: { 8: 'KeyV', 2: 'KeyR', 3: 'KeyE' },
+    dead: { 8: 'KeyV', 2: 'KeyR', 3: 'Tab' },
   }[c] || {};
   const pre = c === 'presnapOff' || c === 'presnapDef';
   if (pre && (i === 14 || i === 15 || i === 12 || i === 13) && !C.hotOpen()) return C.cardNav(i);

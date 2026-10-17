@@ -1478,3 +1478,5 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .ic-meta .hot { color: #4ade80; } .ic-meta .cold { color: #93c5fd; }
 /* italic gradient "KINGS": give the slanted last letter room so it isn't clipped */
 .game-logo .t2 { align-self: center; padding: 0 .16em 0 .08em; overflow: visible; }
+.pf-live.checking, .pf-live.idle { border-color: rgba(160,175,225,.22); background: rgba(255,255,255,.03); }
+.live-dot.idle { background: #6b7280; animation: none; box-shadow: none; }

@@ -56,8 +56,8 @@ begin
   end if;
   update ek_players set
     games = games + 1,
-    wins = wins + case when s->>'res' = 'W' then 1 else 0 end,
-    losses = losses + case when s->>'res' = 'L' then 1 else 0 end,
+    wins = wins + case when s->>'res' = 'W' and (coalesce((s->>'ut')::int, 0) = 1 or coalesce((s->>'on')::int, 0) = 1) then 1 else 0 end,
+    losses = losses + case when s->>'res' = 'L' and (coalesce((s->>'ut')::int, 0) = 1 or coalesce((s->>'on')::int, 0) = 1) then 1 else 0 end,
     pass_yds = pass_yds + greatest(py, -50),
     pass_td = pass_td + least(greatest(coalesce((s->>'ptd')::int, 0), 0), 12),
     rush_yds = rush_yds + greatest(ry, -50),

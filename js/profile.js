@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792270837';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792271344';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -9,9 +9,9 @@ export function rankInfo(rp) {
   const step = Math.floor(rp / 100), idx = Math.floor(step / 3), sub = 3 - (step % 3);
   return { name: `${DIVS[idx]} ${'I'.repeat(sub)}`, div: DIVS[idx], idx, sub, into: rp % 100, span: 100, floor: idx * 300 };
 }
-export const xpFor = lvl => 400 + lvl * 120;
+export const xpFor = lvl => 650 + lvl * 200;   // levels take a while
 export function levelReward(lvl) {
-  const r = { coins: 150 + lvl * 25, pack: null };
+  const r = { coins: 80 + lvl * 15, pack: null };
   if (lvl % 25 === 0) r.pack = 'kings'; else if (lvl % 10 === 0) r.pack = 'elite'; else if (lvl % 5 === 0) r.pack = 'gold'; else if (lvl % 2 === 0) r.pack = 'bronze';
   return r;
 }
@@ -90,8 +90,12 @@ const blank = () => ({
 });
 
 // tamper seal over the parts of a save that matter (coins, packs, cards). Editing the save by hand breaks it.
-function seal(p, key) {
-  const body = [p.coins, p.xp, p.lvl, p.rp, JSON.stringify(p.packs || {}), (p.ut && p.ut.cards || []).map(c => c.id + ':' + (c.b || 0) + (c.x ? 'x' + c.x : '') + (c.ab ? 'a' + c.ab : '') + (c.xf ? 'f' : '')).join(','), key, 'ek-v2-habir'].join('|') + (p.tpv ? '|tp' + (p.tp || 0) : '');   // saves from before Training Points seal the old way
+// packs are sealed with their keys sorted: the cloud database reorders object keys, which used to make a
+// perfectly good save look edited on the other device
+const sortedPacks = o => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)));
+function sealOk(p, key) { return !!p && !!p.sig && (p.sig === seal(p, key) || p.sig === seal(p, key, true)); }
+function seal(p, key, legacy) {
+  const body = [p.coins, p.xp, p.lvl, p.rp, legacy ? JSON.stringify(p.packs || {}) : sortedPacks(p.packs), (p.ut && p.ut.cards || []).map(c => c.id + ':' + (c.b || 0) + (c.x ? 'x' + c.x : '') + (c.ab ? 'a' + c.ab : '') + (c.xf ? 'f' : '')).join(','), key, 'ek-v2-habir'].join('|') + (p.tpv ? '|tp' + (p.tp || 0) : '');   // saves from before Training Points seal the old way
   let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
   for (let i = 0; i < body.length; i++) { const c = body.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 ^ c, 2246822519) ^ (h2 >>> 13); }
   return ((h1 >>> 0).toString(36) + (h2 >>> 0).toString(36));
@@ -108,10 +112,11 @@ export class Profile {
     this.upgradeClub();
   }
   onSave(fn) { this.listeners.push(fn); }
+  cloudOk(remote) { return sealOk(remote, this.key); }
   // a save that was edited by hand loses its coins and packs and gets flagged for anti-cheat
   verify() {
     const P = this.p;
-    if (P.sig && P.sig !== seal(P, this.key)) {
+    if (P.sig && !sealOk(P, this.key)) {
       this.tampered = true; P.tampered = (P.tampered || 0) + 1;
       P.coins = Math.min(P.coins, 1500); P.packs = {}; P.tp = Math.min(P.tp || 0, 50);
       P.sig = seal(P, this.key);
@@ -124,7 +129,7 @@ export class Profile {
   // Never takes a cloud copy that fails its seal (that's what used to reset coins to 1500).
   // A local save that got wrongly flagged gives way to a clean cloud copy that's about as far along.
   adopt(remote) {
-    if (!remote || !remote.sig || remote.sig !== seal(remote, this.key)) return false;
+    if (!remote || !sealOk(remote, this.key)) return false;
     const pg = q => (q.lvl || 1) * 1e7 + (q.xp || 0) * 10 + Math.min(9, q.games || 0), a = pg(remote), b = pg(this.p);
     if (remote.tampered && !this.p.tampered && a <= b + 2e7) return false;   // a flagged copy from another device never beats a clean one
     // both flagged (the old sync bug flagged good saves) and about as far along: keep the richer one, since the flag knocked coins down
@@ -215,7 +220,8 @@ export class Profile {
     const len = Math.max(0.5, Math.min(1.5, (r.qlen || 120) / 120));
     // harder difficulty pays a lot more, especially in Ultimate Team
     const diffMul = r.mode === 'online' ? 1.5 : (r.ut ? [0.55, 1, 1.6, 2.4] : [0.7, 1, 1.35, 1.75])[r.diff ?? 1] || 1;
-    const add = (label, c, x) => { if (c || x) lines.push({ label, c: Math.round(c * len * diffMul * (r.ut ? 1.2 : 1)), x: Math.round(x * len) }); };
+    const ECON = 0.6;   // the grind: coins come slow, so packs and upgrades mean something
+    const add = (label, c, x) => { if (c || x) lines.push({ label, c: Math.round(c * ECON * len * diffMul * (r.ut ? 1.2 : 1)), x: Math.round(x * len) }); };
     add('Game played', 120, 160);
     if (r.res === 'W') add('Win', 180, 160); else if (r.res === 'T') add('Tie', 60, 60);
     if (r.me.tds) add(`${r.me.tds} touchdown${r.me.tds > 1 ? 's' : ''}`, r.me.tds * 25, r.me.tds * 30);
@@ -245,7 +251,7 @@ export class Profile {
       : r.mode === 'online' ? Math.round((7 + (r.res === 'W' ? 14 : 0) + (r.me.tds || 0) * 2 + ((r.opp && r.opp.ints) || 0) * 3) * len) : 0;   // regular online 1v1 pays TP too
     // rival strength in Ultimate Team climbs with your wins against the CPU
     if (r.ut && r.mode !== 'online' && P.ut) P.ut.rw = Math.max(0, (P.ut.rw || 0) + (r.res === 'W' ? 1 : r.res === 'L' ? -0.5 : 0));
-    const tpS = Math.round(tp * streakMul); P.tp = (P.tp || 0) + tpS;
+    const tpS = Math.round(tp * 0.7 * streakMul); P.tp = (P.tp || 0) + tpS;
     if (r.res === 'W') { P.wins++; P.streak++; P.bestStreak = Math.max(P.bestStreak, P.streak); } else if (r.res === 'L') P.streak = 0;
     // ranked points
     const before = rankInfo(P.rp), rp0 = P.rp;
@@ -283,7 +289,7 @@ export class Profile {
     const ach = this.checkAch(r);
     P.log.unshift({ at: Date.now(), res: r.res, sc: r.sc, mode: r.mode, ut: !!r.ut, coins, xp }); P.log.length = Math.min(P.log.length, 20);
     this.save();
-    return { tp: Math.round(tp * streakMul), lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
+    return { tp: tpS, lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
   }
 
   // ---------------- Ultimate Team ----------------

@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792273592';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792273592';
-import { drawLogo } from './logos.js?v=1792273592';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792273592';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792273643';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792273643';
+import { drawLogo } from './logos.js?v=1792273643';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792273643';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -867,6 +867,16 @@ export class Renderer {
       const fingers = det(new RoundedBoxGeometry(0.068, 0.06, 0.036, 2, 0.016), M.glove); fingers.position.set(0, -0.065, 0.008); fingers.rotation.x = 0.35; glove.add(fingers);
       const thumb = det(new THREE.CapsuleGeometry(0.016, 0.04, 3, 6), M.glove); thumb.position.set(sx > 0 ? -0.045 : 0.045, -0.02, 0.02); thumb.rotation.z = sx > 0 ? 0.6 : -0.6; glove.add(thumb);
       arms.push({ sh, elbow });
+    }
+    // extra gear on the High setting only (Fast and Chromebook skip it, so they stay smooth)
+    if (this.quality === 'high') {
+      for (const sx of [-1, 1]) { const pnl = mesh(new THREE.BoxGeometry(0.012, 0.42, 0.11), M.trim); pnl.position.set(sx * 0.262, 0.47, 0); pnl.rotation.z = sx * 0.07; torso.add(pnl); }   // jersey side panels
+      const back = mesh(new RoundedBoxGeometry(0.36, 0.2, 0.08, 2, 0.03), M.jersey); back.position.set(0, 0.7, -0.19); back.rotation.x = 0.25; torso.add(back);   // back plate under the pads
+      for (const L of legs) { const tp = mesh(new THREE.SphereGeometry(0.1, 12, 8), M.pants); tp.scale.set(1, 1.5, 0.75); tp.position.set(0, -0.22, 0.07); L.hip.add(tp); }   // thigh pads
+      if (num % 5 === 1) { const mg = mesh(new RoundedBoxGeometry(0.07, 0.022, 0.03, 1, 0.008), M.trim); mg.position.set(0, -0.15, 0.225); head.add(mg); }   // mouthguard
+      if (num % 2 === 0) for (const sx of [-1, 1]) { const eb = mesh(new THREE.PlaneGeometry(0.045, 0.018), black); eb.position.set(sx * 0.05, -0.02, 0.205); eb.rotation.y = sx * 0.28; head.add(eb); }   // eye black
+      if (big) for (const A of arms) { const ep = mesh(new THREE.SphereGeometry(0.06, 10, 8), black); ep.scale.set(1, 0.8, 1); ep.position.set(0, 0, -0.03); A.elbow.add(ep); }   // lineman elbow pads
+      const bump = mesh(new RoundedBoxGeometry(0.16, 0.05, 0.05, 2, 0.02), black); bump.position.set(0, -0.14, -0.235); head.add(bump);   // rear helmet bumper
     }
     const wide = size, tall = 0.97 + (size - 1) * 0.25;
     root.scale.set(wide, tall, wide);

@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792280231';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792280231';
-import { drawLogo } from './logos.js?v=1792280231';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792280231';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792280411';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792280411';
+import { drawLogo } from './logos.js?v=1792280411';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792280411';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -96,12 +96,13 @@ export class Renderer {
 
   // three tiers: high (everything), low ("Fast": no shadows/bloom, half crowd), potato ("Chromebook": low-res,
   // simple players and crowd, fewest draw calls)
-  basePR(q) { return q === 'high' ? Math.min(window.devicePixelRatio || 1, 1.75) : q === 'low' ? 1 : 0.7; }
+  basePR(q) { return q === 'high' ? Math.min(window.devicePixelRatio || 1, 1.75) : q === 'low' ? 1 : Math.min(window.devicePixelRatio || 1, 1); }
   setQuality(q) {
     const was = this.quality;
     this.quality = q;
     this.r.shadowMap.enabled = q === 'high';
     if (this.shafts) this.shafts.visible = q !== 'potato';
+    if (this.fieldMat) { this.fieldMat.bumpMap = q === 'potato' ? null : this._turfBump || null; }
     this.key.castShadow = q === 'high';
     this.scene.traverse(o => { if (o.material && !Array.isArray(o.material)) o.material.needsUpdate = true; });
     this.pr = this.basePR(q); this.r.setPixelRatio(this.pr);
@@ -113,7 +114,7 @@ export class Renderer {
   // dynamic resolution for slow machines: nudge the render scale to hold the frame rate
   adaptResolution(fps) {
     if (this.quality === 'high') return;
-    const lo = this.quality === 'potato' ? 0.45 : 0.6, hi = this.basePR(this.quality);
+    const lo = this.quality === 'potato' ? 0.75 : 0.8, hi = this.basePR(this.quality);
     let pr = this.pr;
     if (fps < 42) pr = Math.max(lo, pr - 0.08); else if (fps > 57) pr = Math.min(hi, pr + 0.04);
     if (Math.abs(pr - this.pr) > 0.001) { this.pr = pr; this.r.setPixelRatio(pr); this.resize(); }
@@ -121,7 +122,7 @@ export class Renderer {
   applyCrowdQuality() {
     if (!this.fans) return;
     const q = this.quality, full = this.fans[0].userData.full;
-    const n = q === 'high' ? full : q === 'low' ? Math.floor(full * 0.85) : Math.floor(full * 0.6);   // packed house on every setting; slow machines get simpler fans, not empty seats
+    const n = q === 'high' ? full : q === 'low' ? Math.floor(full * 0.7) : Math.floor(full * 0.35);   // packed house on every setting; slow machines get simpler fans, not empty seats
     const [bodies, heads, arms, caps] = this.fans;
     bodies.count = n; heads.count = n;
     arms.count = q === 'potato' ? 0 : n; caps.count = q === 'potato' ? 0 : n;
@@ -342,7 +343,7 @@ export class Renderer {
     // fine grass-blade grain (one small tiled texture, cheap enough for every setting)
     if (!this._turfBump) { this._turfBump = canvasTex(128, 128, (c) => { const img = c.createImageData(128, 128), d = img.data; for (let i = 0; i < d.length; i += 4) { const v = 110 + Math.random() * 120; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } c.putImageData(img, 0, 0); for (let i = 0; i < 260; i++) { c.strokeStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.25})`; c.lineWidth = 1; const x = Math.random() * 128, y = Math.random() * 128; c.beginPath(); c.moveTo(x, y); c.lineTo(x + (Math.random() - 0.5) * 2, y - 3 - Math.random() * 4); c.stroke(); } }, false);
       this._turfBump.wrapS = this._turfBump.wrapT = THREE.RepeatWrapping; this._turfBump.repeat.set(70, 150); }
-    this.fieldMat.bumpMap = this._turfBump; this.fieldMat.bumpScale = 0.9;
+    this.fieldMat.bumpMap = this.quality === 'potato' ? null : this._turfBump; this.fieldMat.bumpScale = 0.9;
     if (this.fieldMat.map) this.fieldMat.map.dispose();
     this.fieldMat.map = tex; this.fieldMat.needsUpdate = true;
   }
@@ -735,9 +736,9 @@ export class Renderer {
     const m = {
       // mesh jersey fabric catches the stadium lights (sheen); game pants have a satin shine. Chromebook keeps plain materials.
       jersey: (() => { const base = uk ? { color: '#ffffff', map: this.kitTex(uk), roughness: uk.pattern === 'chrome' ? 0.25 : 0.66, metalness: uk.pattern === 'chrome' ? 0.45 : 0, bumpMap: this.fabric(), bumpScale: 0.6 } : { color: t.jersey, roughness: 0.66, bumpMap: this.fabric(), bumpScale: 0.6 };
-        return lite ? new THREE.MeshStandardMaterial(base) : new THREE.MeshPhysicalMaterial({ ...base, sheen: 0.55, sheenRoughness: 0.75, sheenColor: new THREE.Color(0xffffff) }); })(),
-      pants: lite ? new THREE.MeshStandardMaterial({ color: t.pants, roughness: 0.42, metalness: 0.05 }) : new THREE.MeshPhysicalMaterial({ color: t.pants, roughness: 0.36, metalness: 0.04, clearcoat: 0.35, clearcoatRoughness: 0.45, sheen: 0.3, sheenRoughness: 0.5 }),
-      helmet: new THREE.MeshPhysicalMaterial({ color: t.helmet, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.08, side: THREE.DoubleSide }),
+        return lite ? new THREE.MeshLambertMaterial({ color: base.color, map: base.map || null }) : new THREE.MeshPhysicalMaterial({ ...base, sheen: 0.55, sheenRoughness: 0.75, sheenColor: new THREE.Color(0xffffff) }); })(),
+      pants: lite ? new THREE.MeshLambertMaterial({ color: t.pants }) : new THREE.MeshPhysicalMaterial({ color: t.pants, roughness: 0.36, metalness: 0.04, clearcoat: 0.35, clearcoatRoughness: 0.45, sheen: 0.3, sheenRoughness: 0.5 }),
+      helmet: lite ? new THREE.MeshPhongMaterial({ color: t.helmet, shininess: 80, specular: 0x666666, side: THREE.DoubleSide }) : new THREE.MeshPhysicalMaterial({ color: t.helmet, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.08, side: THREE.DoubleSide }),
       trim: new THREE.MeshStandardMaterial({ color: vis(t, 'trim') === vis(t, 'jersey') ? '#ffffff' : t.trim, roughness: 0.6 }),
       sock: new THREE.MeshStandardMaterial({ color: t.jersey === '#121a14' ? '#0b0f0c' : t.jersey, roughness: 0.7 }),
       glove: new THREE.MeshStandardMaterial({ color: vis(t, 'trim'), roughness: 0.5 }),

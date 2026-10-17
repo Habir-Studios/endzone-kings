@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792280231';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792280411';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792280231';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792280411';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -231,7 +231,7 @@ function setDepth(g, team, role, d) {
 // the guy who got hurt is off the field: the human picks his replacement, the CPU takes the best one
 function needSub(g, team, role) {
   const d = bestHealthy(g, team, role); g.depth[team][role] = d; g.benchV++;
-  if (g.opts.humans[team]) { g.subAsk[team] = role; g.subAskT[team] = g.t; }
+  if (g.opts.humans[team]) g.flash = { text: `BACKUP IN AT ${role}`, sub: 'Swap him in Subs if you want', until: 2.2 };   // auto-sub the best healthy guy, no forced pick
 }
 export function benchReport(g) {
   const out = [{}, {}];

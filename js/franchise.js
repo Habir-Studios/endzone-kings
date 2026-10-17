@@ -1,9 +1,9 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { askYes } from './ui.js?v=1792264364';
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792264364';
-import * as Season from './season.js?v=1792264364';
+import { askYes } from './ui.js?v=1792264399';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792264399';
+import * as Season from './season.js?v=1792264399';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -266,7 +266,7 @@ export function renderFranchise() {
   }
   C.$$('.fr-tab').forEach(b => b.classList.toggle('on', b.dataset.fr === tab));
   const t = TEAMS[F.team], r = teamRating(F), pay = payroll(F);
-  $('#fr-top').innerHTML = `<img alt="" src="${C.logoURL(F.team, 96)}"><div><h3>${t.city} <small>${F.year} season</small></h3><p class="note">${r.ovr} OVR (offense ${r.off}, defense ${r.def}). ${F.trophies} Kings Bowl title${F.trophies === 1 ? '' : 's'}. Payroll $${pay.toFixed(1)}M of $${CAP}M.</p></div>
+  $('#fr-top').innerHTML = `<img alt="" src="${C.logoURL(F.team, 96)}"><div><h3>${t.city} <small>${F.year} season</small></h3><p class="note">${r.ovr} OVR (offense ${r.off}, defense ${r.def}). ${F.trophies} Kings Bowl title${F.trophies === 1 ? '' : 's'}. ${(() => { const h = F.history || [], w = h.reduce((a, x) => a + x.w, 0), l = h.reduce((a, x) => a + x.l, 0), tt = h.reduce((a, x) => a + (x.t || 0), 0), po = h.filter(x => x.playoffs).length; return h.length ? `All-time ${w}-${l}${tt ? '-' + tt : ''} over ${h.length} season${h.length > 1 ? 's' : ''}, ${po} playoff trip${po === 1 ? '' : 's'}.` : 'First season.'; })()} Payroll $${pay.toFixed(1)}M of $${CAP}M.</p></div>
     <div class="fr-cap"><div class="bar"><i style="width:${Math.min(100, pay / CAP * 100)}%;${pay > CAP ? 'background:var(--siren)' : ''}"></i></div><small>Cap space $${(CAP - pay).toFixed(1)}M</small></div>`;
   ({ hub: hubTab, roster: rosterTab, league: leagueTab, legacy: legacyTab })[tab](F);
 }

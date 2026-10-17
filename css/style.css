@@ -1140,3 +1140,4 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .clip-views { display: flex; flex-wrap: wrap; gap: 4px; }
 .clip-views .btn.on, #clip-like.on { background: var(--gold, #f6c445); color: #241500; }
 .clip-like-n { margin-left: 4px; }
+#pc-rec { font-size: 12px; line-height: 1.25; display: block; max-width: 300px; white-space: normal; }

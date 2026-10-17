@@ -1141,3 +1141,7 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .clip-views .btn.on, #clip-like.on { background: var(--gold, #f6c445); color: #241500; }
 .clip-like-n { margin-left: 4px; }
 #pc-rec { font-size: 12px; line-height: 1.25; display: block; max-width: 300px; white-space: normal; }
+/* notifications live top-left (the profile card owns the top-right) */
+.notif-btn { position: fixed; left: 16px; right: auto; top: 16px; }
+.notif-panel { position: fixed; left: 16px; right: auto; top: 70px; }
+@media (max-width: 700px) { .notif-btn { top: auto; bottom: 16px; } .notif-panel { top: auto; bottom: 70px; } }

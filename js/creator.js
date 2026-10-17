@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Play Creator: draw your own offense, defense and special teams plays.
 // Plays save on this device (localStorage 'ek_custom_plays') and show up under "My Plays" in every game, online too.
-import { FORMS, cleanCustom } from './playbook.js';
+import { FORMS, cleanCustom } from './playbook.js?v=1792246372';
 
 let C = null;
 const KEY = 'ek_custom_plays', MAX = 24;
@@ -11,6 +11,7 @@ const DEF_NAMES = { DL1: 'DE (left)', DL2: 'DT', DL3: 'DE (right)', LB: 'MLB', C
 const X = lx => 200 + lx * 7.2, Y = lz => 220 - lz * 6.5;
 const LX = x => (x - 200) / 7.2, LZ = y => (220 - y) / 6.5;
 
+export const SAVE_COST = 3500, EDIT_COST = 750;
 let side = 'off';
 let ed = null;      // the play being edited
 let selRole = 'WR1';
@@ -34,8 +35,9 @@ export function renderCreator() {
   if (!ed) ed = fresh(side);
   C.seg(C.$('#cr-side'), [['off', 'Offense'], ['def', 'Defense'], ['st', 'Special teams']], side, v => { side = v; ed = fresh(v); selRole = v === 'def' ? 'LB' : 'WR1'; C.$('#cr-name').value = ''; renderCreator(); });
   opts(); draw(); list();
-  msg('');
+  msg(''); costLabel();
 }
+function costLabel() { C.$('#cr-save').textContent = `Save play (${(ed && ed.id ? EDIT_COST : SAVE_COST).toLocaleString()} coins)`; }
 function msg(t, err) { const m = C.$('#cr-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
 
 function opts() {
@@ -138,15 +140,22 @@ function save() {
     def = { id: ed.id || 'c_' + Date.now().toString(36), side: 'off', special: !!ed.special, name, form: ed.form, type: ed.type, carrier: ed.carrier, pa: !!ed.pa, routes: ed.routes };
   }
   const clean = cleanCustom(def); if (!clean) return msg('That play could not be saved.', true);
+  // new plays cost coins to save, edits cost a little
+  const P = C.profile && C.profile(), price = ed.id ? EDIT_COST : SAVE_COST;
+  if (P) {
+    if (P.p.coins < price) return msg(`Saving ${ed.id ? 'changes' : 'a new play'} costs ${price.toLocaleString()} coins. You need ${(price - P.p.coins).toLocaleString()} more.`, true);
+    if (!confirm(`${ed.id ? 'Save your changes' : 'Save this play'} for ${price.toLocaleString()} coins?`)) return;
+    P.p.coins -= price; P.save();
+  }
   const out = { ...def };
   if (def.side === 'def') out.preview = { man: clean.man, zone: clean.zone, rush: clean.rush, spy: clean.spy, deep: clean.deep };
   const i = mine.findIndex(p => p.id === out.id);
   if (i >= 0) mine[i] = out; else mine.push(out);
   store(mine);
   C.sfx.play('firstdown'); if (C.unlockAch) C.unlockAch('creator');
-  msg(`Saved "${name}". It's in the My Plays tab when you call a play.`);
+  msg(`Saved "${name}"${P ? ` for ${price.toLocaleString()} coins` : ''}. It's in the My Plays tab when you call a play.`);
   ed = fresh(side); C.$('#cr-name').value = '';
-  opts(); draw(); list();
+  opts(); draw(); list(); costLabel();
 }
 
 function list() {

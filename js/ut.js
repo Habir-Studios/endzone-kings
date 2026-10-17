@@ -1,13 +1,13 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js';
+import { TEAMS } from './teams.js?v=1792246372';
 
 export const TIERS = [
-  { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 20, train: 120 },
-  { key: 'silver', name: 'Silver', lo: 66, hi: 75, qs: 70, train: 260 },
-  { key: 'gold', name: 'Gold', lo: 75, hi: 83, qs: 220, train: 550 },
-  { key: 'elite', name: 'Elite', lo: 83, hi: 89, qs: 800, train: 1200 },
-  { key: 'kings', name: 'Kings', lo: 89, hi: 96, qs: 2600, train: 2600 },
+  { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
+  { key: 'silver', name: 'Silver', lo: 66, hi: 75, qs: 50, train: 480, mv: 600 },
+  { key: 'gold', name: 'Gold', lo: 75, hi: 83, qs: 160, train: 1000, mv: 1700 },
+  { key: 'elite', name: 'Elite', lo: 83, hi: 89, qs: 600, train: 2200, mv: 8000 },
+  { key: 'kings', name: 'Kings', lo: 89, hi: 96, qs: 2000, train: 4800, mv: 36000 },
 ];
 export const MAX_BOOST = [5, 5, 5, 4, 3];
 export const CLUB_CAP = 200;
@@ -70,11 +70,11 @@ export const trainCost = inst => { const c = card(inst.id); const b = inst.b || 
 
 // ---------------- packs ----------------
 export const PACKS = [
-  { key: 'bronze', name: 'Bronze Pack', cost: 400, n: 5, w: [85, 14, 1, 0, 0], guar: 0, blurb: '5 players, mostly bronze' },
-  { key: 'silver', name: 'Silver Pack', cost: 1200, n: 5, w: [35, 55, 10, 0, 0], guar: 1, blurb: '5 players, at least 1 silver' },
-  { key: 'gold', name: 'Gold Pack', cost: 3000, n: 5, w: [0, 45, 50, 5, 0], guar: 2, blurb: '5 players, at least 1 gold' },
-  { key: 'elite', name: 'Elite Pack', cost: 8000, n: 5, w: [0, 0, 70, 27, 3], guar: 3, blurb: '5 players, at least 1 elite' },
-  { key: 'kings', name: 'Kings Pack', cost: 20000, n: 3, w: [0, 0, 0, 70, 30], guar: 4, blurb: '3 players, 1 Kings card guaranteed' },
+  { key: 'bronze', name: 'Bronze Pack', cost: 750, n: 5, w: [85, 14, 1, 0, 0], guar: 0, blurb: '5 players, mostly bronze' },
+  { key: 'silver', name: 'Silver Pack', cost: 2250, n: 5, w: [35, 55, 10, 0, 0], guar: 1, blurb: '5 players, at least 1 silver' },
+  { key: 'gold', name: 'Gold Pack', cost: 5500, n: 5, w: [0, 45, 50, 5, 0], guar: 2, blurb: '5 players, at least 1 gold' },
+  { key: 'elite', name: 'Elite Pack', cost: 15000, n: 5, w: [0, 0, 70, 27, 3], guar: 3, blurb: '5 players, at least 1 elite' },
+  { key: 'kings', name: 'Kings Pack', cost: 40000, n: 3, w: [0, 0, 0, 70, 30], guar: 4, blurb: '3 players, 1 Kings card guaranteed' },
 ];
 export const packByKey = k => PACKS.find(p => p.key === k);
 function pickTier(w, r) { const tot = w.reduce((a, b) => a + b, 0); let x = r() * tot; for (let i = 0; i < w.length; i++) { x -= w[i]; if (x <= 0) return i; } return 0; }
@@ -123,3 +123,69 @@ export function squadRoster(ut) {
   }
   return { players };
 }
+
+// ---------------- market (auction house) ----------------
+// What a card is worth on the market: tier base, climbing about 12% per overall point, plus training.
+const r50 = v => Math.max(50, Math.round(v / 50) * 50);
+export function marketValue(inst) {
+  const c = typeof inst === 'number' ? card(inst) : owned(inst), T = TIERS[c.tier];
+  return r50(T.mv * Math.pow(1.12, c.ovr - T.lo - (c.b || 0)) + (c.b || 0) * T.train * 0.6);
+}
+export const MARKET_TAX = 0.1;                 // the market keeps 10% of every sale
+export const MARKET_SLOT_MS = 30 * 60 * 1000;  // listings refresh every 30 minutes
+export const MAX_LISTINGS = 5;
+export const LIST_TIMES = [[10, '10 min'], [30, '30 min'], [60, '1 hour']];
+export const marketSlot = (t = Date.now()) => Math.floor(t / MARKET_SLOT_MS);
+// 15 cards for sale this half hour, the same for everyone
+export function marketListings(slot = marketSlot()) {
+  const r = rng(slot * 97 + 13), out = [];
+  for (let i = 0; i < 15; i++) {
+    const tier = pickTier([30, 32, 25, 10, 3], r), id = makeId(tier, (r() * 8) | 0, (r() * 1e7) | 0);
+    out.push({ k: slot + ':' + i, id, price: r50(marketValue(id) * (0.95 + r() * 0.35)) });
+  }
+  return out;
+}
+// will a listing sell? the closer to market value, the likelier. Decided once, from the listing itself.
+export function listingSells(l) {
+  const ratio = l.price / Math.max(50, l.mv), r = rng((l.u * 7919 + l.at) >>> 0)();
+  const p = ratio <= 0.9 ? 0.97 : ratio <= 1 ? 0.9 : ratio <= 1.15 ? 0.7 : ratio <= 1.3 ? 0.4 : ratio <= 1.5 ? 0.15 : 0.03;
+  return r < p;
+}
+
+// ---------------- sets ----------------
+// Trade players in for something better. Lineup players can't go in a set.
+export const SETS = [
+  { k: 'b2s', n: 'Bronze Bundle', d: 'Turn 6 bronze players into a Silver Pack', need: [[0, 6]], give: { pack: 'silver' } },
+  { k: 's2g', n: 'Silver Exchange', d: 'Turn 5 silver players into a Gold Pack', need: [[1, 5]], give: { pack: 'gold' } },
+  { k: 'g2e', n: 'Gold Upgrade', d: 'Turn 7 gold players into an Elite Pack', need: [[2, 7]], give: { pack: 'elite' } },
+  { k: 'e2k', n: 'Elite Trade-up', d: 'Turn 4 elite players into a Kings Pack', need: [[3, 4]], give: { pack: 'kings' } },
+  { k: 'mix', n: 'Coin Flip', d: 'Turn 3 silver and 2 gold players into 4,000 coins', need: [[1, 3], [2, 2]], give: { coins: 4000 } },
+  { k: 'master', n: 'Weekly Master', d: 'Turn 2 elite and 5 gold players into this week’s 95 OVR Kings player. Once a week', need: [[3, 2], [2, 5]], give: { master: true }, weekly: true },
+];
+// this week's master card: a 95 OVR Kings player (fixed per week)
+export function masterId(weekSeed) { const r = rng(weekSeed); let id; for (let i = 0; i < 400; i++) { id = makeId(4, (r() * 8) | 0, (r() * 1e7) | 0); if (card(id).ovr >= 95) break; } return id; }
+
+// ---------------- solo challenges ----------------
+// One CPU game each, any Ultimate Team lineup. Each can be beaten once a week.
+export const SOLOS = [
+  { k: 'open', n: 'Opening Drive', d: 'Win the game', opp: 19, diff: 0, f: r => r.res === 'W', give: { coins: 900, fp: 300 } },
+  { k: 'air', n: 'Air Show', d: 'Throw for 250 yards and win', opp: 0, diff: 1, f: r => r.res === 'W' && r.me.passYds >= 250, give: { coins: 1500, pack: 'bronze', fp: 400 } },
+  { k: 'ground', n: 'Ground and Pound', d: 'Run for 120 yards and win', opp: 30, diff: 1, f: r => r.res === 'W' && r.me.rushYds >= 120, give: { coins: 1500, fp: 400 } },
+  { k: 'hawk', n: 'Ball Hawk', d: 'Intercept 2 passes', opp: 23, diff: 1, f: r => r.opp.ints >= 2, give: { coins: 1800, fp: 400 } },
+  { k: 'sacks', n: 'Sack Master', d: 'Get 4 sacks', opp: 14, diff: 1, f: r => r.me.sacks >= 4, give: { coins: 1800, fp: 400 } },
+  { k: 'wall', n: 'Brick Wall', d: 'Win and allow 7 points or fewer', opp: 12, diff: 1, f: r => r.res === 'W' && r.sc[1] <= 7, give: { coins: 2500, pack: 'silver', fp: 500 } },
+  { k: 'state', n: 'Statement Win', d: 'Win by 21 or more', opp: 11, diff: 2, f: r => r.res === 'W' && r.sc[0] - r.sc[1] >= 21, give: { coins: 4000, pack: 'gold', fp: 700 } },
+  { k: 'legend', n: 'Legend Killer', d: 'Beat the best team in the league', opp: 17, diff: 3, f: r => r.res === 'W', give: { coins: 8000, pack: 'elite', fp: 1000 } },
+];
+
+// ---------------- field pass ----------------
+// A free season pass: earn pass XP by playing, claim a reward at every tier. Resets each month.
+export const FP_TIERS = 30, FP_XP = 600;
+export function fpReward(t) {
+  if (t === FP_TIERS) return { coins: 10000, pack: 'kings' };
+  if (t % 10 === 0) return { coins: 2500, pack: 'elite' };
+  if (t % 5 === 0) return { coins: 1500, pack: 'gold' };
+  if (t % 3 === 0) return { coins: 600, pack: 'silver' };
+  return { coins: 500 + t * 60 };
+}
+export const fpSeason = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}`;

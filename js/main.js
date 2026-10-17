@@ -1,16 +1,16 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js';
-import { Renderer } from './render.js';
-import { Sfx } from './audio.js';
-import { Auth } from './auth.js';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby } from './net.js';
-import { getRoster, teamOvr } from './teams.js';
-import * as Season from './season.js';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js';
-import * as UTm from './ut.js';
-import { initCreator, renderCreator } from './creator.js';
-import { portraitURL } from './faces.js';
-import { logoURL, clearLogoCache } from './logos.js';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792246372';
+import { Renderer } from './render.js?v=1792246372';
+import { Sfx } from './audio.js?v=1792246372';
+import { Auth } from './auth.js?v=1792246372';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby } from './net.js?v=1792246372';
+import { getRoster, teamOvr } from './teams.js?v=1792246372';
+import * as Season from './season.js?v=1792246372';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792246372';
+import * as UTm from './ut.js?v=1792246372';
+import { initCreator, renderCreator } from './creator.js?v=1792246372';
+import { portraitURL } from './faces.js?v=1792246372';
+import { logoURL, clearLogoCache } from './logos.js?v=1792246372';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -365,9 +365,9 @@ function startCPU(opts = {}) {
   st.seasonGame = !!opts.season;
   st.lastCpu = opts;
   const teams = opts.teams || [SET.team, SET.cpuTeam];
-  st.ut = !!opts.ut; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
+  st.ut = !!opts.ut; st.solo = opts.solo || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
   const weather = opts.weather || (opts.season ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season ? pickTod('random') : pickTod(SET.tod));
-  st.game = createGame({ teams, humans: [true, false], quarterLen: opts.drill ? 120 : SET.qlen, difficulty: SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, drill: !!opts.drill, cel: [SET.cel, -1] });
+  st.game = createGame({ teams, humans: [true, false], quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, drill: !!opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', 'CPU'];
   R.setTeams(st.game.opts.teams);
@@ -467,7 +467,8 @@ const touchOn = () => SET.touch === 'on' || (SET.touch === 'auto' && isTouchDevi
 function touchButtons(S) {
   const me = st.local;
   let btns = [];
-  if (S.ph === 'presnap') btns = S.poss === me ? [['snap', 'SNAP', 'big']] : [['switch', 'SWITCH']];
+  if (S.ph === 'presnap') btns = S.poss === me ? [['snap', 'SNAP', 'big'], ['timeout', 'T/O']] : [['switch', 'SWITCH'], ['timeout', 'T/O']];
+  else if (S.ph === 'kickset' && S.poss === me) btns = [['kick', 'KICK', 'big']];
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1, iCarry = carrier >= 0 && carrier === S.ctrl[me];
     if (S.canThrow && S.off === me) btns = [['t1', '1', 'r1'], ['t2', '2', 'r2'], ['t3', '3', 'r3'], ['sprint', 'SPRINT', 'hold']];
@@ -500,6 +501,8 @@ function keyToEvent(k) {
   const me = st.local, onOff = S.poss === me;
   const digit = k.startsWith('Digit') ? +k.slice(5) : k.startsWith('Numpad') ? +k.slice(6) : 0;
   if (S.ph === 'half') return k === 'Space' || k === 'Enter' ? { t: 'ready' } : null;
+  if (S.ph === 'kickset') return onOff && (k === 'Space' || k === 'Enter') ? { t: 'kick' } : null;
+  if (k === 'KeyV' && (S.ph === 'presnap' || S.ph === 'dead')) return (S.to || [0, 0])[me] > 0 ? { t: 'timeout' } : (toast('No timeouts left'), null);
   if (S.ph === 'presnap') {
     if (k === 'KeyZ') { switchTab(-1); return null; }
     if (k === 'KeyX') { switchTab(1); return null; }
@@ -536,6 +539,9 @@ canvas.addEventListener('pointerdown', (e) => {
   if (id >= 0) pushEv({ t: 'pick', id });
 });
 canvas.tabIndex = 0;
+
+$('#pc-timeout').addEventListener('click', () => { if (st.snap && (st.snap.to || [0, 0])[st.local] > 0) pushEv({ t: 'timeout' }); });
+$('#km-btn').addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.init(); pushEv({ t: 'kick' }); });
 
 // ---------------- hot routes (press H at the line) ----------------
 st.hot = { open: false, role: 'WR1' };
@@ -709,7 +715,7 @@ function showGameOver(S) {
     st.rewarded = true;
     const mine = S.st[me], theirs = S.st[other];
     try {
-      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.seasonGame ? 'season' : 'cpu') : 'online', ut: !!st.ut, res, diff: st.mode === 'cpu' ? SET.diff : 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
+      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.seasonGame ? 'season' : 'cpu') : 'online', ut: !!st.ut, solo: st.solo, res, diff: st.mode === 'cpu' ? (st.game && st.game.opts && st.game.opts.difficulty != null ? st.game.opts.difficulty : SET.diff) : 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
     } catch (e) { console.warn(e); $('#go-rewards').innerHTML = ''; }
   }
   $('#gameover').classList.remove('hidden');
@@ -883,6 +889,29 @@ function renderHalftime(S) {
   }
 }
 
+function renderKickMeter(S) {
+  const el = $('#kickmeter'), k = S.ks, mine = k && S.poss === st.local;
+  el.classList.toggle('hidden', !k);
+  if (!k) { hudCache.km = null; return; }
+  if (hudCache.km !== k.type + k.stage + mine) {
+    hudCache.km = k.type + k.stage + mine;
+    $('#km-title').textContent = k.type === 'punt' ? 'Punt' : k.type === 'xp' ? 'Extra point' : 'Field goal';
+    $('#km-dist').textContent = k.type === 'punt' ? `Leg range about ${Math.round(k.maxR)} yds` : `${k.fd} yards, range ${Math.round(k.maxR)}`;
+    const steps = { aim: 'Aim with <kbd>A</kbd> <kbd>D</kbd>, then press <kbd>Space</kbd> to start the kick', power: 'Press <kbd>Space</kbd> to lock your power', acc: 'Press <kbd>Space</kbd> as the needle hits the gold zone' };
+    $('#km-step').innerHTML = mine ? steps[k.stage] : 'The other team is kicking';
+    $('#km-btn').textContent = k.stage === 'aim' ? 'Start kick' : k.stage === 'power' ? 'Lock power' : 'Kick';
+    $('#km-btn').classList.toggle('hidden', !mine);
+    const need = k.type === 'punt' ? null : Math.min(1, k.fd / (k.maxR * 1.08) + 0.06);
+    $('#km-need').style.display = need ? '' : 'none'; if (need) $('#km-need').style.left = need * 100 + '%';
+    const sw = $('#km-sweet'); sw.style.left = Math.max(0, k.sweet - 0.03) * 100 + '%'; sw.style.width = '6%';
+  }
+  el.classList.toggle('acc', k.stage === 'acc');
+  $('#km-fill').style.width = (k.stage === 'power' ? k.m : k.stage === 'acc' ? k.power : 0) * 100 + '%';
+  if (k.stage === 'acc') $('#km-acc').style.left = Math.max(0, k.m) * 100 + '%';
+  const lim = k.type === 'punt' ? 24 : 14;
+  $('#km-aim').style.left = (50 + (k.aim / lim) * 50) + '%';
+}
+
 function updateHud(S) {
   const me = st.local;
   const T = S.teams.map(i => TEAMS[i]);
@@ -944,6 +973,9 @@ function updateHud(S) {
   }
   $('#playball').classList.toggle('show', pb);
 
+  // kick meter
+  renderKickMeter(S);
+
   // play call
   const pc = $('#playcall');
   const showPc = S.ph === 'presnap';
@@ -959,6 +991,10 @@ function updateHud(S) {
     const hintHtml = onOff ? (S.op ? `<span><kbd>Space</kbd> snap</span>${hotOk(S) ? '<span><kbd>H</kbd> hot route</span>' : ''}<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>` : '<span><kbd>1</kbd>–<kbd>9</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>')
       : (isCPU ? '<span>CPU snaps soon</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch</span>' : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch player</span>');
     if (hudCache.pch !== hintHtml) { hudCache.pch = hintHtml; $('#pc-hint').innerHTML = hintHtml; }
+    const clk = $('#pc-clock'), pcv = S.pc;
+    if (hudCache.pcv !== pcv) { hudCache.pcv = pcv; $('b', clk).textContent = pcv; clk.classList.toggle('low', pcv <= 5); if (pcv <= 5 && pcv > 0 && S.poss === me) sfx.play('ui'); }
+    const tos = (S.to || [3, 3])[me], toKey = tos + '|' + S.mode;
+    if (hudCache.to !== toKey) { hudCache.to = toKey; $('#pc-to').innerHTML = [0, 1, 2].map(i => `<i class="${i < tos ? '' : 'used'}"></i>`).join(''); $('#pc-timeout').disabled = !tos || S.mode === 'practice'; }
   }
 
   // contextual hints
@@ -1232,7 +1268,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // ---------------- menus that live in their own modules ----------------
-const CTX = { $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+const CTX = { profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
 

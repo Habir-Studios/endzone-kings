@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792242869">
+  <link rel="stylesheet" href="css/style.css?v=1792246372">
 </head>
 <body>
   <canvas id="gl"></canvas>
@@ -357,6 +357,10 @@
         <div class="ut-tabs" role="tablist">
           <button class="ut-tab on" data-ut="squad" role="tab">Squad</button>
           <button class="ut-tab" data-ut="play" role="tab">Play</button>
+          <button class="ut-tab" data-ut="solos" role="tab">Solos</button>
+          <button class="ut-tab" data-ut="pass" role="tab">Field Pass<i class="dotn hidden" id="ut-fp-n"></i></button>
+          <button class="ut-tab" data-ut="market" role="tab">Market</button>
+          <button class="ut-tab" data-ut="sets" role="tab">Sets</button>
           <button class="ut-tab" data-ut="packs" role="tab">Packs<i class="dotn hidden" id="ut-packs-n"></i></button>
           <button class="ut-tab" data-ut="club" role="tab">Club</button>
         </div>
@@ -442,9 +446,17 @@
     <div id="flash" class="flash"></div>
     <div id="playball" class="playball"><kbd>E</kbd><span id="pb-txt">Play the ball</span></div>
     <div id="playcall" class="playcall hidden">
-      <div class="pc-head"><div><b id="pc-title">Offense</b><small id="pc-book"></small></div><span id="pc-hint"></span></div>
+      <div class="pc-head"><div><b id="pc-title">Offense</b><small id="pc-book"></small></div><span id="pc-hint"></span>
+        <div class="pc-right"><button class="btn sm" id="pc-timeout" type="button">Timeout <kbd>V</kbd> <span id="pc-to"></span></button><div class="pc-clock" id="pc-clock" aria-live="off"><b>25</b><small>Play clock</small></div></div></div>
       <div class="pc-tabs" id="pc-tabs"></div>
       <div class="pc-cards" id="pc-cards"></div>
+    </div>
+    <div id="kickmeter" class="kickmeter hidden" aria-live="polite">
+      <div class="km-top"><b id="km-title">Field goal</b><span id="km-dist"></span></div>
+      <div class="km-bar"><i class="km-fill" id="km-fill"></i><i class="km-need" id="km-need" title="Power you need"></i><i class="km-sweet" id="km-sweet"></i><i class="km-acc" id="km-acc"></i></div>
+      <div class="km-aim"><span>L</span><div class="km-aim-track"><i id="km-aim"></i></div><span>R</span></div>
+      <p class="km-step" id="km-step"></p>
+      <button class="btn primary km-btn" id="km-btn" type="button">Kick</button>
     </div>
     <div id="halftime" class="halftime hidden" aria-live="polite"></div>
     <div id="chat" class="chat hidden">
@@ -516,6 +528,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792242869"></script>
+  <script type="module" src="js/main.js?v=1792246372"></script>
 </body>
 </html>

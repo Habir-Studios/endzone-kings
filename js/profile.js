@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, CLUB_CAP, PACKS, squadOvr, card } from './ut.js';
+import { starterIds, autoLineup, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason } from './ut.js?v=1792246372';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -84,7 +84,8 @@ export const ACH = [
 const blank = () => ({
   v: 1, rev: 0, coins: 1500, xp: 0, lvl: 1, rp: 0, rpBest: 0, games: 0, wins: 0, tds: 0, streak: 0, bestStreak: 0,
   packs: { silver: 1 }, daily: null, weekly: null, divsReached: ['Bronze'], log: [],
-  ut: { cards: [], next: 1, lineup: {}, club: 3, name: '', started: false, opened: 0 },
+  ut: { cards: [], next: 1, lineup: {}, club: 3, name: '', started: false, opened: 0, mk: { slot: 0, bought: [], list: [], sold: 0 }, sets: { w: '', done: [] }, solos: { w: '', done: [] } },
+  fp: { s: '', xp: 0, got: [] },
   ach: {}, drill: { best: 0, runs: [] },
 });
 
@@ -93,20 +94,24 @@ export class Profile {
     this.key = 'ek_prof_' + userId;
     this.p = blank();
     try { const raw = localStorage.getItem(this.key); if (raw) this.p = { ...blank(), ...JSON.parse(raw) }; } catch (_) {}
-    this.p.ut = { ...blank().ut, ...this.p.ut }; this.p.ach = this.p.ach || {}; this.p.drill = this.p.drill || { best: 0, runs: [] };
+    this.p.ut = { ...blank().ut, ...this.p.ut }; this.p.ach = this.p.ach || {}; this.p.drill = this.p.drill || { best: 0, runs: [] }; this.p.fp = this.p.fp || blank().fp;
     this.refreshChallenges();
     this.listeners = [];
   }
   onSave(fn) { this.listeners.push(fn); }
   save() { this.p.rev++; try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.listeners.forEach(f => f(this.p)); }
   // merge a copy loaded from the cloud (keeps whichever has seen more saves)
-  adopt(remote) { if (remote && remote.rev > this.p.rev) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.refreshChallenges(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} return true; } return false; }
+  adopt(remote) { if (remote && remote.rev > this.p.rev) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.refreshChallenges(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} return true; } return false; }
 
   get rank() { return rankInfo(this.p.rp); }
   refreshChallenges() {
     const P = this.p, dk = dayKey(), wk = weekKey();
     if (!P.daily || P.daily.d !== dk) P.daily = { d: dk, list: pickN(DAILY, 3, hashStr(dk + this.key)).map(c => ({ k: c.k, p: 0, done: false, claimed: false })) };
     if (!P.weekly || P.weekly.d !== wk) P.weekly = { d: wk, list: pickN(WEEKLY, 3, hashStr(wk + this.key)).map(c => ({ k: c.k, p: 0, done: false, claimed: false })) };
+    const U = P.ut; if (!U.mk) U.mk = { slot: 0, bought: [], list: [], sold: 0 };
+    if (!U.sets || U.sets.w !== wk) U.sets = { w: wk, done: [] };
+    if (!U.solos || U.solos.w !== wk) U.solos = { w: wk, done: [] };
+    const fs = fpSeason(); if (!P.fp || P.fp.s !== fs) P.fp = { s: fs, xp: 0, got: [] };
   }
   // count an out-of-game event (like opening a pack) toward challenges
   bump(ev) {
@@ -200,11 +205,23 @@ export class Profile {
       ch.p = Math.min(d.t, d.cum ? ch.p + v : Math.max(ch.p, v));
       if (ch.p >= d.t) { ch.done = true; done.push(d); }
     }
+    // field pass XP: every game counts, Ultimate Team games count more
+    let fp = Math.round((150 + (r.res === 'W' ? 150 : 0) + (r.me.tds || 0) * 25) * len * (r.ut ? 1.5 : 1));
+    let solo = null;
+    if (r.solo && r.ut) {
+      const sd = SOLOS.find(x => x.k === r.solo);
+      if (sd && !P.ut.solos.done.includes(sd.k)) {
+        let ok = false; try { ok = !!sd.f(r); } catch (_) {}
+        solo = { ...sd, ok };
+        if (ok) { P.ut.solos.done.push(sd.k); P.coins += sd.give.coins || 0; coins += sd.give.coins || 0; if (sd.give.pack) this.addPack(sd.give.pack); fp += sd.give.fp || 0; }
+      }
+    }
+    const fpBefore = this.fpTier; P.fp.xp += fp;
     const levels = this.addXp(xp);
     const ach = this.checkAch(r);
     P.log.unshift({ at: Date.now(), res: r.res, sc: r.sc, mode: r.mode, ut: !!r.ut, coins, xp }); P.log.length = Math.min(P.log.length, 20);
     this.save();
-    return { lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach };
+    return { lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
   }
 
   // ---------------- Ultimate Team ----------------
@@ -252,5 +269,81 @@ export class Profile {
     if (this.p.coins < cost) return `You need ${(cost - this.p.coins).toLocaleString()} more coins`;
     this.p.coins -= cost; inst.b = (inst.b || 0) + 1; this.save(); return null;
   }
+  // ---------------- field pass ----------------
+  get fpTier() { return Math.min(FP_TIERS, Math.floor((this.p.fp.xp || 0) / FP_XP)); }
+  fpClaim(t) {
+    const F = this.p.fp; if (t < 1 || t > this.fpTier || F.got.includes(t)) return null;
+    const rw = fpReward(t); F.got.push(t); this.p.coins += rw.coins || 0; if (rw.pack) this.addPack(rw.pack);
+    this.save(); return rw;
+  }
+  fpClaimAll() { const out = { coins: 0, packs: [] }; for (let t = 1; t <= this.fpTier; t++) { if (this.p.fp.got.includes(t)) continue; const rw = fpReward(t); this.p.fp.got.push(t); this.p.coins += rw.coins || 0; out.coins += rw.coins || 0; if (rw.pack) { this.addPack(rw.pack); out.packs.push(rw.pack); } } this.save(); return out; }
+
+  // ---------------- market ----------------
+  get market() { const M = this.p.ut.mk, slot = marketSlot(); if (M.slot !== slot) { M.slot = slot; M.bought = []; } return { slot, items: marketListings(slot).filter(l => !M.bought.includes(l.k)), mine: M.list }; }
+  marketBuy(k) {
+    const m = this.market, l = m.items.find(x => x.k === k); if (!l) return 'Someone already bought that player';
+    if (this.p.coins < l.price) return `You need ${(l.price - this.p.coins).toLocaleString()} more coins`;
+    if (this.clubFull()) return `Your club is full (${CLUB_CAP} players). Quicksell or sell some players first`;
+    this.p.coins -= l.price; this.p.ut.mk.bought.push(k); const [inst] = this.addCards([l.id]); this.save(); return inst;
+  }
+  marketList(u, price, mins) {
+    const U = this.p.ut, M = U.mk; if (this.inLineup(u)) return 'Take him out of your lineup first';
+    if (M.list.length >= MAX_LISTINGS) return `You can only have ${MAX_LISTINGS} players listed at once`;
+    const i = U.cards.findIndex(c => c.u === u); if (i < 0) return 'Player not found';
+    const inst = U.cards[i], now = Date.now();
+    U.cards.splice(i, 1);
+    M.list.push({ u: inst.u, id: inst.id, b: inst.b || 0, price: Math.max(50, Math.round(price / 50) * 50), mv: marketValue(inst), at: now, end: now + mins * 60000 });
+    this.save(); return null;
+  }
+  marketCancel(u) {
+    const U = this.p.ut, M = U.mk, i = M.list.findIndex(l => l.u === u); if (i < 0) return 'Not listed';
+    if (Date.now() >= M.list[i].end) return 'That listing already ended';
+    const l = M.list.splice(i, 1)[0]; U.cards.push({ u: l.u, id: l.id, b: l.b }); this.save(); return null;
+  }
+  // settle finished listings: sold ones pay out (minus the market's cut), unsold ones come back to your club
+  marketSettle() {
+    const U = this.p.ut, M = U.mk, now = Date.now(), out = [];
+    for (const l of M.list.slice()) {
+      if (now < l.end) continue;
+      const sold = listingSells(l);
+      if (!sold && this.clubFull()) continue;
+      M.list.splice(M.list.indexOf(l), 1);
+      if (sold) { const net = Math.round(l.price * (1 - MARKET_TAX)); this.p.coins += net; M.sold = (M.sold || 0) + 1; out.push({ ...l, sold: true, net }); }
+      else { U.cards.push({ u: l.u, id: l.id, b: l.b }); out.push({ ...l, sold: false }); }
+    }
+    if (out.length) this.save();
+    return out;
+  }
+
+  // ---------------- sets ----------------
+  // the cheapest players that fill a set (never lineup players, never trained ones you'd miss)
+  setPick(k) {
+    const S = SETS.find(x => x.k === k); if (!S) return null;
+    const free = this.p.ut.cards.filter(c => !this.inLineup(c.u)).map(owned).sort((a, b) => a.ovr - b.ovr || a.b - b.b);
+    const used = new Set(), pick = [], missing = [];
+    for (const [tier, n] of S.need) {
+      const got = free.filter(c => c.tier === tier && !used.has(c.u)).slice(0, n);
+      got.forEach(c => used.add(c.u)); pick.push(...got);
+      if (got.length < n) missing.push([tier, n - got.length]);
+    }
+    const locked = S.weekly && this.p.ut.sets.done.includes(k);
+    return { set: S, pick, missing, locked, ok: !missing.length && !locked };
+  }
+  completeSet(k) {
+    const r = this.setPick(k); if (!r) return 'No such set';
+    if (r.locked) return 'You already finished this set this week';
+    if (!r.ok) return 'You don’t have enough players for this set';
+    const U = this.p.ut, gone = new Set(r.pick.map(c => c.u));
+    U.cards = U.cards.filter(c => !gone.has(c.u));
+    const g = r.set.give; let got = null;
+    if (g.pack) this.addPack(g.pack);
+    if (g.coins) this.p.coins += g.coins;
+    if (g.master) [got] = this.addCards([masterId(hashStr(U.sets.w + 'master'))]);
+    if (r.set.weekly) U.sets.done.push(k);
+    this.p.fp.xp += 150;
+    this.save(); return { give: g, card: got };
+  }
+  soloDone(k) { return this.p.ut.solos.done.includes(k); }
+
   setSlot(slot, u) { const L = this.p.ut.lineup; for (const s of Object.keys(L)) if (L[s] === u) delete L[s]; L[slot] = u; this.save(); }
 }

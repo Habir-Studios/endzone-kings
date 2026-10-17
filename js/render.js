@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792263919';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792263919';
-import { drawLogo } from './logos.js?v=1792263919';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792263919';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792264217';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792264217';
+import { drawLogo } from './logos.js?v=1792264217';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792264217';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -977,6 +977,7 @@ export class Renderer {
 
     const [bx, by, bz, bstate, tgt, bc] = S.b;
     this.ball.position.set(bx, by, bz);
+    { const sc = this.ballBoost ? 1.9 : 1; if (this.ball.scale.x !== sc) this.ball.scale.setScalar(sc); }   // easier to follow in clips
     if (bstate === 1 || bstate === 2) {
       this.ball.rotation.z += dt * 20;
       const dx = (this._pbx !== undefined ? bx - this._pbx : 0), dz = (this._pbz !== undefined ? bz - this._pbz : 0), dy = by - (this._pby ?? by);

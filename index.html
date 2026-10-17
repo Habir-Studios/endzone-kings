@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792263919">
+  <link rel="stylesheet" href="css/style.css?v=1792264217">
 </head>
 <body>
   <canvas id="gl"></canvas>
@@ -90,6 +90,8 @@
 
   <!-- ===================== MAIN MENU ===================== -->
   <section id="menu" class="screen">
+    <button class="notif-btn" id="notif-btn" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5-6.7V3.5a2 2 0 1 0-4 0v.8A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg><i class="notif-n hidden" id="notif-n">0</i></button>
+    <div class="notif-panel hidden" id="notif-panel" role="dialog" aria-label="Notifications"><div class="np-head"><b>Notifications</b><button class="link" id="notif-read" type="button">Mark all read</button></div><div id="notif-list"><p class="note">Nothing new.</p></div></div>
     <div class="profile-chip">
       <div class="avatar" id="pc-avatar">?</div>
       <div><b id="pc-name">Player</b><small id="pc-rec">0-0</small></div>
@@ -549,6 +551,7 @@
         <label>Game volume<input type="range" id="set-vol" min="0" max="1" step="0.05"></label>
         <label>Menu music<input type="range" id="set-music" min="0" max="1" step="0.05"></label>
         <label>Announcer<div class="seg" id="seg-ann"></div></label>
+        <label>Notifications<div class="seg" id="seg-notif"></div></label>
         <label>Camera<div class="seg" id="seg-cam"></div></label>
         <label>Graphics<div class="seg" id="seg-gfx"></div></label>
         <label>Touch controls<div class="seg" id="seg-touch"></div></label>
@@ -610,7 +613,7 @@
   </div>
 
   <div id="invite-pop" class="invite-pop hidden" role="alertdialog"><div><b id="inv-title">1v1 challenge</b><small id="inv-sub"></small></div><button class="btn sm primary" id="inv-yes">Play</button><button class="btn sm ghost" id="inv-no">Not now</button></div>
-  <div id="clipbar" class="clipbar hidden"><div><b id="clip-title">Clip</b><small id="clip-by"></small></div><button class="btn sm" id="clip-again">Replay</button><button class="btn sm primary" id="clip-close">Close</button></div>
+  <div id="clipbar" class="clipbar hidden"><div><b id="clip-title">Clip</b><small id="clip-by"></small></div><div class="clip-views" id="clip-views"><button class="btn sm on" data-cv="orbit" type="button">Orbit</button><button class="btn sm" data-cv="side" type="button">Sideline</button><button class="btn sm" data-cv="behind" type="button">Behind</button><button class="btn sm" data-cv="endzone" type="button">End zone</button><button class="btn sm" data-cv="ball" type="button">Ball cam</button></div><button class="btn sm" id="clip-like" type="button">♥ Like</button><button class="btn sm" id="clip-again">Replay</button><button class="btn sm primary" id="clip-close">Close</button></div>
   <div id="pause" class="modal hidden">
     <div class="panel pause-panel">
       <h2 class="title sm">Paused</h2>
@@ -662,6 +665,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792263919"></script>
+  <script type="module" src="js/main.js?v=1792264217"></script>
 </body>
 </html>

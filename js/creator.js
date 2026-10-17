@@ -1,6 +1,7 @@
 // ENDZONE KINGS — Play Creator: draw your own offense, defense and special teams plays.
 // Plays save on this device (localStorage 'ek_custom_plays') and show up under "My Plays" in every game, online too.
-import { FORMS, cleanCustom } from './playbook.js?v=1792263919';
+import { askYes } from './ui.js?v=1792264217';
+import { FORMS, cleanCustom } from './playbook.js?v=1792264217';
 
 let C = null;
 const KEY = 'ek_custom_plays', MAX = 24;
@@ -127,7 +128,7 @@ function onField(e) {
   r.push([lx, lz]); C.sfx.play('ui'); opts(); draw(); msg('');
 }
 
-function save() {
+async function save() {
   const name = (C.$('#cr-name').value || '').trim();
   if (!name) return msg('Give your play a name first.', true);
   const mine = load();
@@ -144,7 +145,7 @@ function save() {
   const P = C.profile && C.profile(), price = ed.id ? EDIT_COST : SAVE_COST;
   if (P) {
     if (P.p.coins < price) return msg(`Saving ${ed.id ? 'changes' : 'a new play'} costs ${price.toLocaleString()} coins. You need ${(price - P.p.coins).toLocaleString()} more.`, true);
-    if (!confirm(`${ed.id ? 'Save your changes' : 'Save this play'} for ${price.toLocaleString()} coins?`)) return;
+    if (!(await askYes(`${ed.id ? 'Save your changes' : 'Save this play'} for ${price.toLocaleString()} coins?`, 'Save'))) return;
     P.p.coins -= price; P.save();
   }
   const out = { ...def };
@@ -165,7 +166,7 @@ function list() {
   box.innerHTML = mine.map(p => `<div class="cr-item"><div>${p.side === 'def' ? C.defSvg(p.preview || {}) : C.routeSvg({ ...p, routes: p.routes || {} })}</div><b>${C.escapeHtml(p.name)}</b>
     <small>${p.side === 'def' ? 'Defense' : p.special ? (p.form === 'fg' ? 'Fake field goal' : 'Fake punt') : `${p.type === 'run' ? 'Run' : 'Pass'}, ${(FORMS[p.form] || FORMS.gun).name}`}</small>
     <div class="row"><button class="btn sm" data-edit="${p.id}">Edit</button><button class="btn sm danger" data-del="${p.id}">Delete</button></div></div>`).join('') || '<p class="note">No plays yet. Draw one above and hit Save.</p>';
-  C.$$('[data-del]', box).forEach(b => b.onclick = () => { if (!confirm('Delete this play?')) return; store(load().filter(p => p.id !== b.dataset.del)); list(); });
+  C.$$('[data-del]', box).forEach(b => b.onclick = async () => { if (!(await askYes('Delete this play?', 'Delete'))) return; store(load().filter(p => p.id !== b.dataset.del)); list(); });
   C.$$('[data-edit]', box).forEach(b => b.onclick = () => {
     const p = load().find(q => q.id === b.dataset.edit); if (!p) return;
     side = p.side === 'def' ? 'def' : p.special ? 'st' : 'off';

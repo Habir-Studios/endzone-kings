@@ -1,6 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792263919';
+import { askYes } from './ui.js?v=1792264217';
+import { TEAMS } from './teams.js?v=1792264217';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -41,7 +42,7 @@ async function tick() {
     if (scr === 'menu') await renderMenuBoard();
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
     if (me()) { ensureProfile(); listenInvites(); if (++kickPollT % 5 === 0 && C.st.playing) pollKicks(); }
-    if (me() && (++unreadT % 10 === 0)) { refreshUnread(); refreshRequests(); }
+    if (me() && (++unreadT % 10 === 0)) { refreshUnread(); refreshRequests(); loadNotifs(); }
   } catch (_) {} finally { ticking = false; }
 }
 
@@ -179,14 +180,32 @@ function clipCards(list, mine, owner) {
   return list.map(c => { const a = TEAMS[(c.teams || [])[0]] || TEAMS[0], b = TEAMS[(c.teams || [])[1]] || TEAMS[1];
     return `<div class="clip" data-clip="${c.id}" style="--c:${a.jersey};--c2:${b.jersey}"><button class="clip-play" type="button" aria-label="Play clip"><span>▶</span></button>
       <div class="clip-txt"><b>${esc(c.title)}</b><small>${owner ? esc(owner) + ', ' : c.owner_name ? esc(c.owner_name) + ', ' : ''}${a.abbr} vs ${b.abbr}, ${fmt(c.views)} views, ${ago(c.created_at)}</small></div>
-      ${mine ? `<button class="btn sm ghost" data-del="${c.id}">Delete</button>` : ''}</div>`; }).join('');
+      <button class="btn sm ghost" data-like="${c.id}" type="button">♥ <span class="clip-like-n">0</span></button>${mine ? `<button class="btn sm ghost" data-del="${c.id}">Delete</button>` : ''}</div>`; }).join('');
+}
+async function toggleLike(id) {
+  if (!db() || !me()) { C.toast('Sign in to like clips'); return null; }
+  const { data } = await db().from('ek_clip_likes').select('clip_id').eq('clip_id', id).eq('user_id', me().id).maybeSingle();
+  if (data) { await db().from('ek_clip_likes').delete().eq('clip_id', id).eq('user_id', me().id); return false; }
+  const { error } = await db().from('ek_clip_likes').insert({ clip_id: id, user_id: me().id });
+  if (error) { C.toast(error.message); return null; }
+  C.sfx.play('ui'); return true;
+}
+async function paintLikes(root) {
+  const btns = C.$$('[data-like]', root); if (!btns.length || !db()) return;
+  const ids = btns.map(b => +b.dataset.like);
+  const { data } = await db().from('ek_clip_likes').select('clip_id,user_id').in('clip_id', ids).limit(2000);
+  const cnt = {}, mineL = new Set();
+  for (const r of data || []) { cnt[r.clip_id] = (cnt[r.clip_id] || 0) + 1; if (me() && r.user_id === me().id) mineL.add(r.clip_id); }
+  for (const b of btns) { const id = +b.dataset.like; b.querySelector('.clip-like-n').textContent = cnt[id] || 0; b.classList.toggle('on', mineL.has(id)); }
 }
 function wireClipCards(root) {
   C.$$('.clip-play', root).forEach(b => b.onclick = () => watchClip(+b.closest('.clip').dataset.clip));
+  C.$$('[data-like]', root).forEach(b => b.onclick = async () => { const r = await toggleLike(+b.dataset.like); if (r !== null) paintLikes(root); });
+  paintLikes(root);
   C.$$('[data-del]', root).forEach(b => b.onclick = async () => {
-    if (!confirm('Delete this clip?')) return;
-    const { error } = await db().from('ek_clips').delete().eq('id', +b.dataset.del);
-    if (error) C.toast(error.message); else { C.toast('Clip deleted'); renderSocial(); }
+    if (!(await askYes('Delete this clip? This can’t be undone.', 'Delete'))) return;
+    const { data, error } = await db().from('ek_clips').delete().eq('id', +b.dataset.del).select('id');
+    if (error) C.toast('Couldn’t delete: ' + error.message); else if (!data || !data.length) C.toast('Couldn’t delete that clip. Is it yours?'); else { C.toast('Clip deleted'); renderSocial(); }
   });
 }
 async function renderFeed() {
@@ -284,10 +303,11 @@ async function watchClip(id) {
   let frames; try { frames = await unpackFrames(data.data); } catch (_) { C.toast('That clip is damaged'); return; }
   db().rpc('ek_clip_view', { cid: id }).then(() => {}, () => {});
   const { data: o } = await db().from('ek_players').select('name').eq('id', data.owner).maybeSingle();
-  playFrames(frames, { title: data.title, by: o ? o.name : 'Player' });
+  playFrames(frames, { id, title: data.title, by: o ? o.name : 'Player' });
 }
 function playFrames(frames, meta) {
   lastClip = { frames, meta };
+  { const lb = C.$('#clip-like'); if (lb) { lb.classList.toggle('hidden', !meta.id); lb.classList.remove('on'); lb.onclick = async () => { const r = await toggleLike(meta.id); if (r !== null) { lb.classList.toggle('on', r); C.toast(r ? 'Liked' : 'Like removed'); } }; if (meta.id && me()) db().from('ek_clip_likes').select('clip_id').eq('clip_id', meta.id).eq('user_id', me().id).maybeSingle().then(({ data }) => lb.classList.toggle('on', !!data)); } }
   clipBack = C.screen();
   C.playClip(frames);
   C.$('#clip-title').textContent = meta.title; C.$('#clip-by').textContent = 'by ' + meta.by;
@@ -348,6 +368,76 @@ export async function refreshUnread() {
   const { count } = await db().from('ek_messages').select('id', { count: 'exact', head: true }).eq('recipient', me().id).eq('read', false);
   const n = count || 0;
   for (const el of C.$$('.so-unread')) { el.textContent = n; el.classList.toggle('hidden', !n); }
+}
+
+// ---------------- notifications (bell, top right of the main menu) ----------------
+const NSEEN = 'ek_notif_seen';
+const seenAt = () => { try { return localStorage.getItem(NSEEN) || '1970-01-01T00:00:00Z'; } catch (_) { return '1970-01-01T00:00:00Z'; } };
+let notifItems = [], notifBusy = false, notifWired = false;
+export async function loadNotifs() {
+  if (!db() || !me() || notifBusy) return; notifBusy = true;
+  try {
+    const uid = me().id, D = db(), items = [];
+    const since = new Date(Date.now() - 7 * 864e5).toISOString();
+    const [msgs, inc, out, trades, clips] = await Promise.all([
+      D.from('ek_messages').select('id,sender,body,created_at').eq('recipient', uid).eq('read', false).order('created_at', { ascending: false }).limit(30),
+      D.from('ek_follows').select('follower,created_at').eq('followee', uid).limit(300),
+      D.from('ek_follows').select('followee').eq('follower', uid).limit(500),
+      D.from('ek_trades').select('id,sender,created_at').eq('recipient', uid).eq('status', 'pending').limit(20),
+      D.from('ek_clips').select('id,title').eq('owner', uid).limit(30),
+    ]);
+    const mine = new Set((out.data || []).map(r => r.followee)), ign = ignoredSet();
+    const bySender = {};
+    for (const m of msgs.data || []) {
+      const code = parseInvite(m.body);
+      if (code && Date.now() - new Date(m.created_at) < 20 * 60000) items.push({ k: 'inv', who: m.sender, at: m.created_at, code });
+      else if (!code) { const b = bySender[m.sender] || (bySender[m.sender] = { k: 'msg', who: m.sender, at: m.created_at, n: 0 }); b.n++; }
+    }
+    items.push(...Object.values(bySender));
+    for (const f of inc.data || []) if (!mine.has(f.follower) && !ign.has(f.follower)) items.push({ k: 'req', who: f.follower, at: f.created_at || since });
+    for (const t of trades.data || []) items.push({ k: 'trade', who: t.sender, at: t.created_at, id: t.id });
+    const myClips = clips.data || [];
+    if (myClips.length) {
+      const { data: likes } = await D.from('ek_clip_likes').select('clip_id,user_id,created_at').in('clip_id', myClips.map(c => c.id)).gt('created_at', since).neq('user_id', uid).order('created_at', { ascending: false }).limit(30);
+      for (const l of likes || []) items.push({ k: 'like', who: l.user_id, at: l.created_at, clip: (myClips.find(c => c.id === l.clip_id) || {}).title || 'your clip' });
+    }
+    const ids = [...new Set(items.map(i => i.who))];
+    const names = {};
+    if (ids.length) { const { data } = await D.from('ek_players').select('id,name').in('id', ids); for (const p of data || []) names[p.id] = p.name; }
+    for (const i of items) i.name = names[i.who] || 'Someone';
+    notifItems = items.sort((a, b) => (a.at < b.at ? 1 : -1));
+    paintNotifs();
+  } catch (e) { console.warn(e); } finally { notifBusy = false; }
+}
+function paintNotifs() {
+  wireNotifs();
+  const seen = seenAt(), blocked = C.SET && C.SET.notifs === 'off';
+  const fresh = notifItems.filter(i => i.k !== 'like' || i.at > seen);
+  const n = notifItems.filter(i => i.at > seen).length;
+  const badge = C.$('#notif-n'); if (badge) { badge.textContent = n > 99 ? '99+' : n; badge.classList.toggle('hidden', !n || blocked); }
+  const list = C.$('#notif-list'); if (!list) return;
+  const IC = { msg: '✉', inv: '🏈', req: '👋', trade: '⇄', like: '♥' };
+  const TXT = i => i.k === 'msg' ? `<b>${esc(i.name)}</b> sent you ${i.n > 1 ? i.n + ' messages' : 'a message'}` : i.k === 'inv' ? `<b>${esc(i.name)}</b> challenged you to a 1v1` : i.k === 'req' ? `<b>${esc(i.name)}</b> sent you a friend request` : i.k === 'trade' ? `<b>${esc(i.name)}</b> sent you a trade offer` : `<b>${esc(i.name)}</b> liked “${esc(i.clip)}”`;
+  list.innerHTML = fresh.slice(0, 30).map((i, k) => `<div class="np-item ${i.at > seen ? 'new' : ''}" data-ni="${k}"><span class="np-ic">${IC[i.k]}</span><div>${TXT(i)}<small>${ago(i.at)}</small></div>${i.k === 'inv' ? '<button class="btn sm primary" type="button">Join</button>' : ''}</div>`).join('') || '<p class="note">Nothing new.</p>';
+  C.$$('[data-ni]', list).forEach(el => el.onclick = () => {
+    const i = fresh[+el.dataset.ni]; C.$('#notif-panel').classList.add('hidden');
+    if (i.k === 'inv') { if (C.st.playing) return C.toast('Finish your game first'); C.joinGame(i.code); }
+    else if (i.k === 'msg') { C.show('social'); openThread(i.who, i.name); }
+    else if (i.k === 'req') { C.show('social'); view = { tab: 'friends' }; renderSocial(); }
+    else if (i.k === 'trade') { C.openTrade && C.openTrade(null, ''); }
+    else if (i.k === 'like') { C.show('social'); view = { tab: 'me' }; renderSocial(); }
+  });
+}
+function wireNotifs() {
+  if (notifWired) return; const btn = C.$('#notif-btn'); if (!btn) return; notifWired = true;
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    if (!me()) { C.toast('Sign in with a real account to get notifications'); return; }
+    const p = C.$('#notif-panel'); const open = p.classList.toggle('hidden') === false;
+    if (open) { loadNotifs(); C.sfx.play('ui'); }
+  };
+  C.$('#notif-read').onclick = () => { try { localStorage.setItem(NSEEN, new Date().toISOString()); } catch (_) {} paintNotifs(); };
+  document.addEventListener('click', (e) => { const p = C.$('#notif-panel'); if (p && !p.classList.contains('hidden') && !e.target.closest('#notif-panel') && !e.target.closest('#notif-btn')) p.classList.add('hidden'); });
 }
 
 // ---------------- after a game: push career stats ----------------
@@ -469,8 +559,8 @@ async function adminAct(kind, id) {
     r = await db().from('ek_kicks').insert({ target: id, reason: C.cleanText(why).slice(0, 200) });
     if (!r.error) { C.toast('Kick sent. If they are in a game, they are out of it now.'); return; }
   }
-  else if (kind === 'unban') { if (!confirm('Unban this player?')) return; r = await db().rpc('ek_admin_unban', { uid: id }); }
-  else { if (!confirm('Wipe this player’s career stats to zero?')) return; r = await db().rpc('ek_admin_reset_stats', { uid: id }); }
+  else if (kind === 'unban') { if (!(await askYes('Unban this player?', 'Unban'))) return; r = await db().rpc('ek_admin_unban', { uid: id }); }
+  else { if (!(await askYes('Wipe this player’s career stats to zero?', 'Reset stats'))) return; r = await db().rpc('ek_admin_reset_stats', { uid: id }); }
   if (r.error) C.toast(r.error.message); else C.toast(kind === 'ban' ? 'Player banned' : kind === 'unban' ? 'Player unbanned' : 'Stats reset');
   renderAdmin();
 }
@@ -584,6 +674,8 @@ async function pollKicks() {
   if (data && data[0]) gotKick(data[0]);
 }
 function showInvite(code, from) {
+  loadNotifs();
+  if (C.SET && C.SET.notifs === 'off') return;   // notifications blocked in Settings: it stays in the bell and messages
   const el = C.$('#invite-pop'); if (!el) return;
   C.$('#inv-title').textContent = `${from} challenged you`;
   C.$('#inv-sub').textContent = C.st.playing ? 'Finish your game first, it’s in your messages' : 'Online 1v1, ready when you are';

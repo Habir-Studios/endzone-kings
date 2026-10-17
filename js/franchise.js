@@ -1,8 +1,9 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792263919';
-import * as Season from './season.js?v=1792263919';
+import { askYes } from './ui.js?v=1792264217';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792264217';
+import * as Season from './season.js?v=1792264217';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -296,7 +297,7 @@ function rosterTab(F) {
     const p = best[(+choice || 1) - 1]; if (!p) return;
     const e = swap(F, role, p.id); if (e) C.toast(e); else { C.toast(`${p.last} is starting`); renderFranchise(); }
   });
-  C.$$('[data-cut]', pane).forEach(b => b.onclick = () => { const p = F.players[+b.dataset.cut]; if (!confirm(`Release ${p.first} ${p.last}? His salary comes off your cap.`)) return; release(F, p.id); renderFranchise(); });
+  C.$$('[data-cut]', pane).forEach(b => b.onclick = async () => { const p = F.players[+b.dataset.cut]; if (!(await askYes(`Release ${p.first} ${p.last}? His salary comes off your cap.`, 'Release'))) return; release(F, p.id); renderFranchise(); });
 }
 function leagueTab(F) {
   const pane = C.$('#fr-pane'), rows = Season.table(F.season);
@@ -307,7 +308,7 @@ function legacyTab(F) {
   pane.innerHTML = `<h3 class="store-h">Seasons</h3><div class="fr-list">${F.history.map(h => `<div class="fr-p"><span class="fr-ovr">${h.champ ? '🏆' : h.playoffs ? 'P' : '-'}</span><div><b>${h.year}: ${h.w}-${h.l}${h.t ? '-' + h.t : ''}</b><small>${h.champ ? 'Kings Bowl champions' : h.playoffs ? 'Made the playoffs' : 'Missed the playoffs'}</small></div></div>`).join('') || '<p class="note">Your first season is still going.</p>'}</div>
     <h3 class="store-h">Franchise leaders</h3><div class="fr-list">${all.map(p => pRow(p, `<small class="fr-cs">${fmt(p.cs.py || 0)} pass yds, ${fmt(p.cs.ry || 0)} rush, ${fmt(p.cs.recy || 0)} rec, ${fmt(p.cs.td || 0)} TD, ${fmt(p.cs.tk || 0)} tkl, ${fmt(p.cs.sk || 0)} sacks</small>`)).join('')}</div>
     <div class="actions"><button class="btn danger" id="fr-quit">Retire from this franchise</button></div>`;
-  C.$('#fr-quit').onclick = () => { if (!confirm('End this franchise for good? Everything in it is deleted.')) return; try { localStorage.removeItem(KEY()); } catch (_) {} renderFranchise(); };
+  C.$('#fr-quit').onclick = async () => { if (!(await askYes('End this franchise for good? Everything in it is deleted.', 'End it'))) return; try { localStorage.removeItem(KEY()); } catch (_) {} renderFranchise(); };
 }
 function resignView(F, pane) {
   const exp = Object.values(F.players).filter(p => p.yrs <= 0).sort((a, b) => b.ovr - a.ovr);

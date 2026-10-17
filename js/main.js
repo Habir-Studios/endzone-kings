@@ -1,19 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792263919';
-import { Renderer } from './render.js?v=1792263919';
-import { Sfx } from './audio.js?v=1792263919';
-import { Auth } from './auth.js?v=1792263919';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792263919';
-import { getRoster, teamOvr } from './teams.js?v=1792263919';
-import * as Season from './season.js?v=1792263919';
-import * as Fr from './franchise.js?v=1792263919';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792263919';
-import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792263919';
-import * as UTm from './ut.js?v=1792263919';
-import { initCreator, renderCreator } from './creator.js?v=1792263919';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792263919';
-import { portraitURL } from './faces.js?v=1792263919';
-import { logoURL, clearLogoCache } from './logos.js?v=1792263919';
+import { askYes } from './ui.js?v=1792264217';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792264217';
+import { Renderer } from './render.js?v=1792264217';
+import { Sfx } from './audio.js?v=1792264217';
+import { Auth } from './auth.js?v=1792264217';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792264217';
+import { getRoster, teamOvr } from './teams.js?v=1792264217';
+import * as Season from './season.js?v=1792264217';
+import * as Fr from './franchise.js?v=1792264217';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792264217';
+import { setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792264217';
+import * as UTm from './ut.js?v=1792264217';
+import { initCreator, renderCreator } from './creator.js?v=1792264217';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792264217';
+import { portraitURL } from './faces.js?v=1792264217';
+import { logoURL, clearLogoCache } from './logos.js?v=1792264217';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -321,9 +322,9 @@ $('#season-play').addEventListener('click', () => {
   const opp = g.home === S.team ? g.away : g.home;
   startCPU({ teams: [S.team, opp], season: true });
 });
-$('#season-quit').addEventListener('click', () => {
+$('#season-quit').addEventListener('click', async () => {
   const S = loadSeason();
-  if (S && S.phase !== 'done' && !confirm('Abandon this season? Your progress will be lost.')) return;
+  if (S && S.phase !== 'done' && !(await askYes('Abandon this season? Your progress will be lost.', 'Abandon'))) return;
   try { localStorage.removeItem(seasonKey()); } catch (_) {}
   seasonPick = -1; renderSeason();
 });
@@ -367,6 +368,7 @@ $('#go-drill').addEventListener('click', () => startCPU({ teams: [SET.team, rand
 
 function renderSettings() {
   $('#set-vol').value = SET.vol; $('#set-music').value = SET.music;
+  seg($('#seg-notif'), [['on', 'On'], ['off', 'Blocked']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications blocked: no pop-ups or badges' : 'Notifications on'); });
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
   seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
@@ -464,7 +466,7 @@ window.addEventListener('keydown', (e) => {
   if (typing()) return;
   if (!st.playing) return;
   const k = e.code;
-  if (st.mode === 'clip') { if (k === 'Escape') $('#clip-close').click(); return; }
+  if (st.mode === 'clip') { if (k === 'Escape') $('#clip-close').click(); const n = k.startsWith('Digit') ? +k.slice(5) : 0; if (n >= 1 && n <= 5) { const b = $$('#clip-views [data-cv]')[n - 1]; if (b) b.click(); } return; }
   if (['Space', 'Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k) && !e.target.closest('.modal')) e.preventDefault();
   if (e.repeat) { keys.add(k); return; }
   keys.add(k);
@@ -698,7 +700,7 @@ function startReplay() {
   let frames = rec.filter(f => f.s.id === id && (f.s.ph === 'live' || f.s.ph === 'kick' || f.s.ph === 'dead'));
   let dead = 0; frames = frames.filter(f => { if (f.s.ph === 'dead') dead += f.dt; return dead < 1.4; });
   if (frames.length < 5) { toast('Nothing to replay yet'); return; }
-  st.replay = { frames, i: 0, t: 0, ang: Math.random() * 6 };
+  st.replay = { frames, i: 0, t: 0, ang: Math.random() * 6, view: 'orbit' };
   $('#hud').classList.add('replaying'); $('#replay-badge').classList.remove('hidden'); $('#pause').classList.add('hidden'); st.paused = false;
   sfx.play('whistle');
 }
@@ -710,9 +712,15 @@ function stepReplay(dt) {
   const S = r.frames[i].s;
   R.update(S, dt * sp, st.local);
   r.ang += dt * 0.35;
-  const bx = S.b[0], bz = S.b[2];
+  const bx = S.b[0], by = S.b[1], bz = S.b[2], d = S.poss === 0 ? 1 : -1;
   r.cx = r.cx === undefined ? bx : r.cx + (bx - r.cx) * Math.min(1, dt * 3); r.cz = r.cz === undefined ? bz : r.cz + (bz - r.cz) * Math.min(1, dt * 3);
-  R.cam.position.set(r.cx + Math.sin(r.ang) * 10, 4.2, r.cz + Math.cos(r.ang) * 10); R.cam.lookAt(r.cx, 1.1, r.cz);
+  // camera angles for clips and replays
+  const v = r.view || 'orbit';
+  if (v === 'side') { R.cam.position.set(r.cx * 0.3 - 30, 14, r.cz - 2 * d); R.cam.lookAt(r.cx * 0.6, 0.8, r.cz + 3 * d); }
+  else if (v === 'behind') { R.cam.position.set(r.cx * 0.9, 7, r.cz - 13 * d); R.cam.lookAt(r.cx, 0.8, r.cz + 10 * d); }
+  else if (v === 'endzone') { const ez = d > 0 ? 118 : -18; R.cam.position.set(0, 16, ez); R.cam.lookAt(r.cx * 0.7, 0.5, r.cz); }
+  else if (v === 'ball') { R.cam.position.set(bx - 2.5, Math.max(1.6, by + 1.4), bz - 4.5 * d); R.cam.lookAt(bx, by, bz + 2 * d); }
+  else { R.cam.position.set(r.cx + Math.sin(r.ang) * 10, 4.2, r.cz + Math.cos(r.ang) * 10); R.cam.lookAt(r.cx, 1.1, r.cz); }
   return S;
 }
 
@@ -759,10 +767,13 @@ function playClip(frames) {
   R.setTeams(s0.teams); if (s0.wx) R.setWeather(s0.wx, s0.tod || 'night');
   $('#hud').classList.add('hidden'); $('#gameover').classList.add('hidden'); $('#pause').classList.add('hidden');
   sfx.stopMusic();
-  st.replay = { frames, i: 0, t: 0, ang: Math.random() * 6, clip: true };
+  st.replay = { frames, i: 0, t: 0, ang: Math.random() * 6, clip: true, view: 'orbit' };
+  R.ballBoost = true;
+  $$('#clip-views [data-cv]').forEach(b => b.classList.toggle('on', b.dataset.cv === 'orbit'));
 }
+$$('#clip-views [data-cv]').forEach(b => b.addEventListener('click', () => { if (!st.replay) return; st.replay.view = b.dataset.cv; $$('#clip-views [data-cv]').forEach(x => x.classList.toggle('on', x === b)); sfx.play('ui'); }));
 function stopClip(back) {
-  st.replay = null; st.mode = 'cpu';
+  st.replay = null; st.mode = 'cpu'; R.ballBoost = false;
   leaveGame();
   if (back && back !== 'menu' && back !== 'game') show(back);
 }
@@ -1639,7 +1650,7 @@ requestAnimationFrame(frame);
 // used by friend challenges: host a private game with a given code, or join one
 function hostGame(code) { show('online'); SET.vis = 'private'; saveSet(); renderOnline(); $('#host-code').value = code; setTimeout(() => $('#host-btn').click(), 50); }
 function joinGame(code) { if (st.playing) { toast('Finish your game first'); return; } show('online'); $('#join-code').value = code; setTimeout(() => $('#join-btn').click(), 50); }
-const CTX = { openTrade: (id, name) => { setTradeTarget(id, name); show('ut'); }, leaveGame, refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+const CTX = { openTrade: (id, name) => { setTradeTarget(id, name); show('ut'); }, SET, leaveGame, refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
 initSocial(CTX);

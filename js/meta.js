@@ -1,8 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792263919';
-import * as UT from './ut.js?v=1792263919';
-import { portraitURL } from './faces.js?v=1792263919';
-import { TEAMS } from './teams.js?v=1792263919';
+import { askYes } from './ui.js?v=1792264217';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792264217';
+import * as UT from './ut.js?v=1792264217';
+import { portraitURL } from './faces.js?v=1792264217';
+import { TEAMS } from './teams.js?v=1792264217';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -146,11 +147,11 @@ function cardDetail(u) {
       <button class="btn ghost" id="cd-x">Close</button>
     </div></div>`);
   C.$$('[data-slot]', el).forEach(b => b.onclick = () => { P.setSlot(b.dataset.slot, u); C.toast(`${c.last} is starting at ${UT.SLOT_LABEL[b.dataset.slot]}`); cardDetail(u); renderUT(); });
-  C.$$('[data-ab]', el).forEach(b => b.onclick = () => { const a = UT.abilityOf(c.group, b.dataset.ab); if (inst.ab && !confirm(`Swap ${inst.ab ? UT.abilityOf(c.group, inst.ab).n : ''} for ${a.n}? This costs ${abCost} TP.`)) return; const err = P.unlockAbility(u, b.dataset.ab); if (err) C.toast(err); else { C.sfx.play('firstdown'); C.toast(`${c.last} unlocked ${a.n}`); } cardDetail(u); renderUT(); });
+  C.$$('[data-ab]', el).forEach(b => b.onclick = async () => { const a = UT.abilityOf(c.group, b.dataset.ab); if (inst.ab && !(await askYes(`Swap ${inst.ab ? UT.abilityOf(c.group, inst.ab).n : ''} for ${a.n}? This costs ${abCost} TP.`, 'Swap'))) return; const err = P.unlockAbility(u, b.dataset.ab); if (err) C.toast(err); else { C.sfx.play('firstdown'); C.toast(`${c.last} unlocked ${a.n}`); } cardDetail(u); renderUT(); });
   { const xb = C.$('#cd-xf', el); if (xb) xb.onclick = () => { const err = P.unlockXFactor(u); if (err) C.toast(err); else { C.sfx.play('td'); C.toast(`X-Factor unlocked: ${UT.XFACTORS[c.group]}!`); } cardDetail(u); renderUT(); }; }
   C.$('#cd-train', el).onclick = () => { const err = P.train(u, tc); if (err) C.toast(err); else { C.sfx.play('firstdown'); C.toast(`${c.last} trained to ${c.ovr + 1} OVR`); } cardDetail(u); renderUT(); };
-  C.$('#cd-sell', el).onclick = () => {
-    if (c.tier >= 3 && !confirm(`Quicksell ${c.first} ${c.last} (${c.ovr} ${c.tierName}) for ${fmt(qs)} coins?`)) return;
+  C.$('#cd-sell', el).onclick = async () => {
+    if (c.tier >= 3 && !(await askYes(`Quicksell ${c.first} ${c.last} (${c.ovr} ${c.tierName}) for ${fmt(qs)} coins?`, 'Quicksell'))) return;
     if (P.sell(u, qs, qtp)) { C.sfx.play('ui'); C.toast(`Sold ${c.last} for ${fmt(qs)} coins and ${qtp} TP`); closeDlg(); renderUT(); }
   };
   C.$('#cd-x', el).onclick = closeDlg;
@@ -170,9 +171,9 @@ function renderClub(P) {
   C.seg(C.$('#club-g'), [['all', 'All'], ...Object.keys(UT.GROUPS).map(g => [g, g])], clubFilter.g, v => { clubFilter.g = v; renderUT(); });
   const so = C.$('#club-sort'); so.value = clubFilter.sort; so.onchange = () => { clubFilter.sort = so.value; renderUT(); };
   C.$$('.club-grid .ucard', pane).forEach(b => b.onclick = () => { C.sfx.play('ui'); cardDetail(+b.dataset.u); });
-  C.$('#club-sellb').onclick = () => {
+  C.$('#club-sellb').onclick = async () => {
     const tot = dupes.reduce((s, i) => s + UT.quicksell(i), 0);
-    if (!confirm(`Quicksell ${dupes.length} bronze players who aren't in your lineup for ${fmt(tot)} coins?`)) return;
+    if (!(await askYes(`Quicksell ${dupes.length} bronze players who aren't in your lineup for ${fmt(tot)} coins?`, 'Quicksell'))) return;
     for (const d of dupes) P.sell(d.u, UT.quicksell(d), UT.quicksellTp(d));
     C.toast(`Sold ${dupes.length} players for ${fmt(tot)} coins`); renderUT();
   };
@@ -295,9 +296,9 @@ function renderMarket(P) {
     <div class="mk-grid">${items.map(l => { const c = UT.card(l.id), mv = UT.marketValue(l.id), deal = l.price <= mv;
       return `<div class="mk-item">${cardHTML(c, { mini: true })}<div class="mk-buy"><button class="btn sm ${deal ? 'primary' : ''}" data-buy="${l.k}" ${P.p.coins < l.price ? 'disabled' : ''}><i class="coin"></i> ${fmt(l.price)}</button><small>${deal ? 'Good price' : `Worth about ${fmt(mv)}`}</small></div></div>`; }).join('') || '<p class="note">Nothing at that position right now. Check back after the refresh.</p>'}</div>`;
   C.seg(C.$('#mk-g'), [['all', 'All'], ...Object.keys(UT.GROUPS).map(g => [g, g])], mkFilter, v => { mkFilter = v; renderUT(); });
-  C.$$('[data-buy]', pane).forEach(b => b.onclick = () => {
+  C.$$('[data-buy]', pane).forEach(b => b.onclick = async () => {
     const l = m.items.find(x => x.k === b.dataset.buy), c = UT.card(l.id);
-    if (l.price >= 5000 && !confirm(`Buy ${c.first} ${c.last} (${c.ovr} ${c.tierName} ${c.pos}) for ${fmt(l.price)} coins?`)) return;
+    if (l.price >= 5000 && !(await askYes(`Buy ${c.first} ${c.last} (${c.ovr} ${c.tierName} ${c.pos}) for ${fmt(l.price)} coins?`, 'Buy'))) return;
     const r = P.marketBuy(b.dataset.buy); if (typeof r === 'string') return C.toast(r);
     C.sfx.play('firstdown'); C.toast(`${c.last} joined your club`); renderUT();
   });
@@ -342,9 +343,9 @@ function renderSets(P) {
       const prize = x.give.master ? (() => { const c = UT.card(UT.masterId(hashW(P.p.ut.sets.w + 'master'))); return `${c.ovr} OVR ${c.pos} ${c.first} ${c.last}`; })() : x.give.pack ? UT.packByKey(x.give.pack).name : `${fmt(x.give.coins)} coins`;
       return `<div class="solo ${r.locked ? 'done' : ''}"><div class="set-ic t${x.need[x.need.length - 1][0]}">${x.need.reduce((a, [, n]) => a + n, 0)}</div><div class="solo-txt"><b>${x.n}</b><small>${x.d}</small><small class="rw">Gives: ${prize}. Costs: ${need}. ${status}.</small></div>
       <button class="btn ${r.ok ? 'primary' : ''}" data-set="${x.k}" ${r.ok ? '' : 'disabled'}>Complete</button></div>`; }).join('')}</div>`;
-  C.$$('[data-set]', pane).forEach(b => b.onclick = () => {
+  C.$$('[data-set]', pane).forEach(b => b.onclick = async () => {
     const r = P.setPick(b.dataset.set); if (!r.ok) return;
-    if (!confirm(`Trade in ${r.pick.map(c => `${c.last} (${c.ovr})`).join(', ')}?`)) return;
+    if (!(await askYes(`Trade in ${r.pick.map(c => `${c.last} (${c.ovr})`).join(', ')}?`, 'Trade in'))) return;
     const out = P.completeSet(b.dataset.set); if (typeof out === 'string') return C.toast(out);
     C.sfx.play('td');
     if (out.give.pack) { C.toast(`Set done: ${UT.packByKey(out.give.pack).name} added`); utTab = 'packs'; }
@@ -416,7 +417,7 @@ export function drillRewardsHTML(pts, diff, team) {
   if (out.best && pts) extra.push(`<span class="up">New personal best: ${pts} points!</span>`);
   for (const lv of out.levels) extra.push(`<span class="up">Level up! You're level ${lv.lvl}: +${fmt(lv.coins)} coins${lv.pack ? `, ${UT.packByKey(lv.pack).name}` : ''}</span>`);
   for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);
-  return `<div class="gr-head"><b>Rewards</b><span class="coins-pill"><i class="coin"></i>${fmt(P.p.coins)}</span></div>
+  return `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="coin"></i>${fmt(P.p.coins)}</span></div>
     <div class="gr-lines">${lines}<span class="gr-tot">Total</span><span class="gr-tot">+${fmt(out.coins)}</span><span class="gr-tot">+${fmt(out.xp)} XP</span></div>${extra.length ? `<div class="gr-extra">${extra.join('')}</div>` : ''}`;
 }
 
@@ -441,7 +442,7 @@ async function loadTheirClub(id) {
   theirClub = data ? { id, cards: (data.cards || []).map(fromRow), lineup: data.lineup || [], packs: data.packs || {}, ovr: data.ovr, at: data.updated_at } : { id, none: true };
   if (C.screen() === 'ut' && utTab === 'trade') renderUT();
 }
-export function setTradeTarget(id, name) { tradeDraft = blankDraft(); tradeDraft.to = id; tradeDraft.toName = name; utTab = 'trade'; loadTheirClub(id); }
+export function setTradeTarget(id, name) { utTab = 'trade'; if (!id) return; tradeDraft = blankDraft(); tradeDraft.to = id; tradeDraft.toName = name; loadTheirClub(id); }
 function itemsHTML(it) {
   if (!it) return '<span class="note">nothing</span>';
   const bits = [];
@@ -603,7 +604,7 @@ export function awardGame(r) {
   if (out.tp) extra.push(`<span class="up">+${fmt(out.tp)} Training Points (${fmt(P.p.tp || 0)} total). Spend them upgrading players in Ultimate Team</span>`);
   if (out.fp) extra.push(`<span class="up">+${fmt(out.fp)} Field Pass XP${out.fpTiers ? `, ${out.fpTiers} new tier${out.fpTiers > 1 ? 's' : ''} to claim` : ''}</span>`);
   for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);
-  return `<div class="gr-head"><b>Rewards</b><span class="coins-pill"><i class="coin"></i>${fmt(P.p.coins)}</span></div>
+  return `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="coin"></i>${fmt(P.p.coins)}</span></div>
     <div class="gr-lines">${lines}<span class="gr-tot">Total</span><span class="gr-tot">+${fmt(out.coins)}</span><span class="gr-tot">+${fmt(out.xp)} XP</span></div>
     ${extra.length ? `<div class="gr-extra">${extra.join('')}</div>` : ''}`;
 }

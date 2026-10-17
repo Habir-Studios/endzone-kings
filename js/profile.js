@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792267900';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792267925';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -223,7 +223,9 @@ export class Profile {
       if ((opp.passYds || 0) + (opp.rushYds || 0) < 200) add('Lockdown D (under 200 yds allowed)', 110, 40);
       if ((me.tds || 0) >= 5) add('Scoring machine (5+ TDs)', 120, 50);
     }
-    if (r.res === 'W' && P.streak >= 1) add(`Win streak (${P.streak + 1})`, Math.min(5, P.streak) * 30, Math.min(5, P.streak) * 20);
+    // win streak: every win in a row adds 6% to the whole payout (coins, XP and TP), up to +30% at 5 straight
+    const streakMul = r.res === 'W' && P.streak >= 1 ? 1 + Math.min(5, P.streak) * 0.06 : 1;
+    if (streakMul > 1) { const base = lines.reduce((s, l) => s + l.c, 0), bx = lines.reduce((s, l) => s + l.x, 0); lines.push({ label: `Win streak x${P.streak + 1} (+${Math.round((streakMul - 1) * 100)}%)`, c: Math.round(base * (streakMul - 1)), x: Math.round(bx * (streakMul - 1)) }); }
     let coins = lines.reduce((s, l) => s + l.c, 0), xp = lines.reduce((s, l) => s + l.x, 0);
     P.coins += coins; P.games++; P.tds += r.me.tds || 0;
     // Training Points: every rewarded game earns some, Ultimate Team games earn the most
@@ -232,7 +234,7 @@ export class Profile {
       : r.mode === 'online' ? Math.round((7 + (r.res === 'W' ? 14 : 0) + (r.me.tds || 0) * 2 + ((r.opp && r.opp.ints) || 0) * 3) * len) : 0;   // regular online 1v1 pays TP too
     // rival strength in Ultimate Team climbs with your wins against the CPU
     if (r.ut && r.mode !== 'online' && P.ut) P.ut.rw = Math.max(0, (P.ut.rw || 0) + (r.res === 'W' ? 1 : r.res === 'L' ? -0.5 : 0));
-    P.tp = (P.tp || 0) + tp;
+    const tpS = Math.round(tp * streakMul); P.tp = (P.tp || 0) + tpS;
     if (r.res === 'W') { P.wins++; P.streak++; P.bestStreak = Math.max(P.bestStreak, P.streak); } else if (r.res === 'L') P.streak = 0;
     // ranked points
     const before = rankInfo(P.rp), rp0 = P.rp;
@@ -270,7 +272,7 @@ export class Profile {
     const ach = this.checkAch(r);
     P.log.unshift({ at: Date.now(), res: r.res, sc: r.sc, mode: r.mode, ut: !!r.ut, coins, xp }); P.log.length = Math.min(P.log.length, 20);
     this.save();
-    return { tp, lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
+    return { tp: Math.round(tp * streakMul), lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
   }
 
   // ---------------- Ultimate Team ----------------

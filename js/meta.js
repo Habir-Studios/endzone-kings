@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792263263';
-import * as UT from './ut.js?v=1792263263';
-import { portraitURL } from './faces.js?v=1792263263';
-import { TEAMS } from './teams.js?v=1792263263';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792263438';
+import * as UT from './ut.js?v=1792263438';
+import { portraitURL } from './faces.js?v=1792263438';
+import { TEAMS } from './teams.js?v=1792263438';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -26,6 +26,7 @@ export function profile() {
 
 export function initMeta(ctx) {
   C = ctx;
+  setInterval(() => { if (tdb() && tme()) settleTrades().then(n => { if (n && C.screen() === 'ut') renderUT(); }); if (C.screen() === 'ut' && utTab === 'trade') loadTrades(true); }, 15000);
   const { $, $$ } = C;
   $$('.ut-tab').forEach(b => b.addEventListener('click', () => { C.sfx.play('ui'); utTab = b.dataset.ut; renderUT(); }));
   $('#ut-begin').addEventListener('click', () => {
@@ -90,7 +91,7 @@ export function renderUT() {
   const settled = P.marketSettle();
   for (const l of settled) C.toast(l.sold ? `${UT.card(l.id).last} sold on the market: +${fmt(l.net)} coins` : `${UT.card(l.id).last} didn't sell and is back in your club`, 3500);
   if (settled.length) $('#ut-coins').textContent = fmt(P.p.coins);
-  ({ squad: renderSquad, packs: renderPacks, club: renderClub, play: renderPlay, solos: renderSolos, pass: renderPass, market: renderMarket, sets: renderSets })[utTab](P);
+  ({ trade: renderTrade, squad: renderSquad, packs: renderPacks, club: renderClub, play: renderPlay, solos: renderSolos, pass: renderPass, market: renderMarket, sets: renderSets })[utTab](P);
 }
 
 function renderSquad(P) {
@@ -183,7 +184,7 @@ function renderPacks(P) {
   pane.innerHTML = `${mine.length ? `<h3 class="store-h">My packs</h3><div class="store">${mine.map(k => `<div class="pack ${k.key}"><span class="own">x${P.p.packs[k.key]}</span>${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn primary" data-open="${k.key}">Open</button></div>`).join('')}</div>` : ''}
     <h3 class="store-h">Store</h3><p class="note">Paid for with coins you earn by playing. No real money, ever.</p>
     <div class="store">${UT.PACKS.map(k => `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small>${k.tpCost ? `<button class="btn" data-buy="${k.key}" ${(P.p.tp || 0) < k.tpCost ? 'disabled' : ''}><i class="tp-ic">TP</i> ${fmt(k.tpCost)}</button>` : `<button class="btn" data-buy="${k.key}" ${P.p.coins < k.cost ? 'disabled' : ''}><i class="coin"></i> ${fmt(k.cost)}</button>`}</div>`).join('')}</div>`;
-  C.$$('[data-buy]', pane).forEach(b => b.onclick = () => { const err = P.buyPack(b.dataset.buy); if (err) return C.toast(err); C.sfx.play('ui'); openPack(b.dataset.buy); });
+  C.$$('[data-buy]', pane).forEach(b => b.onclick = () => { const err = P.buyPack(b.dataset.buy); if (err) return C.toast(err); C.sfx.play('ui'); C.toast(`${UT.packByKey(b.dataset.buy).name} added to My packs. Open it whenever, or trade it`, 2600); renderUT(); });
   C.$$('[data-open]', pane).forEach(b => b.onclick = () => openPack(b.dataset.open));
 }
 
@@ -416,6 +417,141 @@ export function drillRewardsHTML(pts, diff, team) {
   for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);
   return `<div class="gr-head"><b>Rewards</b><span class="coins-pill"><i class="coin"></i>${fmt(P.p.coins)}</span></div>
     <div class="gr-lines">${lines}<span class="gr-tot">Total</span><span class="gr-tot">+${fmt(out.coins)}</span><span class="gr-tot">+${fmt(out.xp)} XP</span></div>${extra.length ? `<div class="gr-extra">${extra.join('')}</div>` : ''}`;
+}
+
+// ---------------- trades ----------------
+const tdb = () => (C.Auth.mode === 'supabase' && C.Auth.client ? C.Auth.client : null);
+const tme = () => (C.Auth.user && C.Auth.user.kind === 'account' ? C.Auth.user : null);
+const tesc = s => C.escapeHtml(String(s ?? ''));
+let tradeDraft = { to: null, toName: '', us: [], packs: {}, coins: 0, tp: 0, ask: { packs: {}, coins: 0, tp: 0 }, note: '' }, tradeRows = [], tradeNames = {};
+function itemsHTML(it) {
+  if (!it) return '<span class="note">nothing</span>';
+  const bits = [];
+  for (const c of it.cards || []) { const o = UT.owned({ ...c, u: -1 }); bits.push(cardHTML(o, { mini: true })); }
+  for (const [k, n] of Object.entries(it.packs || {})) if (n > 0) bits.push(`<span class="tr-chip">${n}x ${tesc((UT.packByKey(k) || { name: k }).name)}</span>`);
+  if (it.coins) bits.push(`<span class="tr-chip"><i class="coin"></i> ${fmt(it.coins)}</span>`);
+  if (it.tp) bits.push(`<span class="tr-chip"><i class="tp-ic">TP</i> ${fmt(it.tp)}</span>`);
+  return bits.join('') || '<span class="note">nothing</span>';
+}
+async function settleTrades() {
+  const D = tdb(), u = tme(), P = profile(); if (!D || !u || !P) return 0;
+  const { data } = await D.from('ek_trades').select('id,offer,ask,status').eq('sender', u.id).in('status', ['accepted', 'declined', 'cancelled']).limit(20);
+  let n = 0;
+  for (const t of data || []) {
+    const { data: s } = await D.rpc('ek_trade_settle', { tid: t.id });
+    if (s === 'completed') { P.tradeGive(t.ask); n++; C.toast('Trade accepted! Your new stuff is in your club.', 3500); C.sfx.play('firstdown'); }
+    else if (s === 'returned') { P.tradeGive(t.offer); n++; C.toast(t.status === 'declined' ? 'A trade was declined. Your items are back.' : 'Trade cancelled. Your items are back.', 3000); }
+  }
+  return n;
+}
+async function loadTrades(quiet) {
+  const D = tdb(), u = tme(); if (!D || !u) return;
+  const { data, error } = await D.from('ek_trades').select('*').or(`sender.eq.${u.id},recipient.eq.${u.id}`).order('created_at', { ascending: false }).limit(40);
+  if (error) { if (!quiet) C.toast('Couldn’t load trades: ' + error.message); return; }
+  const key = JSON.stringify((data || []).map(t => [t.id, t.status]));
+  if (quiet && key === loadTrades.key) return; loadTrades.key = key;
+  tradeRows = data || [];
+  const ids = [...new Set(tradeRows.flatMap(t => [t.sender, t.recipient]).filter(id => !tradeNames[id]))];
+  if (ids.length) { const { data: ps } = await D.from('ek_players').select('id,name').in('id', ids); for (const p of ps || []) tradeNames[p.id] = p.name; }
+  const inc = tradeRows.filter(t => t.recipient === u.id && t.status === 'pending').length;
+  const dot = document.getElementById('ut-tr-n'); if (dot) { dot.textContent = inc; dot.classList.toggle('hidden', !inc); }
+  if (C.screen() === 'ut' && utTab === 'trade') drawTradeLists();
+}
+function drawTradeLists() {
+  const u = tme(), el = document.getElementById('tr-lists'); if (!el || !u) return;
+  const row = t => {
+    const mine = t.sender === u.id, other = tradeNames[mine ? t.recipient : t.sender] || 'Player';
+    const acts = t.status !== 'pending' ? `<span class="ad-tag">${t.status}</span>` : mine ? `<button class="btn sm" data-tcancel="${t.id}">Cancel</button>` : `<button class="btn sm primary" data-tyes="${t.id}">Accept</button><button class="btn sm" data-tno="${t.id}">Decline</button>`;
+    return `<div class="tr-row"><div class="tr-who"><b>${mine ? 'To' : 'From'} ${tesc(other)}</b>${t.note ? `<small>“${tesc(t.note)}”</small>` : ''}</div>
+      <div class="tr-side"><small>${mine ? 'You give' : 'You get'}</small><div class="tr-items">${itemsHTML(t.offer)}</div></div>
+      <div class="tr-side"><small>${mine ? 'You get' : 'You give'}</small><div class="tr-items">${itemsHTML(t.ask)}</div></div>
+      <div class="tr-acts">${acts}</div></div>`;
+  };
+  const inc = tradeRows.filter(t => t.recipient === u.id), out = tradeRows.filter(t => t.sender === u.id);
+  el.innerHTML = `<h3 class="store-h">Incoming</h3>${inc.map(row).join('') || '<p class="note">No trade offers yet.</p>'}<h3 class="store-h">Sent</h3>${out.map(row).join('') || '<p class="note">You haven’t sent any trades.</p>'}`;
+  C.$$('[data-tyes]', el).forEach(b => b.onclick = () => respondTrade(+b.dataset.tyes, true));
+  C.$$('[data-tno]', el).forEach(b => b.onclick = () => respondTrade(+b.dataset.tno, false));
+  C.$$('[data-tcancel]', el).forEach(b => b.onclick = async () => { const { data } = await tdb().rpc('ek_trade_cancel', { tid: +b.dataset.tcancel }); if (data) { await settleTrades(); } loadTrades.key = null; await loadTrades(); renderUT(); });
+}
+async function respondTrade(id, yes) {
+  const P = profile(), t = tradeRows.find(x => x.id === id); if (!t || !P) return;
+  if (yes) {
+    // you pay what they asked for (coins, TP, packs) and get what they offered
+    const ask = t.ask || {}, need = { packs: ask.packs || {}, coins: ask.coins || 0, tp: ask.tp || 0 };
+    const err = P.tradeCheck(need); if (err) return C.toast(err);
+    if (P.p.ut.cards.length + (t.offer.cards || []).length > UT.CLUB_CAP) return C.toast('Your club is full. Quicksell some players first');
+    const { data, error } = await tdb().rpc('ek_trade_respond', { tid: id, yes: true });
+    if (error || !data) return C.toast('That trade isn’t available anymore');
+    P.tradeTake(need); P.tradeGive(t.offer);
+    C.sfx.play('firstdown'); C.toast('Trade done! Check your club and packs.', 3000);
+  } else {
+    await tdb().rpc('ek_trade_respond', { tid: id, yes: false }); C.toast('Trade declined');
+  }
+  loadTrades.key = null; await loadTrades(); renderUT();
+}
+function renderTrade(P) {
+  const pane = C.$('#ut-pane');
+  if (!tdb() || !tme()) { pane.innerHTML = '<p class="note">Trading needs a real account. Sign in to trade players, packs, coins and Training Points with other players.</p>'; return; }
+  const d = tradeDraft, U = P.p.ut;
+  const sel = U.cards.filter(c => d.us.includes(c.u));
+  const packOpts = UT.PACKS.filter(k => (P.p.packs[k.key] || 0) > 0);
+  pane.innerHTML = `<div class="tr-new panel">
+      <h3>New trade</h3>
+      <label>Trade with<div class="tr-to"><input id="tr-q" placeholder="Search a player name" value="${tesc(d.toName)}" autocomplete="off"><div id="tr-qres" class="tr-qres"></div></div></label>
+      <div class="tr-cols">
+        <div><b>You give</b>
+          <div class="tr-items">${sel.map(c => `<button class="tr-x" data-unpick="${c.u}" title="Remove">${cardHTML(UT.owned(c), { mini: true })}</button>`).join('')}</div>
+          <button class="btn sm" id="tr-addcard" type="button">+ Add a player</button>
+          ${packOpts.length ? `<div class="tr-packs">${packOpts.map(k => `<label class="tr-pk">${tesc(k.name)} <input type="number" min="0" max="${P.p.packs[k.key]}" value="${d.packs[k.key] || 0}" data-gpack="${k.key}"></label>`).join('')}</div>` : '<p class="note">No unopened packs to trade. Buy one and it goes to My packs.</p>'}
+          <label class="tr-num"><i class="coin"></i><input type="number" min="0" max="${P.p.coins}" step="50" value="${d.coins}" id="tr-coins"></label>
+          <label class="tr-num"><i class="tp-ic">TP</i><input type="number" min="0" max="${P.p.tp || 0}" step="5" value="${d.tp}" id="tr-tp"></label>
+        </div>
+        <div><b>You want</b>
+          <label class="tr-num"><i class="coin"></i><input type="number" min="0" max="500000" step="50" value="${d.ask.coins}" id="tr-acoins"></label>
+          <label class="tr-num"><i class="tp-ic">TP</i><input type="number" min="0" max="50000" step="5" value="${d.ask.tp}" id="tr-atp"></label>
+          <div class="tr-packs">${UT.PACKS.map(k => `<label class="tr-pk">${tesc(k.name)} <input type="number" min="0" max="10" value="${d.ask.packs[k.key] || 0}" data-apack="${k.key}"></label>`).join('')}</div>
+        </div>
+      </div>
+      <label>Note<input id="tr-note" maxlength="120" value="${tesc(d.note)}" placeholder="optional"></label>
+      <p class="note">What you give is held until they answer. If they decline or you cancel, you get it all back.</p>
+      <button class="btn primary" id="tr-send" type="button">Send trade${d.toName ? ' to ' + tesc(d.toName) : ''}</button>
+    </div>
+    <div id="tr-lists"><p class="note">Loading trades…</p></div>`;
+  const num = (id, f) => { const el = C.$('#' + id, pane); el.oninput = () => f(Math.max(0, +el.value || 0)); };
+  num('tr-coins', v => d.coins = Math.min(v, P.p.coins)); num('tr-tp', v => d.tp = Math.min(v, P.p.tp || 0));
+  num('tr-acoins', v => d.ask.coins = Math.min(v, 500000)); num('tr-atp', v => d.ask.tp = Math.min(v, 50000));
+  C.$$('[data-gpack]', pane).forEach(el => el.oninput = () => { d.packs[el.dataset.gpack] = Math.max(0, Math.min(+el.value || 0, P.p.packs[el.dataset.gpack] || 0)); });
+  C.$$('[data-apack]', pane).forEach(el => el.oninput = () => { d.ask.packs[el.dataset.apack] = Math.max(0, Math.min(+el.value || 0, 10)); });
+  C.$('#tr-note', pane).oninput = e => { d.note = e.target.value; };
+  C.$$('[data-unpick]', pane).forEach(b => b.onclick = () => { d.us = d.us.filter(u => u !== +b.dataset.unpick); renderUT(); });
+  C.$('#tr-addcard', pane).onclick = () => {
+    const list = U.cards.filter(c => !P.inLineup(c.u) && !d.us.includes(c.u)).map(c => UT.owned(c)).sort((a, b) => b.ovr - a.ovr);
+    const el = openDlg(`<div style="grid-column:1/-1"><div class="pk-head"><h2 class="title sm">Add a player to the trade</h2><button class="btn ghost sm" id="dlg-x">Close</button></div>
+      <p class="note">Players in your lineup can’t be traded. Swap them out first.</p>
+      <div class="pick-list">${list.map(c => cardHTML(c, { mini: true, tag: 'button' })).join('') || '<p class="note">No players outside your lineup.</p>'}</div></div>`);
+    C.$('#dlg-x', el).onclick = closeDlg;
+    C.$$('.pick-list [data-u]', el).forEach(b => b.onclick = () => { if (d.us.length >= 8) return C.toast('8 players max per trade'); d.us.push(+b.dataset.u); closeDlg(); renderUT(); });
+  };
+  let qt = null;
+  C.$('#tr-q', pane).oninput = e => { clearTimeout(qt); const q = C.cleanText(e.target.value).trim(); d.to = null; d.toName = ''; qt = setTimeout(async () => {
+    const box = C.$('#tr-qres', pane); if (q.length < 2) { box.innerHTML = ''; return; }
+    const { data } = await tdb().from('ek_players').select('id,name').ilike('name', `%${q}%`).neq('id', tme().id).limit(6);
+    box.innerHTML = (data || []).map(p => `<button type="button" data-tto="${p.id}" data-tname="${tesc(p.name)}">${tesc(p.name)}</button>`).join('') || '<small class="note">No one by that name</small>';
+    C.$$('[data-tto]', box).forEach(b => b.onclick = () => { d.to = b.dataset.tto; d.toName = b.dataset.tname; renderUT(); });
+  }, 250); };
+  C.$('#tr-send', pane).onclick = async () => {
+    if (!d.to) return C.toast('Pick who to trade with first');
+    const give = { us: d.us, packs: Object.fromEntries(Object.entries(d.packs).filter(([, n]) => n > 0)), coins: d.coins | 0, tp: d.tp | 0 };
+    const ask = { packs: Object.fromEntries(Object.entries(d.ask.packs).filter(([, n]) => n > 0)), coins: d.ask.coins | 0, tp: d.ask.tp | 0 };
+    if (!give.us.length && !Object.keys(give.packs).length && !give.coins && !give.tp) return C.toast('Add something to give');
+    const r = P.tradeTake(give); if (r.err) return C.toast(r.err);
+    const { error } = await tdb().from('ek_trades').insert({ recipient: d.to, offer: r.items, ask, note: C.cleanText(d.note).slice(0, 120) });
+    if (error) { P.tradeGive(r.items); return C.toast('Trade failed: ' + error.message); }
+    C.sfx.play('ui'); C.toast(`Trade sent to ${d.toName}`);
+    tradeDraft = { to: null, toName: '', us: [], packs: {}, coins: 0, tp: 0, ask: { packs: {}, coins: 0, tp: 0 }, note: '' };
+    loadTrades.key = null; renderUT();
+  };
+  settleTrades().then(() => { loadTrades.key = null; loadTrades(); });
 }
 
 // ---------------- post-game ----------------

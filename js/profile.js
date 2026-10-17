@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792263263';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792263438';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -269,7 +269,7 @@ export class Profile {
   }
   addCards(ids) {
     const U = this.p.ut; const added = [];
-    for (const e of ids) { const inst = typeof e === 'number' ? { u: U.next++, id: e, b: 0 } : { u: U.next++, id: e.id, b: 0, ...(e.x ? { x: e.x } : {}) }; U.cards.push(inst); added.push(inst); }
+    for (const e of ids) { const inst = typeof e === 'number' ? { u: U.next++, id: e, b: 0 } : { u: U.next++, id: e.id, b: e.b || 0, ...(e.x ? { x: e.x } : {}), ...(e.ab ? { ab: e.ab } : {}), ...(e.xf ? { xf: 1 } : {}) }; U.cards.push(inst); added.push(inst); }
     return added;
   }
   clubFull() { return this.p.ut.cards.length >= CLUB_CAP; }
@@ -293,6 +293,31 @@ export class Profile {
     this.lastAch = this.checkAch(null);
     this.save();
     return added;
+  }
+  // ---------------- trading: take items out (held in the trade) and put items in ----------------
+  tradeCheck(it) {
+    const U = this.p.ut;
+    for (const u of it.us || []) { const c = U.cards.find(x => x.u === u); if (!c) return 'You no longer have one of those players'; if (this.inLineup(u)) return 'Take traded players out of your lineup first'; }
+    for (const [k, n] of Object.entries(it.packs || {})) if ((this.p.packs[k] || 0) < n) return 'You don\'t have those packs anymore';
+    if ((it.coins || 0) > this.p.coins) return 'Not enough coins';
+    if ((it.tp || 0) > (this.p.tp || 0)) return 'Not enough Training Points';
+    return null;
+  }
+  tradeTake(it) {
+    const err = this.tradeCheck(it); if (err) return { err };
+    const U = this.p.ut, cards = [];
+    for (const u of it.us || []) { const i = U.cards.findIndex(x => x.u === u); const c = U.cards.splice(i, 1)[0]; cards.push({ id: c.id, ...(c.x ? { x: c.x } : {}), b: c.b || 0, ...(c.ab ? { ab: c.ab } : {}), ...(c.xf ? { xf: 1 } : {}) }); }
+    for (const [k, n] of Object.entries(it.packs || {})) this.p.packs[k] -= n;
+    this.p.coins -= it.coins || 0; this.p.tp = (this.p.tp || 0) - (it.tp || 0);
+    this.save();
+    return { items: { cards, packs: it.packs || {}, coins: it.coins || 0, tp: it.tp || 0 } };
+  }
+  tradeGive(items) {
+    if (!items) return;
+    if (items.cards && items.cards.length) this.addCards(items.cards.slice(0, 12));
+    for (const [k, n] of Object.entries(items.packs || {})) if (PACKS.some(p => p.key === k)) this.p.packs[k] = (this.p.packs[k] || 0) + Math.max(0, Math.min(20, n | 0));
+    this.p.coins += Math.max(0, Math.min(1e6, items.coins | 0)); this.p.tp = (this.p.tp || 0) + Math.max(0, Math.min(1e5, items.tp | 0));
+    this.save();
   }
   inLineup(u) { return Object.values(this.p.ut.lineup).includes(u); }
   sell(u, value, tp = 0) {

@@ -1,5 +1,5 @@
 // Season mode: 14-week schedule, everyone else simulated by ratings, top-4 playoff, Kings Bowl.
-import { TEAMS, teamOvr } from './teams.js?v=1792263263';
+import { TEAMS, teamOvr } from './teams.js?v=1792263438';
 
 export const WEEKS = 14;
 const N = TEAMS.length;

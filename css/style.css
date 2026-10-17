@@ -1054,3 +1054,6 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .pack.kings .pack-art { box-shadow: inset 0 0 0 2px var(--edge), inset 0 0 22px rgba(246,196,69,.35), 0 0 18px rgba(246,196,69,.25); }
 @media (prefers-reduced-motion: reduce) { .pack-art, .pack-art::after { transition: none !important; } }
 .pack.silver .pack-art .pa-stars, .pack.gold .pack-art .pa-stars { color: var(--ink); text-shadow: none; opacity: .75; }
+
+.tp-pill { margin-left: 8px; }
+.tp-ic { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; background: linear-gradient(160deg, #7df9ff, #2b6cff); color: #04122e; font: 900 9px/1 var(--display, system-ui); font-style: normal; margin-right: 6px; }

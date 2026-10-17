@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792260141';
-import * as UT from './ut.js?v=1792260141';
-import { portraitURL } from './faces.js?v=1792260141';
-import { TEAMS } from './teams.js?v=1792260141';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792260627';
+import * as UT from './ut.js?v=1792260627';
+import { portraitURL } from './faces.js?v=1792260627';
+import { TEAMS } from './teams.js?v=1792260627';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -73,7 +73,7 @@ let utTab = 'squad', utStartTeam = -1, clubFilter = { g: 'all', sort: 'ovr' }, u
 export function renderUT() {
   const P = profile(); if (!P) return;
   const { $, $$ } = C, U = P.p.ut;
-  $('#ut-coins').textContent = fmt(P.p.coins);
+  $('#ut-coins').textContent = fmt(P.p.coins); { const t = document.getElementById('ut-tp'); if (t) t.textContent = fmt(P.p.tp || 0); }
   $('#ut-start').classList.toggle('hidden', U.started);
   $('#ut-main').classList.toggle('hidden', !U.started);
   if (!U.started) {
@@ -125,7 +125,7 @@ function pickForSlot(slot) {
 function cardDetail(u) {
   const P = profile(), U = P.p.ut, inst = U.cards.find(c => c.u === u); if (!inst) return;
   const c = UT.owned(inst), t = TEAMS[c.team];
-  const qs = UT.quicksell(inst), tc = UT.trainCost(inst), inLu = P.inLineup(u);
+  const qs = UT.quicksell(inst), qtp = UT.quicksellTp(inst), tc = UT.trainCost(inst), inLu = P.inLineup(u);
   const rate = k => `<div class="cd-rate"><span>${UT.RATING_NAMES[k]}</span><b>${c[k]}</b><i style="--v:${c[k]}%;--bar:${c[k] >= 85 ? 'var(--go)' : c[k] >= 70 ? 'var(--gold)' : '#ff8b97'}"></i></div>`;
   const slots = UT.GROUPS[c.group];
   const el = openDlg(`${cardHTML(c)}<div class="cd-info"><h3>${C.escapeHtml(c.first)} ${C.escapeHtml(c.last)}</h3>
@@ -133,15 +133,15 @@ function cardDetail(u) {
     <div class="cd-rates">${['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'].map(rate).join('')}</div>
     <div class="cd-acts">
       ${slots.map(s => `<button class="btn${U.lineup[s] === u ? ' primary' : ''}" data-slot="${s}" ${U.lineup[s] === u ? 'disabled' : ''}>${U.lineup[s] === u ? 'Starting at' : 'Start at'} ${UT.SLOT_LABEL[s]}${slots.length > 1 ? ' ' + (slots.indexOf(s) + 1) : ''}</button>`).join('')}
-      <button class="btn" id="cd-train" ${tc ? '' : 'disabled'}>${tc ? `Train +1 OVR (${fmt(tc)} coins)` : 'Fully trained'}</button>
-      <button class="btn danger" id="cd-sell" ${inLu ? 'disabled title="Take him out of your lineup first"' : ''}>Quicksell for ${fmt(qs)}</button>
+      <button class="btn" id="cd-train" ${tc ? '' : 'disabled'}>${tc ? `Train +1 OVR (${fmt(tc)} TP, you have ${fmt(P.p.tp || 0)})` : 'Fully trained'}</button>
+      <button class="btn danger" id="cd-sell" ${inLu ? 'disabled title="Take him out of your lineup first"' : ''}>Quicksell for ${fmt(qs)} coins + ${qtp} TP</button>
       <button class="btn ghost" id="cd-x">Close</button>
     </div></div>`);
   C.$$('[data-slot]', el).forEach(b => b.onclick = () => { P.setSlot(b.dataset.slot, u); C.toast(`${c.last} is starting at ${UT.SLOT_LABEL[b.dataset.slot]}`); cardDetail(u); renderUT(); });
   C.$('#cd-train', el).onclick = () => { const err = P.train(u, tc); if (err) C.toast(err); else { C.sfx.play('firstdown'); C.toast(`${c.last} trained to ${c.ovr + 1} OVR`); } cardDetail(u); renderUT(); };
   C.$('#cd-sell', el).onclick = () => {
     if (c.tier >= 3 && !confirm(`Quicksell ${c.first} ${c.last} (${c.ovr} ${c.tierName}) for ${fmt(qs)} coins?`)) return;
-    if (P.sell(u, qs)) { C.sfx.play('ui'); C.toast(`Sold ${c.last} for ${fmt(qs)} coins`); closeDlg(); renderUT(); }
+    if (P.sell(u, qs, qtp)) { C.sfx.play('ui'); C.toast(`Sold ${c.last} for ${fmt(qs)} coins and ${qtp} TP`); closeDlg(); renderUT(); }
   };
   C.$('#cd-x', el).onclick = closeDlg;
 }
@@ -163,7 +163,7 @@ function renderClub(P) {
   C.$('#club-sellb').onclick = () => {
     const tot = dupes.reduce((s, i) => s + UT.quicksell(i), 0);
     if (!confirm(`Quicksell ${dupes.length} bronze players who aren't in your lineup for ${fmt(tot)} coins?`)) return;
-    for (const d of dupes) P.sell(d.u, UT.quicksell(d));
+    for (const d of dupes) P.sell(d.u, UT.quicksell(d), UT.quicksellTp(d));
     C.toast(`Sold ${dupes.length} players for ${fmt(tot)} coins`); renderUT();
   };
 }
@@ -419,6 +419,7 @@ export function awardGame(r) {
   for (const pr of out.promos) extra.push(`<span class="up">Promoted to ${pr.div}! +${fmt(pr.coins)} coins and a ${UT.packByKey(pr.pack).name}</span>`);
   for (const d of out.done) extra.push(`<span class="up">Challenge done: ${d.d}. Claim it in Progress.</span>`);
   if (out.solo) extra.push(out.solo.ok ? `<span class="up">Solo beaten: ${out.solo.n}! +${rewardText(out.solo.give)}</span>` : `<span class="down">Solo not beaten: ${out.solo.d}. Try it again from Solos.</span>`);
+  if (out.tp) extra.push(`<span class="up">+${fmt(out.tp)} Training Points (${fmt(P.p.tp || 0)} total). Spend them upgrading players in Ultimate Team</span>`);
   if (out.fp) extra.push(`<span class="up">+${fmt(out.fp)} Field Pass XP${out.fpTiers ? `, ${out.fpTiers} new tier${out.fpTiers > 1 ? 's' : ''} to claim` : ''}</span>`);
   for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);
   return `<div class="gr-head"><b>Rewards</b><span class="coins-pill"><i class="coin"></i>${fmt(P.p.coins)}</span></div>

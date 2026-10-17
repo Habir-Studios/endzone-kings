@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792260141';
+import { TEAMS } from './teams.js?v=1792260627';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
@@ -69,7 +69,11 @@ export function owned(inst) {
   return o;
 }
 export const quicksell = inst => { const c = owned(inst); return Math.round(TIERS[c.tier].qs * (1 + (c.ovr - TIERS[c.tier].lo) * 0.06) + (inst.b || 0) * TIERS[c.tier].train * 0.25); };
-export const trainCost = inst => { const c = card(inst.id); const b = inst.b || 0; return b >= MAX_BOOST[c.tier] ? 0 : TIERS[c.tier].train * (b + 1); };
+// training costs Training Points (earned by playing and quickselling), not coins
+export const TP_TRAIN = [12, 25, 50, 100, 200];
+export const TP_QS = [2, 5, 12, 30, 75];
+export const trainCost = inst => { const c = card(inst.id); const b = inst.b || 0; return b >= MAX_BOOST[c.tier] ? 0 : TP_TRAIN[c.tier] * (b + 1); };
+export const quicksellTp = inst => TP_QS[card(inst.id).tier] || 0;
 
 // ---------------- packs ----------------
 export const PACKS = [

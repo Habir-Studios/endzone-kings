@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792268508';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792268508';
-import { Renderer } from './render.js?v=1792268508';
-import { Sfx } from './audio.js?v=1792268508';
-import { Auth } from './auth.js?v=1792268508';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792268508';
-import { getRoster, teamOvr } from './teams.js?v=1792268508';
-import * as Season from './season.js?v=1792268508';
-import * as Fr from './franchise.js?v=1792268508';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792268508';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792268508';
-import * as UTm from './ut.js?v=1792268508';
-import { initCreator, renderCreator } from './creator.js?v=1792268508';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792268508';
-import { portraitURL } from './faces.js?v=1792268508';
-import { logoURL, clearLogoCache } from './logos.js?v=1792268508';
+import { askYes } from './ui.js?v=1792268622';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792268622';
+import { Renderer } from './render.js?v=1792268622';
+import { Sfx } from './audio.js?v=1792268622';
+import { Auth } from './auth.js?v=1792268622';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792268622';
+import { getRoster, teamOvr } from './teams.js?v=1792268622';
+import * as Season from './season.js?v=1792268622';
+import * as Fr from './franchise.js?v=1792268622';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792268622';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792268622';
+import * as UTm from './ut.js?v=1792268622';
+import { initCreator, renderCreator } from './creator.js?v=1792268622';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792268622';
+import { portraitURL } from './faces.js?v=1792268622';
+import { logoURL, clearLogoCache } from './logos.js?v=1792268622';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -683,6 +683,7 @@ function keyToEvent(k) {
   const me = st.local, onOff = S.poss === me;
   const digit = k.startsWith('Digit') ? +k.slice(5) : k.startsWith('Numpad') ? +k.slice(6) : 0;
   if (S.ph === 'half') return k === 'Space' || k === 'Enter' ? { t: 'ready' } : null;
+  if (S.ph === 'dead' && (k === 'Space' || k === 'Enter')) return { t: 'skip' };
   if (S.ph === 'kickset') return onOff && (k === 'Space' || k === 'Enter') ? { t: 'kick' } : null;
   if (k === 'KeyV' && (S.ph === 'presnap' || S.ph === 'dead' || S.ph === 'live')) {
     if (!((S.to || [0, 0])[me] > 0)) { toast('No timeouts left'); return null; }
@@ -1402,7 +1403,7 @@ function updateHud(S) {
     if (on) { const s = st.local === 1 ? -1 : 1, ang = Math.atan2(-Math.sin(W.dir) * s, Math.cos(W.dir) * s) * 180 / Math.PI, key = W.mph + '|' + Math.round(ang);
       if (hudCache.wind !== key) { hudCache.wind = key; $('#wind-arrow').style.transform = `rotate(${ang - 90}deg)`; setTxt('#wind-mph', `${W.mph} mph`); } } }
   // contextual hints
-  if (S.ph === 'dead' && S.msg && S.msg.big && S.msg.team === me) hint([['hold E', 'pick a celebration']]);
+  if (S.ph === 'dead' && st.mode !== 'clip' && st.mode !== 'spec') hint([['hold E', 'celebrate'], ['Space', 'skip']]);
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];

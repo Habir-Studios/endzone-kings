@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792268508';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792268622';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792268508';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792268622';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -171,7 +171,7 @@ function mom(g, team, amt) {
   if (Math.abs(g.mom) >= 70 && Math.abs(before) < 70) { g.events.push('momentum'); if (!g.flash) g.flash = { text: `${TEAMS[g.opts.teams[g.mom > 0 ? 0 : 1]].abbr} HAS THE MOMENTUM`, until: 1.6 }; }
 }
 const momOf = (g, team) => (team === 0 ? g.mom : -g.mom);
-function highlight(g, text, sub, team) { if (!g.opts.practice) g.hl.push({ q: g.quarter, clk: Math.ceil(g.clock), text, sub: sub || '', team }); if (g.hl.length > 24) g.hl.shift(); }
+function highlight(g, text, sub, team) { g.hlCount = (g.hlCount || 0) + 1; g.hlTeam = team; if (!g.opts.practice) g.hl.push({ q: g.quarter, clk: Math.ceil(g.clock), text, sub: sub || '', team }); if (g.hl.length > 24) g.hl.shift(); }
 export const rosterFor = (g, team) => g.opts.rosters[team] || getRoster(g.opts.teams[team]);
 function pst(g, p) {
   const k = p.team + ':' + p.role;
@@ -302,7 +302,7 @@ function setupPlay(g) {
   g.ctrl = [-1, -1];
   g.ctrl[off] = 0; // QB
   g.ctrl[def] = byRole(g, 'LB').id;
-  g.kick = null; g.celebrate = -1; g.lastFlag = null; g.hot = {}; g.mom *= 0.94; g.cadence = 0; g.cpuSnapAt = 4.8 + g.rng() * 2.4;
+  g.kick = null; g.celebrate = -1; g.deadInit = false; g.deadSkip = [false, false]; g.lastFlag = null; g.hot = {}; g.mom *= 0.94; g.cadence = 0; g.cpuSnapAt = 4.8 + g.rng() * 2.4;
   g.playId++;
   if (!g.opts.humans[off]) cpuCallOffense(g);
   if (!g.opts.humans[def]) { g.defPlay = cpuCallDefense(g); g.defChosen = true; }
@@ -418,7 +418,9 @@ function handleEvent(g, team, ev) {
     return;
   }
   // pick a touchdown celebration while you're celebrating
-  if (ev.t === 'cel') { const v = +ev.id; if (Number.isFinite(v) && v >= -1 && v <= 8) { g.opts.cel[team] = v; if (g.phase === 'dead' && g.celebrate === team) { for (const p of g.players) if (p.team === team) p.celReset = 1; g.events.push('cel' + (v < 0 ? 0 : v)); } } return; }
+  if (ev.t === 'cel') { const v = +ev.id; if (Number.isFinite(v) && v >= -1 && v <= 8) { g.opts.cel[team] = v; if (g.phase === 'dead' && g.celebrate !== team && g.phaseT < g.deadDur - 0.8) startCel(g, team); else if (g.phase === 'dead' && g.celebrate === team) { for (const p of g.players) if (p.team === team) p.celReset = 1; g.events.push('cel' + (v < 0 ? 0 : v)); } } return; }
+  // done watching: both humans hit snap and the next play comes up
+  if (ev.t === 'skip') { if (g.phase === 'dead' && g.phaseT > 1.5) { g.deadSkip[team] = true; if ([0, 1].every(t => !g.opts.humans[t] || g.deadSkip[t])) g.deadDur = Math.min(g.deadDur, g.phaseT + 0.2); } return; }
   if (g.phase === 'half') { if (ev.t === 'snap' || ev.t === 'ready') g.halfReady[team] = true; return; }
   if (g.phase === 'kickset') { if (team === g.poss && (ev.t === 'kick' || ev.t === 'snap')) advanceKick(g); return; }
   if (ev.t === 'timeout' && g.to[team] > 0 && !g.opts.practice && g.timeoutCd <= 0) {
@@ -1074,6 +1076,16 @@ function stepInner(g, dt, inputs) {
   if (g.phase === 'live') return updateLive(g, dt, inputs);
   if (g.phase === 'kick') return updateKick(g, dt);
   if (g.phase === 'dead') {
+    if (!g.deadInit) {
+      g.deadInit = true;
+      const human = g.opts.humans[0] || g.opts.humans[1];
+      if (human && g.deadDur >= 1 && !g.opts.practice && !g.opts.drill) g.deadDur = Math.max(g.deadDur, 6);   // a real break between plays
+      g.cpuCelAt = -1;
+      if (human && (g.hlCount || 0) !== (g.hlSeen || 0) && g.celebrate < 0) { const t = g.hlTeam; if (t === 0 || t === 1) { if (!g.opts.humans[t] && g.rng() < 0.75) g.cpuCelAt = 0.9 + g.rng() * 0.8; } }
+      g.hlSeen = g.hlCount || 0;
+      if (g.celebrate >= 0 && !g.opts.humans[g.celebrate]) g.deadDur = Math.max(g.deadDur, 6.5);
+    }
+    if (g.cpuCelAt > 0 && g.phaseT >= g.cpuCelAt) { g.cpuCelAt = -1; startCel(g, g.hlTeam, (g.rng() * 9) | 0); }
     if (g.toQ && g.phaseT > 0.6) for (let t = 0; t < 2; t++) if (g.toQ[t]) { g.toQ[t] = false; if (g.to[t] > 0 && g.pat < 0) callTimeout(g, t); }
     if (g.flagNote && g.msg) { g.msg.sub = (g.msg.sub ? g.msg.sub + ' · ' : '') + g.flagNote; g.flagNote = null; }
     for (const p of g.players) { p.vx *= Math.max(0, 1 - dt * 4); p.vz *= Math.max(0, 1 - dt * 4); p.x += p.vx * dt; p.z += p.vz * dt; }
@@ -2135,12 +2147,26 @@ function resolveBall(g) {
 }
 
 // ---------------- end of play ----------------
+// someone celebrates after the whistle: the guy who made the play (or whoever that team controls) does the dance,
+// the camera swings over to watch, and the break gets long enough to see it
+function startCel(g, team, id) {
+  if (g.phase !== 'dead' || g.opts.practice || g.opts.drill) return;
+  const mine = g.players.filter(p => p.team === team); if (!mine.length) return;
+  let star = mine.find(p => p.scorer);
+  if (!star) { const c = g.players[g.ball.carrier], cp = g.players[g.ctrl[team]];
+    star = c && c.team === team ? c : cp && cp.team === team ? cp : mine.reduce((a, p) => Math.hypot(p.x - g.ball.x, p.z - g.ball.z) < Math.hypot(a.x - g.ball.x, a.z - g.ball.z) ? p : a); }
+  for (const p of g.players) { if (p.team !== team) p.scorer = 0; p.celReset = 1; }
+  star.scorer = 1; g.celebrate = team; g.celBy = star.id;
+  if (id !== undefined) g.opts.cel[team] = id;
+  g.events.push('cel' + (g.opts.cel[team] >= 0 ? g.opts.cel[team] : 0));
+  g.deadDur = Math.max(g.deadDur, g.phaseT + 4);
+}
 function touchdown(g, c) {
   const t = c.team, P = g.play;
   if (P.flag && !P.isPat && t === P.off && PEN[P.flag.type].off && !P.turnover) { if (enforceFlag(g, 100, false, false)) { g.msg.sub += ' · touchdown wiped out'; return; } }
   if (P.flag && !P.isPat) { const F = P.flag; P.flag = null; if (!PEN[F.type].off && t === P.off) g.flagNote = `${PEN[F.type].name} on ${TEAMS[g.opts.teams[F.on]].abbr}, declined`; }
   g.phase = 'dead'; g.phaseT = 0; g.deadDur = 3.4; g.runoff = 0;
-  g.celebrate = t; c.scorer = 1; g.events.push('cel' + (g.opts.cel[t] >= 0 ? g.opts.cel[t] : 0));
+  g.celebrate = t; g.celBy = c.id; c.scorer = 1; g.events.push('cel' + (g.opts.cel[t] >= 0 ? g.opts.cel[t] : 0));
   if (P.isPat) {
     score(g, t, 2);
     g.msg = { text: '2-POINT GOOD!', sub: `${c.rt.name} · ${TEAMS[g.opts.teams[t]].name}`, until: 2.6, big: true, team: t };
@@ -2287,6 +2313,7 @@ export function snapshot(g) {
     opDef: g.phase === 'presnap' && g.offPlay ? (() => { const q = getPlay(g, g.poss, g.offPlay); return q && q.routes ? { form: q.form, routes: Object.fromEntries(Object.entries({ ...q.routes, ...g.hot }).filter(([, v]) => v && v.length)), qbPath: q.qbPath || null, hot: Object.keys(g.hot), type: q.type } : null; })() : null,
     bT: g.ball.state === 'air' && !g.ball.auto ? r2(g.ball.T - g.ball.t) : -1,
     ks: g.phase === 'kickset' && g.ks ? { type: g.ks.type, stage: g.ks.stage, m: r2(g.ks.m), aim: r2(g.ks.aim), power: r2(g.ks.power), fd: g.ks.fd, maxR: r2(g.ks.maxR), sweet: KICK_SWEET } : null,
+    celBy: g.phase === 'dead' && g.celebrate >= 0 ? (g.celBy ?? -1) : -1, deadLeft: g.phase === 'dead' ? r2(Math.max(0, g.deadDur - g.phaseT)) : 0,
     to: g.to.slice(), pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
     inj: injuryReport(g), injAsk: g.injAsk.slice(), depth: g.depth, subAsk: g.subAsk.slice(), bv: g.benchV,
     bench: (g.snapN = (g.snapN || 0) + 1) % 45 === 1 || g.benchSent !== g.benchV ? (g.benchSent = g.benchV, benchReport(g)) : undefined, fat: g.fat, msgInj: g.msgInj || null,

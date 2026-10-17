@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792268508';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792268508';
-import { drawLogo } from './logos.js?v=1792268508';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792268508';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792268622';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792268622';
+import { drawLogo } from './logos.js?v=1792268622';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792268622';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1346,6 +1346,7 @@ export class Renderer {
     this._switchT = Math.max(0, (this._switchT || 0) - dt);
     const rate = bstate === 2 ? 2.2 : this.camMode === 'player' ? (this._switchT > 0 ? 5 : 12) : (this._switchT > 0 ? 3 : 4.5);
     const k = 1 - Math.exp(-dt * rate);
+    { const cb = S.ph === 'dead' && S.celBy >= 0 ? S.pl[S.celBy] : null; if (cb) { fx = cb[4]; fz = cb[5]; } }   // somebody's dancing: go watch
     this.focus.x += (fx - this.focus.x) * k; this.focus.z += (fz - this.focus.z) * k;
     let px, py, pz, lx, ly, lz;
     if (this.camMode === 'broadcast') {
@@ -1354,7 +1355,7 @@ export class Renderer {
       lx = this.focus.x * 0.6 + 3 * s; ly = 0; lz = this.focus.z + 2 * s;
     } else {
       const portrait = this.cam.aspect < 1;
-      const celebrate = S.msg && S.msg.big && S.ph === 'dead';
+      const celebrate = S.ph === 'dead' && (S.celBy >= 0 || (S.msg && S.msg.big));
       const zoom = (celebrate ? 0.72 : 1) * this.userZoom * (local >= 0 && S.poss !== local && !kickingNow(S) ? 1.15 : 1);
       const kicking = S.ph === 'kickset' || S.ph === 'kick';
       const close = this.camMode === 'player' && !kicking && !celebrate;

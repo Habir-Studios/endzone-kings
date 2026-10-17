@@ -6,13 +6,21 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792257439';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792257439';
-import { drawLogo } from './logos.js?v=1792257439';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792257439';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792257794';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792257794';
+import { drawLogo } from './logos.js?v=1792257794';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792257794';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
+// away uniform: white jersey with the team color as numbers and trim (or the dark home color if the home team already wears something light)
+const lum = h => { const n = parseInt(String(h).slice(1), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255; };
+function awayKit(t, home) {
+  const light = home && lum(home.jersey) > 0.62;
+  if (light) return lum(t.jersey) > 0.62 ? { ...t, jersey: t.trim && lum(t.trim) < 0.5 ? t.trim : '#1d2433', num: '#ffffff' } : t;   // both light: away goes dark
+  const col = t.jersey === '#121a14' ? '#18c964' : t.jersey;
+  return { ...t, jersey: '#f3f4f1', num: col, trim: lum(t.trim) > 0.8 ? col : t.trim };
+}
 const vis = (t, k) => (t[k] === '#121a14' ? '#18c964' : t[k]); // readable accent color
 
 function canvasTex(w, h, draw, srgb = true) {
@@ -645,10 +653,12 @@ export class Renderer {
   }
 
   // ======================= PLAYERS =======================
-  teamMats(ti) {
+  kit(ti, away) { return away ? awayKit(TEAMS[ti], this.teams ? TEAMS[this.teams[0]] : null) : TEAMS[ti]; }
+  teamMats(ti, away = false) {
     this._tm = this._tm || {};
-    if (this._tm[ti]) return this._tm[ti];
-    const t = TEAMS[ti];
+    const ck = ti + (away ? 'a' + (this.teams ? this.teams[0] : '') : '');
+    if (this._tm[ck]) return this._tm[ck];
+    const t = this.kit(ti, away);
     const m = {
       jersey: new THREE.MeshStandardMaterial({ color: t.jersey, roughness: 0.62, bumpMap: this.fabric(), bumpScale: 0.6 }),
       pants: new THREE.MeshStandardMaterial({ color: t.pants, roughness: 0.48, metalness: 0.05 }),
@@ -657,7 +667,7 @@ export class Renderer {
       sock: new THREE.MeshStandardMaterial({ color: t.jersey === '#121a14' ? '#0b0f0c' : t.jersey, roughness: 0.7 }),
       glove: new THREE.MeshStandardMaterial({ color: vis(t, 'trim'), roughness: 0.5 }),
     };
-    this._tm[ti] = m; return m;
+    this._tm[ck] = m; return m;
   }
 
   helmetDecal(ti) {
@@ -713,9 +723,9 @@ export class Renderer {
     return m;
   }
 
-  makePlayer(teamIdx, role, num, size, fseed = 1, last = '') {
-    const t = TEAMS[teamIdx];
-    const M = this.teamMats(teamIdx);
+  makePlayer(teamIdx, role, num, size, fseed = 1, last = '', away = false) {
+    const t = this.kit(teamIdx, away);
+    const M = this.teamMats(teamIdx, away);
     const F = faceParams(fseed);
     const skin = new THREE.MeshStandardMaterial({ color: F.skin, roughness: 0.55 });
     const faceMat = new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => drawFaceTexture(c, w, h, fseed)), roughness: 0.6 });
@@ -844,7 +854,7 @@ export class Renderer {
   getMesh(team, unit, role, num, size, fseed, name) {
     const key = `${this.teams[team]}-${team}-${unit}-${role}-${num}-${fseed || 0}`;
     let m = this.pmeshes.get(key);
-    if (!m) { const last = String(name || '').replace(/^.\.\s*/, ''); m = this.makePlayer(this.teams[team], role, num, size, fseed || (num * 7919 + this.teams[team] * 104729), last); this.pmeshes.set(key, m); }
+    if (!m) { const last = String(name || '').replace(/^.\.\s*/, ''); m = this.makePlayer(this.teams[team], role, num, size, fseed || (num * 7919 + this.teams[team] * 104729), last, team === 1); this.pmeshes.set(key, m); }   // team slot 1 wears the away uniform
     return m;
   }
 
@@ -1237,7 +1247,7 @@ export class Renderer {
     for (const [role, pts] of Object.entries(all)) {
       const p = S.pl.find(q => q[1] === 1 && q[2] === role && q[0] === S.poss);
       if (!p) continue;
-      const path = [[p[4], p[5]], ...pts.map(w => [Math.max(-HALF_W + 1, Math.min(HALF_W - 1, S.bx - w[0] * d)), S.los + Math.min(w[1], 22) * d])];
+      const path = [[p[4], p[5]], ...pts.map(w => [Math.max(-HALF_W + 1, Math.min(HALF_W - 1, S.bx - w[0] * d)), Math.max(-8.5, Math.min(108.5, S.los + Math.min(w[1], 22) * d))])];   // route lines stay on the field
       const mat = new THREE.MeshBasicMaterial({ color: cols[role], transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false });
       for (let i = 0; i < path.length - 1; i++) {
         const [x1, z1] = path[i], [x2, z2] = path[i + 1];

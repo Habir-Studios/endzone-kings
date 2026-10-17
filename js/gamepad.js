@@ -62,7 +62,7 @@ function poll() {
   pad.sprint = b(7) || b(10);
   // right stick flick = juke while carrying
   const rmag = Math.hypot(rx, ry);
-  if (rmag > 0.75 && Math.hypot(pad.rx, pad.ry) <= 0.75) { const c = C.context(); if (c === 'carry') tap('Space'); }
+  if (rmag > 0.75 && Math.hypot(pad.rx, pad.ry) <= 0.75) { const c = C.context(); if (c === 'carry') tap('Space'); else if (c === 'def') tap('KeyH'); }
   pad.rx = rx; pad.ry = ry;
   for (const i of down) press(i);
 }
@@ -80,7 +80,7 @@ function press(i) {
     pass: { 0: 'Digit1', 1: 'Digit2', 2: 'Digit3', 3: 'Digit4', 5: 'Digit5' },
     carry: { 1: 'KeyE', 3: 'KeyF', 0: 'KeyR', 2: 'KeyX', 4: 'KeyG', 5: 'KeyB' },
     air: { 3: 'KeyE', 1: 'KeyQ', 0: 'KeyE' },
-    def: { 2: 'Space', 0: 'Space', 1: 'KeyQ', 3: 'KeyE' },
+    def: { 2: 'Space', 0: 'Space', 1: 'KeyQ', 3: 'KeyE', 5: 'KeyH' },
     kick: { 0: 'Space' },
     half: { 0: 'Space' },
     replay: { 0: 'Space', 1: 'Escape' },

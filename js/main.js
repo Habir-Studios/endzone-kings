@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792254545';
-import { Renderer } from './render.js?v=1792254545';
-import { Sfx } from './audio.js?v=1792254545';
-import { Auth } from './auth.js?v=1792254545';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792254545';
-import { getRoster, teamOvr } from './teams.js?v=1792254545';
-import * as Season from './season.js?v=1792254545';
-import * as Fr from './franchise.js?v=1792254545';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792254545';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792254545';
-import * as UTm from './ut.js?v=1792254545';
-import { initCreator, renderCreator } from './creator.js?v=1792254545';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792254545';
-import { portraitURL } from './faces.js?v=1792254545';
-import { logoURL, clearLogoCache } from './logos.js?v=1792254545';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792255178';
+import { Renderer } from './render.js?v=1792255178';
+import { Sfx } from './audio.js?v=1792255178';
+import { Auth } from './auth.js?v=1792255178';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792255178';
+import { getRoster, teamOvr } from './teams.js?v=1792255178';
+import * as Season from './season.js?v=1792255178';
+import * as Fr from './franchise.js?v=1792255178';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792255178';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792255178';
+import * as UTm from './ut.js?v=1792255178';
+import { initCreator, renderCreator } from './creator.js?v=1792255178';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792255178';
+import { portraitURL } from './faces.js?v=1792255178';
+import { logoURL, clearLogoCache } from './logos.js?v=1792255178';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -511,7 +511,7 @@ function touchButtons(S) {
     if (S.canThrow && S.off === me) btns = [['t1', '1', 'r1'], ['t2', '2', 'r2'], ['t3', '3', 'r3'], ['t4', '4', 'r4'], ['t5', '5', 'r5'], ['sprint', 'SPRINT', 'hold']];
     else if (iCarry) btns = [['juke', 'JUKE'], ['spin', 'SPIN'], ['stiff', 'STIFF'], ['truck', 'TRUCK'], ['hurdle', 'HURDLE'], ['cdive', 'DIVE'], ['slide', 'DOWN'], ['sprint', 'SPRINT', 'hold']];
     else if (S.b[3] === 1 && S.b[4]) btns = [['playball', S.off === me ? 'CATCH' : 'PLAY BALL', 'big'], ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
-    else btns = [['dive', 'DIVE', 'big'], ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
+    else btns = [['dive', 'DIVE', 'big'], ...(carrier >= 0 && S.off !== me ? [['hitstick', 'HIT STICK']] : []), ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
   }
   const key = btns.map(b => b[0]).join();
   if (touch.key === key) return;
@@ -562,6 +562,7 @@ function keyToEvent(k) {
   if (k === 'KeyF' && iCarry) return { t: 'hurdle' };
   if (k === 'KeyX' && iCarry) return { t: 'cdive' };
   if (k === 'KeyG' && iCarry) return { t: 'slide' };
+  if ((k === 'KeyH' || k === 'KeyR') && !iCarry && carrier >= 0 && S.off !== me) return { t: 'hitstick' };
   if (k === 'Space') {
     const v = moveVec();
     if (iCarry) return { t: 'juke', x: v.mx, z: v.mz };
@@ -1150,7 +1151,7 @@ function updateHud(S) {
     else if (iCarry) hint([['Space', 'juke'], ['E', 'spin'], ['R', 'stiff arm'], ['B', 'truck'], ['F', 'hurdle'], ['X', 'dive'], ['G', 'go down'], ['Shift', 'sprint']]);
     else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring'], ['E', 'aggressive catch']]);
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
-    else hint([['Space', 'dive tackle'], ['Q', 'switch'], ['Shift', 'sprint']]);
+    else hint([['Space', 'dive tackle'], ['H', 'hit stick'], ['Q', 'switch'], ['Shift', 'sprint']]);
   } else hint(st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat']]);
   const tOn = touchOn();
   $('#touch').classList.toggle('hidden', !tOn || S.ph === 'gameover');

@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792254545';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792254545';
-import { drawLogo } from './logos.js?v=1792254545';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792254545';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792255178';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792255178';
+import { drawLogo } from './logos.js?v=1792255178';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792255178';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -628,16 +628,19 @@ export class Renderer {
     });
     this.target = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9), new THREE.MeshBasicMaterial({ map: tgtTex, transparent: true, depthWrite: false, toneMapped: false }));
     this.target.rotation.x = -Math.PI / 2; this.target.position.y = 0.05; this.target.renderOrder = 3; s.add(this.target);
-    this.badgeTex = (n, label) => canvasTex(128, 128, (c) => {
-      const col = ['#22c55e', '#3b82f6', '#f97316', '#a855f7', '#eab308'][n - 1];
-      c.shadowColor = 'rgba(0,0,0,.6)'; c.shadowBlur = 10;
-      c.beginPath(); c.arc(64, 64, 52, 0, Math.PI * 2); c.fillStyle = col; c.fill();
-      c.shadowBlur = 0; c.lineWidth = 7; c.strokeStyle = '#fff'; c.stroke();
-      c.fillStyle = '#fff'; c.font = `bold ${String(label).length > 1 ? 50 : 72}px Arial`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(label), 64, 68);
-    });
+    // receiver key badges: drawn big and kept a fixed size on screen, so they stay sharp and readable however far away the receiver is
+    this.badgeTex = (n, label) => { const t = canvasTex(256, 256, (c) => {
+      const col = ['#16a34a', '#2563eb', '#ea580c', '#9333ea', '#ca8a04'][n - 1];
+      c.beginPath(); c.arc(128, 128, 112, 0, Math.PI * 2); c.fillStyle = '#000'; c.fill();
+      c.beginPath(); c.arc(128, 128, 100, 0, Math.PI * 2); c.fillStyle = col; c.fill();
+      c.lineWidth = 12; c.strokeStyle = '#fff'; c.stroke();
+      c.font = `900 ${String(label).length > 1 ? 104 : 150}px Arial`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = 14; c.strokeStyle = '#000'; c.strokeText(String(label), 128, 138);
+      c.fillStyle = '#fff'; c.fillText(String(label), 128, 138);
+    }); t.anisotropy = 4; return t; };
     this.badges = [1, 2, 3, 4, 5].map(n => {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.badgeTex(n, n), depthTest: false, transparent: true, toneMapped: false }));
-      sp.scale.set(1.05, 1.05, 1); sp.renderOrder = 10; s.add(sp); return sp;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.badgeTex(n, n), depthTest: false, transparent: true, toneMapped: false, sizeAttenuation: false }));
+      sp.scale.set(0.062, 0.062, 1); sp.renderOrder = 10; s.add(sp); return sp;
     });
   }
 

@@ -268,20 +268,35 @@ export class Sfx {
   }
 
   // ---------------- announcer (browser text-to-speech) ----------------
-  pickVoice() {
-    if (!window.speechSynthesis) return;
-    const vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
-    const pref = ['Google US English', 'Microsoft Guy', 'Microsoft David', 'Daniel', 'Alex', 'Fred'];
-    this.voice = vs.find(v => pref.some(p => v.name.includes(p))) || vs.find(v => /male/i.test(v.name)) || vs[0] || null;
+  // male voices only, best-sounding first (Edge's "Natural" voices sound the most like a real broadcaster)
+  maleVoices() {
+    if (!window.speechSynthesis) return [];
+    const FEMALE = /(female|woman|samantha|victoria|karen|moira|tessa|fiona|veena|zira|aria|jenny|michelle|\bana\b|emma|\bava\b|allison|susan|serena|kate|libby|sonia|natasha|clara|hazel|heera|catherine|joanna|salli|kimberly|\bivy\b|nicole|\bamy\b|olivia|nora|sara|jane|elizabeth|linda|heather|monica|paulina|kendra|nancy|ruth|zoe|joelle|sandy|shelley|grandma|flo|martha|aubrey|ashley|cora|elsie|neerja|isabella|leah|luna|maisie|yan|google us english$)/i;
+    const RANK = ['Andrew', 'Christopher', 'Guy', 'Brian', 'Eric', 'Davis', 'Roger', 'Steffan', 'Ryan', 'Thomas', 'Liam', 'William', 'Tony', 'Jason', 'Google UK English Male', 'Aaron', 'Evan', 'Nathan', 'Reed', 'Tom', 'Daniel', 'David', 'Mark', 'Alex', 'Fred', 'Rocko'];
+    const score = v => { const i = RANK.findIndex(r => v.name.includes(r)); return (i < 0 ? 100 : i) - (/natural|online|neural|premium|enhanced/i.test(v.name) ? 50 : 0) - (/en-US/i.test(v.lang) ? 3 : 0); };
+    return speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang) && !FEMALE.test(v.name)).sort((a, b) => score(a) - score(b));
   }
-  say(text, urgent = false) {
+  pickVoice(name) {
+    if (name !== undefined) this.voiceName = name;
+    const ms = this.maleVoices();
+    this.voice = (this.voiceName && ms.find(v => v.name === this.voiceName)) || ms[0] || null;
+    this.fallback = !this.voice;   // no male voice on this device: deepen whatever there is
+  }
+  // hype = touchdowns, picks, big plays: faster, higher energy. Normal calls stay smooth and low.
+  say(text, urgent = false, hype = false) {
     if (!this.announcer || this.muted || !window.speechSynthesis || !text) return;
     try {
       if (urgent) speechSynthesis.cancel(); else if (speechSynthesis.speaking || speechSynthesis.pending) return;
+      if (!this.voice) this.pickVoice();
       const u = new SpeechSynthesisUtterance(text);
-      if (this.voice) u.voice = this.voice;
-      u.rate = urgent ? 1.12 : 1.05; u.pitch = 0.85; u.volume = Math.min(1, this.vol * 1.2);
+      if (this.voice) { u.voice = this.voice; u.lang = this.voice.lang; }
+      const j = (Math.random() - 0.5) * 0.06, natural = this.voice && /natural|online|neural/i.test(this.voice.name);
+      const hy = hype || /!$/.test(text) && urgent;
+      u.rate = (hy ? 1.17 : urgent ? 1.1 : 1.03) + j;
+      u.pitch = this.fallback ? 0.55 : natural ? (hy ? 1.08 : 1) : (hy ? 0.98 : 0.86) + j;
+      u.volume = Math.min(1, this.vol * 1.3);
       speechSynthesis.speak(u);
+      if (hy && this.crowdSwell) this.crowdSwell();
     } catch (_) {}
   }
   // turn a game message into a play-by-play call
@@ -290,24 +305,24 @@ export class Sfx {
     const name = (msg.sub || '').split(' · ')[0].replace(/[+-]?\d+ yds?/, '').trim();
     const pick = a => a[(Math.random() * a.length) | 0];
     const t = msg.text;
-    if (t === 'TOUCHDOWN!') this.say(pick([`Touchdown, ${ctx.team || ''}!`, `He's in! Touchdown ${name}!`, `Nobody's catching him! Touchdown!`, `Six points! ${name} takes it to the house!`]), true);
-    else if (t.startsWith('IT')) this.say(pick(['The kick is up... and it is good!', 'Right down the middle! Three points.']), true);
+    if (t === 'TOUCHDOWN!') this.say(pick([`TOUCHDOWN ${ctx.team || ''}!`, `He's in! He is IN! Touchdown ${name}!`, `Nobody's catching him! Gone! Touchdown!`, `Six points! ${name} takes it to the house!`, `Oh my goodness! ${name}! Touchdown!`, `Can't stop him! Touchdown!`]), true, true);
+    else if (t.startsWith('IT')) this.say(pick(['The kick is up... and it is GOOD!', 'Right down the middle! Three points!', 'He drills it! Good!']), true);
     else if (t === 'NO GOOD') this.say(pick(['No good! He missed it!', 'Wide! The kick is no good.']), true);
-    else if (t === 'SACKED!') this.say(pick(['Sacked! Brought down in the backfield.', `Sack! ${name} gets home!`, 'And the quarterback goes down!']), true);
+    else if (t === 'SACKED!') this.say(pick(['Sacked! Brought down in the backfield!', `Sack! ${name} gets home!`, 'And the quarterback goes DOWN!', `${name} with the sack! What a rush!`]), true, true);
     else if (t === 'FIRST DOWN') this.say(pick([`First down, ${name}.`, 'Moves the chains!', 'That will be a first down.']));
-    else if (t.startsWith('GAIN OF')) { const n = +t.split(' ').pop(); if (n >= 15) this.say(pick([`Big play! ${name} for ${n} yards!`, `What a run by ${name}! ${n} yards.`])); else if (Math.random() < 0.35) this.say(`${name}, ${n} yard${n === 1 ? '' : 's'}.`); }
+    else if (t.startsWith('GAIN OF')) { const n = +t.split(' ').pop(); if (n >= 15) this.say(pick([`Big play! ${name} for ${n} yards!`, `What a run by ${name}! ${n} yards!`, `Look at him go! ${n} yards!`, `${name} breaks free! Big gain!`]), false, true); else if (Math.random() < 0.35) this.say(`${name}, ${n} yard${n === 1 ? '' : 's'}.`); }
     else if (t.startsWith('LOSS')) this.say(pick(['Stuffed in the backfield!', 'Dropped for a loss.']));
     else if (t === 'INCOMPLETE') { if (Math.random() < 0.5) this.say(pick(['Incomplete.', 'Pass falls incomplete.', 'Off the fingertips. Incomplete.'])); }
-    else if (t === 'PASS BROKEN UP' || t === 'SWATTED!') this.say(pick(['Broken up! Great coverage.', 'Knocked away!', 'He got a hand on it!']));
+    else if (t === 'PASS BROKEN UP' || t === 'SWATTED!') this.say(pick(['Broken up! Great coverage!', 'Knocked away!', 'He got a hand on it!', 'No chance! Swatted away!']), false, true);
     else if (t === 'EXTRA POINT GOOD') { if (Math.random() < 0.5) this.say('Extra point is good.'); }
     else if (t === 'EXTRA POINT NO GOOD') this.say('Oh! The extra point is no good!', true);
-    else if (t === '2-POINT GOOD!') this.say('They go for two... and they get it!', true);
+    else if (t === '2-POINT GOOD!') this.say('They go for two... and they GET IT!', true, true);
     else if (t === '2-POINT FAILED') this.say('Two point try is no good.');
     else if (t === 'TURNOVER') this.say('Change of possession!');
     else if (t === 'TURNOVER ON DOWNS') this.say('They come up short. Turnover on downs!');
-    else if (t === 'SAFETY!') this.say('Safety! Two points!', true);
+    else if (t === 'SAFETY!') this.say('Safety! Two points! Oh, that is a backbreaker!', true, true);
     else if (t === 'HALFTIME') this.say("That's the half.");
-    else if (t === 'OVERTIME') this.say("We're going to overtime! Next score wins.", true);
+    else if (t === 'OVERTIME') this.say("We're going to overtime, folks! Next score wins!", true, true);
     else if (t === 'PUNT' || t === 'TOUCHBACK') { if (Math.random() < 0.5) this.say(t === 'PUNT' ? 'Booming punt.' : 'Touchback.'); }
     else if (msg.pen) {
       const side = (msg.sub || '').split(' · ')[0], num = ((msg.sub || '').match(/#\d+/) || [''])[0].replace('#', 'number ');
@@ -316,5 +331,5 @@ export class Sfx {
     }
     else if (t === 'OUT OF BOUNDS') { if (Math.random() < 0.3) this.say(`${name} pushed out of bounds.`); }
   }
-  flashCall(text) { if (text && text.startsWith('INTERCEPTED')) this.say(`Intercepted! ${text.replace('INTERCEPTED!', '').trim()} picks it off!`, true); else if (text === 'BROKEN TACKLE' && Math.random() < 0.5) this.say('Breaks the tackle!'); else if (text === 'ONE-HANDED CATCH!') this.say(['One hand! Are you kidding me?', 'What a grab, one hand!', 'He snags it with one hand!'][(Math.random() * 3) | 0], true); }
+  flashCall(text) { if (text && text.startsWith('INTERCEPTED')) this.say(`Intercepted! ${text.replace('INTERCEPTED!', '').trim()} picks it off!`, true, true); else if (text === 'BROKEN TACKLE' && Math.random() < 0.5) this.say('Breaks the tackle!'); else if (text === 'ONE-HANDED CATCH!') this.say(['One hand! Are you kidding me?', 'What a grab, one hand!', 'He snags it with one hand!'][(Math.random() * 3) | 0], true); }
 }

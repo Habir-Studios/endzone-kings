@@ -1332,3 +1332,5 @@ select { color: var(--chalk); border: 1px solid var(--line-2); padding: 8px 10px
 .cel-pick .cw-slot.on { border-color: rgba(34,197,94,.8); }
 .cel-pick .cw-slot.sel { background: #f6c445; color: #241500; border-color: #fff3c4; transform: translate(var(--x), var(--y)) scale(1.18); box-shadow: 0 0 22px rgba(246,196,69,.6); }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } .cel-pick .cw-slot { transition: none; } }
+.ann-voice { display: flex; gap: 8px; align-items: center; }
+.ann-voice select { flex: 1; min-width: 0; }

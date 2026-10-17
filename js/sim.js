@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792251972';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792252715';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792251972';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792252715';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -320,7 +320,7 @@ function handleEvent(g, team, ev) {
   if (g.phase === 'kickset') { if (team === g.poss && (ev.t === 'kick' || ev.t === 'snap')) advanceKick(g); return; }
   if (ev.t === 'timeout' && (g.phase === 'presnap' || g.phase === 'dead') && g.to[team] > 0 && !g.opts.practice && g.timeoutCd <= 0) {
     g.to[team]--; g.timeoutCd = 3;
-    if (g.phase === 'dead') g.runoff = 0; else { g.clock = Math.min(g.opts.quarterLen, g.clock + g.lastRunoff); g.lastRunoff = 0; g.playClock = 25; }
+    if (g.phase === 'dead') g.runoff = 0; else { g.runBudget = 0; g.playClock = 25; }   // the game clock stops
     g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[team]].name} · ${g.to[team]} left`, until: 2 };
     g.events.push('whistle');
     return;
@@ -345,7 +345,8 @@ function handleEvent(g, team, ev) {
           if (r === null) g.hot[ev.role] = []; else if (r) g.hot[ev.role] = r;
         }
       } else if (ev.t === 'snap' && g.offPlay && g.phaseT > 0.6) {
-        snap(g);
+        if (g.opts.humans[1 - team] && !g.defChosen) { if (!g.flash) g.flash = { text: 'WAITING FOR THE DEFENSE', until: 1.2 }; }   // both sides call a play first
+        else snap(g);
       }
     } else {
       if (ev.t === 'play') {
@@ -552,6 +553,7 @@ function hotRoute(form, role, kind) {
 }
 
 function snap(g) {
+  g.runBudget = 0;
   const P = g.play;
   if (g.offPlay === 'punt' || g.offPlay === 'fg' || g.offPlay === 'xp') { if (g.opts.humans[g.poss] || g.opts.humans[1 - g.poss]) beginKickSet(g, g.offPlay); else startKick(g, g.offPlay); return; }
   if (g.pat < 0 && !g.opts.practice) {
@@ -865,6 +867,12 @@ function stepInner(g, dt, inputs) {
 
 function updatePresnap(g, dt, inputs) {
   if (!g.opts.practice) g.playClock -= dt;
+  // after a play that ended in bounds the game clock keeps running until the snap (up to the usual runoff).
+  // Snapping fast saves time; a timeout stops it.
+  if (g.runBudget > 0 && g.pat < 0 && !g.opts.practice) {
+    const d = Math.min(dt, g.runBudget); g.clock = Math.max(0, g.clock - d); g.runBudget -= d;
+    if (g.clock <= 0) { g.runBudget = 0; g.events.push('whistle'); return nextPlay(g); }
+  }
   const off = g.poss, def = 1 - off;
   for (const p of g.players) {
     if (g.opts.humans[def] && g.ctrl[def] === p.id) continue;
@@ -887,10 +895,12 @@ function updatePresnap(g, dt, inputs) {
       if ((me.z - g.losZ) * d < 0.25) me.z = g.losZ + 0.25 * d;
     }
   }
+  // a human defense that never picks gets a coverage called for it with a few seconds left, so the game never stalls
+  if (g.opts.humans[def] && !g.defChosen && g.playClock <= 4) { g.defPlay = cpuCallDefense(g); g.defChosen = true; alignDefense(g); g.flash = { text: 'DEFENSE AUTO-CALLED', until: 1.2 }; }
   if (!g.opts.humans[off]) {
     if (!g.offPlay) cpuCallOffense(g);
     const humanDef = g.opts.humans[def];
-    const ready = !humanDef ? g.phaseT > 2.0 : (g.defChosen ? g.phaseT > g.cpuSnapAt : g.phaseT > 13);
+    const ready = !humanDef ? g.phaseT > 2.0 : (g.defChosen && g.phaseT > g.cpuSnapAt);
     if (humanDef && !g.cadence && g.phaseT > g.cpuSnapAt - 1.4 && g.defChosen) { g.cadence = 1; g.events.push('cadence'); }
     if (ready || g.playClock <= 0) snap(g);
   } else if (g.playClock <= 0) {
@@ -903,8 +913,8 @@ function updatePresnap(g, dt, inputs) {
 function cpuTimeout(g) {
   for (let t = 0; t < 2; t++) {
     if (g.opts.humans[t] || g.to[t] <= 0 || g.opts.practice || g.opts.drill) continue;
-    const late = (g.quarter === 2 || g.quarter >= 4) && g.clock < 50 && g.clock > 3 && g.runoff > 0;
-    if (late && g.poss === t && g.score[t] <= g.score[1 - t]) { g.to[t]--; g.runoff = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
+    const late = (g.quarter === 2 || g.quarter >= 4) && g.clock < 50 && g.clock > 3 && (g.runoff > 0 || g.runBudget > 0);
+    if (late && g.poss === t && g.score[t] <= g.score[1 - t]) { g.to[t]--; g.runoff = 0; g.runBudget = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
   }
 }
 function nextPlay(g) {
@@ -932,7 +942,7 @@ function nextPlay(g) {
     if (g.poss !== 0 && g.pat < 0) { g.poss = 0; g.losZ = zOf(0, 25); g.ballX = 0; setFirstDown(g); }
     g.phase = 'presnap'; g.phaseT = 0; setupPlay(g); return;
   }
-  if (g.runoff) { g.clock = Math.max(0, g.clock - g.runoff); g.runoff = 0; }
+  g.runBudget = g.runoff || 0; g.runoff = 0;   // runs off live during the next pre-snap instead of all at once
   if (g.otScored) return endGame(g);
   if (g.clock <= 0 && g.pat < 0) {
     const q = g.quarter;
@@ -1108,8 +1118,9 @@ function updateLive(g, dt, inputs) {
     for (const d of g.players) {
       if (d.team === ct || d.stun > 0 || d.tackleCd > 0 || d.fallen > 0) continue;
       if (d.engagedBy >= 0 && dist(d, c2) > 0.55) continue;
-      const vsCpu = g.opts.humans[d.team] && !g.opts.humans[ct];
-      const tr = (d.dive > 0 ? 2.1 : 1.12) * (0.5 + 0.5 * (d.size + c2.size) / 2) * (vsCpu ? 1.38 : 1);
+      // the defender YOU control is the playmaker: bigger tackle range and harder to shake. Your AI teammates play straight.
+      const youD = g.opts.humans[d.team] && g.ctrl[d.team] === d.id;
+      const tr = (d.dive > 0 ? 2.1 : 1.12) * (0.5 + 0.5 * (d.size + c2.size) / 2) * (youD ? 1.45 : 1);
       if (dist(d, c2) < tr) {
         const humanCarrier = g.opts.humans[ct] && g.ctrl[ct] === c2.id;
         let brk = c2.role === 'RB' ? cfg.brk + 0.12 : c2.role === 'TE' ? cfg.brk + 0.08 : cfg.brk;
@@ -1117,22 +1128,29 @@ function updateLive(g, dt, inputs) {
         { const sp = hyp(c2.vx, c2.vz) / (c2.max || 7); if (sp > 0.75) brk += 0.06; if (d.engagedBy >= 0) brk += 0.25; if (!c2.contacted && sp > 0.6 && c2.role === 'RB') brk += 0.1; c2.contacted = true; if (sp < 0.35) brk -= 0.3; }   // no momentum, no breaking tackles
         if (c2.juke > 0) brk = Math.max(brk, humanCarrier ? 0.6 : 0.42);
         if (c2.spin > 0) brk = Math.max(brk, humanCarrier ? 0.55 : 0.4);
+        let stiffWin = false;
         if (c2.stiff > 0) {
+          // stiff arm: a big back shoving a defender who comes at him from the front or side, timed as the hit lands
           const fx = Math.sin(c2.face), fz = Math.cos(c2.face), ax = d.x - c2.x, az = d.z - c2.z, al = hyp(ax, az) || 1;
-          if ((fx * ax + fz * az) / al > -0.2) brk = Math.max(brk, 0.3 + (c2.size - 0.95) * 1.2 + c2.rt.elu * 0.0025);
+          if ((fx * ax + fz * az) / al > -0.3 && d.dive <= 0) {
+            const shove = 0.42 + (c2.size - 0.95) * 1.5 + c2.rt.elu * 0.002 + (c2.stiff > 0.3 ? 0.12 : 0) - d.rt.tkl / 100 * 0.3 - (d.size - 1) * 0.6;
+            brk = Math.max(brk, shove + 0.12); stiffWin = shove > 0.24;
+          }
         }
         if (c2.hurdle > 0) brk = Math.max(brk, d.dive > 0 ? 0.8 : 0.22);
         if (c2.role === 'QB' && !P.thrown && !P.crossed) brk *= 0.6;
         if (d.dive > 0 && c2.hurdle <= 0) brk *= 0.75;
         brk *= (1.5 - d.rt.tkl / 100) * (0.6 + c2.rt.elu / 100 * 0.6);
-        if (vsCpu) brk *= g.ctrl[d.team] === d.id ? 0.45 : 0.65;
+        if (youD) brk *= 0.4;
         // skill, not luck: the carrier breaks it when his move is timed into the hit (or the tackler is tied up),
         // with only a sliver of randomness on top
         if (brk + (g.rng() - 0.5) * 0.24 > 0.36) {
-          d.stun = 0.85; d.fallen = 0.85; d.tackleCd = 1.2; d.dive = 0;
-          c2.vx *= 0.6; c2.vz *= 0.6;
-          g.events.push('brokentackle'); mom(g, ct, 3);
-          g.flash = { text: 'BROKEN TACKLE', until: 1.0 };
+          d.stun = stiffWin ? 1.1 : 0.85; d.fallen = stiffWin ? 1.1 : 0.85; d.tackleCd = 1.2; d.dive = 0;
+          if (stiffWin) { const ax = d.x - c2.x, az = d.z - c2.z, al = hyp(ax, az) || 1; d.vx = ax / al * 4; d.vz = az / al * 4; d.fallBack = 1; }   // shoved to the ground
+          c2.vx *= stiffWin ? 0.85 : 0.6; c2.vz *= stiffWin ? 0.85 : 0.6;
+          g.events.push('brokentackle'); mom(g, ct, stiffWin ? 5 : 3);
+          g.flash = { text: stiffWin ? 'STIFF ARM!' : 'BROKEN TACKLE', until: 1.0 };
+          if (stiffWin) highlight(g, 'STIFF ARM', c2.rt.name, ct);
         } else {
           c2.fallen = 3; d.fallen = 3; d.wrapAt = g.t; c2.hitAt = g.t;
           { const fx = Math.sin(c2.face), fz = Math.cos(c2.face); c2.fallBack = ((d.x - c2.x) * fx + (d.z - c2.z) * fz) > 0.2 ? 1 : 0; }
@@ -1181,6 +1199,7 @@ function applyMove(g, p, w, dt) {
     for (const q of g.players) if (q.press > 0 && q.assign === p.id && dist(q, p) < 1.7) { spd *= 0.45; break; }
   }
   if (p.playBall > 0 && p.unit === 'def') spd *= 1.04;
+  if (p.unit === 'def' && g.opts.humans[p.team] && g.ctrl[p.team] === p.id) spd *= 1.04;   // you're the quickest guy on your defense
   const tvx = (w.x || 0) * spd, tvz = (w.z || 0) * spd;
   const acc = (p.size > 1.15 ? 13 : 20) * dt * (p.juke > 0 ? 0.3 : 1) * (p.spin > 0 ? 0.6 : 1);
   let dvx = tvx - p.vx, dvz = tvz - p.vz; const dl = hyp(dvx, dvz);
@@ -1246,7 +1265,7 @@ function updateBlocks(g, dt, pocket) {
       t.z += dd * push; bl.z += dd * push * 0.9;
     }
     const line = t.role.startsWith('DL') && g.phaseT < 2.6;
-    const shed = g.opts.humans[t.team] && !g.opts.humans[1 - t.team] ? Math.max(cfg.shed, 0.17) : cfg.shed;   // your rushers aren't nerfed by the CPU's difficulty
+    const shed = g.opts.humans[t.team] && g.ctrl[t.team] === t.id ? Math.max(cfg.shed * 1.8, 0.25) : cfg.shed;   // the rusher you control beats blocks faster
     let rate = (pocket || line) ? shed * (pocket ? 1.9 : 1.4) : shed * 2.2 + 0.3;
     rate *= (0.5 + Math.max(t.rt.rush, t.rt.tkl * 0.8) / 100) / (0.5 + bl.rt.blk / 100);
     if (g.play && g.play.type === 'run') rate *= 0.55;   // a drive block on a run is harder to shed than a pass set
@@ -1259,7 +1278,9 @@ function updateBlocks(g, dt, pocket) {
 
 // ---------------- AI movement ----------------
 function aiMove(g, p, carrier, pocket, airPass, tl) {
-  const P = g.play, b = g.ball, cfg = g.cfg, ai = g.opts.humans[p.team] && !g.opts.humans[1 - p.team] ? 0.99 : cfg.ai;
+  const P = g.play, b = g.ball, cfg = g.cfg;
+  // your offensive teammates run crisp routes and blocks; your defensive teammates are average, so stops come from you
+  const ai = g.opts.humans[p.team] && !g.opts.humans[1 - p.team] ? (p.team === P.off ? 0.99 : Math.min(cfg.ai, 0.9)) : cfg.ai;
   const isOff = p.team === P.off;
   const d = dirOf(P.off);
   const qb = g.players[0];
@@ -1284,8 +1305,8 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
     }
     if (!isOff) {
       const dl = hyp(p.x - b.tx, p.z - b.tz), mine = g.opts.humans[p.team] && !g.opts.humans[1 - p.team];
-      const react = mine ? Math.min(cfg.react, 0.2) : cfg.react;
-      if (since > react * 0.8 && (p.assign === b.target || dl < (mine ? 18 : 16))) return seek(p, b.tx, b.tz, Math.max(ai, 0.97) + 0.06, 0.3);   // break on the ball
+      const react = mine ? Math.max(cfg.react, 0.3) : cfg.react;
+      if (since > react * 0.8 && (p.assign === b.target || dl < (mine ? 12 : 16))) return seek(p, b.tx, b.tz, Math.max(ai, 0.97) + 0.06, 0.3);   // break on the ball
       if (p.role.startsWith('DL')) return seek(p, b.tx, b.tz, 0.5);
     } else if (RECEIVERS.includes(p.role)) {
       // other receivers drift toward the ball late
@@ -1640,7 +1661,7 @@ function resolveBall(g) {
     if (p.team === offTeam) { if (RECEIVERS.includes(p.role) && dd < dO) { dO = dd; ro = p; } }
     else if (dd < dD) { dD = dd; rd = p; }
   }
-  const myD = rd && g.opts.humans[rd.team] && !g.opts.humans[offTeam];
+  const myD = rd && g.opts.humans[rd.team] && g.ctrl[rd.team] === rd.id;   // only the defender you control gets the bigger contest range
   const cO = ro && dO < 1.7, cD = rd && dD < (myD ? 1.85 : 1.4);
   let diving = false;
   const target = g.players[P.target];
@@ -1661,7 +1682,7 @@ function resolveBall(g) {
     // contested: separation first, then timing, then hands vs coverage
     const edge = (dD - dO) * 1.25 + (timing(ro) - timing(rd)) * 0.7 + (ro.rt.hands * wx - rd.rt.cov) / 100 * 0.9 + (rd.dive > 0 ? 0.15 : 0) + noise();
     if (edge > 0.05) outcome = 'catch';
-    else if (edge < -0.6 && dD < 1.1 && (defPlay || timing(rd) > 0.45)) outcome = 'int';
+    else if ((dD < 0.5 && dD < dO - 0.6) || (edge < -0.6 && dD < 1.1 && (defPlay || timing(rd) > 0.45))) outcome = 'int';   // ball thrown into the defender's chest gets picked
     else outcome = 'inc';
   } else if (cO) {
     // open: catch it unless he had to stretch and doesn't have the hands for it
@@ -1673,8 +1694,9 @@ function resolveBall(g) {
     if (reachOk > 0.78) { outcome = 'catch'; diving = true; }
   } else if (cD) {
     // only a defender there: a pick if he's in front of it and timed it, otherwise he knocks it down
-    const pick = (1.4 - dD) * 0.8 + timing(rd) * 0.6 + rd.rt.cov / 100 * 0.4 + noise();
-    outcome = pick > 1.3 && dD < 0.9 ? 'int' : 'inc';
+    // thrown right at him (within arm's length) is a pick almost every time; farther away he needs timing or ball skills
+    const pick = (1.4 - dD) * 0.9 + timing(rd) * 0.6 + rd.rt.cov / 100 * 0.4 + noise();
+    outcome = (dD < 0.45 && rd.rt.cov + rd.rt.hands > 80) || (pick > 1.3 && dD < 0.9) ? 'int' : 'inc';
   }
   if (!outOfBounds && cO && cD && !P.isPat) {
     const r = g.rng();

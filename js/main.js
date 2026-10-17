@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792251972';
-import { Renderer } from './render.js?v=1792251972';
-import { Sfx } from './audio.js?v=1792251972';
-import { Auth } from './auth.js?v=1792251972';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792251972';
-import { getRoster, teamOvr } from './teams.js?v=1792251972';
-import * as Season from './season.js?v=1792251972';
-import * as Fr from './franchise.js?v=1792251972';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792251972';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792251972';
-import * as UTm from './ut.js?v=1792251972';
-import { initCreator, renderCreator } from './creator.js?v=1792251972';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792251972';
-import { portraitURL } from './faces.js?v=1792251972';
-import { logoURL, clearLogoCache } from './logos.js?v=1792251972';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792252715';
+import { Renderer } from './render.js?v=1792252715';
+import { Sfx } from './audio.js?v=1792252715';
+import { Auth } from './auth.js?v=1792252715';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792252715';
+import { getRoster, teamOvr } from './teams.js?v=1792252715';
+import * as Season from './season.js?v=1792252715';
+import * as Fr from './franchise.js?v=1792252715';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792252715';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792252715';
+import * as UTm from './ut.js?v=1792252715';
+import { initCreator, renderCreator } from './creator.js?v=1792252715';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792252715';
+import { portraitURL } from './faces.js?v=1792252715';
+import { logoURL, clearLogoCache } from './logos.js?v=1792252715';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -39,6 +39,9 @@ try { R = new Renderer(canvas, SET.gfx); } catch (e) {
   throw e;
 }
 R.camMode = SET.cam;
+R.userZoom = Math.max(0.75, Math.min(2.6, +SET.zoom || 1));
+function zoomCam(d) { R.userZoom = Math.max(0.75, Math.min(2.6, R.userZoom * (d > 0 ? 1.12 : 1 / 1.12))); SET.zoom = +R.userZoom.toFixed(2); saveSet(); }
+canvas.addEventListener('wheel', (e) => { if (!st.playing) return; e.preventDefault(); zoomCam(e.deltaY > 0 ? 1 : -1); }, { passive: false });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { clearLogoCache(); R.refreshText(); if (st.screen && st.screen !== 'splash' && st.screen !== 'game') show(st.screen); });
 R.setTeams([SET.team, SET.cpuTeam]);
 const sfx = new Sfx(); sfx.setVolume(SET.vol); sfx.musicVol = SET.music; sfx.announcer = SET.ann; sfx.startMusic();
@@ -336,7 +339,7 @@ $('#go-drill').addEventListener('click', () => startCPU({ teams: [SET.team, rand
 function renderSettings() {
   $('#set-vol').value = SET.vol; $('#set-music').value = SET.music;
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
-  seg($('#seg-cam'), [['behind', 'Behind play'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
+  seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
   seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); });
   const P = !isGuest() ? profile() : null, lvl = P ? P.p.lvl : 0, ok = celUnlocked(lvl);
@@ -452,7 +455,9 @@ window.addEventListener('keydown', (e) => {
     if (dir !== undefined) { setHot(dir); return; }
   }
   if (k === 'KeyM') { toast(sfx.toggleMute() ? 'Sound off' : 'Sound on'); return; }
-  if (k === 'KeyC') { SET.cam = SET.cam === 'behind' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); toast('Camera: ' + (SET.cam === 'behind' ? 'Behind play' : 'Sideline')); return; }
+  if (k === 'Minus' || k === 'NumpadSubtract') { zoomCam(1); return; }
+  if (k === 'Equal' || k === 'NumpadAdd') { zoomCam(-1); return; }
+  if (k === 'KeyC') { SET.cam = SET.cam === 'behind' ? 'player' : SET.cam === 'player' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); toast('Camera: ' + ({ behind: 'Follow the ball', player: 'Follow your player', broadcast: 'Sideline' })[SET.cam] + '. Scroll or press - and + to zoom'); return; }
   if (st.paused) return;
   const ev = keyToEvent(k);
   if (ev) pushEv(ev);
@@ -723,7 +728,7 @@ function togglePause(force) {
   $('#pause').classList.toggle('hidden', !open);
   st.paused = open && st.mode === 'cpu';
   if (st.paused) { sfx.setSituation('idle'); if (window.speechSynthesis) speechSynthesis.cancel(); }
-  $('#p-cam-l').textContent = SET.cam === 'behind' ? 'Behind play' : 'Sideline';
+  $('#p-cam-l').textContent = CAM_NAME[SET.cam] || 'Follow ball';
   $('#quit').textContent = st.mode === 'cpu' ? 'Quit to menu' : 'Leave online game';
   $('#p-chat').classList.toggle('hidden', st.mode === 'cpu');
   $('#p-replay').classList.toggle('hidden', st.mode !== 'cpu' || !st.snap || st.snap.ph === 'live');
@@ -734,7 +739,8 @@ $('#resume').addEventListener('click', () => togglePause(false));
 $('#p-howto').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('howto'); });
 $('#p-settings').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('settings'); });
 $('#p-replay').addEventListener('click', () => { togglePause(false); startReplay(); });
-$('#p-cam').addEventListener('click', () => { SET.cam = SET.cam === 'behind' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); $('#p-cam-l').textContent = SET.cam === 'behind' ? 'Behind play' : 'Sideline'; });
+const CAM_NAME = { behind: 'Follow ball', player: 'Follow you', broadcast: 'Sideline' };
+$('#p-cam').addEventListener('click', () => { SET.cam = SET.cam === 'behind' ? 'player' : SET.cam === 'player' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); $('#p-cam-l').textContent = CAM_NAME[SET.cam]; });
 $('#quit').addEventListener('click', () => leaveGame());
 $('#p-chat').addEventListener('click', () => { SET.chat = !SET.chat; saveSet(); $('#p-chat').textContent = SET.chat ? 'Mute chat' : 'Unmute chat'; if (!SET.chat) $('#chat-log').innerHTML = ''; });
 $('#go-menu').addEventListener('click', () => leaveGame());
@@ -1115,7 +1121,8 @@ function updateHud(S) {
     if (hudCache.pcSel !== sel) { hudCache.pcSel = sel; $$('.pc-card', pc).forEach(c => c.classList.toggle('on', c.dataset.id === sel)); }
     const isCPU = !S.humans[1 - me];
     setTxt('#pc-title', onOff ? (S.pat >= 0 ? 'Kick the extra point or go for 2' : S.dn === 4 ? 'Fourth down, your call' : 'Offense') : 'Defense');
-    const hintHtml = onOff ? (S.op ? `<span><kbd>Space</kbd> snap</span>${hotOk(S) ? '<span><kbd>H</kbd> hot route</span>' : ''}<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>` : `<span><kbd>1</kbd>–<kbd>${Math.min(PER_TAB, ((st.pbTabs || [])[st.pbTab] || { cards: [] }).cards.length) || 1}</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>`)
+    const waitD = onOff && S.humans[1 - me] && !S.dc;
+    const hintHtml = onOff ? (S.op ? (waitD ? '<span>Waiting for the defense to call a play…</span>' : '') + `<span><kbd>Space</kbd> snap</span>${hotOk(S) ? '<span><kbd>H</kbd> hot route</span>' : ''}<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>` : `<span><kbd>1</kbd>–<kbd>${Math.min(PER_TAB, ((st.pbTabs || [])[st.pbTab] || { cards: [] }).cards.length) || 1}</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>`)
       : (isCPU ? '<span>CPU snaps soon</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch</span>' : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch player</span>');
     if (hudCache.pch !== hintHtml) { hudCache.pch = hintHtml; $('#pc-hint').innerHTML = hintHtml; }
     const clk = $('#pc-clock'), pcv = S.pc;
@@ -1133,7 +1140,7 @@ function updateHud(S) {
     else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring'], ['E', 'aggressive catch']]);
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
     else hint([['Space', 'dive tackle'], ['Q', 'switch'], ['Shift', 'sprint']]);
-  } else hint(st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['R', 'instant replay']] : [['Esc', 'pause'], ['C', 'camera'], ['T', 'chat']]);
+  } else hint(st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat']]);
   const tOn = touchOn();
   $('#touch').classList.toggle('hidden', !tOn || S.ph === 'gameover');
   $('#hud').classList.toggle('touch-mode', tOn);
@@ -1477,12 +1484,12 @@ let menuSkip = 0;
 requestAnimationFrame(frame);
 
 // ---------------- menus that live in their own modules ----------------
-const CTX = { st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+const CTX = { zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
 initSocial(CTX);
 initAdmin();
-initGamepad({ toast, context: padContext, cardNav, cardPickFocused, hotOpen: () => st.hot.open, onModeChange: (on) => { hudCache = {}; R.setBadgeLabels(on ? (() => { const g = glyphs(); return [g.A, g.B, g.X, g.Y, g.RB]; })() : ['1', '2', '3', '4', '5']); } });
+initGamepad({ toast, zoomCam, context: padContext, cardNav, cardPickFocused, hotOpen: () => st.hot.open, onModeChange: (on) => { hudCache = {}; R.setBadgeLabels(on ? (() => { const g = glyphs(); return [g.A, g.B, g.X, g.Y, g.RB]; })() : ['1', '2', '3', '4', '5']); } });
 Fr.initFranchise(CTX);
 $('#ban-ok').addEventListener('click', () => $('#banned').classList.add('hidden'));
 $('#ban-out').addEventListener('click', async () => { $('#banned').classList.add('hidden'); await Auth.signOut(); show('auth'); });

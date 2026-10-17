@@ -73,6 +73,7 @@ function press(i) {
   if (c === 'menu') return menuNav(i);
   if (c === 'paused' || c === 'over') return menuNav(i);
   if (i === 11) return tap('KeyC');                          // R3: camera
+  if ((i === 12 || i === 13) && c !== 'presnapOff' && c !== 'presnapDef') return C.zoomCam && C.zoomCam(i === 12 ? -1 : 1);   // D-pad up/down: zoom
   const map = {
     presnapOff: { 0: 'Space', 3: 'KeyH', 4: 'KeyZ', 5: 'KeyX', 8: 'KeyV', 12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight', 1: 'Escape' },
     presnapDef: { 1: 'KeyQ', 4: 'KeyZ', 5: 'KeyX', 8: 'KeyV' },

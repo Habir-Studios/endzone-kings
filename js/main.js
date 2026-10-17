@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792254012';
-import { Renderer } from './render.js?v=1792254012';
-import { Sfx } from './audio.js?v=1792254012';
-import { Auth } from './auth.js?v=1792254012';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792254012';
-import { getRoster, teamOvr } from './teams.js?v=1792254012';
-import * as Season from './season.js?v=1792254012';
-import * as Fr from './franchise.js?v=1792254012';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792254012';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792254012';
-import * as UTm from './ut.js?v=1792254012';
-import { initCreator, renderCreator } from './creator.js?v=1792254012';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792254012';
-import { portraitURL } from './faces.js?v=1792254012';
-import { logoURL, clearLogoCache } from './logos.js?v=1792254012';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792254041';
+import { Renderer } from './render.js?v=1792254041';
+import { Sfx } from './audio.js?v=1792254041';
+import { Auth } from './auth.js?v=1792254041';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792254041';
+import { getRoster, teamOvr } from './teams.js?v=1792254041';
+import * as Season from './season.js?v=1792254041';
+import * as Fr from './franchise.js?v=1792254041';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792254041';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792254041';
+import * as UTm from './ut.js?v=1792254041';
+import { initCreator, renderCreator } from './creator.js?v=1792254041';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792254041';
+import { portraitURL } from './faces.js?v=1792254041';
+import { logoURL, clearLogoCache } from './logos.js?v=1792254041';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1032,6 +1032,11 @@ function renderKickMeter(S) {
   const el = $('#kickmeter'), k = S.ks, mine = k && S.poss === st.local;
   el.classList.toggle('hidden', !k);
   if (!k) { hudCache.km = null; return; }
+  el.classList.toggle('theirs', !mine);
+  if (!mine) {   // the other team never sees your aim or power
+    if (hudCache.km !== 'theirs') { hudCache.km = 'theirs'; $('#km-title').textContent = k.type === 'punt' ? 'Punt' : k.type === 'xp' ? 'Extra point' : 'Field goal'; $('#km-dist').textContent = k.type === 'punt' ? '' : `${k.fd} yards`; $('#km-step').textContent = 'The other team is lining up the kick…'; $('#km-btn').classList.add('hidden'); }
+    return;
+  }
   if (hudCache.km !== k.type + k.stage + mine) {
     hudCache.km = k.type + k.stage + mine;
     $('#km-title').textContent = k.type === 'punt' ? 'Punt' : k.type === 'xp' ? 'Extra point' : 'Field goal';

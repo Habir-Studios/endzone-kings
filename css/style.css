@@ -1013,3 +1013,4 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .friend-row img { width: 36px; height: 36px; } .friend-row small { display: block; color: var(--steel); font-size: 13px; }
 .friend-row .ad-btns { justify-content: flex-end; }
 .bubble.invite { background: linear-gradient(135deg, #3b2a00, #1b2550); border-left: 3px solid var(--gold); }
+.kickmeter.theirs .km-bar, .kickmeter.theirs .km-aim { display: none; }

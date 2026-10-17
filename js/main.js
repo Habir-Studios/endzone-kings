@@ -1,11 +1,11 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES } from './sim.js';
-import { Renderer } from './render.js';
-import { Sfx } from './audio.js';
-import { Auth } from './auth.js';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode } from './net.js';
-import { getRoster, teamOvr } from './teams.js';
-import * as Season from './season.js';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES } from './sim.js?v=1792197009';
+import { Renderer } from './render.js?v=1792197009';
+import { Sfx } from './audio.js?v=1792197009';
+import { Auth } from './auth.js?v=1792197009';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode } from './net.js?v=1792197009';
+import { getRoster, teamOvr } from './teams.js?v=1792197009';
+import * as Season from './season.js?v=1792197009';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];

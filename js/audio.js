@@ -175,6 +175,10 @@ export class Sfx {
       case 'juke': this.whoosh(0.25); break;
       case 'dive': this.whoosh(0.35); break;
       case 'whistle': this.whistle(); break;
+      case 'thirddown': this.cheer(0.5, 3.2); [0, 420, 840, 1260].forEach(t => setTimeout(() => this.thud && this.thud(), t)); break;   // home crowd: loud + stomping
+      case 'thirddown_away': this.cheer(0.18, 1.6); break;
+      case 'boo': { const t = this.ctx ? this.ctx.currentTime : 0; if (this.ctx && this.voiceBurst) { this.voiceBurst(t, 1.8, 118, 0.09, 'oh'); this.voiceBurst(t + 0.15, 1.6, 96, 0.07, 'oh'); } break; }
+      case 'weather': this.cheer(0.12, 1.2); break;
       case 'flag': this.whistle(); break;
       case 'half': this.cheer(0.5, 3); break;
       case 'firstdown': this.cheer(0.22, 1.8); this.tone(660, 0.1, 'triangle', 0.08); setTimeout(() => this.tone(880, 0.16, 'triangle', 0.08), 110); break;

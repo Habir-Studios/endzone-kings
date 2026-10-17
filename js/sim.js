@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792274085';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792274236';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792274085';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792274236';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1000,7 +1000,7 @@ function updateKick(g, dt) {
       kickoffTo(g, 1 - off);
       g.deadDur = 2.8;
     } else {
-      g.msg = { text: 'NO GOOD', sub: `${k.dist} yd attempt${k.miss ? ' · ' + k.miss : ''}`, until: 2.2 };
+      g.msg = { text: 'NO GOOD', sub: `${k.dist} yd attempt${k.miss ? ' · ' + k.miss : ''}`, until: 2.2 }; if (off === 0) g.events.push('boo');
       g.poss = 1 - off; g.ballX = 0; setFirstDown(g);
       sudden(g);
     }
@@ -1056,6 +1056,14 @@ function score(g, team, pts) {
 }
 function sudden(g) { /* placeholder for possession change hooks */ }
 
+// the weather can turn during a game: a storm rolls in, or it clears up
+function weatherShift(g) {
+  if (g.opts.practice || g.opts.drill || g.opts.fixedWx || g.rng() > 0.22) return;
+  const w = g.opts.weather, next = { clear: g.rng() < 0.5 ? 'rain' : 'fog', rain: g.rng() < 0.6 ? 'clear' : 'snow', fog: 'clear', snow: g.rng() < 0.5 ? 'clear' : 'snow' }[w] || 'clear';
+  if (next === w) return;
+  g.opts.weather = next; g.events.push('weather');
+  g.flash = { text: { rain: 'RAIN IS MOVING IN', snow: 'IT\'S STARTING TO SNOW', fog: 'FOG IS ROLLING IN', clear: 'THE SKIES ARE CLEARING' }[next], until: 2.6 };
+}
 function kickoffTo(g, team) {
   const kicker = 1 - team;
   { const down = g.score[team] - g.score[kicker]; if (!g.opts.humans[kicker] && !g.opts.practice && g.quarter >= 4 && g.clock < 200 && down > 0 && down <= 16) g.onside[kicker] = true; }   // CPU goes for it when it's desperate
@@ -1280,6 +1288,7 @@ function nextPlay(g) {
     const q = g.quarter;
     if (q === 2) {
       g.quarter = 3; g.clock = g.opts.quarterLen; g.to = [3, 3];
+      weatherShift(g);
       kickoffTo(g, 1 - g.firstReceiver);
       if (g.opts.halftime > 0) {
         g.phase = 'half'; g.phaseT = 0; g.halfReady = [!g.opts.humans[0], !g.opts.humans[1]];
@@ -1297,10 +1306,12 @@ function nextPlay(g) {
     } else {
       g.quarter = q + 1; g.clock = g.opts.quarterLen;
       g.msg = { text: `END OF Q${q}`, sub: '', until: 1.8 };
+      weatherShift(g);
     }
   }
   g.phase = 'presnap'; g.phaseT = 0;
   setupPlay(g);
+  if (g.phase === 'presnap' && g.down === 3 && g.pat < 0 && !g.opts.practice) g.events.push(g.poss === 1 ? 'thirddown' : 'thirddown_away');   // the home crowd gets loud when their defense is on the field
 }
 
 function endGame(g) {
@@ -2200,7 +2211,7 @@ function resolveBall(g) {
     // clear blocks
     for (const p of g.players) { p.blockOn = -1; p.engagedBy = -1; }
     g.flash = { text: `INTERCEPTED! ${rd.rt.name}`, until: 1.8 };
-    g.events.push('int');
+    g.events.push('int'); if (offTeam === 0) g.events.push('boo');   // the home crowd hates a pick
     if (P.isPat) return endPlay(g, 'patfail', rd);
   } else {
     b.x = L.x; b.z = L.z; b.y = 0.2;
@@ -2382,7 +2393,7 @@ export function snapshot(g) {
     inj: injuryReport(g), injAsk: g.injAsk.slice(), depth: g.depth, subAsk: g.subAsk.slice(), bv: g.benchV,
     bench: (g.snapN = (g.snapN || 0) + 1) % 45 === 1 || g.benchSent !== g.benchV ? (g.benchSent = g.benchV, benchReport(g)) : undefined, fat: g.fat, msgInj: g.msgInj || null,
     wind: g.opts.wind, wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
-    hls: g.phase === 'gameover' ? g.hl : null,
+    hls: g.phase === 'gameover' || g.phase === 'half' ? g.hl : null,
     hr: g.phase === 'half' ? g.halfReady.slice() : null, hl: g.opts.halftime,
     ps: g.phase === 'half' || g.phase === 'gameover' ? Object.values(g.ps) : null,
   };

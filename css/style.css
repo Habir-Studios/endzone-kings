@@ -1587,3 +1587,4 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .bk-t.me { box-shadow: inset 3px 0 0 #f6c445; } .bk-t.tbd { opacity: .4; }
 .bk-champ { text-align: center; font-family: var(--display); font-size: 20px; color: var(--gold-hi, #ffe08a); margin: 10px 0 0; }
 .award-row .fr-ovr { font-size: 15px; } .hof-row .fr-ovr { background: linear-gradient(180deg, #ffe08a, #c58a00); color: #241500; font-size: 14px; }
+.ht-hl { margin: 12px 0 4px; } .ht-hl h4 { margin: 0 0 6px; font-family: var(--display); color: var(--gold-hi, #ffe08a); letter-spacing: 1px; }

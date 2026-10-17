@@ -1,24 +1,24 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792274085';
-import * as Form from './form.js?v=1792274085';
-import { watchSim } from './simview.js?v=1792274085';
-import { bracketHTML } from './bracket.js?v=1792274085';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792274085';
-import { Renderer } from './render.js?v=1792274085';
-import { Sfx } from './audio.js?v=1792274085';
-import { Auth } from './auth.js?v=1792274085';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792274085';
-import { getRoster, teamOvr } from './teams.js?v=1792274085';
-import * as Season from './season.js?v=1792274085';
-import * as Fr from './franchise.js?v=1792274085';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792274085';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792274085';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792274085';
-import * as UTm from './ut.js?v=1792274085';
-import { initCreator, renderCreator } from './creator.js?v=1792274085';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792274085';
-import { portraitURL } from './faces.js?v=1792274085';
-import { logoURL, clearLogoCache } from './logos.js?v=1792274085';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792274236';
+import * as Form from './form.js?v=1792274236';
+import { watchSim } from './simview.js?v=1792274236';
+import { bracketHTML } from './bracket.js?v=1792274236';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792274236';
+import { Renderer } from './render.js?v=1792274236';
+import { Sfx } from './audio.js?v=1792274236';
+import { Auth } from './auth.js?v=1792274236';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792274236';
+import { getRoster, teamOvr } from './teams.js?v=1792274236';
+import * as Season from './season.js?v=1792274236';
+import * as Fr from './franchise.js?v=1792274236';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792274236';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792274236';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792274236';
+import * as UTm from './ut.js?v=1792274236';
+import { initCreator, renderCreator } from './creator.js?v=1792274236';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792274236';
+import { portraitURL } from './faces.js?v=1792274236';
+import { logoURL, clearLogoCache } from './logos.js?v=1792274236';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1353,6 +1353,7 @@ function renderHalftime(S) {
     el.innerHTML = `<div class="ht-box"><h2 class="ht-title">Halftime</h2>
       <div class="ht-score"><span class="tm"><img alt="" src="${logoURL(S.teams[0], 96)}">${T[0].abbr}</span><span class="sc">${S.sc[0]} - ${S.sc[1]}</span><span class="tm">${T[1].abbr}<img alt="" src="${logoURL(S.teams[1], 96)}"></span></div>
       <div class="ht-grid">${col(0)}<div class="ht-col"><h4>First half</h4><table class="ht-stats">${rows.map(r => `<tr><td>${r[1]}</td><td>${r[0]}</td><td>${r[2]}</td></tr>`).join('')}</table></div>${col(1)}</div>
+      ${(S.hls || []).length ? `<div class="ht-hl"><h4>First-half highlights</h4>${highlightsHTML(S)}</div>` : ''}
       <div class="ht-foot">${ready ? '<span>Waiting for the other coach…</span>' : '<button class="btn primary" id="ht-go">Start second half</button><span><kbd>Space</kbd></span>'}<span id="ht-left"></span></div></div>`;
     const b = $('#ht-go', el); if (b) b.onclick = () => pushEv({ t: 'ready' });
     hudCache['#ht-left'] = null;
@@ -1395,6 +1396,7 @@ function renderKickMeter(S) {
 
 function updateHud(S) {
   if (S.bench) st.bench = S.bench;
+  if (S.wx && S.wx !== st.wx) { st.wx = S.wx; R.setWeather(S.wx, S.tod || st.tod || 'night'); }   // the weather turned mid-game
   const me = st.local;
   const T = S.teams.map(i => TEAMS[i]);
   const htEl = $('#halftime');

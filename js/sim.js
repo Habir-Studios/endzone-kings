@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266723';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266794';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792266723';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792266794';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -628,6 +628,7 @@ function hotRoute(form, role, kind) {
 }
 
 function snap(g) {
+  g.snaps = (g.snaps || 0) + 1;
   g.runBudget = 0;
   const P = g.play;
   if (g.offPlay === 'punt' || g.offPlay === 'fg' || g.offPlay === 'xp') { if (g.opts.humans[g.poss] || g.opts.humans[1 - g.poss]) beginKickSet(g, g.offPlay); else startKick(g, g.offPlay); return; }
@@ -1072,6 +1073,9 @@ function updatePresnap(g, dt, inputs) {
 // called it can pick a different play
 function callTimeout(g, team) {
   if (g.to[team] <= 0) return;
+  g.toSnap = g.toSnap || [-1, -1];
+  if (g.toSnap[team] === (g.snaps || 0)) { if (g.toQ) g.toQ[team] = false; if (g.opts.humans[team]) g.flash = { text: 'ONE TIMEOUT PER PLAY', until: 1.2 }; return; }   // only one timeout between snaps
+  g.toSnap[team] = g.snaps || 0;
   g.to[team]--; g.timeoutCd = 3; if (g.toQ) g.toQ[team] = false;
   g.runoff = 0; g.runBudget = 0; g.playClock = 25;
   if (g.phase === 'presnap') {
@@ -1087,7 +1091,8 @@ function cpuTimeout(g) {
   for (let t = 0; t < 2; t++) {
     if (g.opts.humans[t] || g.to[t] <= 0 || g.opts.practice || g.opts.drill) continue;
     const late = (g.quarter === 2 || g.quarter >= 4) && g.clock < 50 && g.clock > 3 && (g.runoff > 0 || g.runBudget > 0);
-    if (late && g.poss === t && g.score[t] <= g.score[1 - t]) { g.to[t]--; g.runoff = 0; g.runBudget = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
+    g.toSnap = g.toSnap || [-1, -1];
+    if (late && g.poss === t && g.score[t] <= g.score[1 - t] && g.toSnap[t] !== (g.snaps || 0)) { g.toSnap[t] = g.snaps || 0; g.to[t]--; g.runoff = 0; g.runBudget = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
   }
 }
 function wearAndTear(g) {
@@ -1140,6 +1145,7 @@ function nextPlay(g) {
       kickoffTo(g, 1 - g.firstReceiver);
       if (g.opts.halftime > 0) {
         g.phase = 'half'; g.phaseT = 0; g.halfReady = [!g.opts.humans[0], !g.opts.humans[1]];
+        g.to = [3, 3];   // 3 timeouts per half: unused first-half timeouts don't carry over
         g.msg = null; g.events.push('half');
         return;
       }

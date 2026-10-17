@@ -1,22 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792273494';
-import * as Form from './form.js?v=1792273494';
-import { watchSim } from './simview.js?v=1792273494';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792273494';
-import { Renderer } from './render.js?v=1792273494';
-import { Sfx } from './audio.js?v=1792273494';
-import { Auth } from './auth.js?v=1792273494';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792273494';
-import { getRoster, teamOvr } from './teams.js?v=1792273494';
-import * as Season from './season.js?v=1792273494';
-import * as Fr from './franchise.js?v=1792273494';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792273494';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792273494';
-import * as UTm from './ut.js?v=1792273494';
-import { initCreator, renderCreator } from './creator.js?v=1792273494';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792273494';
-import { portraitURL } from './faces.js?v=1792273494';
-import { logoURL, clearLogoCache } from './logos.js?v=1792273494';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792273592';
+import * as Form from './form.js?v=1792273592';
+import { watchSim } from './simview.js?v=1792273592';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792273592';
+import { Renderer } from './render.js?v=1792273592';
+import { Sfx } from './audio.js?v=1792273592';
+import { Auth } from './auth.js?v=1792273592';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792273592';
+import { getRoster, teamOvr } from './teams.js?v=1792273592';
+import * as Season from './season.js?v=1792273592';
+import * as Fr from './franchise.js?v=1792273592';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792273592';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792273592';
+import * as UTm from './ut.js?v=1792273592';
+import { initCreator, renderCreator } from './creator.js?v=1792273592';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792273592';
+import { portraitURL } from './faces.js?v=1792273592';
+import { logoURL, clearLogoCache } from './logos.js?v=1792273592';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -108,7 +108,7 @@ function renderCelShop() {
   const P = !isGuest() ? profile() : null, own = celOwned(P);
   box.innerHTML = CELS.filter(c => c[0] >= 0).map(([id, n, price]) => {
     const have = own.has(id), on = SET.cel === id;
-    return `<div class="lk-cel ${on ? 'on' : ''} ${have ? '' : 'locked'}"><span class="lk-ic">${CEL_IC[id] || '★'}</span><b>${n}</b>${have ? `<button class="btn sm ${on ? 'primary' : ''}" data-celeq="${id}" type="button">${on ? 'Equipped' : 'Equip'}</button>` : `<button class="btn sm" data-celbuy="${id}" type="button" ${!P ? 'disabled title="Make an account to buy celebrations"' : ''}><i class="coin"></i> ${price.toLocaleString()}</button>`}<button class="btn sm ghost" data-celhear="${id}" type="button" aria-label="Hear it">♪</button></div>`;
+    return `<div class="lk-cel ${on ? 'on' : ''} ${have ? '' : 'locked'}"><span class="lk-ic">${CEL_IC[id] || CEL_IC[-1]}</span><b>${n}</b>${have ? `<button class="btn sm ${on ? 'primary' : ''}" data-celeq="${id}" type="button">${on ? 'Equipped' : 'Equip'}</button>` : `<button class="btn sm" data-celbuy="${id}" type="button" ${!P ? 'disabled title="Make an account to buy celebrations"' : ''}><i class="coin"></i> ${price.toLocaleString()}</button>`}<button class="btn sm ghost" data-celhear="${id}" type="button" aria-label="Hear it">♪</button></div>`;
   }).join('') + `<div class="lk-cel ${SET.cel === -1 ? 'on' : ''}"><span class="lk-ic">${CEL_IC[-1]}</span><b>Random</b><button class="btn sm ${SET.cel === -1 ? 'primary' : ''}" data-celeq="-1" type="button">${SET.cel === -1 ? 'Equipped' : 'Equip'}</button></div>`;
   $$('[data-celeq]', box).forEach(b => b.onclick = () => { SET.cel = +b.dataset.celeq; saveSet(); sfx.play('ui'); renderCelShop(); });
   $$('[data-celhear]', box).forEach(b => b.onclick = () => { sfx.init(); sfx.play('cel' + b.dataset.celhear); });
@@ -128,12 +128,25 @@ function openCelPick() {
   const n = list.length, R0 = n > 8 ? 128 : 112;
   $('#cel-opts').innerHTML = `<div class="cw-ring"></div><div class="cw-center"><b id="cw-name">Pick one</b><small>let go of Tab</small></div>` + list.map(([id, nm], i) => {
     const a = i / n * Math.PI * 2 - Math.PI / 2, x = Math.cos(a) * R0, y = Math.sin(a) * R0;
-    return `<button type="button" class="cw-slot ${SET.cel === id ? 'on' : ''}" data-cp="${id}" data-nm="${escapeHtml(nm)}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px"><span class="cw-ic">${CEL_IC[id] || '★'}</span><small>${escapeHtml(nm)}</small><kbd>${i + 1}</kbd></button>`;
+    return `<button type="button" class="cw-slot ${SET.cel === id ? 'on' : ''}" data-cp="${id}" data-nm="${escapeHtml(nm)}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px"><span class="cw-ic">${CEL_IC[id] || CEL_IC[-1]}</span><small>${escapeHtml(nm)}</small><kbd>${i + 1}</kbd></button>`;
   }).join('');
   $$('#cel-opts [data-cp]').forEach((b, i) => { b.onclick = () => pickCel(+b.dataset.cp); b.onmouseenter = () => celHighlight(i); });
   celSel = -1; $('#cel-pick').classList.remove('hidden'); sfx.play('ui');
 }
-const CEL_IC = { '-1': '🎲', 0: '🦘', 1: '💃', 2: '💪', 3: '☝️', 4: '🌀', 5: '🙇', 6: '🌙', 7: '🫡', 8: '🕺' };
+// hand-drawn celebration icons (simple player silhouettes doing each move)
+const celSvg = (body) => `<svg class="cel-svg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+const CEL_IC = {
+  '-1': celSvg('<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><g fill="currentColor" stroke="none"><circle cx="8.3" cy="8.3" r="1.5"/><circle cx="15.7" cy="8.3" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="8.3" cy="15.7" r="1.5"/><circle cx="15.7" cy="15.7" r="1.5"/></g>'),
+  0: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v6M12 8.4 8 4.6M12 8.4l4-3.8M12 13.2l-3 2 1 3.2M12 13.2l3 2-1 3.2"/><path d="M5 21.5h3.5M15.5 21.5H19" stroke-width="1.6" opacity=".6"/>'),
+  1: celSvg('<circle cx="10" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M10 7.2l1 6M10.4 8.6 6.5 6M10.4 8.6l3.6 3.4M11 13.2l-3.2 3.3L9 21M11 13.2l3.6 2.4-.6 5.4"/><path d="M18 3v5.2"/><circle cx="16.6" cy="8.4" r="1.4" fill="currentColor" stroke="none"/><path d="M18 3l2.5 1"/>'),
+  2: celSvg('<circle cx="12" cy="5.4" r="2.1" fill="currentColor" stroke="none"/><path d="M12 8.4v6.6M12 9.4H7.4V5.2M12 9.4h4.6V5.2M12 15l-2.6 6M12 15l2.6 6"/><path d="M8.6 8.2a2 2 0 0 0 0-3M15.4 8.2a2 2 0 0 1 0-3" stroke-width="1.6"/>'),
+  3: celSvg('<circle cx="12" cy="5.6" r="2.1" fill="currentColor" stroke="none"/><path d="M12 8.6v6M12 9.6l3.2-6.4M12 9.6 9 12.4l1.6 1.6M12 14.6l-2.6 6.4M12 14.6l2.6 6.4"/><path d="M15.2 3.2l.9-1.6" stroke-width="2.4"/>'),
+  4: celSvg('<circle cx="12" cy="6.6" r="1.8" fill="currentColor" stroke="none"/><path d="M12 9.2v5M9.4 10.8h5.2M12 14.2l-1.8 4M12 14.2l1.8 4"/><path d="M19.4 9.4A8 8 0 0 0 6 6.3" stroke-width="1.7"/><path d="M4.6 14.6A8 8 0 0 0 18 17.7" stroke-width="1.7"/><path d="M6 6.3V3.6M6 6.3h2.7M18 17.7v2.7M18 17.7h-2.7" stroke-width="1.7"/>'),
+  5: celSvg('<circle cx="7.2" cy="10.4" r="2.1" fill="currentColor" stroke="none"/><path d="M9.6 10.6l5.6 1.4v9M15.2 12l2.2 9M11.4 11.2 8.6 15M13.2 11.6l4.6-3.4"/><path d="M3 21.5h18" stroke-width="1.6" opacity=".6"/>'),
+  6: celSvg('<path d="M8.4 2.6a4 4 0 1 0 4.4 5.2 3.2 3.2 0 0 1-4.4-5.2Z" fill="currentColor" stroke="none"/><circle cx="15.4" cy="7.4" r="1.9" fill="currentColor" stroke="none"/><path d="M15 10.2l-1 5.6M14.8 11.4l-3.2 2M14.8 11.4l3.4 1.6M14 15.8l-2.8 2.4.4 2.8M14 15.8l3.4 1.4 1.6 3.4"/><path d="M3.6 21.5h3M8 21.5h2" stroke-width="1.6" opacity=".6"/>'),
+  7: celSvg('<circle cx="10.4" cy="6.6" r="2.1" fill="currentColor" stroke="none"/><path d="M12 9.6v5.4M12 10 7.2 7.8M7.2 7.8l1.6 2.2M12 10l7.4-5.6M12 15l-2.8 6M12 15l2.8 6"/>'),
+  8: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v6.4M12 8.6 8.4 11M12 8.6l3.6 2.4M12 13.6l-4.4 3.4-1.4 3.6M12 13.6l4.4 3.4 1.4 3.6"/><path d="M3 15.4h2.4M2.6 18.6h2.6M18.6 15.4H21M18.8 18.6h2.6" stroke-width="1.5" opacity=".7"/>'),
+};
 function celHighlight(i) {
   const btns = $$('#cel-opts [data-cp]'); if (!btns.length) return;
   celSel = ((i % btns.length) + btns.length) % btns.length;

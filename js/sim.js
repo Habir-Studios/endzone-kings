@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792280133';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792280231';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792280133';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792280231';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -444,7 +444,7 @@ function handleEvent(g, team, ev) {
         if (pl.id === 'xp' && !isPat) return;
         if ((pl.id === 'fg' && (!canFG(g) || isPat)) || (pl.id === 'punt' && isPat)) return;
         if (g.opts.practice === 'st' && pl.id !== 'fg' && pl.id !== 'punt') return;
-        if ((pl.id === 'fakepunt' || pl.id === 'fakefg') && isPat) return;
+        if (['fakepunt', 'fakefg', 'fakepuntpass', 'fakefgrun'].includes(pl.id) && isPat) return;
         if (g.offPlay && g.offPlay !== pl.id && g.phaseT > 0.6 && !g.opts.humans[team] === false) { g.flash = { text: 'AUDIBLE!', until: 1.1 }; g.events.push('audible'); }
         if (g.offPlay !== pl.id) { g.hot = {}; g.flip = false; g.motion = null; }
         g.offPlay = pl.id; g.lastPlay[team] = pl.id; alignOffense(g);

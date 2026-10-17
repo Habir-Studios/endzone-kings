@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792263100';
+import { TEAMS } from './teams.js?v=1792263263';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -40,7 +40,7 @@ async function tick() {
   try {
     if (scr === 'menu') await renderMenuBoard();
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
-    if (me()) { ensureProfile(); listenInvites(); }
+    if (me()) { ensureProfile(); listenInvites(); if (++kickPollT % 5 === 0 && C.st.playing) pollKicks(); }
     if (me() && (++unreadT % 10 === 0)) { refreshUnread(); refreshRequests(); }
   } catch (_) {} finally { ticking = false; }
 }
@@ -245,6 +245,17 @@ export function askText(title, def = '', ok = 'Post') {
     setTimeout(() => { inp.focus(); inp.select(); }, 30);
   });
 }
+export function askChoice(title, options) {
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 61;
+    m.innerHTML = `<div class="panel"><h3>${esc(title)}</h3><div class="ask-opts">${options.map(([v, n]) => `<button class="btn" data-v="${esc(v)}" type="button">${esc(n)}</button>`).join('')}</div><button class="btn ghost" id="ask-no" type="button">Cancel</button></div>`;
+    document.body.appendChild(m);
+    m.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { m.remove(); res(b.dataset.v); });
+    m.querySelector('#ask-no').onclick = () => { m.remove(); res(null); };
+  });
+}
+const BAN_LENGTHS = [['1', '1 hour'], ['24', '1 day'], ['72', '3 days'], ['168', '1 week'], ['720', '30 days'], ['0', 'Permanent']];
+const banLeft = until => { if (!until) return 'permanent'; const ms = new Date(until) - Date.now(); if (ms <= 0) return 'expired'; const h = Math.ceil(ms / 3600000); return h >= 48 ? `${Math.ceil(h / 24)} days left` : `${h} hour${h > 1 ? 's' : ''} left`; };
 export async function saveClip(rec) {
   if (!db() || !me()) { C.toast('Sign in with a real account to post clips'); return; }
   const frames = lastPlayFrames(rec); if (!frames) { C.toast('Nothing to clip yet. Run a play first.'); return; }
@@ -366,9 +377,17 @@ export async function checkBan() {
   if (!db() || !me()) { banInfo = null; return null; }
   if (banChecked === me().id) return banInfo;
   banChecked = me().id;
-  const { data } = await db().from('ek_bans').select('reason,created_at').eq('id', me().id).maybeSingle();
+  let data = null;
+  const r = await db().rpc('ek_my_ban');
+  if (!r.error) data = (r.data || [])[0] || null;
+  else { const q = await db().from('ek_bans').select('reason,until').eq('id', me().id).maybeSingle(); data = q.data || null; if (data && data.until && new Date(data.until) <= new Date()) data = null; }
   banInfo = data || null;
-  if (banInfo) { C.$('#ban-why').textContent = banInfo.reason ? `Reason: ${banInfo.reason}` : 'You broke the Terms of Service.'; C.$('#banned').classList.remove('hidden'); }
+  if (banInfo) {
+    const len = banInfo.until ? `Banned until ${new Date(banInfo.until).toLocaleString()} (${banLeft(banInfo.until)}).` : 'This ban is permanent.';
+    C.$('#ban-why').textContent = `${banInfo.reason ? `Reason: ${banInfo.reason}. ` : 'You broke the Terms of Service. '}${len}`;
+    C.$('#banned').classList.remove('hidden');
+    if (C.st.playing) C.leaveGame && C.leaveGame();
+  }
   return banInfo;
 }
 export const isBanned = () => !!banInfo;
@@ -410,9 +429,10 @@ export async function renderAdmin() {
   refreshAdminBadge();
   if (adTab === 'find') return adminFind();
   if (adTab === 'bans') {
-    const { data } = await db().from('ek_bans').select('id,reason,by_admin,created_at').order('created_at', { ascending: false }).limit(200);
+    await db().rpc('ek_admin_clean_bans');
+    const { data } = await db().from('ek_bans').select('id,reason,by_admin,created_at,until').order('created_at', { ascending: false }).limit(200);
     const names = await namesFor((data || []).map(b => b.id));
-    pane.innerHTML = `<div class="ad-list">${(data || []).map(b => `<div class="ad-row"><div><b>${esc(names[b.id] || b.id.slice(0, 8))}</b><small>${esc(b.reason || 'No reason')}${b.by_admin ? '' : ' (automatic)'}, ${ago(b.created_at)}</small></div><button class="btn sm" data-unban="${b.id}">Unban</button></div>`).join('') || '<p class="note">Nobody is banned.</p>'}</div>`;
+    pane.innerHTML = `<div class="ad-list">${(data || []).map(b => `<div class="ad-row"><div><b>${esc(names[b.id] || b.id.slice(0, 8))}</b><small>${esc(b.reason || 'No reason')}${b.by_admin ? '' : ' (automatic)'}, ${ago(b.created_at)}, ${banLeft(b.until)}</small></div><button class="btn sm" data-unban="${b.id}">Unban</button></div>`).join('') || '<p class="note">Nobody is banned.</p>'}</div>`;
     C.$$('[data-unban]', pane).forEach(x => x.onclick = () => adminAct('unban', x.dataset.unban));
     return;
   }
@@ -424,7 +444,7 @@ export async function renderAdmin() {
   pane.innerHTML = `<div class="ad-list">${(data || []).map(r => `<div class="ad-row ${r.reason.startsWith('auto') ? 'auto' : ''}">
       <div><b>${esc(names[r.target] || r.target.slice(0, 8))}</b> <span class="ad-tag">${esc(r.reason)}</span> <span class="ad-tag st-${r.status}">${r.status}</span>
       <small>${r.reporter ? `Reported by ${esc(names[r.reporter] || 'player')}` : 'Flagged by anti-cheat'}, ${ago(r.created_at)}</small>${r.details ? `<p>${esc(r.details)}</p>` : ''}</div>
-      <div class="ad-btns"><button class="btn sm" data-view="${r.target}">Profile</button>${r.status === 'open' ? `<button class="btn sm" data-dismiss="${r.id}">Dismiss</button>` : ''}<button class="btn sm" data-reset="${r.target}">Reset stats</button><button class="btn sm danger" data-ban="${r.target}">Ban</button></div></div>`).join('') || '<p class="note">No reports. All quiet.</p>'}</div>`;
+      <div class="ad-btns"><button class="btn sm" data-view="${r.target}">Profile</button>${r.status === 'open' ? `<button class="btn sm" data-dismiss="${r.id}">Dismiss</button>` : ''}<button class="btn sm" data-reset="${r.target}">Reset stats</button><button class="btn sm" data-kick="${r.target}">Kick from game</button><button class="btn sm danger" data-ban="${r.target}">Ban</button></div></div>`).join('') || '<p class="note">No reports. All quiet.</p>'}</div>`;
   wireAdmin(pane);
 }
 function wireAdmin(pane) {
@@ -433,10 +453,21 @@ function wireAdmin(pane) {
   C.$$('[data-ban]', pane).forEach(x => x.onclick = () => adminAct('ban', x.dataset.ban));
   C.$$('[data-unban]', pane).forEach(x => x.onclick = () => adminAct('unban', x.dataset.unban));
   C.$$('[data-reset]', pane).forEach(x => x.onclick = () => adminAct('reset', x.dataset.reset));
+  C.$$('[data-kick]', pane).forEach(x => x.onclick = () => adminAct('kick', x.dataset.kick));
 }
 async function adminAct(kind, id) {
   let r;
-  if (kind === 'ban') { const why = await askText('Why are you banning this player? (they will see this)', 'Cheating', 'Ban'); if (why === null) return; r = await db().rpc('ek_admin_ban', { uid: id, why }); }
+  if (kind === 'ban') {
+    const why = await askText('Why are you banning this player? (they will see this)', 'Cheating', 'Next'); if (why === null) return;
+    const hrs = await askChoice('How long?', BAN_LENGTHS); if (hrs === null) return;
+    r = await db().rpc('ek_admin_ban', { uid: id, why, hours: +hrs });
+    if (!r.error) await db().from('ek_kicks').insert({ target: id, reason: 'banned' });   // a ban also boots them out of the game they're in
+  }
+  else if (kind === 'kick') {
+    const why = await askText('Kick this player out of their current game? Reason (they will see this)', 'Removed by an admin', 'Kick'); if (why === null) return;
+    r = await db().from('ek_kicks').insert({ target: id, reason: C.cleanText(why).slice(0, 200) });
+    if (!r.error) { C.toast('Kick sent. If they are in a game, they are out of it now.'); return; }
+  }
   else if (kind === 'unban') { if (!confirm('Unban this player?')) return; r = await db().rpc('ek_admin_unban', { uid: id }); }
   else { if (!confirm('Wipe this player’s career stats to zero?')) return; r = await db().rpc('ek_admin_reset_stats', { uid: id }); }
   if (r.error) C.toast(r.error.message); else C.toast(kind === 'ban' ? 'Player banned' : kind === 'unban' ? 'Player unbanned' : 'Stats reset');
@@ -449,7 +480,7 @@ async function adminFind() {
     const q = (C.$('#ad-q').value || '').trim().replace(/[%_,()]/g, ''); if (q.length < 2) { C.$('#ad-res').innerHTML = ''; return; }
     const { data } = await db().from('ek_players').select('id,name,games,wins,flags,banned').ilike('name', `%${q}%`).limit(20);
     C.$('#ad-res').innerHTML = (data || []).map(p => `<div class="ad-row"><div><b>${esc(p.name)}</b>${p.banned ? ' <span class="ad-tag st-banned">banned</span>' : ''}<small>${p.games} games, ${p.wins} wins, ${p.flags} anti-cheat flags</small></div>
-      <div class="ad-btns"><button class="btn sm" data-view="${p.id}">Profile</button><button class="btn sm" data-reset="${p.id}">Reset stats</button>${p.banned ? `<button class="btn sm" data-unban="${p.id}">Unban</button>` : `<button class="btn sm danger" data-ban="${p.id}">Ban</button>`}</div></div>`).join('') || '<p class="note">No players found.</p>';
+      <div class="ad-btns"><button class="btn sm" data-view="${p.id}">Profile</button><button class="btn sm" data-reset="${p.id}">Reset stats</button><button class="btn sm" data-kick="${p.id}">Kick from game</button>${p.banned ? `<button class="btn sm" data-unban="${p.id}">Unban</button>` : `<button class="btn sm danger" data-ban="${p.id}">Ban</button>`}</div></div>`).join('') || '<p class="note">No players found.</p>';
     wireAdmin(C.$('#ad-res'));
   };
   let t; C.$('#ad-q').oninput = () => { clearTimeout(t); t = setTimeout(go, 300); };
@@ -529,12 +560,27 @@ function listenInvites() {
   if (!db() || !me() || inviteUser === me().id) return;
   inviteUser = me().id;
   if (inviteSub) { try { db().removeChannel(inviteSub); } catch (_) {} }
-  inviteSub = db().channel('ek-inv-' + me().id).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ek_messages', filter: `recipient=eq.${me().id}` }, async (pl) => {
+  // baseline = newest kick already on the server (server clock), so old kicks never fire and new ones always do
+  db().from('ek_kicks').select('created_at').eq('target', me().id).order('created_at', { ascending: false }).limit(1).then(({ data }) => { kickSeen = (data && data[0] && data[0].created_at) || '1970-01-01T00:00:00Z'; }, () => { kickSeen = '1970-01-01T00:00:00Z'; });
+  inviteSub = db().channel('ek-inv-' + me().id).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ek_kicks', filter: `target=eq.${me().id}` }, (pl) => gotKick(pl.new, true)).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ek_messages', filter: `recipient=eq.${me().id}` }, async (pl) => {
     refreshUnread();
     const code = parseInvite(pl.new && pl.new.body); if (!code) return;
     const { data } = await db().from('ek_players').select('name').eq('id', pl.new.sender).maybeSingle();
     showInvite(code, data ? data.name : 'Someone');
   }).subscribe();
+}
+let kickSeen = null, kickPollT = 0;
+function gotKick(k, live) {
+  if (!k || (!live && kickSeen && k.created_at && k.created_at <= kickSeen)) return;
+  if (k.created_at && (!kickSeen || k.created_at > kickSeen)) kickSeen = k.created_at;
+  if (k.reason === 'banned') { banChecked = ''; checkBan(); }
+  if (C.st.playing) { C.leaveGame && C.leaveGame(); }
+  setTimeout(() => C.toast(`An admin removed you from the game${k.reason && k.reason !== 'banned' ? ': ' + k.reason : ''}`, 5000), 300);
+}
+async function pollKicks() {
+  if (!db() || !me() || !kickSeen) return;
+  const { data } = await db().from('ek_kicks').select('reason,created_at').eq('target', me().id).gt('created_at', kickSeen).order('created_at', { ascending: false }).limit(1);
+  if (data && data[0]) gotKick(data[0]);
 }
 function showInvite(code, from) {
   const el = C.$('#invite-pop'); if (!el) return;

@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792263100';
-import { Renderer } from './render.js?v=1792263100';
-import { Sfx } from './audio.js?v=1792263100';
-import { Auth } from './auth.js?v=1792263100';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792263100';
-import { getRoster, teamOvr } from './teams.js?v=1792263100';
-import * as Season from './season.js?v=1792263100';
-import * as Fr from './franchise.js?v=1792263100';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792263100';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792263100';
-import * as UTm from './ut.js?v=1792263100';
-import { initCreator, renderCreator } from './creator.js?v=1792263100';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792263100';
-import { portraitURL } from './faces.js?v=1792263100';
-import { logoURL, clearLogoCache } from './logos.js?v=1792263100';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792263263';
+import { Renderer } from './render.js?v=1792263263';
+import { Sfx } from './audio.js?v=1792263263';
+import { Auth } from './auth.js?v=1792263263';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792263263';
+import { getRoster, teamOvr } from './teams.js?v=1792263263';
+import * as Season from './season.js?v=1792263263';
+import * as Fr from './franchise.js?v=1792263263';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792263263';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792263263';
+import * as UTm from './ut.js?v=1792263263';
+import { initCreator, renderCreator } from './creator.js?v=1792263263';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792263263';
+import { portraitURL } from './faces.js?v=1792263263';
+import { logoURL, clearLogoCache } from './logos.js?v=1792263263';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1637,7 +1637,7 @@ requestAnimationFrame(frame);
 // used by friend challenges: host a private game with a given code, or join one
 function hostGame(code) { show('online'); SET.vis = 'private'; saveSet(); renderOnline(); $('#host-code').value = code; setTimeout(() => $('#host-btn').click(), 50); }
 function joinGame(code) { if (st.playing) { toast('Finish your game first'); return; } show('online'); $('#join-code').value = code; setTimeout(() => $('#join-btn').click(), 50); }
-const CTX = { refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
+const CTX = { leaveGame, refreshProfile, hostGame, joinGame, newCode: () => makeRoomCode(), zoomCam, st, cleanText, playClip, stopClip, profile, refreshChip, logoURL, teamOvr, $, $$, show, toast, sfx, Auth, TEAMS, seg, unlockAch, fillGrid, teamCard, wireTeamPick, openPicker, startCPU, DIFFICULTIES, QLENS, SET, saveSet, escapeHtml, screen: () => st.screen, customPlays, routeSvg, defSvg };
 initMeta(CTX);
 initCreator(CTX);
 initSocial(CTX);

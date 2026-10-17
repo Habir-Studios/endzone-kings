@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792252715';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792252715';
-import { drawLogo } from './logos.js?v=1792252715';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792252715';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792252804';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792252804';
+import { drawLogo } from './logos.js?v=1792252804';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792252804';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -970,7 +970,7 @@ export class Renderer {
     const j = m.j;
     const fallen = flags & 1, diving = flags & 2, juking = flags & 4, engaged = flags & 8, throwing = flags & 16, reaching = flags & 32, celebrating = flags & 64, scorer = flags & 128;
     const spinning = flags & 256, stiffing = flags & 512, hurdling = flags & 1024, leaping = flags & 2048, pressing = flags & 4096;
-    const wrapping = flags & 8192, catching = flags & 16384, fallBack = flags & 32768, oneHand = flags & 65536;
+    const wrapping = flags & 8192, catching = flags & 16384, fallBack = flags & 32768, oneHand = flags & 65536, trucking = flags & 131072;
     const run = Math.min(1, spd / 8.5), sprint = Math.max(0, (spd - 6.5) / 2.5);
     // stride gets longer (not just faster) as speed goes up
     m.phase += dt * (2.4 + spd * 1.15);
@@ -1025,6 +1025,7 @@ export class Renderer {
       else { as[0] = as[1] = -0.9; ae[0] = ae[1] = 0.25; az[0] = -0.2; az[1] = 0.2; headX = -0.25; lean = Math.max(lean, 0.45); drop += 0.12; } // low: scoop it
     }
     if (juking) { const side = Math.sin(ph * 0.5) > 0 ? 1 : -1; roll = 0.38 * side; drop += 0.1; lk[0] += 0.3; lk[1] += 0.3; }
+    if (trucking) { lean = Math.max(lean, 0.55); drop += 0.08; as[0] = -0.6; ae[0] = 1.5; az[0] = 0.5; headX = -0.15; }   // shoulder down, ball tucked
     if (stiffing) { as[0] = -1.6; ae[0] = 0.04; az[0] = 0.12; lean = 0.25; twist = 0.25; }
     if (pressing) { as[0] = as[1] = -1.45; ae[0] = ae[1] = 0.15; lean = 0.4; }
     if (hurdling) { m.hurT = (m.hurT || 0) + dt; const k = Math.min(1, m.hurT / 0.5); jump = Math.sin(k * Math.PI) * 0.85; lh[0] = -1.5; lk[0] = 0.3; lh[1] = 0.7; lk[1] = 1.5; lean = 0.55; as[0] = 0.6; as[1] = -0.8; } else m.hurT = 0;

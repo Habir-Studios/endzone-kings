@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792252715';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792252804';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792252715';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792252804';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -186,7 +186,7 @@ function makePlayer0(g, id, team, unit, role, x, z) {
   return {
     id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.88 + rt.spd / 100 * 0.15) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1), rt,
     x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI, max0: 0,
-    stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
+    stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, truck: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
     engagedBy: -1, blockOn: -1, shedCd: 0, svx: 0, svz: 0,
     route: null, ri: 0, rstop: false, ldx: 0, ldz: d,
   };
@@ -398,6 +398,8 @@ function handleEvent(g, team, ev) {
     if (iCarry && me.moveCd <= 0) { me.spin = 0.55; me.moveCd = 1.5; g.events.push('spin'); }
   } else if (ev.t === 'stiff') {
     if (iCarry && me.moveCd <= 0) { me.stiff = 0.6; me.moveCd = 1.3; g.events.push('stiff'); }
+  } else if (ev.t === 'truck') {
+    if (iCarry && me.moveCd <= 0) { me.truck = 0.55; me.moveCd = 1.4; g.events.push('juke'); }
   } else if (ev.t === 'hurdle') {
     if (iCarry && me.moveCd <= 0) { me.hurdle = 0.55; me.moveCd = 1.8; g.events.push('hurdle'); }
   } else if (ev.t === 'playball') {
@@ -1001,7 +1003,7 @@ function updateLive(g, dt, inputs) {
     p.tackleCd = Math.max(0, p.tackleCd - dt); p.shedCd = Math.max(0, p.shedCd - dt);
     if (p.dive > 0) { p.dive -= dt; if (p.dive <= 0) { p.stun = 0.75; p.fallen = 0.75; } }
     if (p.fallen > 0 && p.stun <= 0) p.fallen = 0;
-    p.spin = Math.max(0, p.spin - dt); p.stiff = Math.max(0, p.stiff - dt); p.hurdle = Math.max(0, p.hurdle - dt);
+    p.spin = Math.max(0, p.spin - dt); p.stiff = Math.max(0, p.stiff - dt); p.truck = Math.max(0, (p.truck || 0) - dt); p.hurdle = Math.max(0, p.hurdle - dt);
     p.moveCd = Math.max(0, p.moveCd - dt); p.playBall = Math.max(0, p.playBall - dt); if (p.press) p.press = Math.max(0, p.press - dt);
   }
   const pd = P.playDef || {};
@@ -1128,6 +1130,24 @@ function updateLive(g, dt, inputs) {
         { const sp = hyp(c2.vx, c2.vz) / (c2.max || 7); if (sp > 0.75) brk += 0.06; if (d.engagedBy >= 0) brk += 0.25; if (!c2.contacted && sp > 0.6 && c2.role === 'RB') brk += 0.1; c2.contacted = true; if (sp < 0.35) brk -= 0.3; }   // no momentum, no breaking tackles
         if (c2.juke > 0) brk = Math.max(brk, humanCarrier ? 0.6 : 0.42);
         if (c2.spin > 0) brk = Math.max(brk, humanCarrier ? 0.55 : 0.4);
+        // truck: lower the shoulder and try to run him over. Big, fast backs win it; a solid tackler squared up stops it,
+        // and if it fails you go down hard
+        if (c2.truck > 0) {
+          const fx = Math.sin(c2.face), fz = Math.cos(c2.face), ax = d.x - c2.x, az = d.z - c2.z, al = hyp(ax, az) || 1;
+          if ((fx * ax + fz * az) / al > -0.1 && d.dive <= 0) {
+            const sp = hyp(c2.vx, c2.vz) / (c2.max || 7);
+            const power = (c2.size - 1) * 2.4 + sp * 0.55 + c2.rt.elu * 0.002 + (c2.truck > 0.3 ? 0.1 : 0);
+            const hold = (d.size - 1) * 2.0 + d.rt.tkl / 100 * 0.5 + (youD ? 0.25 : 0);
+            c2.truck = 0;
+            if (power - hold + (g.rng() - 0.5) * 0.5 > 0.12) {
+              d.stun = 1.4; d.fallen = 1.4; d.tackleCd = 1.5; d.fallBack = 1; d.vx = ax / al * 5; d.vz = az / al * 5;
+              c2.vx *= 0.8; c2.vz *= 0.8; d.hitAt = g.t;
+              g.events.push('bighit'); mom(g, ct, 7); g.flash = { text: 'TRUCKED!', until: 1.2 }; highlight(g, 'TRUCK STICK', c2.rt.name, ct);
+              continue;
+            }
+            brk = -9;   // failed truck: he's going down
+          }
+        }
         let stiffWin = false;
         if (c2.stiff > 0) {
           // stiff arm: a big back shoving a defender who comes at him from the front or side, timed as the hit lands
@@ -1502,7 +1522,7 @@ function carrierSteer(g, p, s) {
   const l = hyp(fx, fz) || 1;
   if (p.jukeCd <= 0) {
     // CPU runners time their move into contact; shiftier backs do it more often
-    for (const q of g.players) if (q.team !== p.team && q.stun <= 0 && q.engagedBy < 0 && dist(p, q) < 1.75 && ((q.x - p.x) * (q.vx - p.vx) + (q.z - p.z) * (q.vz - p.vz)) < 0 && g.rng() < 0.12 + p.rt.elu / 100 * 0.25) { p.juke = 0.35; p.jukeCd = 1.6; g.events.push('juke'); break; }
+    for (const q of g.players) if (q.team !== p.team && q.stun <= 0 && q.engagedBy < 0 && dist(p, q) < 1.75 && ((q.x - p.x) * (q.vx - p.vx) + (q.z - p.z) * (q.vz - p.vz)) < 0 && g.rng() < 0.12 + p.rt.elu / 100 * 0.25) { if (p.size > 1.05 && g.rng() < 0.5) p.truck = 0.5; else p.juke = 0.35; p.jukeCd = 1.6; g.events.push('juke'); break; }
   }
   return { x: fx / l, z: fz / l, s: Math.min(1, s) };
 }
@@ -1894,7 +1914,7 @@ export function snapshot(g) {
         | (p.throwAt !== undefined && g.t - p.throwAt < 0.5 && g.phase === 'live' ? 16 : 0) | (reaching(g, p) ? 32 : 0)
         | (g.phase === 'dead' && g.celebrate === p.team ? 64 : 0) | (p.scorer && g.phase === 'dead' ? 128 : 0)
         | (p.spin > 0 ? 256 : 0) | (p.stiff > 0 ? 512 : 0) | (p.hurdle > 0 ? 1024 : 0) | (p.playBall > 0 ? 2048 : 0) | (p.press > 0 ? 4096 : 0)
-        | (p.wrapAt !== undefined && g.t - p.wrapAt < 1.2 ? 8192 : 0) | (p.caughtAt !== undefined && g.t - p.caughtAt < 0.5 ? 16384 : 0) | (p.fallBack ? 32768 : 0) | (p.oneHandAt !== undefined && g.t - p.oneHandAt < 0.6 ? 65536 : 0),
+        | (p.wrapAt !== undefined && g.t - p.wrapAt < 1.2 ? 8192 : 0) | (p.caughtAt !== undefined && g.t - p.caughtAt < 0.5 ? 16384 : 0) | (p.fallBack ? 32768 : 0) | (p.oneHandAt !== undefined && g.t - p.oneHandAt < 0.6 ? 65536 : 0) | (p.truck > 0 ? 131072 : 0),
       r2(p.stam), r2(p.size), p.rt.name, POS_LABEL[p.role], r2(p.moveCd), p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num)]),
     b: [r2(g.ball.x), r2(g.ball.y), r2(g.ball.z), g.ball.state === 'air' ? 1 : g.ball.state === 'kick' ? 2 : 0,
       g.ball.state === 'air' && !g.ball.auto ? [r2(g.ball.tx), r2(g.ball.tz)] : null, g.ball.carrier ?? -1],

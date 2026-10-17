@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792266919';
-import { TEAMS } from './teams.js?v=1792266919';
+import { askYes } from './ui.js?v=1792267120';
+import { TEAMS } from './teams.js?v=1792267120';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -39,11 +39,20 @@ async function tick() {
   const scr = C.screen();
   ticking = true;
   try {
-    if (scr === 'menu') await renderMenuBoard();
+    if (scr === 'menu') { await renderMenuBoard(); if (playerCountT++ % 30 === 0) refreshPlayerCount(); }
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
     if (me()) { ensureProfile(); listenInvites(); if (++kickPollT % 5 === 0 && C.st.playing) pollKicks(); }
     if (me() && (++unreadT % 10 === 0)) { refreshUnread(); refreshRequests(); loadNotifs(); }
   } catch (_) {} finally { ticking = false; }
+}
+
+// ---------------- player count (every account counts, active or not) ----------------
+let playerCountT = 0;
+async function refreshPlayerCount() {
+  const el = C.$('#player-count'); if (!el || !db()) return;
+  const { count, error } = await db().from('ek_players').select('id', { count: 'exact', head: true });
+  if (error || count == null) return;
+  C.$('#pc-total').textContent = count.toLocaleString(); el.classList.remove('hidden');
 }
 
 // ---------------- main menu mini board ----------------

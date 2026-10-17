@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792266919">
+  <link rel="stylesheet" href="css/style.css?v=1792267120">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#f6c445"/><stop offset="1" stop-color="#d98a00"/></linearGradient></defs></svg>
@@ -91,6 +91,7 @@
 
   <!-- ===================== MAIN MENU ===================== -->
   <section id="menu" class="screen">
+    <div class="player-count hidden" id="player-count" aria-live="off">Player count: <b id="pc-total">0</b></div>
     <button class="notif-btn" id="notif-btn" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5-6.7V3.5a2 2 0 1 0-4 0v.8A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg><i class="notif-n hidden" id="notif-n">0</i></button>
     <div class="notif-panel hidden" id="notif-panel" role="dialog" aria-label="Notifications"><div class="np-head"><b>Notifications</b><button class="link" id="notif-read" type="button">Mark all read</button></div><div id="notif-list"><p class="note">Nothing new.</p></div></div>
     <div class="profile-chip">
@@ -674,6 +675,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792266919"></script>
+  <script type="module" src="js/main.js?v=1792267120"></script>
 </body>
 </html>

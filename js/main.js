@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792267729';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792267729';
-import { Renderer } from './render.js?v=1792267729';
-import { Sfx } from './audio.js?v=1792267729';
-import { Auth } from './auth.js?v=1792267729';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792267729';
-import { getRoster, teamOvr } from './teams.js?v=1792267729';
-import * as Season from './season.js?v=1792267729';
-import * as Fr from './franchise.js?v=1792267729';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792267729';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792267729';
-import * as UTm from './ut.js?v=1792267729';
-import { initCreator, renderCreator } from './creator.js?v=1792267729';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792267729';
-import { portraitURL } from './faces.js?v=1792267729';
-import { logoURL, clearLogoCache } from './logos.js?v=1792267729';
+import { askYes } from './ui.js?v=1792267900';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792267900';
+import { Renderer } from './render.js?v=1792267900';
+import { Sfx } from './audio.js?v=1792267900';
+import { Auth } from './auth.js?v=1792267900';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792267900';
+import { getRoster, teamOvr } from './teams.js?v=1792267900';
+import * as Season from './season.js?v=1792267900';
+import * as Fr from './franchise.js?v=1792267900';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792267900';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792267900';
+import * as UTm from './ut.js?v=1792267900';
+import { initCreator, renderCreator } from './creator.js?v=1792267900';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792267900';
+import { portraitURL } from './faces.js?v=1792267900';
+import { logoURL, clearLogoCache } from './logos.js?v=1792267900';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1033,7 +1033,8 @@ function showGameOver(S) {
   if (!st.statsPosted && paid && !isGuest()) {
     st.statsPosted = true;
     const P = profile();
-    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : ''), ut: !!st.ut, pts: S.sc[me], online: st.mode === 'host' || st.mode === 'guest', fr: !!st.franchiseGame });
+    // the guest can't touch the host's game, so in-game anti-cheat flags never count against the guest
+    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (st.mode !== 'guest' && S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (st.mode !== 'guest' && S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : ''), ut: !!st.ut, pts: S.sc[me], online: st.mode === 'host' || st.mode === 'guest', fr: !!st.franchiseGame });
     if (P && P.tampered) { P.tampered = false; P.p.tampered = 0; P.save(); }
   }
   if (!st.rewarded) {

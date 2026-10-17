@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792267729';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792267900';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792267729';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792267900';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -937,7 +937,7 @@ function startReturn(g, k) {
     g.msg = { text: 'FAIR CATCH', sub: `${k.yds} yard punt`, until: 2 };
     return;
   }
-  ret.x = k.tx; ret.z = k.tz;
+  ret.x = k.tx; ret.z = k.tz; ret.warpT = g.t;
   g.kick = null; g.poss = rec;
   g.play = { off: rec, def: off, los: k.tz, bx: k.tx, type: 'run', snapT: g.t, thrown: false, handed: true, crossed: true, turnover: false, recognized: true,
     target: -1, throwT: 0, readT: 0, qbDecided: true, isPat: false, isReturn: true, playDef: {}, holdT: 99, holdRoll: 0, flag: null, puntYds: k.yds };
@@ -982,7 +982,8 @@ export function step(g, dt, inputs = [{}, {}]) {
   const pid = g.playId, ph = g.phase, before = g.players.map(p => [p.x, p.z]);
   const scoreOk = () => { if (g.score[0] + g.score[1] !== g.acPts) { acFlag(g, 'score changed outside a scoring play'); g.acPts = g.score[0] + g.score[1]; } };
   scoreOk();
-  if (g.phase === 'live' && g.acPid === pid) for (const p of g.players) if (p.acX !== undefined && Math.hypot(p.x - p.acX, p.z - p.acZ) > 0.05) { acFlag(g, 'player moved between frames'); break; }
+  // something outside the game moved a player (devtools): a real hack, not lag (lag can't move anyone between frames on the machine running the game)
+  if (g.phase === 'live' && g.acPid === pid) for (const p of g.players) if (p.acX !== undefined && Math.hypot(p.x - p.acX, p.z - p.acZ) > 0.5) { acFlag(g, 'player moved between frames'); break; }
   stepInner(g, dt, inputs);
   scoreOk();
   for (const p of g.players) { p.acX = p.x; p.acZ = p.z; }
@@ -990,8 +991,9 @@ export function step(g, dt, inputs = [{}, {}]) {
   if (ph === 'live' && g.phase === 'live' && g.playId === pid) {
     for (let i = 0; i < g.players.length; i++) {
       const p = g.players[i], b = before[i]; if (!b) continue;
-      const moved = Math.hypot(p.x - b[0], p.z - b[1]), lim = (p.max || 8) * 3 * dt + 1.0;
-      if (moved > lim) { acFlag(g, 'player teleported'); break; }
+      if (p.warpT === g.t) continue;   // the game itself put him there (diving catch, fumble recovery, punt return)
+      const moved = Math.hypot(p.x - b[0], p.z - b[1]), lim = (p.max || 8) * 4 * dt + 2.0;
+      if (moved > lim) { g.acTele = (g.acTele || 0) + 1; if (g.acTele >= 3) acFlag(g, 'player teleported'); break; }   // one-off glitches don't count, it has to keep happening
       if (p.max0 && p.max > p.max0 * 1.06) { acFlag(g, 'player speed was changed'); break; }
     }
   }
@@ -1313,7 +1315,7 @@ function updateLive(g, dt, inputs) {
     }
     if (!rec && b.looseT > 7) for (const p of g.players) { const dd = hyp(p.x - b.x, p.z - b.z); if (dd < rd) { rd = dd; rec = p; } }
     if (rec) {
-      b.state = 'held'; b.carrier = rec.id; rec.x = b.x; rec.z = b.z;
+      b.state = 'held'; b.carrier = rec.id; rec.x = b.x; rec.z = b.z; rec.warpT = g.t;
       const fum = g.players[P.fumbler], fumTeam = fum ? fum.team : P.off;
       if (rec.team !== fumTeam) {
         P.turnover = !P.turnover || rec.team !== P.off; g.poss = rec.team; mom(g, rec.team, 14); g.events.push('turnover');
@@ -2030,7 +2032,7 @@ function resolveBall(g) {
     P.catchZ = ro.z; ro.caughtAt = g.t;
     ro.vx *= 0.45; ro.vz *= 0.45; ro.secureT = 0.3;   // securing the catch costs a step
     if (diving) {
-      ro.x = L.x; ro.z = L.z; ro.dive = 0.55; ro.vx *= 0.3; ro.vz *= 0.3;
+      ro.x = L.x; ro.z = L.z; ro.warpT = g.t; ro.dive = 0.55; ro.vx *= 0.3; ro.vz *= 0.3;
       g.flash = { text: 'DIVING CATCH!', until: 1.4 }; g.events.push('catch', 'bighit');
       highlight(g, 'DIVING CATCH', ro.rt.name, offTeam); mom(g, offTeam, 6);
       g.stats[offTeam].comp++; pst(g, ro).rec++;

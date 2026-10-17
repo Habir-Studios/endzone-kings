@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792255331';
-import { Renderer } from './render.js?v=1792255331';
-import { Sfx } from './audio.js?v=1792255331';
-import { Auth } from './auth.js?v=1792255331';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792255331';
-import { getRoster, teamOvr } from './teams.js?v=1792255331';
-import * as Season from './season.js?v=1792255331';
-import * as Fr from './franchise.js?v=1792255331';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792255331';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792255331';
-import * as UTm from './ut.js?v=1792255331';
-import { initCreator, renderCreator } from './creator.js?v=1792255331';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792255331';
-import { portraitURL } from './faces.js?v=1792255331';
-import { logoURL, clearLogoCache } from './logos.js?v=1792255331';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792255873';
+import { Renderer } from './render.js?v=1792255873';
+import { Sfx } from './audio.js?v=1792255873';
+import { Auth } from './auth.js?v=1792255873';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792255873';
+import { getRoster, teamOvr } from './teams.js?v=1792255873';
+import * as Season from './season.js?v=1792255873';
+import * as Fr from './franchise.js?v=1792255873';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792255873';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792255873';
+import * as UTm from './ut.js?v=1792255873';
+import { initCreator, renderCreator } from './creator.js?v=1792255873';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792255873';
+import { portraitURL } from './faces.js?v=1792255873';
+import { logoURL, clearLogoCache } from './logos.js?v=1792255873';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21,9 +21,10 @@ const params = new URLSearchParams(location.search);
 const LOCALNET = params.has('localnet');
 
 // ---------------- settings ----------------
-const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'behind', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true, cel: -1, pside: 'off', pspot: 25 };
+const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'player', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true, cel: -1, pside: 'off', pspot: 25 };
 let SET = { ...DEF_SET };
 try { SET = { ...DEF_SET, ...JSON.parse(localStorage.getItem('ek_settings') || '{}') }; } catch (_) {}
+if (SET.camV !== 2) { SET.cam = 'player'; SET.camV = 2; }   // new over-the-shoulder camera is the default now
 const saveSet = () => { try { localStorage.setItem('ek_settings', JSON.stringify(SET)); } catch (_) {} };
 // graphics: unless the player picked a setting themselves, start low on weak machines (Chromebooks, 4 cores or less,
 // little memory) and keep stepping down while the frame rate is bad
@@ -462,8 +463,49 @@ window.addEventListener('keydown', (e) => {
   const ev = keyToEvent(k);
   if (ev) pushEv(ev);
 });
-window.addEventListener('keyup', (e) => { keys.delete(e.code); if (st.playing && (e.code === 'Space' || e.code === 'Enter') && !e.target.closest('.modal')) e.preventDefault(); });
+window.addEventListener('keyup', (e) => { keys.delete(e.code); if (st.charge && st.charge.code === e.code) releaseCharge(); if (st.playing && (e.code === 'Space' || e.code === 'Enter') && !e.target.closest('.modal')) e.preventDefault(); });
 window.addEventListener('blur', () => keys.clear());
+
+// ---- throw power: hold a receiver's button to wind up, release to throw. Green = right amount for that distance ----
+const CHARGE_T = 1.0;   // seconds to reach full (1.0); holding past it overthrows, auto-throws at 1.4
+function throwMeterEl() {
+  let el = document.getElementById('throw-meter');
+  if (!el) { el = document.createElement('div'); el.id = 'throw-meter'; el.innerHTML = '<div class="tm-zone"></div><div class="tm-fill"></div><span></span>'; document.body.appendChild(el); }
+  return el;
+}
+function chargeNeed(n) {
+  const S = st.snap; if (!S) return 0.5;
+  const role = ['WR1', 'WR2', 'RB', 'TE', 'WR3'][n - 1];
+  const qb = S.pl.find(q => q[0] === st.local && q[2] === 'QB'), r = S.pl.find(q => q[0] === st.local && q[2] === role);
+  if (!qb || !r) return 0.5;
+  return throwNeed(Math.hypot(r[4] - qb[4], r[5] - qb[5]));
+}
+function startCharge(n, code) {
+  if (st.charge) return;
+  st.charge = { n, code, t0: performance.now() };
+  sfx.play('ui');
+}
+function chargePw() { return st.charge ? Math.min(1.4, (performance.now() - st.charge.t0) / 1000 / CHARGE_T) : 0; }
+function releaseCharge() {
+  const c = st.charge; if (!c) return;
+  const pw = chargePw(); st.charge = null;
+  const el = document.getElementById('throw-meter'); if (el) el.classList.remove('on');
+  const S = st.snap;
+  if (S && S.canThrow && S.off === st.local) pushEv({ t: 'throw', n: c.n, pw: Math.round(pw * 100) / 100 });
+}
+function renderThrowMeter() {
+  const el = throwMeterEl(), c = st.charge, S = st.snap;
+  if (!c) { el.classList.remove('on'); return; }
+  if (!S || !S.canThrow || S.off !== st.local) { st.charge = null; el.classList.remove('on'); return; }
+  const pw = chargePw(), need = chargeNeed(c.n);
+  if (pw >= 1.4) return releaseCharge();
+  el.classList.add('on');
+  const pct = v => (v / 1.4 * 100).toFixed(1) + '%';
+  el.querySelector('.tm-zone').style.left = pct(Math.max(0, need - 0.14)); el.querySelector('.tm-zone').style.width = pct(0.34);
+  const f = el.querySelector('.tm-fill'); f.style.width = pct(pw);
+  f.style.background = pw < need - 0.14 ? '#60a5fa' : pw <= need + 0.2 ? '#22c55e' : '#ef4444';
+  el.querySelector('span').textContent = `${c.n} · ${pw < 0.45 ? 'touch' : pw > 0.9 ? 'bullet' : 'firm'}`;
+}
 
 function pushEv(ev) { if (st.mode === 'guest') { st.peer && st.peer.send({ t: 'ev', ev }, true); } else evq.push(ev); }
 
@@ -526,7 +568,8 @@ function touchButtons(S) {
     } else b.addEventListener('pointerdown', (e) => {
       e.preventDefault(); sfx.init();
       const v = moveVec();
-      const ev = id === 'snap' ? { t: 'snap' } : id[0] === 't' && id.length === 2 ? { t: 'throw', n: +id[1] } : id === 'juke' ? { t: 'juke', x: v.mx, z: v.mz } : { t: id };
+      if (id[0] === 't' && id.length === 2) { startCharge(+id[1], 'touch' + id[1]); const rel = () => { if (st.charge && st.charge.code === 'touch' + id[1]) releaseCharge(); }; b.addEventListener('pointerup', rel, { once: true }); b.addEventListener('pointerleave', rel, { once: true }); b.addEventListener('pointercancel', rel, { once: true }); return; }
+      const ev = id === 'snap' ? { t: 'snap' } : id === 'juke' ? { t: 'juke', x: v.mx, z: v.mz } : { t: id };
       pushEv(ev);
     });
     box.appendChild(b);
@@ -552,7 +595,7 @@ function keyToEvent(k) {
     return null;
   }
   if (S.ph !== 'live') return null;
-  if (digit >= 1 && digit <= 5 && S.canThrow && S.off === me) return { t: 'throw', n: digit };
+  if (digit >= 1 && digit <= 5 && S.canThrow && S.off === me) { startCharge(digit, k); return null; }
   if (k === 'KeyQ' || k === 'Tab') return { t: 'switch' };
   const carrier = S.b[3] === 0 ? S.b[5] : -1;
   const iCarry = carrier >= 0 && carrier === S.ctrl[me];
@@ -1147,7 +1190,7 @@ function updateHud(S) {
   if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
-    if (S.canThrow && S.off === me) hint([['1 2 3 4 5', 'throw (or click)'], ['W A S D', 'move'], ['Shift', 'sprint']]);
+    if (S.canThrow && S.off === me) hint([['hold 1-5', 'throw: tap = touch, hold = bullet, green = on target'], ['W A S D', 'move'], ['Shift', 'sprint']]);
     else if (iCarry) hint([['Space', 'juke'], ['E', 'spin'], ['R', 'stiff arm'], ['B', 'truck'], ['F', 'hurdle'], ['X', 'dive'], ['G', 'go down'], ['Shift', 'sprint']]);
     else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring'], ['E', 'aggressive catch']]);
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
@@ -1433,6 +1476,7 @@ function frame(now) {
   try { frameBody(now); } catch (e) { onFrameError(e); }
 }
 function frameBody(now) {
+  renderThrowMeter();
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   watchFps(dt);
   if (st.playing) {

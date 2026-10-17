@@ -7,7 +7,7 @@
 
 let C = null;
 export const pad = { on: false, jx: 0, jy: 0, sprint: false, rx: 0, ry: 0, kind: 'xbox', id: '' };
-const prev = [];
+const prev = [], held = [];
 const DEAD = 0.2;
 
 // which face button means what, for the prompts
@@ -53,7 +53,7 @@ function poll() {
   const ax = gp.axes, lx = ax[0] || 0, ly = ax[1] || 0, rx = ax[2] || 0, ry = ax[3] || 0;
   const b = i => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.5));
   const down = [];
-  for (let i = 0; i < gp.buttons.length; i++) { const now = b(i); if (now && !prev[i]) down.push(i); prev[i] = now; }
+  for (let i = 0; i < gp.buttons.length; i++) { const now = b(i); if (now && !prev[i]) down.push(i); if (!now && prev[i] && held[i]) { window.dispatchEvent(new KeyboardEvent('keyup', { code: held[i], key: held[i], bubbles: true })); held[i] = null; } prev[i] = now; }
   const active = down.length || Math.hypot(lx, ly) > 0.35 || Math.hypot(rx, ry) > 0.5;
   if (active && !pad.on) setMode(true);
   if (!pad.on) return;
@@ -90,6 +90,7 @@ function press(i) {
   if (pre && (i === 14 || i === 15 || i === 12 || i === 13) && !C.hotOpen()) return C.cardNav(i);
   if (pre && i === 0 && !C.hotOpen() && C.cardPickFocused()) return;
   if (c === 'presnapOff' && i === 1 && !C.hotOpen()) return;   // B only closes the hot route menu
+  if (c === 'pass' && map[i]) { held[i] = map[i]; window.dispatchEvent(new KeyboardEvent('keydown', { code: map[i], key: map[i], bubbles: true })); return; }   // hold for power, release to throw
   if (map[i]) tap(map[i]);
 }
 

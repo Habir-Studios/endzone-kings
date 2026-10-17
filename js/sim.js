@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792255331';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792255873';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792255331';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792255873';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -369,7 +369,7 @@ function handleEvent(g, team, ev) {
       let r = null;
       if (ev.t === 'throw') r = byRole(g, RECEIVERS[ev.n - 1]);
       else { const p = g.players[ev.id]; if (p && p.team === team && RECEIVERS.includes(p.role)) r = p; }
-      if (r) { throwBall(g, g.players[0], r, humanErr(g)); return; }
+      if (r) { throwBall(g, g.players[0], r, humanErr(g), ev.t === 'throw' && typeof ev.pw === 'number' ? clamp(ev.pw, 0, 1.4) : undefined); return; }
     }
     if (ev.t === 'pick') {
       const p = g.players[ev.id];
@@ -637,17 +637,33 @@ function leadPoint(from, r, speed) {
   return { x: tx, z: tz, T };
 }
 
-function throwBall(g, qb, r, err) {
+// how hard a throw to a receiver this far away should be (0..1), shared with the HUD meter
+export function throwNeed(D) { return clamp(0.22 + Math.min(D, 45) / 45 * 0.68, 0.25, 0.9); }
+function throwBall(g, qb, r, err, pw) {
   const P = g.play;
   const D0 = dist(qb, r);
-  const speed = (16 + Math.min(D0, 40) * 0.17) * (0.86 + qb.rt.arm / 100 * 0.2);
+  // power: tap = soft touch/lob, hold = bullet. Hit the window for the distance or it sails long or dies short.
+  const need = throwNeed(D0), human = pw !== undefined;
+  if (!human) pw = need + (g.rng() - 0.5) * 0.1;
+  const bullet = clamp(pw, 0.1, 1.4);
+  const speed = (16 + Math.min(D0, 40) * 0.17) * (0.86 + qb.rt.arm / 100 * 0.2) * (0.72 + bullet * 0.38);
   const L = leadPoint(qb, r, speed);
   // longer throws are harder to place
   const a = g.rng() * Math.PI * 2, e = err * (0.6 + Math.min(D0, 45) / 11) * Math.sqrt(g.rng());
-  const tx = L.x + Math.cos(a) * e, tz = L.z + Math.sin(a) * e;
+  let tx = L.x + Math.cos(a) * e, tz = L.z + Math.sin(a) * e;
+  if (human) {
+    const off = pw - need, ux = (L.x - qb.x) / (hyp(L.x - qb.x, L.z - qb.z) || 1), uz = (L.z - qb.z) / (hyp(L.x - qb.x, L.z - qb.z) || 1);
+    let depth = 0;
+    if (off > 0.2) depth = (off - 0.2) * 24;            // too much juice: sails over his head
+    else if (off < -0.14) depth = (off + 0.14) * 30;    // not enough: dies short, defenders undercut it
+    tx += ux * depth; tz += uz * depth;
+    g.flash = Math.abs(off) <= 0.12 ? { text: 'PERFECT THROW', until: 0.7 } : depth > 2.5 ? { text: 'OVERTHROWN', until: 0.8 } : depth < -2.5 ? { text: 'UNDERTHROWN', until: 0.8 } : g.flash;
+  }
   const D = hyp(tx - qb.x, tz - qb.z);
   g.ball.x = qb.x; g.ball.z = qb.z; g.ball.y = 1.9;
-  launchBall(g, tx, tz, Math.max(0.4, D / speed), 0.7 + D * 0.12, r.id, false);
+  const arc = (0.7 + D * 0.12) * (bullet < 0.45 ? 1.7 - bullet : bullet > 0.85 ? 0.8 : 1);   // touch passes float, bullets are flat
+  launchBall(g, tx, tz, Math.max(0.4, D / speed), arc, r.id, false);
+  g.ball.pw = bullet; g.ball.pwOff = human ? pw - need : 0;
   g.ball.ix = L.x; g.ball.iz = L.z;   // where the QB meant to put it
   P.thrown = true; P.target = r.id; P.throwT = g.t; qb.throwAt = g.t;
   g.stats[P.off].att++;
@@ -1797,8 +1813,9 @@ function resolveBall(g) {
   } else if (cO) {
     // open-ish: how hard was this catch? reaching for it, a defender closing on him, running full speed across the field
     const near = rd ? dD : 9, spdK = hyp(ro.vx, ro.vz) / (ro.max || 8);
-    const need = Math.max(0, dO - 0.6) * 0.5 + (near < 2.6 ? (2.6 - near) * 0.2 : 0) + (spdK > 0.85 ? 0.06 : 0);
-    outcome = (ro.rt.hands * wx) / 100 * 0.9 - 0.27 + timing(ro) * 0.25 + noise() * 0.5 > need ? 'catch' : 'inc';
+    const hot = Math.max(0, (b.pw || 0.6) - 0.9) * 0.45 + Math.max(0, (b.pwOff || 0) - 0.1) * 0.5;   // a fastball he wasn't ready for
+    const need = Math.max(0, dO - 0.55) * 0.55 + (near < 2.8 ? (2.8 - near) * 0.2 : 0) + (spdK > 0.85 ? 0.07 : 0) + hot + 0.02;
+    outcome = (ro.rt.hands * wx) / 100 * 0.9 - 0.27 + timing(ro) * 0.25 + noise() > need ? 'catch' : 'inc';
     if (outcome === 'inc' && !g.flash) g.flash = { text: near < 2.6 ? 'BROKEN UP' : 'DROPPED', until: 1.0 };
   } else if (ro && !outOfBounds && dO < 3.0 && (!rd || dD > dO + 0.4)) {
     // just out of reach: he lays out for it if he's fast and sure-handed enough

@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792255331';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792255331';
-import { drawLogo } from './logos.js?v=1792255331';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792255331';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792255873';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792255873';
+import { drawLogo } from './logos.js?v=1792255873';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792255873';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -52,7 +52,7 @@ export class Renderer {
     this.scene.fog = new THREE.FogExp2(0x070b1f, 0.0042);
     this.cam = new THREE.PerspectiveCamera(48, 1, 0.3, 900);
     this.cam.position.set(0, 12, -20);
-    this.camMode = 'behind';
+    this.camMode = 'player';
     this.userZoom = 1;   // scroll / +- to pull the camera back and see more of the field
     this.focus = new THREE.Vector3(0, 0, 25);
     this.camPos = new THREE.Vector3(0, 12, 5);
@@ -1269,7 +1269,11 @@ export class Renderer {
       fx = fx * (1 - w) + me[4] * 0.9 * w; fz = fz * (1 - w) + me[5] * w;
     }
     // player cam: follow the guy you control instead of the ball
-    if (this.camMode === 'player' && local >= 0 && S.ctrl && S.ctrl[local] >= 0 && S.pl[S.ctrl[local]] && (S.ph === 'live' || S.ph === 'presnap')) { const me = S.pl[S.ctrl[local]]; fx = me[4] * 0.9; fz = me[5] + 2 * s; }
+    if (this.camMode === 'player' && local >= 0 && S.ctrl && S.ctrl[local] >= 0 && S.pl[S.ctrl[local]] && (S.ph === 'live' || S.ph === 'presnap')) {
+      const me = S.pl[S.ctrl[local]];
+      if (bstate === 1 && tgt && S.poss === local) { fx = (me[4] * 0.4 + tgt[0] * 0.6); fz = me[5] * 0.4 + tgt[1] * 0.6 - 3 * s; }   // ball in the air: swing toward the catch
+      else { fx = me[4]; fz = me[5]; }
+    }
     const k = 1 - Math.exp(-dt * (bstate === 2 ? 2.2 : this.camMode === 'player' ? 5 : 3.2));
     this.focus.x += (fx - this.focus.x) * k; this.focus.z += (fz - this.focus.z) * k;
     let px, py, pz, lx, ly, lz;
@@ -1282,8 +1286,15 @@ export class Renderer {
       const celebrate = S.msg && S.msg.big && S.ph === 'dead';
       const zoom = (celebrate ? 0.72 : 1) * this.userZoom * (local >= 0 && S.poss !== local && !kickingNow(S) ? 1.15 : 1);
       const kicking = S.ph === 'kickset' || S.ph === 'kick';
-      px = this.focus.x * 0.93; py = (portrait ? 13 : (kicking ? 6.5 : 9)) * zoom; pz = this.focus.z - (portrait ? 16 : (kicking ? 11 : 13.5)) * s * zoom;
-      lx = this.focus.x; ly = celebrate ? 1.5 : 0.8; lz = this.focus.z + (kicking ? 30 : 9 + (this.userZoom - 1) * 6) * s;
+      const close = this.camMode === 'player' && !kicking && !celebrate;
+      if (close) {
+        // third-person, right over your player's shoulders, looking down the field
+        px = this.focus.x * 0.96; py = (portrait ? 7 : 4.6) * zoom; pz = this.focus.z - (portrait ? 11 : 8.5) * s * zoom;
+        lx = this.focus.x; ly = 1.6; lz = this.focus.z + 11 * s;
+      } else {
+        px = this.focus.x * 0.93; py = (portrait ? 12 : (kicking ? 6.5 : 7.4)) * zoom; pz = this.focus.z - (portrait ? 15.5 : (kicking ? 11 : 12.5)) * s * zoom;
+        lx = this.focus.x; ly = celebrate ? 1.5 : 1.1; lz = this.focus.z + (kicking ? 30 : 10 + (this.userZoom - 1) * 6) * s;
+      }
     }
     const kp = 1 - Math.exp(-dt * 5);
     this.camPos.x += (px - this.camPos.x) * kp; this.camPos.y += (py - this.camPos.y) * kp; this.camPos.z += (pz - this.camPos.z) * kp;

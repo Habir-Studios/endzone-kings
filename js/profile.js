@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792270634';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792270837';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -436,6 +436,8 @@ export class Profile {
   completeSet(k) {
     const r = this.setPick(k); if (!r) return 'No such set';
     if (r.locked) return 'You already finished this set this week';
+    const U0 = this.p.ut, today = dayKey(); if (!U0.setDay || U0.setDay.d !== today) U0.setDay = { d: today, n: {} };
+    if (r.set.daily && (U0.setDay.n[k] || 0) >= r.set.daily) return `You've done ${r.set.n} ${r.set.daily === 1 ? 'once' : r.set.daily + ' times'} today. Come back tomorrow`;
     if (!r.ok) return 'You don’t have enough players for this set';
     const U = this.p.ut, gone = new Set(r.pick.map(c => c.u));
     U.cards = U.cards.filter(c => !gone.has(c.u));
@@ -444,7 +446,8 @@ export class Profile {
     if (g.coins) this.p.coins += g.coins;
     if (g.master) [got] = this.addCards([masterId(hashStr(U.sets.w + 'master'))]);
     if (r.set.weekly) U.sets.done.push(k);
-    this.p.fp.xp += 150;
+    if (r.set.daily) U.setDay.n[k] = (U.setDay.n[k] || 0) + 1;
+    this.p.fp.xp += 40;
     this.save(); return { give: g, card: got };
   }
   soloDone(k) { return this.p.ut.solos.done.includes(k); }

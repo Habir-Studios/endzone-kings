@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792270634';
-import { grade, nextForm, decay, formed } from './form.js?v=1792270634';
+import { TEAMS } from './teams.js?v=1792270837';
+import { grade, nextForm, decay, formed } from './form.js?v=1792270837';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
@@ -235,12 +235,15 @@ export function listingSells(l) {
 
 // ---------------- sets ----------------
 // Trade players in for something better. Lineup players can't go in a set.
+// Every set costs more in players than it gives back, and each can only be done a few times a day,
+// so sets can't be looped into endless coins (someone farmed 125k that way).
+export const SET_DAILY = 2;
 export const SETS = [
-  { k: 'b2s', n: 'Bronze Bundle', d: 'Turn 6 bronze players into a Silver Pack', need: [[0, 6]], give: { pack: 'silver' } },
-  { k: 's2g', n: 'Silver Exchange', d: 'Turn 5 silver players into a Gold Pack', need: [[1, 5]], give: { pack: 'gold' } },
-  { k: 'g2e', n: 'Gold Upgrade', d: 'Turn 7 gold players into an Elite Pack', need: [[2, 7]], give: { pack: 'elite' } },
-  { k: 'e2k', n: 'Elite Trade-up', d: 'Turn 4 elite players into a Kings Pack', need: [[3, 4]], give: { pack: 'kings' } },
-  { k: 'mix', n: 'Coin Flip', d: 'Turn 3 silver and 2 gold players into 4,000 coins', need: [[1, 3], [2, 2]], give: { coins: 4000 } },
+  { k: 'b2s', n: 'Bronze Bundle', d: 'Turn 14 bronze players into a Silver Pack. 2 a day', need: [[0, 14]], give: { pack: 'silver' }, daily: SET_DAILY },
+  { k: 's2g', n: 'Silver Exchange', d: 'Turn 11 silver players into a Gold Pack. 2 a day', need: [[1, 11]], give: { pack: 'gold' }, daily: SET_DAILY },
+  { k: 'g2e', n: 'Gold Upgrade', d: 'Turn 12 gold players into an Elite Pack. 2 a day', need: [[2, 12]], give: { pack: 'elite' }, daily: SET_DAILY },
+  { k: 'e2k', n: 'Elite Trade-up', d: 'Turn 7 elite players into a Kings Pack. Once a day', need: [[3, 7]], give: { pack: 'kings' }, daily: 1 },
+  { k: 'mix', n: 'Coin Flip', d: 'Turn 5 silver and 3 gold players into 900 coins. Once a day', need: [[1, 5], [2, 3]], give: { coins: 900 }, daily: 1 },
   { k: 'master', n: 'Weekly Master', d: 'Turn 2 elite and 5 gold players into this week’s 95 OVR Kings player. Once a week', need: [[3, 2], [2, 5]], give: { master: true }, weekly: true },
 ];
 // this week's master card: a 95 OVR Kings player (fixed per week)

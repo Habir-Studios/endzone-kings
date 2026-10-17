@@ -1,18 +1,19 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { askYes, askPick, showInfo, injuryCard } from './ui.js?v=1792273927';
-import { grade, nextForm, decay, formed, formTag } from './form.js?v=1792273927';
-import { watchSim } from './simview.js?v=1792273927';
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792273927';
-import * as Season from './season.js?v=1792273927';
+import { askYes, askPick, showInfo, injuryCard } from './ui.js?v=1792274085';
+import { grade, nextForm, decay, formed, formTag } from './form.js?v=1792274085';
+import { watchSim } from './simview.js?v=1792274085';
+import { bracketHTML } from './bracket.js?v=1792274085';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792274085';
+import * as Season from './season.js?v=1792274085';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const KEY = () => 'ek_franchise_' + (C.Auth.user ? C.Auth.user.id : 'anon');
 export const load = () => { try { return JSON.parse(localStorage.getItem(KEY())); } catch (_) { return null; } };
-const save = F => { if (F) F.at = Date.now(); try { localStorage.setItem(KEY(), JSON.stringify(F)); } catch (_) {} if (C.Auth && C.Auth.saveCloud) C.Auth.saveCloud(null, { fr: F }); };
+const save = F => { if (F) F.at = Date.now(); try { localStorage.setItem(KEY(), JSON.stringify(F)); } catch (_) {} if (C && C.Auth && C.Auth.saveCloud) C.Auth.saveCloud(null, { fr: F }); };
 // a newer franchise from another device replaces this one
 export function adoptCloud(fr) { const cur = load(); if (fr && (!cur || (fr.at || 0) > (cur.at || 0))) { try { localStorage.setItem(KEY(), JSON.stringify(fr)); } catch (_) {} return true; } return false; }
 
@@ -182,7 +183,25 @@ export function simWeek(F) {
   save(F);
   return mine;
 }
+// end-of-season awards for your team, and the Hall of Fame for the all-time greats who retire with you
+const OFFG = ['QB', 'HB', 'WR', 'TE', 'OL'];
+function seasonAwards(F) {
+  const all = Object.values(F.players).filter(p => production(p) > 0), top = (arr) => arr.sort((a, b) => production(b) - production(a))[0];
+  const A = { year: F.year };
+  const mvp = top(all.slice()); if (mvp) A.mvp = { n: `${mvp.first} ${mvp.last}`, g: mvp.group, id: mvp.id };
+  const op = top(all.filter(p => OFFG.includes(p.group))); if (op) A.opoy = { n: `${op.first} ${op.last}`, g: op.group };
+  const dp = top(all.filter(p => !OFFG.includes(p.group))); if (dp) A.dpoy = { n: `${dp.first} ${dp.last}`, g: dp.group };
+  const rk = top(all.filter(p => p.age <= 23)); if (rk) A.roy = { n: `${rk.first} ${rk.last}`, g: rk.group };
+  for (const k of ['mvp', 'opoy', 'dpoy', 'roy']) { const a = A[k]; if (!a) continue; const p = Object.values(F.players).find(q => `${q.first} ${q.last}` === a.n); if (p) p.awards = (p.awards || 0) + 1; }
+  F.awards = [A, ...(F.awards || [])].slice(0, 30);
+  F.log.unshift(`${F.year}: awards: MVP ${A.mvp ? A.mvp.n : '-'}${A.roy ? ', Rookie of the Year ' + A.roy.n : ''}`);
+}
+function hallCheck(F, p) {
+  const c = p.cs || {}, score = (c.py || 0) / 25 + (c.ptd || 0) * 4 + (c.ry || 0) / 10 + (c.recy || 0) / 10 + (c.td || 0) * 6 + (c.tk || 0) * 1.2 + (c.sk || 0) * 4 + (c.int || 0) * 5 + (p.awards || 0) * 60;
+  if (score >= 650 || (p.awards || 0) >= 3) { F.hof = [...(F.hof || []), { n: `${p.first} ${p.last}`, g: p.group, y: F.year, line: `${(c.py || 0) + (c.ry || 0) + (c.recy || 0)} yds, ${(c.td || 0) + (c.ptd || 0)} TD, ${c.tk || 0} tkl, ${p.awards || 0} awards` }]; F.log.unshift(`${F.year}: ${p.first} ${p.last} is going to the Hall of Fame`); }
+}
 function endSeason(F) {
+  seasonAwards(F);
   const st = F.season.standings[F.team];
   const champ = F.season.champion === F.team;
   F.history.unshift({ year: F.year, w: st.w, l: st.l, t: st.t, champ, playoffs: !!(F.season.playoffs && F.season.playoffs.seeds.includes(F.team)) });
@@ -195,8 +214,16 @@ function endSeason(F) {
 }
 
 // ---------------- offseason ----------------
-export function askingPrice(p) { return +(salaryFor(p.ovr) * (p.age >= 31 ? 0.85 : 1.1)).toFixed(2); }
-export function resign(F, id, yrs) { const p = F.players[id]; if (!p) return; p.sal = askingPrice(p); p.yrs = yrs; save(F); }
+// what a player wants: his rating, his age, and how much he produced this season (a big year means a raise)
+export function production(p) { const s = p.ss || {}; return (s.py || 0) / 25 + (s.ptd || 0) * 4 + (s.ry || 0) / 10 + (s.recy || 0) / 10 + (s.rec || 0) * 0.5 + (s.td || 0) * 6 + (s.tk || 0) * 1.2 + (s.sk || 0) * 4 + (s.int || 0) * 5; }
+export function askingPrice(p) {
+  const prodBoost = Math.max(-0.12, Math.min(0.4, (production(p) - 60) / 400)), form = (p.form || 0) >= 1.5 ? 0.06 : 0;
+  return +(salaryFor(p.ovr) * (p.age >= 31 ? 0.85 : 1.1) * (1 + prodBoost + form) * (1 + (p.askUp || 0))).toFixed(2);
+}
+// lowball offer: he might take it, or get insulted and ask for more
+export function lowball(F, id, yrs) { const p = F.players[id]; if (!p || p.lowballed) return null; p.lowballed = true; const ok = Math.random() < (p.age >= 31 ? 0.6 : production(p) > 150 ? 0.25 : 0.45);
+  if (ok) { p.sal = +(askingPrice(p) * 0.85).toFixed(2); p.yrs = yrs; } else p.askUp = (p.askUp || 0) + 0.1; save(F); return ok; }
+export function resign(F, id, yrs) { const p = F.players[id]; if (!p) return; p.sal = askingPrice(p); p.yrs = yrs; delete p.askUp; delete p.lowballed; save(F); }
 export function release(F, id) {
   const p = F.players[id]; if (!p) return;
   delete F.players[id]; F.bench = F.bench.filter(x => x !== id);
@@ -279,7 +306,7 @@ export function startNextSeason(F) {
       if (p.tag === 'sleeper') { notes.push(`SLEEPER! ${p.first} ${p.last} is a ${devName(p.dev)}`); F.log.unshift(`${F.year}: ${p.first} ${p.last} turned out to be a sleeper (${devName(p.dev)})`); }
       else if (p.tag === 'bust') { notes.push(`BUST: ${p.first} ${p.last} isn't the ${devName(p.proj)} we thought`); F.log.unshift(`${F.year}: ${p.first} ${p.last} was a draft bust`); }
     }
-    if (p.age >= 34 && Math.random() < (p.age - 32) * 0.25) { notes.push(`${p.first} ${p.last} retired`); F.log.unshift(`${F.year}: ${p.first} ${p.last} retired at ${p.age}`); release(F, p.id); }
+    if (p.age >= 34 && Math.random() < (p.age - 32) * 0.25) { notes.push(`${p.first} ${p.last} retired`); F.log.unshift(`${F.year}: ${p.first} ${p.last} retired at ${p.age}`); hallCheck(F, p); release(F, p.id); }
   }
   fillHoles(F);
   F.season = Season.newSeason(F.team, undefined, F.year);
@@ -305,6 +332,42 @@ function migrate(F) {
   const r = getRoster(F.team); let n = 0;
   for (const role of r.order) if (!F.players[F.starters[role]]) { const p = fromRoster(F, role, r.players[role]); F.players[p.id] = p; F.starters[role] = p.id; n++; }
   if (n) { F.log.unshift(`${F.year}: the league went 11-on-11, ${n} players joined your team`); save(F); }
+}
+// ---------- trades with CPU teams (before the week 9 deadline, 4 a season) ----------
+const TRADE_MAX = 4;
+export const tradeOpen = F => F.season && F.season.phase === 'regular' && F.season.week < 9;
+const tradeVal = p => p.ovr + (p.age <= 25 ? 2 : p.age >= 31 ? -3 : 0) + (p.dev === 'superstar' ? 4 : p.dev === 'star' ? 2 : 0);
+export function tradeOffers(F, id) {
+  const p = F.players[id]; if (!p) return [];
+  F.offers = F.offers || {}; const key = `${id}:${F.year}:${F.season.week}`;
+  if (F.offers[key]) return F.offers[key];
+  const others = Object.keys(TEAMS).map(Number).filter(t => t !== F.team), v = tradeVal(p);
+  const weak = Object.keys(F.starters).map(r => [r, F.players[F.starters[r]]]).filter(([, q]) => q).sort((a, b) => a[1].ovr - b[1].ovr).map(([r]) => GROUP(r));
+  const groups = [p.group, weak[0] || p.group, weak[1] || p.group];
+  const out = groups.map((g, i) => { const age = 23 + ((Math.random() * 9) | 0), ovr = Math.max(55, Math.min(95, Math.round(v - (age <= 25 ? 2 : age >= 31 ? -3 : 0) + (Math.random() * 4 - 2.5)))); const q = mkPlayer(F, g, ovr, age, { yrs: 1 + ((Math.random() * 3) | 0) }); q.sal = salaryFor(q.ovr); q.from = others[(Math.random() * others.length) | 0]; return q; });
+  F.offers = { [key]: out }; save(F); return out;
+}
+export function acceptTrade(F, id, offerIdx) {
+  const p = F.players[id], key = `${id}:${F.year}:${F.season.week}`, q = F.offers && F.offers[key] && F.offers[key][offerIdx]; if (!p || !q) return 'That offer is gone';
+  if (!tradeOpen(F)) return 'The trade deadline has passed';
+  F.trades = F.trades && F.trades.y === F.year ? F.trades : { y: F.year, n: 0 }; if (F.trades.n >= TRADE_MAX) return `You've used all ${TRADE_MAX} trades this season`;
+  if (payroll(F) - p.sal + q.sal > CAP) return 'That trade would put you over the cap';
+  const role = roleOf(F, id); delete F.players[id]; F.bench = F.bench.filter(x => x !== id);
+  const nq = { ...q, id: F.next++ }; delete nq.from; F.players[nq.id] = nq;
+  if (role && GROUP(role) === nq.group) F.starters[role] = nq.id; else { if (role) delete F.starters[role]; F.bench.push(nq.id); fillHoles(F); }
+  F.trades.n++; F.offers = {}; F.log.unshift(`${F.year}: traded ${p.first} ${p.last} to ${TEAMS[q.from].city} for ${nq.first} ${nq.last} (${nq.group}, ${nq.ovr})`); save(F); return null;
+}
+function tradeTab(F) {
+  const pane = C.$('#fr-pane'), open = tradeOpen(F), left = TRADE_MAX - (F.trades && F.trades.y === F.year ? F.trades.n : 0);
+  const mine = Object.values(F.players).sort((a, b) => b.ovr - a.ovr);
+  pane.innerHTML = `<div class="fr-next"><div><small>Trade block</small><h3>${open ? `Deadline: before week 9 · ${left} trade${left === 1 ? '' : 's'} left` : 'The trade deadline has passed'}</h3><p class="note">Put a player on the block to see what CPU teams will give you. Offers change every week.</p></div></div>
+    <div class="fr-list">${mine.map(p => pRow(p, open && left > 0 ? `<button class="btn sm" data-tb="${p.id}">Shop him</button>` : '')).join('')}</div><div id="fr-offers"></div>`;
+  C.$$('[data-tb]', pane).forEach(b => b.onclick = () => {
+    const id = +b.dataset.tb, p = F.players[id], offs = tradeOffers(F, id), box = C.$('#fr-offers');
+    box.innerHTML = `<h3 class="store-h">Offers for ${esc(p.first)} ${esc(p.last)} (${p.group}, ${p.ovr})</h3><div class="fr-list">${offs.map((q, i) => pRow(q, `<span class="note">from ${TEAMS[q.from].abbr}</span><button class="btn sm primary" data-ta="${i}">Accept</button>`)).join('')}</div>`;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    C.$$('[data-ta]', box).forEach(a => a.onclick = async () => { const q = offs[+a.dataset.ta]; if (!(await askYes(`Trade ${p.last} for ${q.first} ${q.last} (${q.group}, ${q.ovr})?`, 'Trade'))) return; const err = acceptTrade(F, id, +a.dataset.ta); C.toast(err || 'Trade done'); renderFranchise(); });
+  });
 }
 // tap any player: injury, recovery, fatigue and form
 function wirePlayerInfo(F) {
@@ -332,7 +395,7 @@ export function renderFranchise() {
   const t = TEAMS[F.team], r = teamRating(F), pay = payroll(F);
   $('#fr-top').innerHTML = `<img alt="" src="${C.logoURL(F.team, 96)}"><div><h3>${t.city} <small>${F.year} season</small></h3><p class="note">${r.ovr} OVR (offense ${r.off}, defense ${r.def}). ${F.trophies} Kings Bowl title${F.trophies === 1 ? '' : 's'}. ${(() => { const h = F.history || [], w = h.reduce((a, x) => a + x.w, 0), l = h.reduce((a, x) => a + x.l, 0), tt = h.reduce((a, x) => a + (x.t || 0), 0), po = h.filter(x => x.playoffs).length; return h.length ? `All-time ${w}-${l}${tt ? '-' + tt : ''} over ${h.length} season${h.length > 1 ? 's' : ''}, ${po} playoff trip${po === 1 ? '' : 's'}.` : 'First season.'; })()} Payroll $${pay.toFixed(1)}M of $${CAP}M.</p></div>
     <div class="fr-cap"><div class="bar"><i style="width:${Math.min(100, pay / CAP * 100)}%;${pay > CAP ? 'background:var(--siren)' : ''}"></i></div><small>Cap space $${(CAP - pay).toFixed(1)}M</small></div>`;
-  ({ hub: hubTab, roster: rosterTab, league: leagueTab, legacy: legacyTab })[tab](F);
+  ({ hub: hubTab, roster: rosterTab, trade: tradeTab, league: leagueTab, legacy: legacyTab })[tab](F);
 }
 function hubTab(F) {
   const pane = C.$('#fr-pane');
@@ -375,20 +438,23 @@ function rosterTab(F) {
 }
 function leagueTab(F) {
   const pane = C.$('#fr-pane'), rows = Season.table(F.season);
-  pane.innerHTML = `<div class="tbl-wrap"><table class="tbl"><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr>${rows.map((r, i) => `<tr class="${r.team === F.team ? 'me' : ''}"><td>${i + 1}</td><td>${TEAMS[r.team].city}</td><td>${r.w}</td><td>${r.l}</td><td>${r.pf}</td><td>${r.pa}</td></tr>`).join('')}</table></div>`;
+  pane.innerHTML = `${F.season.playoffs ? `<h3 class="store-h">Playoffs</h3>${bracketHTML(F.season, F.team, C.logoURL)}` : ''}<div class="tbl-wrap"><table class="tbl"><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr>${rows.map((r, i) => `<tr class="${r.team === F.team ? 'me' : ''}"><td>${i + 1}</td><td>${TEAMS[r.team].city}</td><td>${r.w}</td><td>${r.l}</td><td>${r.pf}</td><td>${r.pa}</td></tr>`).join('')}</table></div>`;
 }
 function legacyTab(F) {
   const pane = C.$('#fr-pane'), all = Object.values(F.players).sort((a, b) => (b.cs.td || 0) + (b.cs.py || 0) / 50 - (a.cs.td || 0) - (a.cs.py || 0) / 50).slice(0, 8);
   pane.innerHTML = `<h3 class="store-h">Seasons</h3><div class="fr-list">${F.history.map(h => `<div class="fr-p"><span class="fr-ovr">${h.champ ? '🏆' : h.playoffs ? 'P' : '-'}</span><div><b>${h.year}: ${h.w}W-${h.l}L${h.t ? '-' + h.t + 'T' : ''}</b><small>${h.champ ? 'Kings Bowl champions' : h.playoffs ? 'Made the playoffs' : 'Missed the playoffs'}</small></div></div>`).join('') || '<p class="note">Your first season is still going.</p>'}</div>
     <h3 class="store-h">Franchise leaders</h3><div class="fr-list">${all.map(p => pRow(p, `<small class="fr-cs">${fmt(p.cs.py || 0)} pass yds, ${fmt(p.cs.ry || 0)} rush, ${fmt(p.cs.recy || 0)} rec, ${fmt(p.cs.td || 0)} TD, ${fmt(p.cs.tk || 0)} tkl, ${fmt(p.cs.sk || 0)} sacks</small>`)).join('')}</div>
+    <h3 class="store-h">Awards</h3>${(F.awards || []).length ? `<div class="fr-list">${F.awards.map(a => `<div class="fr-p award-row"><span class="fr-ovr">${a.year}</span><div><b>MVP: ${esc(a.mvp ? a.mvp.n : '-')}</b><small>Off. POY ${esc(a.opoy ? a.opoy.n : '-')} · Def. POY ${esc(a.dpoy ? a.dpoy.n : '-')} · Rookie of the Year ${esc(a.roy ? a.roy.n : '-')}</small></div></div>`).join('')}</div>` : '<p class="note">Awards are handed out at the end of every season.</p>'}
+    <h3 class="store-h">Hall of Fame</h3>${(F.hof || []).length ? `<div class="fr-list">${F.hof.map(h => `<div class="fr-p hof-row"><span class="fr-ovr">HOF</span><div><b>${esc(h.n)}</b><small>${h.g} · retired ${h.y} · ${esc(h.line)}</small></div></div>`).join('')}</div>` : '<p class="note">Legends who retire with your team get inducted here.</p>'}
     <div class="actions"><button class="btn danger" id="fr-quit">Retire from this franchise</button></div>`;
   C.$('#fr-quit').onclick = async () => { if (!(await askYes('End this franchise for good? Everything in it is deleted.', 'End it'))) return; try { localStorage.removeItem(KEY()); } catch (_) {} renderFranchise(); };
 }
 function resignView(F, pane) {
   const exp = Object.values(F.players).filter(p => p.yrs <= 0).sort((a, b) => b.ovr - a.ovr);
   pane.innerHTML = `<div class="fr-next"><div><small>Offseason, step 1 of 3</small><h3>Re-sign players</h3><p class="note">These contracts are up. Re-sign who you want, everyone else walks. Cap space left: $${(CAP - payroll(F)).toFixed(1)}M.</p></div><button class="btn primary" id="fr-go">Go to the draft</button></div>
-    <div class="fr-list">${exp.map(p => pRow(p, `<span class="note">Asks $${askingPrice(p).toFixed(2)}M</span><button class="btn sm primary" data-rs="${p.id}" data-y="3">3 yrs</button><button class="btn sm" data-rs="${p.id}" data-y="1">1 yr</button>`)).join('') || '<p class="note">No expiring contracts.</p>'}</div>`;
+    <div class="fr-list">${exp.map(p => pRow(p, `<span class="note">Asks $${askingPrice(p).toFixed(2)}M${production(p) > 120 ? ' (coming off a big year)' : ''}</span><button class="btn sm primary" data-rs="${p.id}" data-y="3">3 yrs</button><button class="btn sm" data-rs="${p.id}" data-y="1">1 yr</button>${p.lowballed ? '' : `<button class="btn sm" data-lb="${p.id}">Lowball -15%</button>`}`)).join('') || '<p class="note">No expiring contracts.</p>'}</div>`;
   C.$$('[data-rs]', pane).forEach(b => b.onclick = () => { const p = F.players[+b.dataset.rs]; if (payroll(F) - p.sal + askingPrice(p) > CAP) return C.toast('That would put you over the cap'); resign(F, p.id, +b.dataset.y); C.toast(`${p.last} re-signed`); renderFranchise(); });
+  C.$$('[data-lb]', pane).forEach(b => b.onclick = () => { const p = F.players[+b.dataset.lb]; const ok = lowball(F, p.id, 2); C.toast(ok ? `${p.last} took the discount: 2 years at $${p.sal.toFixed(2)}M` : `${p.last} is insulted. His price just went up 10%`, 3200); renderFranchise(); });
   C.$('#fr-go').onclick = () => { toDraft(F); renderFranchise(); };
 }
 function draftView(F, pane) {

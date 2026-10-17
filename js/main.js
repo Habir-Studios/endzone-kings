@@ -1,23 +1,24 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792273927';
-import * as Form from './form.js?v=1792273927';
-import { watchSim } from './simview.js?v=1792273927';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792273927';
-import { Renderer } from './render.js?v=1792273927';
-import { Sfx } from './audio.js?v=1792273927';
-import { Auth } from './auth.js?v=1792273927';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792273927';
-import { getRoster, teamOvr } from './teams.js?v=1792273927';
-import * as Season from './season.js?v=1792273927';
-import * as Fr from './franchise.js?v=1792273927';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792273927';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792273927';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792273927';
-import * as UTm from './ut.js?v=1792273927';
-import { initCreator, renderCreator } from './creator.js?v=1792273927';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792273927';
-import { portraitURL } from './faces.js?v=1792273927';
-import { logoURL, clearLogoCache } from './logos.js?v=1792273927';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792274085';
+import * as Form from './form.js?v=1792274085';
+import { watchSim } from './simview.js?v=1792274085';
+import { bracketHTML } from './bracket.js?v=1792274085';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792274085';
+import { Renderer } from './render.js?v=1792274085';
+import { Sfx } from './audio.js?v=1792274085';
+import { Auth } from './auth.js?v=1792274085';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792274085';
+import { getRoster, teamOvr } from './teams.js?v=1792274085';
+import * as Season from './season.js?v=1792274085';
+import * as Fr from './franchise.js?v=1792274085';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792274085';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792274085';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792274085';
+import * as UTm from './ut.js?v=1792274085';
+import { initCreator, renderCreator } from './creator.js?v=1792274085';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792274085';
+import { portraitURL } from './faces.js?v=1792274085';
+import { logoURL, clearLogoCache } from './logos.js?v=1792274085';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -411,7 +412,10 @@ function renderSeason() {
   $('#sched').innerHTML = rows.join('');
   if (S.v === 2) {
     // NFL standings: by division; division winners plus 3 wild cards per conference make it
-    // injury report: tap a player for the details
+    // playoff bracket once the postseason starts
+  { let bx = $('#season-bracket'); if (!bx) { bx = document.createElement('div'); bx.id = 'season-bracket'; $('#stand-h').parentNode.insertBefore(bx, $('#stand-h')); }
+    bx.innerHTML = S.playoffs ? `<h3 class="store-h">Playoff bracket</h3>${bracketHTML(S, S.team, logoURL)}` : ''; }
+  // injury report: tap a player for the details
   { let box = $('#season-inj'); if (!box) { box = document.createElement('div'); box.id = 'season-inj'; box.className = 'season-inj'; $('#stand-h').parentNode.insertBefore(box, $('#stand-h')); }
     const ros = getRoster(S.team).players, rows = [...Object.entries(S.inj || {}).map(([r, j]) => ({ r, j, out: true })), ...Object.entries(S.ling || {}).filter(([r]) => !(S.inj || {})[r]).map(([r, j]) => ({ r, j, out: false }))];
     const hot = Object.entries(S.form || {}).filter(([, f]) => Math.abs(f) >= 1.5).sort((a, b) => b[1] - a[1]);

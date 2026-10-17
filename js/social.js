@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792271925';
-import { TEAMS } from './teams.js?v=1792271925';
+import { askYes } from './ui.js?v=1792272065';
+import { TEAMS } from './teams.js?v=1792272065';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -167,15 +167,27 @@ async function openProfile(id) {
   wireReport(id, p.name);
   wireClipCards(pane, id);
   // playing right now? show what kind of game and let people watch it
-  if (!mine && C.peekLive) C.peekLive(id).then(info => {
+  // live = their player row says they're in a game (refreshed every 40s), or their game channel answers
+  const liveRow = l => l && l.at && Date.now() - new Date(l.at).getTime() < 100000 ? l : null;
+  const check = async () => {
+    if (view.id !== id || !C.$('#pf-live')) return;
+    let info = liveRow(p.live);
+    const { data: fresh } = await D.from('ek_players').select('live').eq('id', id).maybeSingle(); if (fresh) info = liveRow(fresh.live) || null;
+    if (!info && C.peekLive) info = await C.peekLive(id);
+    show(info);
+    clearTimeout(liveT); liveT = setTimeout(check, 10000);   // keep checking while the profile is open
+  };
+  const show = info => {
     const box = C.$('#pf-live'); if (!box || view.id !== id) return;
-    box.classList.remove('checking');
+    box.classList.remove('checking', 'idle');
     if (!info) { box.innerHTML = `<span class="live-dot idle"></span><div><b>Not in a game right now</b><small>When ${esc(p.name)} is playing, a Watch button shows up here</small></div>`; box.classList.add('idle'); return; }
     box.innerHTML = `<span class="live-dot"></span><div><b>Live now · ${esc(info.kind || 'Game')}</b><small>${esc(p.name)} vs ${esc(info.vs || 'CPU')}</small></div><button class="btn primary" id="pf-watch" type="button">Watch</button>`;
     box.classList.remove('hidden');
-    C.$('#pf-watch').onclick = () => C.watchUser(id);
-  });
+    C.$('#pf-watch').onclick = () => { clearTimeout(liveT); C.watchUser(id); };
+  };
+  if (!mine) check();
 }
+let liveT = 0;
 function editProfile(p) {
   const pane = C.$('#so-pane');
   pane.innerHTML = `<div class="form"><h3>Edit profile</h3>

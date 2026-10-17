@@ -1,22 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792271925';
-import * as Form from './form.js?v=1792271925';
-import { watchSim } from './simview.js?v=1792271925';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792271925';
-import { Renderer } from './render.js?v=1792271925';
-import { Sfx } from './audio.js?v=1792271925';
-import { Auth } from './auth.js?v=1792271925';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792271925';
-import { getRoster, teamOvr } from './teams.js?v=1792271925';
-import * as Season from './season.js?v=1792271925';
-import * as Fr from './franchise.js?v=1792271925';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792271925';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792271925';
-import * as UTm from './ut.js?v=1792271925';
-import { initCreator, renderCreator } from './creator.js?v=1792271925';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792271925';
-import { portraitURL } from './faces.js?v=1792271925';
-import { logoURL, clearLogoCache } from './logos.js?v=1792271925';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792272065';
+import * as Form from './form.js?v=1792272065';
+import { watchSim } from './simview.js?v=1792272065';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792272065';
+import { Renderer } from './render.js?v=1792272065';
+import { Sfx } from './audio.js?v=1792272065';
+import { Auth } from './auth.js?v=1792272065';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792272065';
+import { getRoster, teamOvr } from './teams.js?v=1792272065';
+import * as Season from './season.js?v=1792272065';
+import * as Fr from './franchise.js?v=1792272065';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792272065';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792272065';
+import * as UTm from './ut.js?v=1792272065';
+import { initCreator, renderCreator } from './creator.js?v=1792272065';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792272065';
+import { portraitURL } from './faces.js?v=1792272065';
+import { logoURL, clearLogoCache } from './logos.js?v=1792272065';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1542,10 +1542,18 @@ function startUserCast() {
   stopUserCast();
   const u = Auth.user; if (!st.playing && st.screen !== 'game') return;
   if (!u || u.kind !== 'account' || Auth.mode !== 'supabase' || LOCALNET || st.practice || st.drill || st.mode === 'spec' || st.mode === 'clip') return;
-  const ch = ucast = new SpecChannel(Auth.client, 'u' + u.id, { host: 1, kind: gameKind(), vs: st.names[1 - st.local] || 'CPU', at: Date.now() });
+  const info = { host: 1, kind: gameKind(), vs: st.names[1 - st.local] || 'CPU', at: Date.now() };
+  const ch = ucast = new SpecChannel(Auth.client, 'u' + u.id, info);
   ch.open(() => {}).catch(() => { if (ucast === ch) ucast = null; });
+  // also mark it on your player row (any mode), refreshed every 40s, so profiles always know you're live
+  const mark = () => { if (ucast !== ch) return; Auth.client.from('ek_players').update({ live: { kind: info.kind, vs: info.vs, at: new Date().toISOString() } }).eq('id', u.id).then(() => {}, () => {}); };
+  mark(); clearInterval(liveBeat); liveBeat = setInterval(mark, 40000);
 }
-function stopUserCast() { if (ucast) { ucast.close(); ucast = null; } ucastEv.length = 0; }
+let liveBeat = 0;
+function stopUserCast() {
+  const had = !!ucast; if (ucast) { ucast.close(); ucast = null; } ucastEv.length = 0; clearInterval(liveBeat);
+  const u = Auth.user; if (had && u && u.kind === 'account' && Auth.mode === 'supabase' && Auth.client) Auth.client.from('ek_players').update({ live: null }).eq('id', u.id).then(() => {}, () => {});
+}
 function userCastPush() {
   if (!ucast || !st.snap || !(ucast.watchers > 0)) { ucastEv.length = 0; return; }
   ucastAcc++; if (ucastAcc < 7 && !ucastEv.length) return; ucastAcc = 0;

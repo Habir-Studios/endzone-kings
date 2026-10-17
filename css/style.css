@@ -1491,3 +1491,4 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .cw-slot small { max-width: 64px; line-height: 1.05; font-size: 9px; text-align: center; overflow-wrap: normal; }
 .uc-name b { overflow-wrap: normal; word-break: keep-all; }
 .tg { align-items: center; height: auto; min-height: 56px; }
+.seg button { flex: 1 1 auto; }

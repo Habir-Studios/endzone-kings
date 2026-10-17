@@ -1,6 +1,6 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { TEAMS } from './teams.js?v=1792257986';
+import { TEAMS } from './teams.js?v=1792258388';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -130,7 +130,8 @@ async function openProfile(id) {
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
-      <div class="pf-id"><h3>${esc(p.name)}</h3><small>Level ${p.lvl}, ${fmt(p.wins)}-${fmt(p.losses)}, ${t.city} fan</small>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
+      <div class="pf-id"><h3>${esc(p.name)}</h3><small>Level ${p.lvl}, ${t.city} fan</small>
+        <div class="pf-recs">${[['Online 1v1', p.on_w, p.on_l, p.on_t], ['Ultimate Team', p.ut_wins, p.ut_l, p.ut_t], ['Franchise', p.fr_w, p.fr_l, p.fr_t]].map(([n, w, l, tt]) => `<span><small>${n}</small><b>${fmt(w || 0)}-${fmt(l || 0)}${tt ? '-' + fmt(tt) : ''}</b></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
     </div>
@@ -333,7 +334,7 @@ export async function postGameStats(r) {
   for (const p of mine) { if (!p.td) continue; if ((p.rec || 0) > 0 && (p.recy || 0) >= (p.ry || 0)) retd += p.td; else rtd += p.td; }
   const s = { name: me().name, res: r.res, py: sum('py'), ptd: sum('ptd'), ry: sum('ry'), rtd, rec: sum('rec'), recy: sum('recy'), retd, tk: sum('tk'), sk: sum('sk'), int: sum('int'),
     fgm: ts.fgm || 0, fga: ts.fga || 0, fgl: ts.fgl || 0, xpm: ts.xpm || 0, punts: ts.punts || 0, puntYds: ts.puntYds || 0,
-    secs: Math.round(r.secs || 0), qlen: r.qlen || 120, ac: r.ac || 0, acWhy: String(r.acWhy || '').slice(0, 120), ut: r.ut ? 1 : 0, pts: r.pts || 0 };
+    secs: Math.round(r.secs || 0), qlen: r.qlen || 120, ac: r.ac || 0, acWhy: String(r.acWhy || '').slice(0, 120), ut: r.ut ? 1 : 0, pts: r.pts || 0, on: r.online ? 1 : 0, fr: r.fr ? 1 : 0 };
   if (isBanned()) return;
   try {
     await db().from('ek_players').upsert({ id: me().id, name: me().name, lvl: r.lvl || 1, rp: r.rp || 0 }, { onConflict: 'id' });

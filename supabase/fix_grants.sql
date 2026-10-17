@@ -18,6 +18,15 @@ alter table public.ek_players add column if not exists ut_games int not null def
 alter table public.ek_players add column if not exists ut_wins int not null default 0;
 alter table public.ek_players add column if not exists ut_tds int not null default 0;
 alter table public.ek_players add column if not exists ut_pts int not null default 0;
+-- separate records per mode
+alter table public.ek_players add column if not exists on_w int not null default 0;
+alter table public.ek_players add column if not exists on_l int not null default 0;
+alter table public.ek_players add column if not exists on_t int not null default 0;
+alter table public.ek_players add column if not exists ut_l int not null default 0;
+alter table public.ek_players add column if not exists ut_t int not null default 0;
+alter table public.ek_players add column if not exists fr_w int not null default 0;
+alter table public.ek_players add column if not exists fr_l int not null default 0;
+alter table public.ek_players add column if not exists fr_t int not null default 0;
 
 create or replace function public.ek_add_game(s jsonb) returns void
 language plpgsql security definer set search_path = public as $$
@@ -69,6 +78,14 @@ begin
     ut_wins = ut_wins + case when coalesce((s->>'ut')::int, 0) = 1 and s->>'res' = 'W' then 1 else 0 end,
     ut_tds = ut_tds + case when coalesce((s->>'ut')::int, 0) = 1 then least(greatest(tds, 0), 16) else 0 end,
     ut_pts = ut_pts + case when coalesce((s->>'ut')::int, 0) = 1 then least(greatest(coalesce((s->>'pts')::int, 0), 0), 120) else 0 end,
+    on_w = on_w + case when coalesce((s->>'on')::int, 0) = 1 and s->>'res' = 'W' then 1 else 0 end,
+    on_l = on_l + case when coalesce((s->>'on')::int, 0) = 1 and s->>'res' = 'L' then 1 else 0 end,
+    on_t = on_t + case when coalesce((s->>'on')::int, 0) = 1 and s->>'res' = 'T' then 1 else 0 end,
+    ut_l = ut_l + case when coalesce((s->>'ut')::int, 0) = 1 and s->>'res' = 'L' then 1 else 0 end,
+    ut_t = ut_t + case when coalesce((s->>'ut')::int, 0) = 1 and s->>'res' = 'T' then 1 else 0 end,
+    fr_w = fr_w + case when coalesce((s->>'fr')::int, 0) = 1 and s->>'res' = 'W' then 1 else 0 end,
+    fr_l = fr_l + case when coalesce((s->>'fr')::int, 0) = 1 and s->>'res' = 'L' then 1 else 0 end,
+    fr_t = fr_t + case when coalesce((s->>'fr')::int, 0) = 1 and s->>'res' = 'T' then 1 else 0 end,
     last_game = now(), updated_at = now()
   where id = uid;
 end $$;

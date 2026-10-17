@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792257986';
-import { Renderer } from './render.js?v=1792257986';
-import { Sfx } from './audio.js?v=1792257986';
-import { Auth } from './auth.js?v=1792257986';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792257986';
-import { getRoster, teamOvr } from './teams.js?v=1792257986';
-import * as Season from './season.js?v=1792257986';
-import * as Fr from './franchise.js?v=1792257986';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792257986';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792257986';
-import * as UTm from './ut.js?v=1792257986';
-import { initCreator, renderCreator } from './creator.js?v=1792257986';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792257986';
-import { portraitURL } from './faces.js?v=1792257986';
-import { logoURL, clearLogoCache } from './logos.js?v=1792257986';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792258388';
+import { Renderer } from './render.js?v=1792258388';
+import { Sfx } from './audio.js?v=1792258388';
+import { Auth } from './auth.js?v=1792258388';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792258388';
+import { getRoster, teamOvr } from './teams.js?v=1792258388';
+import * as Season from './season.js?v=1792258388';
+import * as Fr from './franchise.js?v=1792258388';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792258388';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792258388';
+import * as UTm from './ut.js?v=1792258388';
+import { initCreator, renderCreator } from './creator.js?v=1792258388';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792258388';
+import { portraitURL } from './faces.js?v=1792258388';
+import { logoURL, clearLogoCache } from './logos.js?v=1792258388';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -883,7 +883,7 @@ function showGameOver(S) {
   if (!st.statsPosted && paid && !isGuest()) {
     st.statsPosted = true;
     const P = profile();
-    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : ''), ut: !!st.ut, pts: S.sc[me] });
+    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : ''), ut: !!st.ut, pts: S.sc[me], online: st.mode === 'host' || st.mode === 'guest', fr: !!st.franchiseGame });
     if (P && P.tampered) { P.tampered = false; P.p.tampered = 0; P.save(); }
   }
   if (!st.rewarded) {
@@ -898,7 +898,17 @@ function showGameOver(S) {
     st.resultSaved = true;
     Auth.recordResult(res).then(() => {
       const u = Auth.user;
-      $('#go-rec').textContent = u.kind === 'guest' ? 'Make an account to save your record.' : `Your record: ${u.wins}-${u.losses}${u.ties ? '-' + u.ties : ''}`;
+      // the record for the mode you just played; CPU quick play and seasons don't count toward any record
+      const online = st.mode === 'host' || st.mode === 'guest', kinds = [online && 'on', st.ut && 'ut', st.franchiseGame && 'fr'].filter(Boolean);
+      const P = profile();
+      if (P && kinds.length && S.mode === 'game') {
+        P.p.recs = P.p.recs || {};
+        for (const k of kinds) { const r = P.p.recs[k] = P.p.recs[k] || [0, 0, 0]; r[res === 'W' ? 0 : res === 'L' ? 1 : 2]++; }
+        P.save();
+      }
+      const NAME = { on: 'Online 1v1', ut: 'Ultimate Team', fr: 'Franchise' };
+      const line = kinds.map(k => { const r = (P && P.p.recs && P.p.recs[k]) || [0, 0, 0]; return `${NAME[k]} record: ${r[0]}-${r[1]}${r[2] ? '-' + r[2] : ''}`; }).join(' · ');
+      $('#go-rec').textContent = u.kind === 'guest' ? 'Make an account to save your record.' : line || 'This mode doesn\'t count toward your records. Play online 1v1, Ultimate Team or Franchise.';
     });
   }
   sfx.play(res === 'W' ? 'td' : 'final');

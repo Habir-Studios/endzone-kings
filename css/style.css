@@ -1030,3 +1030,9 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .ucard.mini .uc-team { right: 4px; top: 4px; }
 .ucard.mini .uc-team img { width: 18px; height: 18px; }
 .ucard.mini .uc-team i { font-size: 8px; padding: 1px 3px; }
+
+/* per-mode records on profiles */
+.pf-recs { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 2px; }
+.pf-recs span { display: flex; flex-direction: column; padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); }
+.pf-recs small { font-size: 10px; opacity: .7; }
+.pf-recs b { font-size: 16px; }

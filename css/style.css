@@ -390,5 +390,6 @@ kbd, .mouse { background: #1b2350; border: 1px solid #3a4590; border-bottom-widt
 #hud.touch-mode .playball { top: 40%; }
 #hud.touch-mode .playball kbd { display: none; }
 @media (max-width: 720px) { .joy { width: 124px; height: 124px; } .tbtn { width: 64px; height: 64px; font-size: 15px; } .tbtns { grid-template-columns: repeat(2, 64px); } }
-#hud.pc-open .scorebug { bottom: auto !important; top: 12px; }
+#hud .scorebug { transition: opacity .25s, transform .3s cubic-bezier(.2,.9,.3,1); }
+#hud.pc-open .scorebug { opacity: 0; transform: translate(-50%, 30px) !important; pointer-events: none; }
 #hud.pc-open .pause-btn { top: 16px; }

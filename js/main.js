@@ -1,25 +1,25 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792280853';
-import * as Form from './form.js?v=1792280853';
-import { watchSim } from './simview.js?v=1792280853';
-import { bracketHTML } from './bracket.js?v=1792280853';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792280853';
-import { Renderer } from './render.js?v=1792280853';
-import { Sfx } from './audio.js?v=1792280853';
-import { Auth } from './auth.js?v=1792280853';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792280853';
-import { getRoster, teamOvr } from './teams.js?v=1792280853';
-import * as Season from './season.js?v=1792280853';
-import * as Fr from './franchise.js?v=1792280853';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792280853';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792280853';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792280853';
-import * as UTm from './ut.js?v=1792280853';
-import { initCreator, renderCreator } from './creator.js?v=1792280853';
-import { filmCapture, filmSave } from './social.js?v=1792280853';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792280853';
-import { portraitURL } from './faces.js?v=1792280853';
-import { logoURL, clearLogoCache } from './logos.js?v=1792280853';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792281009';
+import * as Form from './form.js?v=1792281009';
+import { watchSim } from './simview.js?v=1792281009';
+import { bracketHTML } from './bracket.js?v=1792281009';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792281009';
+import { Renderer } from './render.js?v=1792281009';
+import { Sfx } from './audio.js?v=1792281009';
+import { Auth } from './auth.js?v=1792281009';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792281009';
+import { getRoster, teamOvr } from './teams.js?v=1792281009';
+import * as Season from './season.js?v=1792281009';
+import * as Fr from './franchise.js?v=1792281009';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792281009';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792281009';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792281009';
+import * as UTm from './ut.js?v=1792281009';
+import { initCreator, renderCreator } from './creator.js?v=1792281009';
+import { filmCapture, filmSave } from './social.js?v=1792281009';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792281009';
+import { portraitURL } from './faces.js?v=1792281009';
+import { logoURL, clearLogoCache } from './logos.js?v=1792281009';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -572,7 +572,7 @@ function startCPU(opts = {}) {
   const wind = opts.practice || opts.drill ? 0 : opts.wind ?? (opts.season || opts.franchise ? [0, 0, 5, 5, 10, 10, 15, 20][(Math.random() * 8) | 0] : (SET.wind || 0));
   st.game = createGame({ wind, teams, humans: [true, false], adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
-  st.names = [Auth.user ? Auth.user.name : 'You', 'CPU'];
+  st.names = [Auth.user ? Auth.user.name : 'You', (st.teamNames && st.teamNames[1]) || TEAMS[teams[1]].city];   // the CPU side goes by its team name
   R.setTeams(st.game.opts.teams);
   R.setWeather(weather, tod);
   $('#net-badge').classList.add('hidden');
@@ -1157,7 +1157,7 @@ function showGameOver(S) {
     if (st.seasonGame && S.mode === 'game' && P) {
       const tp = 8 + (res === 'W' ? 8 : 0) + Math.min(6, (S.st[me] && S.st[me].tds) || 0) * 2;
       P.addTp(tp);
-      $('#go-rewards').innerHTML = `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="tp-ic">TP</i>${(P.p.tp || 0).toLocaleString()}</span></div><p class="note">Season game: <b>+${tp} Training Points</b>. Season games don’t pay coins, XP or rank. Spend TP upgrading players in Ultimate Team.</p>`;
+      $('#go-rewards').innerHTML = `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="tp-ic">TP</i>${(P.p.tp || 0).toLocaleString()}</span></div><p class="note">Season game: <b>+${tp} Training Points</b> (played +8${res === 'W' ? ', win +8' : ''}${Math.min(6, (S.st[me] && S.st[me].tds) || 0) ? `, TDs +${Math.min(6, (S.st[me] && S.st[me].tds) || 0) * 2}` : ''}). Season games don’t pay coins, XP or rank. Spend TP upgrading players in Ultimate Team.</p>`;
     } else $('#go-rewards').innerHTML = NO_REWARDS_HTML;
   }
   if (!st.statsPosted && paid && !isGuest()) {
@@ -1504,7 +1504,7 @@ function updateHud(S) {
     setTxt('#pc-title', col ? `${onOff ? 'Offense' : 'Defense'}: ${pickedName}` : onOff ? (S.pat >= 0 ? 'Kick the extra point or go for 2' : S.dn === 4 ? 'Fourth down, your call' : 'Offense') : 'Defense');
     const waitD = onOff && S.humans[1 - me] && !S.dc;
     const hintHtml = onOff ? (S.op ? (waitD ? '<span>Waiting for the defense to call a play…</span>' : '') + `<span><kbd>Space</kbd> snap</span>${hotOk(S) ? '<span><kbd>H</kbd> hot route</span>' : ''}<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>` : `<span><kbd>1</kbd>–<kbd>${Math.min(PER_TAB, ((st.pbTabs || [])[st.pbTab] || { cards: [] }).cards.length) || 1}</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>`)
-      : (isCPU ? '<span>CPU snaps soon</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch</span>' : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch player</span>');
+      : (isCPU ? `<span>${escapeHtml(st.names[1 - me] || 'They')} snap soon</span>` + '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch</span>' : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch player</span>');
     const hintFull = col ? hintHtml.replace(/<span><kbd>Z<\/kbd><kbd>X<\/kbd> tabs<\/span>/, '') + '<span><kbd>Backspace</kbd> change play</span>' : hintHtml;
     if (hudCache.pch !== hintFull) { hudCache.pch = hintFull; $('#pc-hint').innerHTML = hintFull; }
     const clk = $('#pc-clock'), pcv = S.pc;
@@ -1608,7 +1608,7 @@ function startUserCast() {
   stopUserCast();
   const u = Auth.user; if (!st.playing && st.screen !== 'game') return;
   if (!u || u.kind !== 'account' || Auth.mode !== 'supabase' || LOCALNET || st.practice || st.drill || st.mode === 'spec' || st.mode === 'clip') return;
-  const info = { host: 1, kind: gameKind(), vs: st.names[1 - st.local] || 'CPU', at: Date.now() };
+  const info = { host: 1, kind: gameKind(), vs: st.names[1 - st.local] || 'the other team', at: Date.now() };
   const ch = ucast = new SpecChannel(Auth.client, 'u' + u.id, info);
   ch.open(() => {}).catch(() => { if (ucast === ch) ucast = null; });
   // also mark it on your player row (any mode), refreshed every 40s, so profiles always know you're live

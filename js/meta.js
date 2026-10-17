@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792280853';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792280853';
-import * as UT from './ut.js?v=1792280853';
-import { portraitURL } from './faces.js?v=1792280853';
-import { TEAMS } from './teams.js?v=1792280853';
+import { askYes } from './ui.js?v=1792281009';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792281009';
+import * as UT from './ut.js?v=1792281009';
+import { portraitURL } from './faces.js?v=1792281009';
+import { TEAMS } from './teams.js?v=1792281009';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -634,7 +634,7 @@ export function awardGame(r) {
   if (out.fp) extra.push(`<span class="up">+${fmt(out.fp)} Field Pass XP${out.fpTiers ? `, ${out.fpTiers} new tier${out.fpTiers > 1 ? 's' : ''} to claim` : ''}</span>`);
   for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);
   return `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="coin"></i>${fmt(P.p.coins)} <i class="tp-ic">TP</i>${fmt(P.p.tp || 0)}</span></div>
-    ${out.tp ? `<div class="gr-tp"><i class="tp-ic">TP</i><b>+${fmt(out.tp)} Training Points</b><small>Spend them upgrading players in Ultimate Team</small></div>` : ''}
+    ${out.tp ? `<div class="gr-tp"><i class="tp-ic">TP</i><b>+${fmt(out.tp)} Training Points</b><small>${(out.tpLines || []).map(x => `${x.label} +${fmt(x.tp)}`).join(' · ')}${(out.lines || []).some(l => /^Win streak/.test(l.label)) ? ', win streak bonus included' : ''}</small></div>` : ''}
     <div class="gr-lines">${lines}<span class="gr-tot">Total</span><span class="gr-tot">+${fmt(out.coins)}</span><span class="gr-tot">+${fmt(out.xp)} XP</span></div>
     ${extra.length ? `<div class="gr-extra">${extra.join('')}</div>` : ''}`;
 }

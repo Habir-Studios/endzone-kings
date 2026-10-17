@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792280853';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792281009';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -292,11 +292,15 @@ export class Profile {
     P.coins += coins; P.games++; P.tds += r.me.tds || 0;
     // Training Points: every rewarded game earns some, Ultimate Team games earn the most
     // Training Points: Ultimate Team pays the most, Franchise pays some
-    const tp = r.ut ? Math.round((15 + (r.res === 'W' ? 15 : 0) + (r.me.tds || 0) * 2 + ((r.opp && r.opp.ints) || 0) * 5 + (r.me.sacks || 0) * 3) * len * (r.mode === 'online' ? 1.3 : [0.6, 1, 1.5, 2.1][r.diff ?? 1] || 1)) : r.mode === 'franchise' ? Math.round((10 + (r.res === 'W' ? 10 : 0) + (r.me.tds || 0) * 2) * len)
-      : r.mode === 'online' ? Math.round((7 + (r.res === 'W' ? 14 : 0) + (r.me.tds || 0) * 2 + ((r.opp && r.opp.ints) || 0) * 3) * len) : 0;   // regular online 1v1 pays TP too
+    const tpB = [], win = r.res === 'W', tds = r.me.tds || 0, ints = (r.opp && r.opp.ints) || 0, sacks = r.me.sacks || 0;
+    let tpMul = len;
+    if (r.ut) { tpB.push(['Played a UT game', 15]); if (win) tpB.push(['Win', 15]); if (tds) tpB.push([`${tds} TD${tds > 1 ? 's' : ''}`, tds * 2]); if (ints) tpB.push([`${ints} pick${ints > 1 ? 's' : ''}`, ints * 5]); if (sacks) tpB.push([`${sacks} sack${sacks > 1 ? 's' : ''}`, sacks * 3]); tpMul *= r.mode === 'online' ? 1.3 : [0.6, 1, 1.5, 2.1][r.diff ?? 1] || 1; }
+    else if (r.mode === 'franchise') { tpB.push(['Played a Franchise game', 10]); if (win) tpB.push(['Win', 10]); if (tds) tpB.push([`${tds} TD${tds > 1 ? 's' : ''}`, tds * 2]); }
+    else if (r.mode === 'online') { tpB.push(['Played online', 7]); if (win) tpB.push(['Win', 14]); if (tds) tpB.push([`${tds} TD${tds > 1 ? 's' : ''}`, tds * 2]); if (ints) tpB.push([`${ints} pick${ints > 1 ? 's' : ''}`, ints * 3]); }
+    const tpLines = tpB.map(([l, v]) => ({ label: l, tp: Math.round(v * tpMul * 0.7 * streakMul) })).filter(x => x.tp > 0);
     // rival strength in Ultimate Team climbs with your wins against the CPU
     if (r.ut && r.mode !== 'online' && P.ut) P.ut.rw = Math.max(0, (P.ut.rw || 0) + (r.res === 'W' ? 1 : r.res === 'L' ? -0.5 : 0));
-    const tpS = Math.round(tp * 0.7 * streakMul); P.tp = (P.tp || 0) + tpS;
+    const tpS = tpLines.reduce((a, x) => a + x.tp, 0); P.tp = (P.tp || 0) + tpS;
     if (r.res === 'W') { P.wins++; P.streak++; P.bestStreak = Math.max(P.bestStreak, P.streak); } else if (r.res === 'L') P.streak = 0;
     // ranked points
     const before = rankInfo(P.rp), rp0 = P.rp;
@@ -343,7 +347,7 @@ export class Profile {
     const ach = this.checkAch(r);
     P.log.unshift({ at: Date.now(), res: r.res, sc: r.sc, mode: r.mode, ut: !!r.ut, coins, xp }); P.log.length = Math.min(P.log.length, 20);
     this.save();
-    return { wl: wlLine, tp: tpS, lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
+    return { wl: wlLine, tp: tpS, tpLines, lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
   }
 
   // ---------------- Ultimate Team ----------------

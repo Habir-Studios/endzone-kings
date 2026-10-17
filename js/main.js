@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792261315';
-import { Renderer } from './render.js?v=1792261315';
-import { Sfx } from './audio.js?v=1792261315';
-import { Auth } from './auth.js?v=1792261315';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792261315';
-import { getRoster, teamOvr } from './teams.js?v=1792261315';
-import * as Season from './season.js?v=1792261315';
-import * as Fr from './franchise.js?v=1792261315';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792261315';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792261315';
-import * as UTm from './ut.js?v=1792261315';
-import { initCreator, renderCreator } from './creator.js?v=1792261315';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792261315';
-import { portraitURL } from './faces.js?v=1792261315';
-import { logoURL, clearLogoCache } from './logos.js?v=1792261315';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792262263';
+import { Renderer } from './render.js?v=1792262263';
+import { Sfx } from './audio.js?v=1792262263';
+import { Auth } from './auth.js?v=1792262263';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792262263';
+import { getRoster, teamOvr } from './teams.js?v=1792262263';
+import * as Season from './season.js?v=1792262263';
+import * as Fr from './franchise.js?v=1792262263';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792262263';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792262263';
+import * as UTm from './ut.js?v=1792262263';
+import { initCreator, renderCreator } from './creator.js?v=1792262263';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792262263';
+import { portraitURL } from './faces.js?v=1792262263';
+import { logoURL, clearLogoCache } from './logos.js?v=1792262263';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -182,7 +182,8 @@ function refreshProfile() {
   $('#tile-season-sub').textContent = SS ? (SS.phase === 'done' ? 'Season complete. Start a new one' : `${TEAMS[SS.team].city}, ${SS.standings[SS.team].w}-${SS.standings[SS.team].l}, ${SS.phase === 'regular' ? 'week ' + (SS.week + 1) : 'playoffs'}`) : 'Chase the Kings Bowl';
   $('#pc-name').textContent = u.name;
   $('#pc-avatar').textContent = u.name[0].toUpperCase();
-  $('#pc-rec').textContent = u.kind === 'guest' ? 'Guest' : `${u.wins}-${u.losses}${u.ties ? '-' + u.ties : ''}`;
+  { const R2 = u.recs, f = (w, l, t) => `${w || 0}-${l || 0}${t ? '-' + t : ''}`;
+    $('#pc-rec').textContent = u.kind === 'guest' ? 'Guest' : R2 ? `Overall ${f(u.wins, u.losses)} · Online ${f(R2.on_w, R2.on_l, R2.on_t)} · UT ${f(R2.ut_wins, R2.ut_l, R2.ut_t)}` : `${u.wins}-${u.losses}${u.ties ? '-' + u.ties : ''}`; }
   $('#logout').textContent = u.kind === 'guest' ? 'Sign in' : 'Log out';
   const guest = isGuest() && !LOCALNET;
   $('.pc-meta').classList.toggle('hidden', guest);

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792249585';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792250812';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792249585';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792250812';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -293,8 +293,15 @@ function cpuCallDefense(g) {
   const book = g.books[1 - g.poss], st = DEF_STYLES[book.style.def];
   const w = { ...st.weight };
   if (g.togo >= 8) { w.Zone *= 1.6; w.Blitz *= 0.7; } else if (g.togo <= 2) { w.Blitz *= 1.6; w.Man *= 1.3; }
+  // situational calls: goal line only near the goal line, prevent only when protecting a late lead
+  const toGoal = 100 - prog(g.poss, g.losZ), dTeam = 1 - g.poss, lead = g.score[dTeam] - g.score[g.poss];
+  const late = (g.quarter === 2 || g.quarter >= 4) && g.clock < 50;
+  if (toGoal <= 4 && g.rng() < 0.6) return 'goalline';
+  const ok = q => q && (q.id !== 'goalline' || toGoal <= 6) && (q.id !== 'prevent' || (late && lead > 0));
+  if (late && lead > 0 && lead <= 8 && toGoal > 25 && g.rng() < 0.45) return 'prevent';
   const cat = pickW(g.rng, w);
-  const pool = book.def.map(id => DEF_PLAYS.find(q => q.id === id)).filter(q => q && q.cat === cat);
+  let pool = book.def.map(id => DEF_PLAYS.find(q => q.id === id)).filter(q => ok(q) && q.cat === cat);
+  if (!pool.length) pool = book.def.map(id => DEF_PLAYS.find(q => q.id === id)).filter(ok);
   return (pool.length ? pool[(g.rng() * pool.length) | 0] : DEF_PLAYS[0]).id;
 }
 
@@ -620,11 +627,13 @@ function throwBall(g, qb, r, err) {
   const D0 = dist(qb, r);
   const speed = (16 + Math.min(D0, 40) * 0.17) * (0.86 + qb.rt.arm / 100 * 0.2);
   const L = leadPoint(qb, r, speed);
-  const a = g.rng() * Math.PI * 2, e = err * Math.sqrt(g.rng());
+  // longer throws are harder to place
+  const a = g.rng() * Math.PI * 2, e = err * (0.6 + Math.min(D0, 45) / 11) * Math.sqrt(g.rng());
   const tx = L.x + Math.cos(a) * e, tz = L.z + Math.sin(a) * e;
   const D = hyp(tx - qb.x, tz - qb.z);
   g.ball.x = qb.x; g.ball.z = qb.z; g.ball.y = 1.9;
   launchBall(g, tx, tz, Math.max(0.4, D / speed), 0.7 + D * 0.12, r.id, false);
+  g.ball.ix = L.x; g.ball.iz = L.z;   // where the QB meant to put it
   P.thrown = true; P.target = r.id; P.throwT = g.t; qb.throwAt = g.t;
   g.stats[P.off].att++;
   for (const d of g.players) if (d.team !== P.off && !g.opts.humans[d.team] && d.dmode === 'rush' && dist(d, qb) < 1.5 && g.rng() < 0.1 * FOUL_RATE) { throwFlag(g, 'rough', d, qb.z); break; }
@@ -1003,7 +1012,7 @@ function updateLive(g, dt, inputs) {
     }
   }
   if (!P.recognized) {
-    const rt = P.type === 'run' ? (pd.hand || pd.pitch || 0) + 0.3 + cfg.react : 99;
+    const rt = P.type === 'run' ? (pd.hand || pd.pitch || 0) + 0.55 + cfg.react * 1.3 : 99;
     if (tl > rt || P.crossed || (b.state === 'held' && b.carrier !== 0 && b.carrier !== -1 && P.thrown)) P.recognized = true;
   }
 
@@ -1105,7 +1114,7 @@ function updateLive(g, dt, inputs) {
         const humanCarrier = g.opts.humans[ct] && g.ctrl[ct] === c2.id;
         let brk = c2.role === 'RB' ? cfg.brk + 0.12 : c2.role === 'TE' ? cfg.brk + 0.08 : cfg.brk;
         // a runner at full speed is harder to bring down head on, an arm tackle from behind is easy to shake
-        { const sp = hyp(c2.vx, c2.vz) / (c2.max || 7); if (sp > 0.75) brk += 0.06; if (d.engagedBy >= 0) brk += 0.25; }
+        { const sp = hyp(c2.vx, c2.vz) / (c2.max || 7); if (sp > 0.75) brk += 0.06; if (d.engagedBy >= 0) brk += 0.25; if (!c2.contacted && sp > 0.6 && c2.role === 'RB') brk += 0.1; c2.contacted = true; if (sp < 0.35) brk -= 0.3; }   // no momentum, no breaking tackles
         if (c2.juke > 0) brk = Math.max(brk, humanCarrier ? 0.6 : 0.42);
         if (c2.spin > 0) brk = Math.max(brk, humanCarrier ? 0.55 : 0.4);
         if (c2.stiff > 0) {
@@ -1132,6 +1141,10 @@ function updateLive(g, dt, inputs) {
           d.vx = ux / ul * 3 + c2.vx * 0.5; d.vz = uz / ul * 3 + c2.vz * 0.5; d.face = Math.atan2(ux, uz);
           c2.face = Math.atan2(c2.vx || ux, c2.vz || uz);
           g.events.push(c2.vx * c2.vx + c2.vz * c2.vz > 30 ? 'bighit' : 'tackle');
+          // forward progress: a runner going downhill falls forward, more if he's hit from the side or behind
+          { const dd = dirOf(ct), vf = c2.vz * dd, front = ((d.z - c2.z) * dd) > 0.3;
+            const sack = c2.id === 0 && !P.thrown && !P.crossed;
+            if (vf > 1 && !sack) { const fall = clamp(vf * 0.2, 0, 1.7) * (front ? 0.55 : 1) * (0.8 + c2.size * 0.25); c2.z = zOf(ct, Math.min(99.4, prog(ct, c2.z) + fall)); } }
           return endPlay(g, 'tackle', c2, d);
         }
       }
@@ -1161,6 +1174,7 @@ function applyMove(g, p, w, dt) {
   if (p.engagedBy >= 0) spd *= 0.14;
   if (p.blockOn >= 0) { const t = g.players[p.blockOn]; if (t && t.engagedBy === p.id) spd *= 0.55; }
   if (p.juke > 0) spd *= 1.05;
+  if (p.secureT > 0) { spd *= 0.6; p.secureT -= g._dt || 1 / 60; }
   if (p.spin > 0) spd *= 0.82;
   if (p.hurdle > 0) spd *= 0.95;
   if (p.unit === 'off' && RECEIVERS.includes(p.role)) {
@@ -1226,6 +1240,11 @@ function updateBlocks(g, dt, pocket) {
     if (t.engagedBy < 0) continue;
     const bl = g.players[t.engagedBy];
     if (!bl || dist(bl, t) > 1.9 || bl.stun > 0 || bl.blockOn !== t.id) { t.engagedBy = -1; continue; }
+    if (g.play && g.play.type === 'run' && g.play.handed !== undefined) {
+      // drive block: on runs the blocker moves his man off the ball, which is what opens the hole
+      const dd = dirOf(g.play.off), push = clamp(0.8 + (bl.rt.blk - Math.max(t.rt.rush, t.rt.tkl)) / 35, 0.15, 1.5) * dt;
+      t.z += dd * push; bl.z += dd * push * 0.9;
+    }
     const line = t.role.startsWith('DL') && g.phaseT < 2.6;
     const shed = g.opts.humans[t.team] && !g.opts.humans[1 - t.team] ? Math.max(cfg.shed, 0.17) : cfg.shed;   // your rushers aren't nerfed by the CPU's difficulty
     let rate = (pocket || line) ? shed * (pocket ? 1.9 : 1.4) : shed * 2.2 + 0.3;
@@ -1258,11 +1277,15 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
   // ball in the air on a pass
   if (airPass) {
     const since = g.t - P.throwT;
-    if (p.id === b.target) return seek(p, b.tx, b.tz, 1, 0.4);
+    if (p.id === b.target) {
+      // he runs to where the ball should be, and only adjusts to a bad throw once he can read it
+      const k = clamp((b.t / (b.T || 1) - 0.35) / 0.4, 0, 1), ix = b.ix ?? b.tx, iz = b.iz ?? b.tz;
+      return seek(p, ix + (b.tx - ix) * k, iz + (b.tz - iz) * k, 1, 0.4);
+    }
     if (!isOff) {
       const dl = hyp(p.x - b.tx, p.z - b.tz), mine = g.opts.humans[p.team] && !g.opts.humans[1 - p.team];
       const react = mine ? Math.min(cfg.react, 0.2) : cfg.react;
-      if (since > react && (p.assign === b.target || dl < (mine ? 18 : 13))) return seek(p, b.tx, b.tz, ai + 0.04, 0.3);
+      if (since > react * 0.8 && (p.assign === b.target || dl < (mine ? 18 : 16))) return seek(p, b.tx, b.tz, Math.max(ai, 0.97) + 0.06, 0.3);   // break on the ball
       if (p.role.startsWith('DL')) return seek(p, b.tx, b.tz, 0.5);
     } else if (RECEIVERS.includes(p.role)) {
       // other receivers drift toward the ball late
@@ -1405,7 +1428,8 @@ function aiQB(g, tl) {
       sep = Math.min(sep, hyp(px - L.x, pz - L.z));
     }
     const gain = (L.z - P.los) * dirOf(P.off);
-    const sc = Math.min(sep, 6) + gain * 0.06 - (gain < 0 ? 1 : 0) - L.T * 0.4 + (g.rng() - 0.5) * 0.5;
+    // defenders close while the ball is in the air, so a long throw has to be a lot more open than it looks
+    const sc = Math.min(sep - L.T * 1.6, 6) + gain * 0.05 - (gain < 0 ? 1 : 0) - L.T * 0.3 + (g.rng() - 0.5) * 0.5;
     if (sc > bs) { bs = sc; best = r; }
   }
   const urgent = pressure < 2.3;
@@ -1430,7 +1454,9 @@ function carrierSteer(g, p, s) {
     const ax = clamp(p.x + k * 1.4, -HALF_W + 1.5, HALF_W - 1.5), az = p.z + d * (4 - Math.abs(k) * 0.25);
     let clear = 9;
     for (const q of g.players) {
-      if (q.team === p.team || q.stun > 0 || q.fallen > 0) continue;
+      if (q === p || q.fallen > 0) continue;
+      if (q.team === p.team) { if (q.blockOn < 0 || !isLine(q.role)) continue; const dd = segDist(q, ax, az) * 1.7; if (dd < clear) clear = dd; continue; }   // don't run up your own lineman's back
+      if (q.stun > 0) continue;
       const dd = segDist(q, ax, az) * (q.engagedBy >= 0 ? 2.4 : 1);
       if (dd < clear) clear = dd;
     }
@@ -1440,6 +1466,10 @@ function carrierSteer(g, p, s) {
   }
   p.laneX = bx;
   let fx = bx - p.x, fz = bz - p.z;
+  // no dancing in the backfield: if he's been stuck for a moment, he lowers his shoulder and goes north
+  const slow = hyp(p.vx, p.vz) < 2.2;
+  p.stall = slow ? (p.stall || 0) + (g._dt || 1 / 60) : Math.max(0, (p.stall || 0) - (g._dt || 1 / 60) * 2);
+  if (p.stall > 0.5) { fx *= 0.15; fz = Math.abs(fz) * d + d * 2; }
   // last-second dodge: a defender right on top of him pushes him sideways
   for (const q of g.players) {
     if (q.team === p.team || q.stun > 0 || q.engagedBy >= 0) continue;
@@ -1578,7 +1608,7 @@ function zoneMove(g, p, s) {
   const L = p.zone || { CB1: [-13, 15], CB2: [13, 15], S: [0, 19], LB: [0, 7] }[p.role] || [0, 8];
   const home = rel(g, L[0], L[1]);
   let near = null, nd = 1e9;
-  for (const r of g.players) if (r.team === P.off && RECEIVERS.includes(r.role)) { const dd = hyp(r.x - home.x, r.z - home.z); if (dd < nd) { nd = dd; near = r; } }
+  for (const r of g.players) if (r.team === P.off && RECEIVERS.includes(r.role) && !(r.role === 'RB' && P.type === 'run')) { const dd = hyp(r.x - home.x, r.z - home.z); if (dd < nd) { nd = dd; near = r; } }
   let tx = home.x, tz = home.z;
   if (near && nd < 10) {
     tx = home.x + (near.x - home.x) * 0.7;
@@ -1660,7 +1690,7 @@ function resolveBall(g) {
   if (outcome === 'catch') {
     b.state = 'held'; b.carrier = ro.id;
     P.catchZ = ro.z; ro.caughtAt = g.t;
-    ro.vx *= 0.6; ro.vz *= 0.6;   // securing the catch costs a step
+    ro.vx *= 0.45; ro.vz *= 0.45; ro.secureT = 0.3;   // securing the catch costs a step
     if (diving) {
       ro.x = L.x; ro.z = L.z; ro.dive = 0.55; ro.vx *= 0.3; ro.vz *= 0.3;
       g.flash = { text: 'DIVING CATCH!', until: 1.4 }; g.events.push('catch', 'bighit');

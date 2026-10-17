@@ -94,7 +94,7 @@ export const OFF_PLAYS = [
   { id: 'power', inside: true, cat: 'Run', form: 'pistol', type: 'run', name: 'Pistol Power', tip: 'Downhill between the guards', hand: 0.5,
     routes: { RB: [[0.2, -4.5], [1.2, -1], [1.4, 2]] } },
   { id: 'iso', inside: true, cat: 'Run', form: 'iform', type: 'run', name: 'I-Form Iso', tip: 'Run right behind the center', hand: 0.55,
-    routes: { RB: [[0, -4], [0.3, 0.5]] } },
+    routes: { RB: [[-0.9, -4], [-1.0, 0.5]] } },
   { id: 'sweep', cat: 'Run', form: 'iform', type: 'run', name: 'Student Body Sweep', tip: 'Pitch it and race the edge', pitch: 0.32,
     routes: { RB: [[-6, -7], [-13, -4], [-15, 0.5]] } },
   { id: 'readopt', cat: 'Run', form: 'pistol', type: 'run', name: 'QB Keeper', tip: 'Fake the handoff, QB keeps it outside', qbRun: true,

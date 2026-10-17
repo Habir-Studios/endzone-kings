@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792249585';
-import { Renderer } from './render.js?v=1792249585';
-import { Sfx } from './audio.js?v=1792249585';
-import { Auth } from './auth.js?v=1792249585';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792249585';
-import { getRoster, teamOvr } from './teams.js?v=1792249585';
-import * as Season from './season.js?v=1792249585';
-import * as Fr from './franchise.js?v=1792249585';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792249585';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792249585';
-import * as UTm from './ut.js?v=1792249585';
-import { initCreator, renderCreator } from './creator.js?v=1792249585';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792249585';
-import { portraitURL } from './faces.js?v=1792249585';
-import { logoURL, clearLogoCache } from './logos.js?v=1792249585';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792250812';
+import { Renderer } from './render.js?v=1792250812';
+import { Sfx } from './audio.js?v=1792250812';
+import { Auth } from './auth.js?v=1792250812';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792250812';
+import { getRoster, teamOvr } from './teams.js?v=1792250812';
+import * as Season from './season.js?v=1792250812';
+import * as Fr from './franchise.js?v=1792250812';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792250812';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792250812';
+import * as UTm from './ut.js?v=1792250812';
+import { initCreator, renderCreator } from './creator.js?v=1792250812';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792250812';
+import { portraitURL } from './faces.js?v=1792250812';
+import { logoURL, clearLogoCache } from './logos.js?v=1792250812';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -367,12 +367,14 @@ function startIntro() {
   $('#intro-teams').innerHTML = card(T[0], st.names[0], 'l', 0) + '<div class="in-vs">VS</div>' + card(T[1], st.names[1], 'r', 1);
   $('#intro').classList.remove('hidden');
   $('#hud').classList.add('intro');
-  st.intro = 4.2; st.introLen = 4.2;
+  st.intro = 4.2; st.introLen = 4.2; st.introOn = true;
+  clearTimeout(st.introFail); st.introFail = setTimeout(() => endIntro(), 7000);   // never get stuck on the matchup screen
   sfx.cheer(0.5, 4); sfx.airHorn();
   sfx.say(`Welcome to ${T[0].city}! Tonight it's ${T[1].city} against ${T[0].city}. Let's play some football!`, true);
 }
 function endIntro() {
-  if (st.intro <= 0) return;
+  if (!st.introOn) return;
+  st.introOn = false; clearTimeout(st.introFail);
   const natural = st.intro < 0.05;
   st.intro = 0; $('#intro').classList.add('hidden'); $('#hud').classList.remove('intro');
   if (natural) { R.camPos.copy(R.cam.position); R._camInit = true; } else R.snapCamera();
@@ -408,7 +410,7 @@ function leaveGame() {
   for (const m of R.pmeshes.values()) { m.root.visible = false; m.blob.visible = false; }
   if (R.refs) R.refs.forEach(r => { r.root.visible = false; r.blob.visible = false; });
   if (R.flagMesh) R.flagMesh.visible = false;
-  $('#intro').classList.add('hidden'); st.intro = 0;
+  $('#intro').classList.add('hidden'); $('#hud').classList.remove('intro'); st.intro = 0; st.introOn = false; clearTimeout(st.introFail);
   $('#chat').classList.add('hidden');
   if (st.replay) stopReplay(); st.hot.open = false; $('#hot').classList.add('hidden'); $('#hud').classList.remove('practice');
   R.ball.visible = false;
@@ -1356,7 +1358,7 @@ const DT = 1 / 60;
 setInterval(() => {
   if (!document.hidden || !st.playing || st.mode !== 'host' || !st.game) return;
   const now = performance.now(), dt = Math.min(1, (now - last) / 1000); last = now;
-  st.intro = 0;
+  if (st.introOn) endIntro();
   let n = Math.min(60, Math.round(dt / DT));
   for (let i = 0; i < n; i++) { step(st.game, DT, [{}, { mx: st.remote.mx, mz: st.remote.mz, sprint: st.remote.sprint, ev: i === 0 ? st.remote.ev : [] }]); if (i === 0) st.remote.ev = []; for (const e of drainEvents(st.game)) st.netEv.push(e); }
   st.snap = snapshot(st.game);

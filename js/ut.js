@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792270359';
-import { grade, nextForm, decay, formed } from './form.js?v=1792270359';
+import { TEAMS } from './teams.js?v=1792270634';
+import { grade, nextForm, decay, formed } from './form.js?v=1792270634';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },

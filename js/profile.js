@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason } from './ut.js?v=1792248186';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason } from './ut.js?v=1792249585';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -105,6 +105,7 @@ export class Profile {
     this.verify();
     this.refreshChallenges();
     this.listeners = [];
+    this.upgradeClub();
   }
   onSave(fn) { this.listeners.push(fn); }
   // a save that was edited by hand loses its coins and packs and gets flagged for anti-cheat
@@ -119,7 +120,7 @@ export class Profile {
   }
   save() { this.p.sig = seal(this.p, this.key); this.p.rev++; try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.listeners.forEach(f => f(this.p)); }
   // merge a copy loaded from the cloud (keeps whichever has seen more saves)
-  adopt(remote) { if (remote && remote.rev > this.p.rev) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.verify(); this.refreshChallenges(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} return true; } return false; }
+  adopt(remote) { if (remote && remote.rev > this.p.rev) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.verify(); this.refreshChallenges(); if (this.listeners) this.upgradeClub(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} return true; } return false; }
 
   get rank() { return rankInfo(this.p.rp); }
   refreshChallenges() {
@@ -145,6 +146,18 @@ export class Profile {
     out.levels = this.addXp(d.x);
     this.save();
     return out;
+  }
+  // 11-on-11 update: older clubs get free silver players for the new spots (tight end, slot, tackles, extra defenders)
+  upgradeClub() {
+    const U = this.p.ut; if (!U.started) return;
+    if (SLOTS.every(s => U.lineup[s] !== undefined)) return;
+    const extra = missingForLineup(U.cards);
+    if (extra.length) this.addCards(extra);
+    const used = new Set(Object.values(U.lineup));
+    const pool = U.cards.map(c => ({ c, o: owned(c) })).sort((a, b) => b.o.ovr - a.o.ovr);
+    for (const s of SLOTS) { if (U.lineup[s] !== undefined) continue; const f = pool.find(x => x.o.group === SLOT_GROUP[s] && !used.has(x.c.u)); if (f) { U.lineup[s] = f.c.u; used.add(f.c.u); } }
+    this.upgradedNote = extra.length;
+    this.save();
   }
   addPack(k, n = 1) { this.p.packs[k] = (this.p.packs[k] || 0) + n; }
   addXp(x) {

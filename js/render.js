@@ -6,10 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792248186';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792248186';
-import { drawLogo } from './logos.js?v=1792248186';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792248186';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792249585';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792249585';
+import { drawLogo } from './logos.js?v=1792249585';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792249585';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -601,7 +601,7 @@ export class Renderer {
       c.shadowBlur = 0; c.lineWidth = 7; c.strokeStyle = '#fff'; c.stroke();
       c.fillStyle = '#fff'; c.font = `bold ${String(label).length > 1 ? 50 : 72}px Arial`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(label), 64, 68);
     });
-    this.badges = [1, 2, 3].map(n => {
+    this.badges = [1, 2, 3, 4, 5].map(n => {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.badgeTex(n, n), depthTest: false, transparent: true, toneMapped: false }));
       sp.scale.set(1.05, 1.05, 1); sp.renderOrder = 10; s.add(sp); return sp;
     });
@@ -911,7 +911,7 @@ export class Renderer {
     }
 
     const showBadges = local >= 0 && S.off === local && ((S.ph === 'presnap' && S.poss === local) || S.canThrow);
-    const rroles = ['WR1', 'WR2', 'RB'];
+    const rroles = ['WR1', 'WR2', 'RB', 'TE', 'WR3'];
     this.badges.forEach((sp, k) => {
       const p = showBadges && S.pl.find(q => q[1] === 1 && q[2] === rroles[k] && q[0] === local);
       sp.visible = !!p;
@@ -939,7 +939,7 @@ export class Renderer {
     m.phase += dt * (2.4 + spd * 1.15);
     const ph = m.phase;
     const presnap = S.ph === 'presnap', dead = S.ph === 'dead';
-    const lineman = role === 'C' || role === 'LG' || role === 'RG' || role.startsWith('DL');
+    const lineman = role === 'C' || role === 'LG' || role === 'RG' || role === 'LT' || role === 'RT' || role.startsWith('DL');
     let lean = run * 0.3 + sprint * 0.12, roll = 0, drop = 0, fall = 0, twist = 0, hipTwist = 0, jump = 0, headX = 0;
     const lh = [0, 0], lk = [0.12, 0.12], as = [0.12, 0.12], az = [0.14, -0.14], ae = [0.3, 0.3];
     if (run > 0.03) {
@@ -965,7 +965,7 @@ export class Renderer {
         lean = 1.05; drop = 0.42; lh[0] = -1.15; lh[1] = -0.85; lk[0] = 1.7; lk[1] = 1.4;
         as[0] = -1.35; ae[0] = 0.05; as[1] = -0.4; ae[1] = 0.9; headX = -0.5;
       } else if (role === 'QB') { lean = 0.25; drop = 0.12; lk[0] = lk[1] = 0.45; lh[0] = lh[1] = -0.3; as[0] = as[1] = -0.7; ae[0] = ae[1] = 0.9; }
-      else if (role === 'WR1' || role === 'WR2' || role === 'CB1' || role === 'CB2') { lean = 0.45; drop = 0.15; lh[0] = -0.6; lh[1] = 0.1; lk[0] = 0.9; lk[1] = 0.6; as[0] = 0.3; as[1] = -0.4; ae[0] = ae[1] = 1.1; }
+      else if (role === 'WR1' || role === 'WR2' || role === 'WR3' || role === 'CB1' || role === 'CB2') { lean = 0.45; drop = 0.15; lh[0] = -0.6; lh[1] = 0.1; lk[0] = 0.9; lk[1] = 0.6; as[0] = 0.3; as[1] = -0.4; ae[0] = ae[1] = 1.1; }
       else { lean = 0.5; drop = 0.2; lh[0] = lh[1] = -0.55; lk[0] = lk[1] = 0.95; as[0] = as[1] = -0.45; ae[0] = ae[1] = 0.6; az[0] = 0.25; az[1] = -0.25; }
     } else if (dead && run < 0.15 && !celebrating && !fallen) {
       // between plays: hands on hips, or big guys catching their breath on their knees
@@ -1170,7 +1170,7 @@ export class Renderer {
     if (!show) return;
     const play = S.opDef;
     const d = S.poss === 0 ? 1 : -1;
-    const cols = { WR1: 0x22c55e, WR2: 0x3b82f6, RB: 0xf97316, QB: 0xe5e7eb };
+    const cols = { WR1: 0x22c55e, WR2: 0x3b82f6, RB: 0xf97316, TE: 0xa855f7, WR3: 0xeab308, QB: 0xe5e7eb };
     const all = { ...(play.routes || {}) }; if (play.qbPath) all.QB = play.qbPath;
     for (const [role, pts] of Object.entries(all)) {
       const p = S.pl.find(q => q[1] === 1 && q[2] === role && q[0] === S.poss);

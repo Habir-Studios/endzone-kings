@@ -1004,3 +1004,5 @@ body.pad-mode :focus-visible, body.pad-mode button:focus { outline: 3px solid va
 .pad-grid div { display: flex; flex-direction: column; gap: 3px; padding: 10px; background: rgba(5,8,22,.45); }
 .pad-grid b { font-family: var(--display); font-weight: 800; font-size: 18px; text-transform: uppercase; color: var(--gold-hi); }
 .pad-grid span { font-size: 14px; color: var(--chalk); }
+.tbtn.r4 { border-color: #a855f7; background: rgba(168,85,247,.35); font-size: 32px; }
+.tbtn.r5 { border-color: #eab308; background: rgba(234,179,8,.35); font-size: 32px; }

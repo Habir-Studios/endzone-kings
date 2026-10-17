@@ -1,19 +1,19 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792248186';
-import { Renderer } from './render.js?v=1792248186';
-import { Sfx } from './audio.js?v=1792248186';
-import { Auth } from './auth.js?v=1792248186';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792248186';
-import { getRoster, teamOvr } from './teams.js?v=1792248186';
-import * as Season from './season.js?v=1792248186';
-import * as Fr from './franchise.js?v=1792248186';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792248186';
-import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792248186';
-import * as UTm from './ut.js?v=1792248186';
-import { initCreator, renderCreator } from './creator.js?v=1792248186';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792248186';
-import { portraitURL } from './faces.js?v=1792248186';
-import { logoURL, clearLogoCache } from './logos.js?v=1792248186';
+import { createGame, step, snapshot, drainEvents, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook } from './sim.js?v=1792249585';
+import { Renderer } from './render.js?v=1792249585';
+import { Sfx } from './audio.js?v=1792249585';
+import { Auth } from './auth.js?v=1792249585';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792249585';
+import { getRoster, teamOvr } from './teams.js?v=1792249585';
+import * as Season from './season.js?v=1792249585';
+import * as Fr from './franchise.js?v=1792249585';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792249585';
+import { initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792249585';
+import * as UTm from './ut.js?v=1792249585';
+import { initCreator, renderCreator } from './creator.js?v=1792249585';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792249585';
+import { portraitURL } from './faces.js?v=1792249585';
+import { logoURL, clearLogoCache } from './logos.js?v=1792249585';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -439,7 +439,7 @@ window.addEventListener('keydown', (e) => {
   if (k === 'KeyH' && st.snap && st.snap.ph === 'presnap') { toggleHot(); return; }
   if (st.hot.open) {
     const d = k.startsWith('Digit') ? +k.slice(5) : 0;
-    if (d >= 1 && d <= 3) { st.hot.role = ['WR1', 'WR2', 'RB'][d - 1]; sfx.play('ui'); hudCache.hot = null; return; }
+    if (d >= 1 && d <= 5) { st.hot.role = HOT_ROLES[d - 1]; sfx.play('ui'); hudCache.hot = null; return; }
     if (d >= 4 && d <= 7) { setHot(d); return; }
     const dir = { ArrowUp: 0, KeyW: 0, ArrowLeft: 1, KeyA: 1, ArrowRight: 2, KeyD: 2, ArrowDown: 3, KeyS: 3 }[k];
     if (dir !== undefined) { setHot(dir); return; }
@@ -496,7 +496,7 @@ function touchButtons(S) {
   else if (S.ph === 'kickset' && S.poss === me) btns = [['kick', 'KICK', 'big']];
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1, iCarry = carrier >= 0 && carrier === S.ctrl[me];
-    if (S.canThrow && S.off === me) btns = [['t1', '1', 'r1'], ['t2', '2', 'r2'], ['t3', '3', 'r3'], ['sprint', 'SPRINT', 'hold']];
+    if (S.canThrow && S.off === me) btns = [['t1', '1', 'r1'], ['t2', '2', 'r2'], ['t3', '3', 'r3'], ['t4', '4', 'r4'], ['t5', '5', 'r5'], ['sprint', 'SPRINT', 'hold']];
     else if (iCarry) btns = [['juke', 'JUKE'], ['spin', 'SPIN'], ['stiff', 'STIFF'], ['hurdle', 'HURDLE'], ['cdive', 'DIVE'], ['slide', 'DOWN'], ['sprint', 'SPRINT', 'hold']];
     else if (S.b[3] === 1 && S.b[4]) btns = [['playball', S.off === me ? 'CATCH' : 'PLAY BALL', 'big'], ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
     else btns = [['dive', 'DIVE', 'big'], ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
@@ -540,7 +540,7 @@ function keyToEvent(k) {
     return null;
   }
   if (S.ph !== 'live') return null;
-  if (digit >= 1 && digit <= 3 && S.canThrow && S.off === me) return { t: 'throw', n: digit };
+  if (digit >= 1 && digit <= 5 && S.canThrow && S.off === me) return { t: 'throw', n: digit };
   if (k === 'KeyQ' || k === 'Tab') return { t: 'switch' };
   const carrier = S.b[3] === 0 ? S.b[5] : -1;
   const iCarry = carrier >= 0 && carrier === S.ctrl[me];
@@ -570,7 +570,10 @@ $('#km-btn').addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.in
 
 // ---------------- hot routes (press H at the line) ----------------
 st.hot = { open: false, role: 'WR1' };
-const HOT_LABELS = { WR: [['go', 'Go'], ['in', 'Slant'], ['out', 'Out'], ['curl', 'Curl'], ['post', 'Post'], ['corner', 'Corner'], ['drag', 'Drag'], ['comeback', 'Comeback']], RB: [['wheel', 'Wheel'], ['flat', 'Flat'], ['curl', 'Check down'], ['block', 'Block'], ['angle', 'Angle'], ['swing', 'Swing'], ['seam', 'Seam'], ['texas', 'Texas']] };
+const HOT_ROLES = ['WR1', 'WR2', 'RB', 'TE', 'WR3'];
+const HOT_NAME = r => r === 'RB' ? 'HB' : r === 'TE' ? 'TE' : r === 'WR3' ? 'Slot' : 'WR ' + r[2];
+const RCOLS = { WR1: '#22c55e', WR2: '#3b82f6', RB: '#f97316', TE: '#a855f7', WR3: '#eab308', QB: '#e5e7eb' };
+const HOT_LABELS = { TE: [['go', 'Seam'], ['in', 'Slant'], ['out', 'Out'], ['curl', 'Stick'], ['post', 'Post'], ['corner', 'Corner'], ['drag', 'Drag'], ['block', 'Stay in'], ], WR: [['go', 'Go'], ['in', 'Slant'], ['out', 'Out'], ['curl', 'Curl'], ['post', 'Post'], ['corner', 'Corner'], ['drag', 'Drag'], ['comeback', 'Comeback']], RB: [['wheel', 'Wheel'], ['flat', 'Flat'], ['curl', 'Check down'], ['block', 'Block'], ['angle', 'Angle'], ['swing', 'Swing'], ['seam', 'Seam'], ['texas', 'Texas']] };
 const HOT_KEYS = ['↑', '←', '→', '↓', '4', '5', '6', '7'];
 const hotOk = S => S && S.ph === 'presnap' && S.poss === st.local && S.opDef && S.opDef.type === 'pass' && !(S.sp && S.sp.pat);
 function toggleHot(force) {
@@ -578,7 +581,7 @@ function toggleHot(force) {
   if (open && !hotOk(S)) { toast(S && S.poss === st.local ? 'Pick a pass play first, then press H' : 'Hot routes are for the offense'); return; }
   st.hot.open = open; hudCache.hot = null; sfx.play('ui');
 }
-function setHot(i) { const g = st.hot.role === 'RB' ? 'RB' : 'WR'; const kind = HOT_LABELS[g][i][0]; pushEv({ t: 'hot', role: st.hot.role, kind }); sfx.play('ui'); hudCache.hot = null; }
+function setHot(i) { const g = st.hot.role === 'RB' ? 'RB' : st.hot.role === 'TE' ? 'TE' : 'WR'; const kind = HOT_LABELS[g][i][0]; pushEv({ t: 'hot', role: st.hot.role, kind }); sfx.play('ui'); hudCache.hot = null; }
 function renderHot(S) {
   const el = $('#hot');
   if (st.hot.open && !hotOk(S)) st.hot.open = false;
@@ -586,10 +589,9 @@ function renderHot(S) {
   if (!st.hot.open) return;
   const key = st.hot.role + '|' + (S.opDef.hot || []).join();
   if (hudCache.hot === key) return; hudCache.hot = key;
-  const cols = { WR1: '#22c55e', WR2: '#3b82f6', RB: '#f97316' };
-  const g = st.hot.role === 'RB' ? 'RB' : 'WR', arrows = HOT_KEYS;
-  el.innerHTML = `<h4>Hot route</h4><div class="who">${['WR1', 'WR2', 'RB'].map((r, i) => `<button data-r="${r}" class="${r === st.hot.role ? 'on' : ''}" style="--rc:${cols[r]}"><kbd>${i + 1}</kbd>${r === 'RB' ? 'HB' : 'WR ' + r[2]}</button>`).join('')}</div>
-    <div class="kinds">${HOT_LABELS[g].map((h, i) => `<button data-k="${i}"><kbd>${arrows[i]}</kbd>${h[1]}</button>`).join('')}</div><small>Changed: ${(S.opDef.hot || []).map(r => r === 'RB' ? 'HB' : 'WR ' + r[2]).join(', ') || 'nothing yet'}. Press H or Esc when you're done.</small>`;
+  const g = st.hot.role === 'RB' ? 'RB' : st.hot.role === 'TE' ? 'TE' : 'WR', arrows = HOT_KEYS;
+  el.innerHTML = `<h4>Hot route</h4><div class="who">${HOT_ROLES.map((r, i) => `<button data-r="${r}" class="${r === st.hot.role ? 'on' : ''}" style="--rc:${RCOLS[r]}"><kbd>${i + 1}</kbd>${HOT_NAME(r)}</button>`).join('')}</div>
+    <div class="kinds">${HOT_LABELS[g].map((h, i) => `<button data-k="${i}"><kbd>${arrows[i]}</kbd>${h[1]}</button>`).join('')}</div><small>Changed: ${(S.opDef.hot || []).map(HOT_NAME).join(', ') || 'nothing yet'}. Press H or Esc when you're done.</small>`;
   $$('[data-r]', el).forEach(b => b.onclick = () => { st.hot.role = b.dataset.r; hudCache.hot = null; sfx.play('ui'); });
   $$('[data-k]', el).forEach(b => b.onclick = () => setHot(+b.dataset.k));
 }
@@ -833,37 +835,39 @@ const fmtClock = c => { c = Math.max(0, Math.ceil(c)); return `${Math.floor(c / 
 function routeSvg(play) {
   const f = FORMS[play.form || 'gun'] || FORMS.gun;
   const X = lx => 60 + lx * 2.6, Y = d => 50 - d * 1.35;
-  const al = { WR1: f.WR1, WR2: f.WR2, RB: f.RB, QB: f.QB };
-  const cols = { WR1: '#22c55e', WR2: '#3b82f6', RB: '#f97316', QB: '#e5e7eb' };
+  const al = { WR1: f.WR1, WR2: f.WR2, RB: f.RB, QB: f.QB, TE: f.TE || [5.3, -1.15], WR3: f.WR3 || [-8.5, -1.3] };
+  const cols = RCOLS;
   let s = `<svg viewBox="0 0 120 64"><line x1="0" y1="${Y(0)}" x2="120" y2="${Y(0)}" stroke="#93c5fd" stroke-width="1" opacity=".6"/>`;
-  for (const lx of [-1.75, 0, 1.75]) s += `<circle cx="${X(lx)}" cy="${Y(-1)}" r="2.4" fill="#cbd5e1"/>`;
+  for (const lx of [-3.5, -1.75, 0, 1.75, 3.5]) s += `<circle cx="${X(lx)}" cy="${Y(-1)}" r="2.2" fill="#cbd5e1"/>`;
   s += `<circle cx="${X(f.QB[0])}" cy="${Y(Math.max(f.QB[1], -10))}" r="2.6" fill="#fff"/>`;
   const all = { ...(play.routes || {}) }; if (play.qbPath) all.QB = play.qbPath;
   for (const [role, pts] of Object.entries(all)) {
+    if (!al[role] || !pts.length) continue;
     const p = [al[role], ...pts].map(w => `${X(w[0])},${Y(Math.max(-10, Math.min(w[1], 32)))}`).join(' ');
     const dash = play.type === 'run' && role === 'RB' ? '' : role === 'QB' ? 'stroke-dasharray="3 3"' : '';
     s += `<polyline points="${p}" fill="none" stroke="${cols[role]}" stroke-width="${play.type === 'run' && role !== 'QB' ? 3 : 2.2}" ${dash} stroke-linejoin="round" stroke-linecap="round"/>`;
     const last = pts[pts.length - 1];
     s += `<circle cx="${X(last[0])}" cy="${Y(Math.max(-10, Math.min(last[1], 32)))}" r="2.3" fill="${cols[role]}"/>`;
   }
-  for (const r of ['WR1', 'WR2', 'RB']) if (!all[r]) s += `<circle cx="${X(al[r][0])}" cy="${Y(Math.max(al[r][1], -10))}" r="2.4" fill="${cols[r]}" opacity="${(play.block || []).includes(r) ? 1 : .55}"/>`;
+  for (const r of ['WR1', 'WR2', 'RB', 'TE', 'WR3']) if (!all[r] || !all[r].length) s += `<circle cx="${X(al[r][0])}" cy="${Y(Math.max(al[r][1], -10))}" r="2.4" fill="${cols[r]}" opacity="${(play.block || []).includes(r) ? 1 : .55}"/>`;
   return s + '</svg>';
 }
 function defSvg(dp) {
   const X = lx => 60 + lx * 2.4, Y = d => 12 + Math.min(d, 34) * 1.45;
-  const pos = { DL1: [-2.3, 1], DL2: [0.2, 1], DL3: [2.3, 1], LB: [0, 5], CB1: [-13, 5], CB2: [13, 5], S: [0, 13] };
-  const tgt = { WR1: [-13, 6], WR2: [13, 6], RB: [2, 3] };
+  const pos = { DL1: [-3.6, 1], DL4: [-1.1, 1], DL2: [1.1, 1], DL3: [3.6, 1], LB: [0, 5], LB2: [-4.8, 4.8], LB3: [4.8, 4.8], CB1: [-13, 5], CB2: [13, 5], S: [-3, 13], SS: [5, 10] };
+  const tgt = { WR1: [-13, 6], WR2: [13, 6], RB: [2, 3], TE: [5.3, 4], WR3: [-8.5, 5] };
   let s = `<svg viewBox="0 0 120 64"><line x1="0" y1="${Y(0)}" x2="120" y2="${Y(0)}" stroke="#93c5fd" opacity=".6"/>`;
   for (const [r, z] of Object.entries(dp.zone || {})) {
+    if (!pos[r]) continue;
     const deep = z[1] > 12;
     s += `<ellipse cx="${X(z[0])}" cy="${Y(z[1])}" rx="${deep ? 16 : 11}" ry="${deep ? 7 : 5}" fill="${deep ? '#3b82f6' : '#eab308'}" opacity=".35"/>`;
     s += `<line x1="${X(pos[r][0])}" y1="${Y(pos[r][1])}" x2="${X(z[0])}" y2="${Y(z[1])}" stroke="${deep ? '#60a5fa' : '#facc15'}" stroke-width="1.6"/>`;
   }
-  for (const [r, w] of Object.entries(dp.man || {})) s += `<line x1="${X(pos[r][0])}" y1="${Y(pos[r][1])}" x2="${X(tgt[w][0])}" y2="${Y(tgt[w][1])}" stroke="#f87171" stroke-width="1.8" stroke-dasharray="3 2"/>`;
-  const rush = ['DL1', 'DL2', 'DL3'].filter(r => !(dp.zone || {})[r]).concat(dp.rush || []);
+ for (const [r, w] of Object.entries(dp.man || {})) if (pos[r] && tgt[w]) s += `<line x1="${X(pos[r][0])}" y1="${Y(pos[r][1])}" x2="${X(tgt[w][0])}" y2="${Y(tgt[w][1])}" stroke="#f87171" stroke-width="1.8" stroke-dasharray="3 2"/>`;
+  const rush = ['DL1', 'DL2', 'DL3', 'DL4'].filter(r => !(dp.zone || {})[r]).concat(dp.rush || []).filter(r => pos[r]);
   for (const r of rush) s += `<path d="M${X(pos[r][0])} ${Y(pos[r][1])} L${X(pos[r][0] * 0.6)} ${Y(-2)}" stroke="#f97316" stroke-width="2.2" marker-end=""/><circle cx="${X(pos[r][0] * 0.6)}" cy="${Y(-2)}" r="1.6" fill="#f97316"/>`;
-  for (const r of dp.spy || []) s += `<circle cx="${X(pos[r][0])}" cy="${Y(pos[r][1])}" r="5" fill="none" stroke="#a855f7" stroke-width="1.6"/>`;
-  for (const r of dp.deep || []) s += `<path d="M${X(pos[r][0])} ${Y(pos[r][1])} L${X(0)} ${Y(20)}" stroke="#60a5fa" stroke-width="1.6"/>`;
+  for (const r of (dp.spy || []).filter(r => pos[r])) s += `<circle cx="${X(pos[r][0])}" cy="${Y(pos[r][1])}" r="5" fill="none" stroke="#a855f7" stroke-width="1.6"/>`;
+  for (const r of (dp.deep || []).filter(r => pos[r])) s += `<path d="M${X(pos[r][0])} ${Y(pos[r][1])} L${X(0)} ${Y(20)}" stroke="#60a5fa" stroke-width="1.6"/>`;
   for (const [r, q] of Object.entries(pos)) s += `<circle cx="${X(q[0])}" cy="${Y(q[1])}" r="2.5" fill="#fecaca"/>`;
   return s + '</svg>';
 }
@@ -953,7 +957,7 @@ function switchTab(d) {
 function padHint(items) {
   const g = glyphs(), c = padContext();
   const M = {
-    pass: { '1 2 3': `${g.A} ${g.B} ${g.X}`, 'W A S D': g.LS, Shift: g.RT },
+    pass: { '1 2 3 4 5': `${g.A} ${g.B} ${g.X} ${g.Y} ${g.RB}`, 'W A S D': g.LS, Shift: g.RT },
     carry: { Space: g.RS + ' flick', E: g.B, R: g.A, F: g.Y, X: g.X, G: g.LB, Shift: g.RT },
     air: { 'W A S D': g.LS, E: g.Y, Q: g.B, Shift: g.RT },
     def: { Space: g.X, Q: g.B, Shift: g.RT, E: g.Y },
@@ -1109,7 +1113,7 @@ function updateHud(S) {
   if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
-    if (S.canThrow && S.off === me) hint([['1 2 3', 'throw (or click)'], ['W A S D', 'move'], ['Shift', 'sprint']]);
+    if (S.canThrow && S.off === me) hint([['1 2 3 4 5', 'throw (or click)'], ['W A S D', 'move'], ['Shift', 'sprint']]);
     else if (iCarry) hint([['Space', 'juke'], ['E', 'spin'], ['R', 'stiff arm'], ['F', 'hurdle'], ['X', 'dive'], ['G', 'go down'], ['Shift', 'sprint']]);
     else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring'], ['E', 'aggressive catch']]);
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);
@@ -1444,7 +1448,7 @@ initMeta(CTX);
 initCreator(CTX);
 initSocial(CTX);
 initAdmin();
-initGamepad({ toast, context: padContext, cardNav, cardPickFocused, hotOpen: () => st.hot.open, onModeChange: (on) => { hudCache = {}; R.setBadgeLabels(on ? (() => { const g = glyphs(); return [g.A, g.B, g.X]; })() : ['1', '2', '3']); } });
+initGamepad({ toast, context: padContext, cardNav, cardPickFocused, hotOpen: () => st.hot.open, onModeChange: (on) => { hudCache = {}; R.setBadgeLabels(on ? (() => { const g = glyphs(); return [g.A, g.B, g.X, g.Y, g.RB]; })() : ['1', '2', '3', '4', '5']); } });
 Fr.initFranchise(CTX);
 $('#ban-ok').addEventListener('click', () => $('#banned').classList.add('hidden'));
 $('#ban-out').addEventListener('click', async () => { $('#banned').classList.add('hidden'); await Auth.signOut(); show('auth'); });

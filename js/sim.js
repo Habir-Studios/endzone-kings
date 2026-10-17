@@ -4,14 +4,19 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792248186';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792249585';
 export { TEAMS };
 
-export const OFF_ROLES = ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB'];
-export const DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
-export const RECEIVERS = ['WR1', 'WR2', 'RB']; // keys 1,2,3
+// 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
+export const OFF_ROLES = ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB', 'LT', 'RT', 'TE', 'WR3'];
+export const DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S', 'DL4', 'LB2', 'LB3', 'SS'];
+export const RECEIVERS = ['WR1', 'WR2', 'RB', 'TE', 'WR3']; // keys 1-5
+const N_OFF = OFF_ROLES.length;
+const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r === 'RT';
+const isSafety = r => r === 'S' || r === 'SS';
+const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792248186';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792249585';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -30,12 +35,21 @@ const ROSTER = {
   CB1: { spd: 7.9, size: 0.97 },
   CB2: { spd: 7.8, size: 0.97 },
   S:   { spd: 7.6, size: 1.02 },
+  LT:  { spd: 5.3, size: 1.24 },
+  RT:  { spd: 5.3, size: 1.24 },
+  TE:  { spd: 7.0, size: 1.12 },
+  WR3: { spd: 8.0, size: 0.96 },
+  DL4: { spd: 5.8, size: 1.22 },
+  LB2: { spd: 7.2, size: 1.08 },
+  LB3: { spd: 7.2, size: 1.08 },
+  SS:  { spd: 7.5, size: 1.04 },
 };
 const DEF_ALIGN = {
-  DL1: [-2.3, 1.15], DL2: [0.2, 1.15], DL3: [2.3, 1.15], LB: [0, 5.5],
-  CB1: [-13, 6], CB2: [13, 6], S: [0, 13],
+  DL1: [-3.6, 1.15], DL4: [-1.05, 1.15], DL2: [1.05, 1.15], DL3: [3.6, 1.15],
+  LB: [0, 5.2], LB2: [-4.8, 4.8], LB3: [4.8, 4.8],
+  CB1: [-13, 6], CB2: [13, 6], S: [-3, 13], SS: [5, 10],
 };
-function offAlign(form) { const f = FORMS[form] || FORMS.gun; return { ...LINE, QB: f.QB, RB: f.RB, WR1: f.WR1, WR2: f.WR2 }; }
+function offAlign(form) { const f = FORMS[form] || FORMS.gun; return { ...LINE, QB: f.QB, RB: f.RB, WR1: f.WR1, WR2: f.WR2, WR3: f.WR3 || [-8.5, -1.3], TE: f.TE || [5.3, -1.15] }; }
 
 const DIFF = [
   { name: 'Rookie', ai: 0.85, shed: 0.08, intP: 0.26, qbErr: 1.6, react: 0.45, brk: 0.04 },
@@ -123,7 +137,9 @@ function cleanRoster(r) {
   if (!r || typeof r !== 'object' || !r.players) return null;
   const out = { players: {} };
   for (const role of Object.keys(ROSTER)) {
-    const q = r.players[role]; if (!q || typeof q !== 'object') return null;
+    let q = r.players[role];
+    // squads saved before 11-on-11 don't have the new spots yet: a solid backup fills in
+    if (!q || typeof q !== 'object') q = { first: 'Backup', last: role, num: 0, face: 7, ovr: 68, spd: 68, hands: 66, acc: 60, arm: 60, elu: 62, blk: 68, rush: 66, tkl: 66, cov: 64 };
     const p = { role, pos: POS_LABEL[role] };
     for (const k of RKEYS) p[k] = Math.max(40, Math.min(99, Math.round(+q[k] || 60)));
     p.first = String(q.first || 'Player').replace(/[<>]/g, '').slice(0, 14);
@@ -188,8 +204,8 @@ function setupPlay(g) {
     crossed: false, turnover: false, recognized: false, target: -1, throwT: 0, readT: 0, qbDecided: false, isPat: g.pat === off };
   g.players = [];
   const oa = offAlign('gun');
-  ['QB', 'C', 'LG', 'RG', 'WR1', 'WR2', 'RB'].forEach((role, i) => { const p = rel(g, ...oa[role]); g.players.push(makePlayer(g, i, off, 'off', role, p.x, p.z)); });
-  DEF_ROLES.forEach((role, i) => { const p = rel(g, ...DEF_ALIGN[role]); g.players.push(makePlayer(g, 7 + i, def, 'def', role, p.x, p.z)); });
+  OFF_ROLES.forEach((role, i) => { const p = rel(g, ...oa[role]); g.players.push(makePlayer(g, i, off, 'off', role, p.x, p.z)); });
+  DEF_ROLES.forEach((role, i) => { const p = rel(g, ...DEF_ALIGN[role]); g.players.push(makePlayer(g, N_OFF + i, def, 'def', role, p.x, p.z)); });
   const c = g.players[1];
   g.ball = { state: 'held', carrier: 1, x: c.x, y: 0.3, z: g.losZ, auto: false };
   g.offPlay = null; g.defPlay = 'cover1'; g.defChosen = false; g.playClock = 25;
@@ -217,13 +233,13 @@ function alignOffense(g, instant) {
 }
 function alignDefense(g, instant) {
   const dp = getPlay(g, 1 - g.poss, g.defPlay) || DEF_PLAYS[0];
-  const wr = { WR1: byRole(g, 'WR1'), WR2: byRole(g, 'WR2') };
+  const wr = { WR1: byRole(g, 'WR1'), WR2: byRole(g, 'WR2'), WR3: byRole(g, 'WR3'), TE: byRole(g, 'TE'), RB: byRole(g, 'RB') };
   const d = dirOf(g.poss);
   for (const p of g.players) if (p.unit === 'def') {
     let [lx, lz] = DEF_ALIGN[p.role];
     const man = dp.man && dp.man[p.role];
-    if (man && wr[man]) { lx = null; lz = dp.press ? 1.6 : 6; }
-    if (dp.zone && dp.zone[p.role] && !p.role.startsWith('DL')) { const z = dp.zone[p.role]; lx = p.role.startsWith('CB') ? null : z[0]; lz = Math.min(z[1], p.role === 'S' ? 16 : 9); }
+    if (man && wr[man] && man !== 'RB') { lx = null; lz = dp.press && p.role.startsWith('CB') ? 1.6 : isLB(p.role) ? 4.5 : 6; }
+    if (dp.zone && dp.zone[p.role] && !p.role.startsWith('DL')) { const z = dp.zone[p.role]; lx = p.role.startsWith('CB') ? null : z[0]; lz = Math.min(z[1], isSafety(p.role) ? 16 : 9); }
     if (dp.rush && dp.rush.includes(p.role)) lz = 3;
     let h = rel(g, lx ?? 0, lz);
     if (lx === null) { const w = man ? wr[man] : (p.role === 'CB1' ? wr.WR1 : wr.WR2); h = { x: w.hx, z: g.losZ + lz * d }; }
@@ -317,7 +333,7 @@ function handleEvent(g, team, ev) {
         g.offPlay = pl.id; alignOffense(g);
       } else if (ev.t === 'hot' && g.offPlay) {
         const pl = getPlay(g, team, g.offPlay);
-        if (pl && pl.type === 'pass' && !g.play.isPat && ['WR1', 'WR2', 'RB'].includes(ev.role)) {
+        if (pl && pl.type === 'pass' && !g.play.isPat && RECEIVERS.includes(ev.role)) {
           const r = hotRoute(pl.form || 'gun', ev.role, ev.kind);
           if (r === null) g.hot[ev.role] = []; else if (r) g.hot[ev.role] = r;
         }
@@ -401,7 +417,7 @@ function handleEvent(g, team, ev) {
 }
 
 function cycleDefender(g, team) {
-  const order = ['LB', 'S', 'CB1', 'CB2', 'DL1', 'DL2', 'DL3'];
+  const order = ['LB', 'LB2', 'LB3', 'S', 'SS', 'CB1', 'CB2', 'DL1', 'DL4', 'DL2', 'DL3'];
   const cur = g.players[g.ctrl[team]];
   const i = cur ? order.indexOf(cur.role) : -1;
   g.ctrl[team] = byRole(g, order[(i + 1) % order.length]).id;
@@ -494,7 +510,7 @@ function enforceFlag(g, endP, turnover, td) {
 }
 
 // quick route changes at the line: in-breaking, out-breaking, go, curl; the back can flat, wheel or stay in to block
-export const HOT_KINDS = { WR: ['go', 'in', 'out', 'curl', 'post', 'corner', 'drag', 'comeback'], RB: ['wheel', 'flat', 'curl', 'block', 'angle', 'swing', 'seam', 'texas'] };
+export const HOT_KINDS = { WR: ['go', 'in', 'out', 'curl', 'post', 'corner', 'drag', 'comeback'], TE: ['go', 'in', 'out', 'curl', 'post', 'corner', 'drag', 'block'], RB: ['wheel', 'flat', 'curl', 'block', 'angle', 'swing', 'seam', 'texas'] };
 function hotRoute(form, role, kind) {
   const f = FORMS[form] || FORMS.gun; const [sx, sz] = f[role] || [0, 0];
   const inside = sx === 0 ? 1 : -Math.sign(sx);
@@ -516,6 +532,7 @@ function hotRoute(form, role, kind) {
     if (kind === 'texas') return [[sx - side * 4, -2.5], [sx - side * 6, 2], [sx - side * 1, 8]];
     return undefined;
   }
+  if (kind === 'block') return role === 'TE' ? null : undefined;
   if (kind === 'go') return [[sx, 8], [sx + inside * 1, 30]];
   if (kind === 'in') return [[sx, 2], [sx + inside * 8, 9], [sx + inside * 14, 12]];
   if (kind === 'out') return [[sx, 7], [sx - inside * 6, 7]];
@@ -532,8 +549,8 @@ function snap(g) {
   if (g.offPlay === 'punt' || g.offPlay === 'fg' || g.offPlay === 'xp') { if (g.opts.humans[g.poss] || g.opts.humans[1 - g.poss]) beginKickSet(g, g.offPlay); else startKick(g, g.offPlay); return; }
   if (g.pat < 0 && !g.opts.practice) {
     const r = g.rng();
-    if (!g.opts.humans[g.poss] && r < 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'fs', g.players[1 + ((g.rng() * 3) | 0)]);
-    if (!g.opts.humans[1 - g.poss] && r > 1 - 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'offside', g.players[7 + ((g.rng() * 3) | 0)]);
+    if (!g.opts.humans[g.poss] && r < 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'fs', byRole(g, ['LT', 'LG', 'C', 'RG', 'RT', 'TE'][(g.rng() * 6) | 0]));
+    if (!g.opts.humans[1 - g.poss] && r > 1 - 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'offside', byRole(g, ['DL1', 'DL2', 'DL3', 'DL4'][(g.rng() * 4) | 0]));
   }
   const play = getPlay(g, g.poss, g.offPlay);
   P.type = play.type; P.playDef = play; P.snapT = g.t;
@@ -563,9 +580,18 @@ function snap(g) {
     if (dp.press && p.dmode === 'man' && p.role.startsWith('CB')) p.press = 0.9;
   }
   // OL assignments
-  byRole(g, 'C').blockOn = byRole(g, 'DL2').id;
-  byRole(g, 'LG').blockOn = byRole(g, 'DL1').id;
-  byRole(g, 'RG').blockOn = byRole(g, 'DL3').id;
+  // five linemen on four down linemen: the center is free to pick up whoever blitzes
+  byRole(g, 'LT').blockOn = byRole(g, 'DL1').id;
+  byRole(g, 'LG').blockOn = byRole(g, 'DL4').id;
+  byRole(g, 'RG').blockOn = byRole(g, 'DL2').id;
+  byRole(g, 'RT').blockOn = byRole(g, 'DL3').id;
+  byRole(g, 'C').blockOn = -1;
+  if (play.type === 'run') {
+    // run game: the center climbs to the middle linebacker, the tight end takes the linebacker on his side
+    const te = byRole(g, 'TE'), lb2 = byRole(g, 'LB2'), lb3 = byRole(g, 'LB3');
+    byRole(g, 'C').blockOn = byRole(g, 'LB').id;
+    te.blockOn = (dist(te, lb2) < dist(te, lb3) ? lb2 : lb3).id;
+  }
   const qb = g.players[0];
   const sd = dist(qb, g.players[1]);
   launchBall(g, qb.x, qb.z, sd < 2 ? 0.12 : 0.32, sd < 2 ? 0.05 : 0.4, qb.id, true);
@@ -943,7 +969,7 @@ function updateLive(g, dt, inputs) {
     }
     if (P && !P.flag && !P.isPat && P.holdT && g.phaseT >= P.holdT) {
       P.holdT = 0;
-      const ol = g.players.filter(p => p.team === P.off && (p.role === 'C' || p.role === 'LG' || p.role === 'RG') && p.blockOn >= 0);
+      const ol = g.players.filter(p => p.team === P.off && isLine(p.role) && p.blockOn >= 0);
       if (ol.length && !g.opts.humans[P.off] && P.holdRoll < 0.035 * FOUL_RATE) throwFlag(g, 'hold', ol[(g.rng() * ol.length) | 0]);
       else if (!g.opts.humans[1 - P.off] && P.holdRoll > 1 - 0.012 * FOUL_RATE) { const cb = g.players.find(p => p.team !== P.off && (p.role === 'CB1' || p.role === 'CB2') && p.dmode === 'man'); if (cb && P.type === 'pass' && !P.thrown) throwFlag(g, 'dhold', cb); }
     }
@@ -1074,10 +1100,12 @@ function updateLive(g, dt, inputs) {
       if (d.team === ct || d.stun > 0 || d.tackleCd > 0 || d.fallen > 0) continue;
       if (d.engagedBy >= 0 && dist(d, c2) > 0.55) continue;
       const vsCpu = g.opts.humans[d.team] && !g.opts.humans[ct];
-      const tr = (d.dive > 0 ? 2.1 : 1.3) * (0.5 + 0.5 * (d.size + c2.size) / 2) * (vsCpu ? 1.18 : 1);
+      const tr = (d.dive > 0 ? 2.1 : 1.12) * (0.5 + 0.5 * (d.size + c2.size) / 2) * (vsCpu ? 1.38 : 1);
       if (dist(d, c2) < tr) {
         const humanCarrier = g.opts.humans[ct] && g.ctrl[ct] === c2.id;
-        let brk = c2.role === 'RB' ? cfg.brk + 0.06 : cfg.brk;
+        let brk = c2.role === 'RB' ? cfg.brk + 0.12 : c2.role === 'TE' ? cfg.brk + 0.08 : cfg.brk;
+        // a runner at full speed is harder to bring down head on, an arm tackle from behind is easy to shake
+        { const sp = hyp(c2.vx, c2.vz) / (c2.max || 7); if (sp > 0.75) brk += 0.06; if (d.engagedBy >= 0) brk += 0.25; }
         if (c2.juke > 0) brk = Math.max(brk, humanCarrier ? 0.6 : 0.42);
         if (c2.spin > 0) brk = Math.max(brk, humanCarrier ? 0.55 : 0.4);
         if (c2.stiff > 0) {
@@ -1089,7 +1117,9 @@ function updateLive(g, dt, inputs) {
         if (d.dive > 0 && c2.hurdle <= 0) brk *= 0.75;
         brk *= (1.5 - d.rt.tkl / 100) * (0.6 + c2.rt.elu / 100 * 0.6);
         if (vsCpu) brk *= g.ctrl[d.team] === d.id ? 0.45 : 0.65;
-        if (g.rng() < brk) {
+        // skill, not luck: the carrier breaks it when his move is timed into the hit (or the tackler is tied up),
+        // with only a sliver of randomness on top
+        if (brk + (g.rng() - 0.5) * 0.24 > 0.36) {
           d.stun = 0.85; d.fallen = 0.85; d.tackleCd = 1.2; d.dive = 0;
           c2.vx *= 0.6; c2.vz *= 0.6;
           g.events.push('brokentackle'); mom(g, ct, 3);
@@ -1190,7 +1220,7 @@ function updateBlocks(g, dt, pocket) {
     if (bl.blockOn < 0 || bl.stun > 0) continue;
     const t = g.players[bl.blockOn];
     if (!t || t.shedCd > 0 || (g.ball.state === 'held' && g.ball.carrier === t.id)) { bl.blockOn = -1; continue; }
-    if (t.engagedBy < 0 && dist(bl, t) < 1.25) t.engagedBy = bl.id;
+    if (t.engagedBy < 0 && dist(bl, t) < R * (bl.size + t.size) + 0.25) t.engagedBy = bl.id;   // big men touch at a bigger distance
   }
   for (const t of g.players) {
     if (t.engagedBy < 0) continue;
@@ -1198,8 +1228,9 @@ function updateBlocks(g, dt, pocket) {
     if (!bl || dist(bl, t) > 1.9 || bl.stun > 0 || bl.blockOn !== t.id) { t.engagedBy = -1; continue; }
     const line = t.role.startsWith('DL') && g.phaseT < 2.6;
     const shed = g.opts.humans[t.team] && !g.opts.humans[1 - t.team] ? Math.max(cfg.shed, 0.17) : cfg.shed;   // your rushers aren't nerfed by the CPU's difficulty
-    let rate = (pocket || line) ? shed * (pocket ? 1 : 1.4) : shed * 2.2 + 0.3;
+    let rate = (pocket || line) ? shed * (pocket ? 1.9 : 1.4) : shed * 2.2 + 0.3;
     rate *= (0.5 + Math.max(t.rt.rush, t.rt.tkl * 0.8) / 100) / (0.5 + bl.rt.blk / 100);
+    if (g.play && g.play.type === 'run') rate *= 0.55;   // a drive block on a run is harder to shed than a pass set
     if (g.rng() < rate * dt) {
       t.engagedBy = -1; t.shedCd = 1.3; bl.stun = 0.4; bl.blockOn = -1;
       g.events.push('shed');
@@ -1233,7 +1264,7 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
       const react = mine ? Math.min(cfg.react, 0.2) : cfg.react;
       if (since > react && (p.assign === b.target || dl < (mine ? 18 : 13))) return seek(p, b.tx, b.tz, ai + 0.04, 0.3);
       if (p.role.startsWith('DL')) return seek(p, b.tx, b.tz, 0.5);
-    } else if (p.role.startsWith('WR') || p.role === 'RB') {
+    } else if (RECEIVERS.includes(p.role)) {
       // other receivers drift toward the ball late
       if (since > 0.6) return seek(p, b.tx, b.tz, 0.7, 2);
     }
@@ -1248,20 +1279,23 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
   // pre-recognition / pocket behaviour
   if (isOff) {
     const pd = P.playDef || {};
-    const isOL = p.role === 'C' || p.role === 'LG' || p.role === 'RG';
+    const isOL = isLine(p.role);
     if (isOL && pd.screen && tl > pd.screen) {
       // screen: linemen release and lead the way
       p.blockOn = -1;
       const rb = byRole(g, 'RB'), side = rb.x - P.bx;
-      const t = { x: rb.x + Math.sign(side || 1) * -1.5 + (p.id - 2) * 2, z: P.los + 2.5 * d };
+      const t = { x: rb.x + Math.sign(side || 1) * -1.5 + (['LT', 'LG', 'C', 'RG', 'RT'].indexOf(p.role) - 2) * 2, z: P.los + 2.5 * d };
       return seek(p, t.x, t.z, 0.9);
     }
-    if (isOL) return passBlock(g, p, qb);
-    if (P.type === 'pass' && g.hot[p.role]) { if (!g.hot[p.role].length) return p.role === 'RB' ? passBlock(g, p, qb) : stalk(g, p); if (p.route) return { ...routeMove(g, p), s: ai + 0.04 }; }
+    if (isOL) return P.type === 'run' ? runBlock(g, p) : passBlock(g, p, qb);
+    if (P.type === 'run' && p.role === 'TE') return runBlock(g, p);
+    if (P.type === 'pass' && g.hot[p.role]) { if (!g.hot[p.role].length) return p.role === 'RB' || p.role === 'TE' ? passBlock(g, p, qb) : stalk(g, p); if (p.route) return { ...routeMove(g, p), s: ai + 0.04 }; }
     if (pd.block && pd.block.includes(p.role) && P.type === 'pass') {
-      if (p.role === 'RB') { if (p.route && p.ri < p.route.length) return { ...routeMove(g, p), s: ai }; return passBlock(g, p, qb); }
+      if (p.role === 'RB' || p.role === 'TE') { if (p.route && p.ri < p.route.length) return { ...routeMove(g, p), s: ai }; return passBlock(g, p, qb); }
       return stalk(g, p);
     }
+    if (P.type === 'pass' && !p.route && p.role === 'TE') return passBlock(g, p, qb);
+    if (P.type === 'pass' && !p.route && p.role === 'WR3') return stalk(g, p);
     if (pd.pa && P.type === 'pass' && p.role === 'RB' && tl < pd.pa) return { ...routeMove(g, p), s: ai * 0.9 };
     if (p.route) {
       if (P.type === 'run' && p.role !== 'RB') return stalk(g, p);
@@ -1291,7 +1325,7 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
     return w;
   }
   // play action: second-level defenders bite on the fake
-  if (pdx.pa && !P.recognized && tl < pdx.pa + g.cfg.react * 0.8 && (p.role === 'LB' || p.role === 'S') && mode !== 'man') {
+  if (pdx.pa && !P.recognized && tl < pdx.pa + g.cfg.react * 0.8 && (isLB(p.role) || isSafety(p.role)) && mode !== 'man') {
     return seek(p, p.x * 0.7 + qb.x * 0.3, P.los + 2.5 * d, 0.6);
   }
   if (mode === 'zone' && !P.recognized) return zoneMove(g, p, ai);
@@ -1387,25 +1421,59 @@ function aiQB(g, tl) {
 }
 
 function carrierSteer(g, p, s) {
+  // runner's vision: look at a fan of lanes a few yards ahead and take the one with the most room,
+  // treating defenders who are locked up on a block as mostly out of the play
   const d = dirOf(p.team);
-  let fx = 0, fz = d * 1.0;
-  for (const q of g.players) {
-    if (q.team === p.team || q.stun > 0) continue;
-    const dx = p.x - q.x, dz = p.z - q.z, l = hyp(dx, dz);
-    if (l > 7 || q.engagedBy >= 0) continue;
-    const ahead = -dz * d > -1.5; // defender in front-ish
-    const w = (ahead ? 1.6 : 0.5) / Math.max(0.8, l * l) * 4;
-    fx += (dx / l) * w * 1.4; fz += (dz / l) * w * 0.6;
+  const segDist = (q, ax, az) => { const vx = ax - p.x, vz = az - p.z, L = vx * vx + vz * vz || 1; let t = ((q.x - p.x) * vx + (q.z - p.z) * vz) / L; t = clamp(t, 0, 1); return hyp(p.x + vx * t - q.x, p.z + vz * t - q.z); };
+  let bx = p.x, bz = p.z + d * 4, bs = -1e9;
+  for (let k = -5; k <= 5; k++) {
+    const ax = clamp(p.x + k * 1.4, -HALF_W + 1.5, HALF_W - 1.5), az = p.z + d * (4 - Math.abs(k) * 0.25);
+    let clear = 9;
+    for (const q of g.players) {
+      if (q.team === p.team || q.stun > 0 || q.fallen > 0) continue;
+      const dd = segDist(q, ax, az) * (q.engagedBy >= 0 ? 2.4 : 1);
+      if (dd < clear) clear = dd;
+    }
+    const prevBias = p.laneX !== undefined ? -Math.abs(ax - p.laneX) * 0.08 : 0;
+    const sc = clear - Math.abs(k) * 0.28 + prevBias;
+    if (sc > bs) { bs = sc; bx = ax; bz = az; }
   }
-  if (p.x > HALF_W - 4) fx -= (p.x - (HALF_W - 4)) * 0.6;
-  if (p.x < -HALF_W + 4) fx += (-HALF_W + 4 - p.x) * 0.6;
-  if (fz * d < 0.25) fz = 0.25 * d;
+  p.laneX = bx;
+  let fx = bx - p.x, fz = bz - p.z;
+  // last-second dodge: a defender right on top of him pushes him sideways
+  for (const q of g.players) {
+    if (q.team === p.team || q.stun > 0 || q.engagedBy >= 0) continue;
+    const dx = p.x - q.x, dz = p.z - q.z, l = hyp(dx, dz);
+    if (l < 1.8 && (q.z - p.z) * d > -0.5) { fx += (dx / (l || 1)) * (1.8 - l) * 2.2; }
+  }
+  if (p.x > HALF_W - 2.5) fx -= 2; if (p.x < -HALF_W + 2.5) fx += 2;
+  if (fz * d < 0.4) fz = 0.4 * d;
   const l = hyp(fx, fz) || 1;
-  // AI juke
   if (p.jukeCd <= 0) {
-    for (const q of g.players) if (q.team !== p.team && q.stun <= 0 && dist(p, q) < 1.9 && g.rng() < 0.05) { p.juke = 0.35; p.jukeCd = 1.6; g.events.push('juke'); break; }
+    // CPU runners time their move into contact; shiftier backs do it more often
+    for (const q of g.players) if (q.team !== p.team && q.stun <= 0 && q.engagedBy < 0 && dist(p, q) < 1.75 && ((q.x - p.x) * (q.vx - p.vx) + (q.z - p.z) * (q.vz - p.vz)) < 0 && g.rng() < 0.12 + p.rt.elu / 100 * 0.25) { p.juke = 0.35; p.jukeCd = 1.6; g.events.push('juke'); break; }
   }
   return { x: fx / l, z: fz / l, s: Math.min(1, s) };
+}
+
+// run blocking: linemen and the tight end fire off the ball and drive the man in front of them,
+// anyone without a man climbs to the second level
+function runBlock(g, p) {
+  const d = dirOf(p.team);
+  let t = p.blockOn >= 0 ? g.players[p.blockOn] : null;
+  if (!t || t.shedCd > 0 || (t.engagedBy >= 0 && t.engagedBy !== p.id) || dist(p, t) > 9) {
+    t = null; let bd = 1e9;
+    for (const q of g.players) {
+      if (q.team === p.team || q.shedCd > 0 || (q.engagedBy >= 0 && q.engagedBy !== p.id)) continue;
+      if (g.players.some(o => o !== p && o.team === p.team && o.blockOn === q.id)) continue;
+      const ahead = (q.z - p.z) * d;
+      if (ahead < -1.5) continue;
+      const dq = dist(p, q) + Math.abs(q.x - p.x) * 0.6; if (dq < bd && dq < 8) { bd = dq; t = q; }
+    }
+    p.blockOn = t ? t.id : -1;
+  }
+  if (!t) return seek(p, p.x, p.z + 3 * d, 0.8);
+  return seek(p, t.x, t.z - 0.35 * d, 0.97, 0.2);
 }
 
 function pursue(g, p, c, s) {
@@ -1473,9 +1541,18 @@ function stalk(g, p) {
     const lb = g.players.find(q => q.team !== p.team && q.role === 'LB');
     if (lb && !g.players.some(o => o !== p && o.blockOn === lb.id)) p.blockOn = lb.id;
   }
+  if (p.blockOn < 0 && p.role === 'TE') {
+    // the tight end seals the edge: nearest outside linebacker or end nobody has
+    let best = null, bd = 1e9;
+    for (const q of g.players) if (q.team !== p.team && (isLB(q.role) || q.role === 'DL1' || q.role === 'DL3')) {
+      if (g.players.some(o => o !== p && o.blockOn === q.id)) continue;
+      const dq = dist(p, q); if (dq < bd) { bd = dq; best = q; }
+    }
+    if (best && bd < 9) p.blockOn = best.id;
+  }
   if (p.blockOn < 0) {
     let best = null, bd = 1e9;
-    for (const q of g.players) if (q.team !== p.team && (q.role.startsWith('CB') || q.role === 'S')) {
+    for (const q of g.players) if (q.team !== p.team && (q.role.startsWith('CB') || isSafety(q.role))) {
       if (g.players.some(o => o !== p && o.blockOn === q.id)) continue;
       const dq = dist(p, q); if (dq < bd) { bd = dq; best = q; }
     }
@@ -1539,30 +1616,35 @@ function resolveBall(g) {
   const target = g.players[P.target];
   let outcome = 'inc';
   const defPlay = cD && rd.playBall > 0, offAgg = cO && ro.playBall > 0;
+  // Skill decides this, not dice. What matters, in order: who got to the spot (separation), whether you pressed
+  // the button at the right moment (timing), then ratings. A little noise keeps it from being robotic.
+  const human = q => q && g.opts.humans[q.team] && g.ctrl[q.team] === q.id;
+  const timing = q => {
+    if (!q) return 0;
+    if (human(q)) { if (q.playBall <= 0) return 0; const el = 0.75 - q.playBall; return clamp(1 - Math.abs(el - 0.32) / 0.38, 0, 1); }
+    return clamp(((q.team === offTeam ? q.rt.hands : q.rt.cov) - 55) / 60, 0.1, 0.75) * (q.playBall > 0 || q.team === offTeam ? 1 : 0.6);   // CPU players time it by rating
+  };
+  const noise = () => (g.rng() + g.rng() - 1) * 0.12;
+  const wx = wxHands(g);
   if (outOfBounds) outcome = 'inc';
-  else if (defPlay) {
-    // defender timed the jump: big INT chance, otherwise it's batted down
-    const cov = rd.rt.cov / 100;
-    let pInt = (cO ? 0.22 : 0.34) + cov * 0.38 - (offAgg ? 0.15 : 0) - Math.max(0, dD) * 0.08;
-    if (g.rng() < pInt) outcome = 'int';
-    else if (cO && g.rng() < (offAgg ? 0.35 : 0.18)) outcome = 'catch';
-    else outcome = 'inc';
-  }
   else if (cO && cD) {
-    const hands = (0.8 + ro.rt.hands / 100 * 0.22) * wxHands(g), cov = 0.6 + rd.rt.cov / 100 * 0.6;
-    let pc = clamp((0.55 + (dD - dO) * 0.3) * hands / (0.7 + cov * 0.3) + (offAgg ? 0.12 : 0), 0.2, 0.9);
-    if (rd.dive > 0) pc -= 0.1;
-    if (g.rng() < pc) outcome = 'catch';
-    else if (g.rng() < (dD < dO ? cfg.intP * 0.6 * cov : 0.12)) outcome = 'int';
+    // contested: separation first, then timing, then hands vs coverage
+    const edge = (dD - dO) * 1.25 + (timing(ro) - timing(rd)) * 0.7 + (ro.rt.hands * wx - rd.rt.cov) / 100 * 0.9 + (rd.dive > 0 ? 0.15 : 0) + noise();
+    if (edge > 0.05) outcome = 'catch';
+    else if (edge < -0.6 && dD < 1.1 && (defPlay || timing(rd) > 0.45)) outcome = 'int';
+    else outcome = 'inc';
   } else if (cO) {
-    const hands = (0.8 + ro.rt.hands / 100 * 0.22) * wxHands(g);
-    outcome = g.rng() < Math.min(0.98, (dO < 1.0 ? 0.95 : 0.87) * hands + (offAgg ? 0.05 : 0)) ? 'catch' : 'inc';
+    // open: catch it unless he had to stretch and doesn't have the hands for it
+    const need = dO < 1.0 ? 0 : (dO - 1.0) / 0.7 * 0.55;
+    outcome = (ro.rt.hands * wx) / 100 - 0.35 + timing(ro) * 0.2 + noise() * 0.5 > need ? 'catch' : 'inc';
   } else if (ro && !outOfBounds && dO < 3.0 && (!rd || dD > dO + 0.4)) {
-    // just out of reach: he lays out for it
-    const pr = (0.22 + ro.rt.hands / 100 * 0.32 + (ro.playBall > 0 ? 0.12 : 0)) * wxHands(g) * (1.2 - (dO - 1.7) / 3);
-    if (g.rng() < pr) { outcome = 'catch'; diving = true; }
+    // just out of reach: he lays out for it if he's fast and sure-handed enough
+    const reachOk = (ro.rt.hands * wx) / 100 * 1.2 + timing(ro) * 0.4 + (ro.playBall > 0 ? 0.15 : 0) - (dO - 1.7) * 0.45 + noise();
+    if (reachOk > 0.78) { outcome = 'catch'; diving = true; }
   } else if (cD) {
-    outcome = g.rng() < cfg.intP * (0.6 + rd.rt.cov / 100 * 0.6) ? 'int' : 'inc';
+    // only a defender there: a pick if he's in front of it and timed it, otherwise he knocks it down
+    const pick = (1.4 - dD) * 0.8 + timing(rd) * 0.6 + rd.rt.cov / 100 * 0.4 + noise();
+    outcome = pick > 1.3 && dD < 0.9 ? 'int' : 'inc';
   }
   if (!outOfBounds && cO && cD && !P.isPat) {
     const r = g.rng();
@@ -1785,7 +1867,7 @@ function reaching(g, p) {
   if (g.phase !== 'live' || b.state !== 'air' || b.auto) return false;
   const left = b.T - b.t;
   const dd = hyp(p.x - b.tx, p.z - b.tz);
-  return (left < 0.45 && dd < 2.6 && RECEIVERS.concat(['CB1', 'CB2', 'S', 'LB']).includes(p.role)) || (left < 0.75 && dd < 3.4 && p.id === b.target);
+  return (left < 0.45 && dd < 2.6 && RECEIVERS.concat(['CB1', 'CB2', 'S', 'SS', 'LB', 'LB2', 'LB3']).includes(p.role)) || (left < 0.75 && dd < 3.4 && p.id === b.target);
 }
 export function faceSeed(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
 export function drainEvents(g) { const e = g.events; g.events = []; return e; }

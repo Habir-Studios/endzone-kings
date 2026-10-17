@@ -48,11 +48,12 @@ const LAST = ['Jackson', 'Williams', 'Johnson', 'Carter', 'Brooks', 'Mitchell', 
   'Grant', 'Hart', 'Knox', 'Lane', 'Mack', 'Nash', 'Owens', 'Pruitt', 'Quarles', 'Rhodes', 'Shaw', 'Tate', 'Vance', 'Webb', 'Young', 'Zeller', 'Abbott', 'Boone', 'Crane', 'Dorsey',
   'Easley', 'Fontaine', 'Gaines', 'Holloway', 'Ingram', 'Jeter', 'Kincaid', 'Lockett', 'Mercer', 'Nwosu', 'Okafor', 'Pugh', 'Ramsey', 'Slater', 'Thorne', 'Underwood', 'Vaughn', 'Whitfield', 'Yates', 'Booker'];
 
-export const POS_LABEL = { QB: 'QB', C: 'C', LG: 'LG', RG: 'RG', WR1: 'WR', WR2: 'WR', RB: 'HB', DL1: 'DE', DL2: 'DT', DL3: 'DE', LB: 'MLB', CB1: 'CB', CB2: 'CB', S: 'FS' };
-const ORDER = ['QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG', 'DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
-const NUMS = { QB: [1, 19], RB: [20, 39], WR1: [10, 19], WR2: [80, 89], C: [50, 79], LG: [60, 79], RG: [60, 79], DL1: [90, 99], DL2: [90, 99], DL3: [90, 99], LB: [40, 59], CB1: [20, 39], CB2: [20, 39], S: [20, 49] };
+export const POS_LABEL = { QB: 'QB', C: 'C', LG: 'LG', RG: 'RG', LT: 'LT', RT: 'RT', WR1: 'WR', WR2: 'WR', WR3: 'WR', TE: 'TE', RB: 'HB', DL1: 'DE', DL2: 'DT', DL3: 'DE', DL4: 'DT', LB: 'MLB', LB2: 'OLB', LB3: 'OLB', CB1: 'CB', CB2: 'CB', S: 'FS', SS: 'SS' };
+// new positions are appended so every existing player keeps the same name and ratings
+const ORDER = ['QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG', 'DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S', 'LT', 'RT', 'TE', 'WR3', 'DL4', 'LB2', 'LB3', 'SS'];
+const NUMS = { QB: [1, 19], RB: [20, 39], WR1: [10, 19], WR2: [80, 89], WR3: [10, 19], TE: [80, 89], C: [50, 79], LG: [60, 79], RG: [60, 79], LT: [60, 79], RT: [60, 79], DL1: [90, 99], DL2: [90, 99], DL3: [90, 99], DL4: [90, 99], LB: [40, 59], LB2: [40, 59], LB3: [40, 59], CB1: [20, 39], CB2: [20, 39], S: [20, 49], SS: [20, 49] };
 // which ratings matter for each spot (used for OVR)
-const KEYS = { QB: ['acc', 'arm'], RB: ['spd', 'elu'], WR1: ['spd', 'hands'], WR2: ['spd', 'hands'], C: ['blk'], LG: ['blk'], RG: ['blk'], DL1: ['rush', 'tkl'], DL2: ['rush', 'tkl'], DL3: ['rush', 'tkl'], LB: ['tkl', 'spd'], CB1: ['cov', 'spd'], CB2: ['cov', 'spd'], S: ['cov', 'tkl'] };
+const KEYS = { QB: ['acc', 'arm'], RB: ['spd', 'elu'], WR1: ['spd', 'hands'], WR2: ['spd', 'hands'], WR3: ['spd', 'hands'], TE: ['hands', 'blk'], C: ['blk'], LG: ['blk'], RG: ['blk'], LT: ['blk'], RT: ['blk'], DL1: ['rush', 'tkl'], DL2: ['rush', 'tkl'], DL3: ['rush', 'tkl'], DL4: ['rush', 'tkl'], LB: ['tkl', 'spd'], LB2: ['tkl', 'spd'], LB3: ['tkl', 'spd'], CB1: ['cov', 'spd'], CB2: ['cov', 'spd'], S: ['cov', 'tkl'], SS: ['cov', 'tkl'] };
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -64,19 +65,21 @@ const clampR = v => Math.max(40, Math.min(99, Math.round(v)));
 // club's starting QB and biggest stars carry the same overall as their real-life counterpart. Names stay made up.
 // [OVR, OFF, DEF, QB, { role: overall } stars]
 const M27 = {
-  ARI: [76, 77, 74, 74, { WR2: 99 }], ATL: [81, 83, 78, 75, { WR1: 92, RB: 95, S: 94 }], BAL: [88, 91, 86, 95, { RB: 93 }],
+  ARI: [76, 77, 74, 74, { TE: 99 }], ATL: [81, 83, 78, 75, { WR1: 92, RB: 95, S: 94 }], BAL: [88, 91, 86, 95, { RB: 93 }],
   BUF: [85, 90, 80, 99, { RB: 94 }], CAR: [80, 79, 80, 80, {}], CHI: [83, 85, 82, 91, {}], CIN: [83, 88, 77, 97, { WR1: 99 }],
-  CLE: [78, 75, 81, 70, {}], DAL: [84, 87, 80, 93, { WR1: 93 }], DEN: [87, 86, 88, 82, { CB1: 97 }], DET: [86, 92, 83, 89, { WR1: 95, RB: 98, LG: 98 }],
+  CLE: [78, 75, 81, 70, {}], DAL: [84, 87, 80, 93, { WR1: 93 }], DEN: [87, 86, 88, 82, { CB1: 97 }], DET: [86, 92, 83, 89, { WR1: 95, RB: 98, LT: 98 }],
   GB: [81, 82, 81, 86, { RB: 91, DL1: 98 }], HOU: [82, 80, 88, 79, {}], IND: [82, 84, 79, 76, { RB: 96 }], JAX: [79, 79, 79, 87, {}],
-  KC: [84, 90, 80, 94, { RB: 90 }], LV: [77, 79, 76, 76, { WR2: 93, DL1: 97 }], LA: [90, 93, 89, 99, { WR1: 98, RB: 89, DL1: 99 }],
+  KC: [84, 90, 80, 94, { RB: 90 }], LV: [77, 79, 76, 76, { TE: 93, DL1: 97 }], LA: [90, 93, 89, 99, { WR1: 98, RB: 89, DL1: 99 }],
   SD: [82, 85, 79, 83, {}], MIA: [74, 74, 73, 72, {}], MIN: [80, 82, 78, 77, { WR1: 94 }], BOS: [87, 87, 85, 88, { CB1: 98 }],
-  NO: [78, 81, 75, 80, {}], NY: [79, 80, 78, 78, {}], NJ: [77, 75, 77, 74, {}], PHI: [88, 88, 87, 81, { WR1: 92, RB: 92, RG: 97 }],
-  PIT: [83, 78, 87, 78, {}], SF: [85, 89, 82, 90, { WR1: 91, WR2: 96, RB: 97, LB: 97 }], SEA: [86, 86, 86, 85, { WR1: 99 }],
+  NO: [78, 81, 75, 80, {}], NY: [79, 80, 78, 78, {}], NJ: [77, 75, 77, 74, {}], PHI: [88, 88, 87, 81, { WR1: 92, RB: 92, RT: 97 }],
+  PIT: [83, 78, 87, 78, {}], SF: [85, 89, 82, 90, { WR1: 91, TE: 96, RB: 97, LB: 97 }], SEA: [86, 86, 86, 85, { WR1: 99 }],
   TB: [81, 83, 79, 81, {}], TEN: [76, 74, 78, 73, {}], WAS: [79, 81, 77, 79, { WR1: 91 }],
 };
-const OFF_ROLES = ['QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG'], DEF_ROLES = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
+const OFF_ROLES = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'LT', 'LG', 'C', 'RG', 'RT'], DEF_ROLES = ['DL1', 'DL2', 'DL3', 'DL4', 'LB', 'LB2', 'LB3', 'CB1', 'CB2', 'S', 'SS'];
 const setOvr = (p, role, v) => { p.ovr = Math.max(40, Math.min(99, Math.round(v))); for (const k of KEYS[role]) p[k] = Math.max(40, Math.min(99, Math.round(v - 2 + (k === KEYS[role][0] ? 0.6 : -0.6)))); };
 
+// the order rosters are listed in (offense then defense)
+export const ROLE_ORDER = [...OFF_ROLES, ...DEF_ROLES];
 const cache = {};
 export function getRoster(ti) {
   if (cache[ti]) return cache[ti];
@@ -102,7 +105,7 @@ export function getRoster(ti) {
     players[role] = p;
   }
   const avg = (rs) => rs.reduce((s, k) => s + players[k].ovr, 0) / rs.length;
-  const OFFW = ['QB', 'QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG'];
+  const OFFW = ['QB', 'QB', ...OFF_ROLES.slice(1)];
   const m = M27[TEAMS[ti].abbr];
   if (m) {
     const [, offT, defT, qb, stars] = m;
@@ -124,7 +127,7 @@ export function getRoster(ti) {
     }
   }
   const off = m ? m[1] : Math.round(avg(OFFW)), def = m ? m[2] : Math.round(avg(DEF_ROLES));
-  cache[ti] = { players, order: ORDER, off, def, ovr: m ? m[0] : Math.round((off + def) / 2) };
+  cache[ti] = { players, order: ROLE_ORDER, off, def, ovr: m ? m[0] : Math.round((off + def) / 2) };
   return cache[ti];
 }
 

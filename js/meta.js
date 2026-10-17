@@ -1,8 +1,8 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792248186';
-import * as UT from './ut.js?v=1792248186';
-import { portraitURL } from './faces.js?v=1792248186';
-import { TEAMS } from './teams.js?v=1792248186';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792249585';
+import * as UT from './ut.js?v=1792249585';
+import { portraitURL } from './faces.js?v=1792249585';
+import { TEAMS } from './teams.js?v=1792249585';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -54,7 +54,7 @@ export function refreshChip() {
 }
 
 // ---------------- cards ----------------
-const TOP3 = { QB: ['acc', 'arm', 'spd'], HB: ['spd', 'elu', 'hands'], WR: ['spd', 'hands', 'elu'], OL: ['blk', 'tkl', 'spd'], DL: ['rush', 'tkl', 'spd'], LB: ['tkl', 'spd', 'cov'], CB: ['cov', 'spd', 'hands'], S: ['cov', 'tkl', 'spd'] };
+const TOP3 = { TE: ['hands', 'blk', 'spd'], QB: ['acc', 'arm', 'spd'], HB: ['spd', 'elu', 'hands'], WR: ['spd', 'hands', 'elu'], OL: ['blk', 'tkl', 'spd'], DL: ['rush', 'tkl', 'spd'], LB: ['tkl', 'spd', 'cov'], CB: ['cov', 'spd', 'hands'], S: ['cov', 'tkl', 'spd'] };
 const SHORT = { spd: 'SPD', hands: 'HND', acc: 'ACC', arm: 'ARM', elu: 'ELU', blk: 'BLK', rush: 'RSH', tkl: 'TKL', cov: 'COV' };
 export function cardHTML(c, o = {}) {
   const t = TEAMS[c.team];
@@ -100,8 +100,8 @@ function renderSquad(P) {
     <div class="sq-ovr"><div><b>${o.ovr}</b><small>OVR</small></div><div><b>${o.off}</b><small>OFF</small></div><div><b>${o.def}</b><small>DEF</small></div></div>
     <div class="cr-btns"><button class="btn sm" id="sq-auto">Best lineup</button><button class="btn sm" id="sq-uni">Change uniform</button></div></div>
     <div class="pitch">
-      <div class="pitch-label">Offense</div>${row(['WR1', 'C', 'LG', 'RG', 'WR2'])}${row(['QB', 'RB'])}
-      <div class="pitch-label">Defense</div>${row(['DL1', 'DL2', 'DL3'])}${row(['CB1', 'LB', 'S', 'CB2'])}
+      <div class="pitch-label">Offense</div>${row(['WR1', 'LT', 'LG', 'C', 'RG', 'RT', 'TE', 'WR2'])}${row(['WR3', 'QB', 'RB'])}
+      <div class="pitch-label">Defense</div>${row(['DL1', 'DL4', 'DL2', 'DL3'])}${row(['LB2', 'LB', 'LB3'])}${row(['CB1', 'S', 'SS', 'CB2'])}
     </div>`;
   C.$$('.slot', pane).forEach(el => el.querySelector('button').addEventListener('click', () => { C.sfx.play('ui'); pickForSlot(el.dataset.slot); }));
   C.$('#sq-auto').onclick = () => { U.lineup = UT.autoLineup(U.cards); P.save(); C.toast('Best players moved into your lineup'); renderUT(); };

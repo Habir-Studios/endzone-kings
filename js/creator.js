@@ -1,13 +1,13 @@
 // ENDZONE KINGS — Play Creator: draw your own offense, defense and special teams plays.
 // Plays save on this device (localStorage 'ek_custom_plays') and show up under "My Plays" in every game, online too.
-import { FORMS, cleanCustom } from './playbook.js?v=1792248186';
+import { FORMS, cleanCustom } from './playbook.js?v=1792249585';
 
 let C = null;
 const KEY = 'ek_custom_plays', MAX = 24;
-const COLS = { WR1: '#22c55e', WR2: '#3b82f6', RB: '#f97316', QB: '#e5e7eb' };
-const LABEL = { WR1: 'WR 1', WR2: 'WR 2', RB: 'HB', QB: 'QB' };
-const DEF_POS = { DL1: [-2.3, 1], DL2: [0.2, 1], DL3: [2.3, 1], LB: [0, 5], CB1: [-13, 5], CB2: [13, 5], S: [0, 13] };
-const DEF_NAMES = { DL1: 'DE (left)', DL2: 'DT', DL3: 'DE (right)', LB: 'MLB', CB1: 'CB (left)', CB2: 'CB (right)', S: 'Safety' };
+const COLS = { WR1: '#22c55e', WR2: '#3b82f6', RB: '#f97316', TE: '#a855f7', WR3: '#eab308', QB: '#e5e7eb' };
+const LABEL = { WR1: 'WR 1', WR2: 'WR 2', RB: 'HB', TE: 'TE', WR3: 'Slot', QB: 'QB' };
+const DEF_POS = { DL1: [-3.6, 1], DL4: [-1.1, 1], DL2: [1.1, 1], DL3: [3.6, 1], LB: [0, 5], LB2: [-4.8, 4.8], LB3: [4.8, 4.8], CB1: [-13, 5], CB2: [13, 5], S: [-3, 13], SS: [5, 10] };
+const DEF_NAMES = { DL1: 'DE (left)', DL4: 'DT (left)', DL2: 'DT (right)', DL3: 'DE (right)', LB: 'MLB', LB2: 'OLB (left)', LB3: 'OLB (right)', CB1: 'CB (left)', CB2: 'CB (right)', S: 'Free safety', SS: 'Strong safety' };
 const X = lx => 200 + lx * 7.2, Y = lz => 220 - lz * 6.5;
 const LX = x => (x - 200) / 7.2, LZ = y => (220 - y) / 6.5;
 
@@ -19,7 +19,7 @@ let selRole = 'WR1';
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (_) { return []; } };
 const store = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (_) {} };
 function fresh(s) {
-  if (s === 'def') return { side: 'def', name: '', assign: { DL1: { t: 'rush' }, DL2: { t: 'rush' }, DL3: { t: 'rush' }, LB: { t: 'zone', x: 0, z: 6 }, CB1: { t: 'man', who: 'WR1' }, CB2: { t: 'man', who: 'WR2' }, S: { t: 'deep' } } };
+  if (s === 'def') return { side: 'def', name: '', assign: { DL1: { t: 'rush' }, DL4: { t: 'rush' }, DL2: { t: 'rush' }, DL3: { t: 'rush' }, LB: { t: 'man', who: 'RB' }, LB2: { t: 'man', who: 'TE' }, LB3: { t: 'zone', x: 5, z: 6 }, CB1: { t: 'man', who: 'WR1' }, CB2: { t: 'man', who: 'WR2' }, S: { t: 'deep' }, SS: { t: 'man', who: 'WR3' } } };
   return { side: 'off', special: s === 'st', name: '', form: s === 'st' ? 'punt' : 'gun', type: 'pass', carrier: 'RB', pa: false, routes: {} };
 }
 
@@ -43,7 +43,7 @@ function msg(t, err) { const m = C.$('#cr-msg'); m.textContent = t; m.classList.
 function opts() {
   const box = C.$('#cr-opts'); const help = C.$('#cr-help');
   if (ed.side === 'def') {
-    const choices = [['rush', 'Rush the QB'], ['man:WR1', 'Cover WR 1'], ['man:WR2', 'Cover WR 2'], ['man:RB', 'Cover the HB'], ['man:QB', 'Spy the QB'], ['zone', 'Zone (click a spot)'], ['deep', 'Deep help']];
+    const choices = [['rush', 'Rush the QB'], ['man:WR1', 'Cover WR 1'], ['man:WR2', 'Cover WR 2'], ['man:WR3', 'Cover the slot'], ['man:TE', 'Cover the TE'], ['man:RB', 'Cover the HB'], ['man:QB', 'Spy the QB'], ['zone', 'Zone (click a spot)'], ['deep', 'Deep help']];
     box.innerHTML = `<div class="cr-assign">${Object.keys(DEF_POS).map(r => { const a = ed.assign[r] || { t: 'rush' }; const v = a.t === 'man' ? 'man:' + a.who : a.t;
       return `<label><span>${DEF_NAMES[r]}</span><select data-r="${r}">${choices.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`; }).join('')}</div>`;
     C.$$('select', box).forEach(sel => sel.onchange = () => {
@@ -73,7 +73,7 @@ function opts() {
     ? `Pick a player, then <b>click the field</b> to add up to 5 points to his route. Players with no route stay in and block. ${ed.special ? 'The kicker or punter throws it.' : ''}`
     : `Click the field to draw the ${ed.carrier === 'QB' ? 'QB keeper' : 'HB'}'s running lane. Everyone else blocks for him.`;
 }
-const roles = () => ed.type === 'run' ? [ed.carrier] : ['WR1', 'WR2', 'RB'];
+const roles = () => ed.type === 'run' ? [ed.carrier] : ['WR1', 'WR2', 'WR3', 'TE', 'RB'];
 
 function draw() {
   const svg = C.$('#cr-field');
@@ -83,10 +83,10 @@ function draw() {
   s += `<line x1="0" x2="400" y1="${Y(0)}" y2="${Y(0)}" stroke="#60a5fa" stroke-width="2"/><text x="6" y="${Y(0) - 5}" fill="#93c5fd" font-size="10" font-family="sans-serif">Line of scrimmage</text>`;
   for (const z of [10, 20, 30]) s += `<text x="394" y="${Y(z) + 4}" text-anchor="end" fill="rgba(255,255,255,.4)" font-size="10" font-family="sans-serif">+${z}</text>`;
   if (ed.side === 'def') {
-    const tgt = { WR1: [-13, 0], WR2: [13, 0], RB: [1.6, -4.9], QB: [0, -4.5] };
+    const tgt = { WR1: [-13, 0], WR2: [13, 0], WR3: [-8.5, -1.3], TE: [5.3, -1.15], RB: [1.6, -4.9], QB: [0, -4.5] };
     for (const [r, p] of Object.entries(tgt)) s += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="6" fill="none" stroke="${COLS[r]}" stroke-width="2"/><text x="${X(p[0])}" y="${Y(p[1]) + 18}" text-anchor="middle" fill="${COLS[r]}" font-size="9" font-family="sans-serif">${LABEL[r]}</text>`;
     for (const [r, a] of Object.entries(ed.assign)) {
-      const p = DEF_POS[r];
+      const p = DEF_POS[r]; if (!p) continue;
       if (a.t === 'zone') { const deep = a.z > 12; s += `<ellipse cx="${X(a.x)}" cy="${Y(a.z)}" rx="${deep ? 44 : 32}" ry="${deep ? 18 : 13}" fill="${deep ? '#3b82f6' : '#eab308'}" opacity=".35"/><line x1="${X(p[0])}" y1="${Y(p[1])}" x2="${X(a.x)}" y2="${Y(a.z)}" stroke="${deep ? '#93c5fd' : '#fde047'}" stroke-width="2"/>`; }
       else if (a.t === 'man') { const q = tgt[a.who]; s += `<line x1="${X(p[0])}" y1="${Y(p[1])}" x2="${X(q[0])}" y2="${Y(q[1])}" stroke="${a.who === 'QB' ? '#c084fc' : '#f87171'}" stroke-width="2" stroke-dasharray="5 4"/>`; }
       else if (a.t === 'rush') s += `<line x1="${X(p[0])}" y1="${Y(p[1])}" x2="${X(p[0] * 0.4)}" y2="${Y(-4)}" stroke="#fb923c" stroke-width="2.4" marker-end="url(#ar)"/>`;
@@ -95,15 +95,15 @@ function draw() {
     for (const [r, p] of Object.entries(DEF_POS)) s += `<g class="who" data-r="${r}"><circle cx="${X(p[0])}" cy="${Y(p[1])}" r="${r === selRole ? 8 : 6.5}" fill="#fecaca" stroke="${r === selRole ? '#f6c445' : '#7f1d1d'}" stroke-width="${r === selRole ? 3 : 1.5}"/></g>`;
   } else {
     const f = FORMS[ed.form] || FORMS.gun;
-    for (const lx of [-1.75, 0, 1.75]) s += `<rect x="${X(lx) - 6}" y="${Y(-1) - 6}" width="12" height="12" fill="#cbd5e1"/>`;
-    const start = { WR1: f.WR1, WR2: f.WR2, RB: f.RB, QB: f.QB };
+    for (const lx of [-3.5, -1.75, 0, 1.75, 3.5]) s += `<rect x="${X(lx) - 6}" y="${Y(-1) - 6}" width="12" height="12" fill="#cbd5e1"/>`;
+    const start = { WR1: f.WR1, WR2: f.WR2, WR3: f.WR3 || [-8.5, -1.3], TE: f.TE || [5.3, -1.15], RB: f.RB, QB: f.QB };
     for (const [r, pts] of Object.entries(ed.routes)) {
-      if (!pts.length) continue;
+      if (!pts.length || !start[r]) continue;
       const all = [start[r], ...pts];
       s += `<polyline points="${all.map(p => `${X(p[0])},${Y(p[1])}`).join(' ')}" fill="none" stroke="${COLS[r]}" stroke-width="${ed.type === 'run' ? 4 : 3}" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ar-${r})"/>`;
       for (const p of pts) s += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3" fill="${COLS[r]}"/>`;
     }
-    for (const r of ['WR1', 'WR2', 'RB', 'QB']) { const p = start[r]; const on = r === selRole; s += `<g class="who" data-r="${r}"><circle cx="${X(p[0])}" cy="${Y(Math.max(p[1], -11.5))}" r="${on ? 9 : 7}" fill="${COLS[r]}" stroke="${on ? '#fff' : '#0a1024'}" stroke-width="${on ? 3 : 1.5}"/><text x="${X(p[0])}" y="${Y(Math.max(p[1], -11.5)) + 3.5}" text-anchor="middle" font-size="9" font-weight="700" font-family="sans-serif" fill="#0a1024">${r === 'RB' ? 'HB' : r === 'QB' ? (ed.special ? 'K' : 'QB') : r.slice(2)}</text></g>`; }
+    for (const r of ['WR1', 'WR2', 'WR3', 'TE', 'RB', 'QB']) { const p = start[r]; const on = r === selRole; s += `<g class="who" data-r="${r}"><circle cx="${X(p[0])}" cy="${Y(Math.max(p[1], -11.5))}" r="${on ? 9 : 7}" fill="${COLS[r]}" stroke="${on ? '#fff' : '#0a1024'}" stroke-width="${on ? 3 : 1.5}"/><text x="${X(p[0])}" y="${Y(Math.max(p[1], -11.5)) + 3.5}" text-anchor="middle" font-size="9" font-weight="700" font-family="sans-serif" fill="#0a1024">${r === 'RB' ? 'HB' : r === 'QB' ? (ed.special ? 'K' : 'QB') : r === 'TE' ? 'TE' : r === 'WR3' ? 'S' : r.slice(2)}</text></g>`; }
   }
   const markers = Object.entries(COLS).map(([r, c]) => `<marker id="ar-${r}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('');
   svg.innerHTML = `<defs>${markers}<marker id="ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#fb923c"/></marker></defs>${s}`;

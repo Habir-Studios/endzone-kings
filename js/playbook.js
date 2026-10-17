@@ -2,19 +2,19 @@
 // Coordinates are offense-relative [lateral, depth]: depth > 0 is downfield, lateral < 0 shows on the left of the screen.
 
 export const FORMS = {
-  gun:    { name: 'Shotgun',     QB: [0, -4.5], RB: [1.6, -4.9], WR1: [-13, -0.6], WR2: [13, -0.6] },
-  trips:  { name: 'Gun Trips',   QB: [0, -4.5], RB: [1.6, -4.9], WR1: [-15, -0.6], WR2: [-8, -1.3] },
-  single: { name: 'Singleback',  QB: [0, -1.2], RB: [0, -5.6], WR1: [-13, -0.6], WR2: [12, -0.6] },
-  punt:   { name: 'Punt',        QB: [0, -12], RB: [2.5, -5], WR1: [-20, -0.6], WR2: [20, -0.6] },
-  fg:     { name: 'Field Goal',  QB: [0, -7], RB: [1.5, -9.5], WR1: [-5, -1], WR2: [5, -1] },
-  pistol: { name: 'Pistol',      QB: [0, -3.2], RB: [0, -6.4], WR1: [-13, -0.6], WR2: [13, -0.6] },
-  iform:  { name: 'I-Form',      QB: [0, -1.2], RB: [0, -7.2], WR1: [-13, -0.6], WR2: [11, -0.6] },
-  empty:  { name: 'Empty',       QB: [0, -4.5], RB: [17, -0.8], WR1: [-14, -0.6], WR2: [-7.5, -1.3] },
-  bunch:  { name: 'Gun Bunch',   QB: [0, -4.5], RB: [-1.6, -4.9], WR1: [8, -0.6], WR2: [10, -1.8] },
-  spread: { name: 'Spread',      QB: [0, -4.5], RB: [-1.6, -4.9], WR1: [-17, -0.6], WR2: [17, -0.6] },
+  gun:    { name: 'Shotgun',     QB: [0, -4.5], RB: [1.6, -4.9], WR1: [-13, -0.6], WR2: [13, -0.6], WR3: [-8.5, -1.3], TE: [5.3, -1.15] },
+  trips:  { name: 'Gun Trips',   QB: [0, -4.5], RB: [1.6, -4.9], WR1: [-15, -0.6], WR2: [-8, -1.3], WR3: [-11.5, -2.2], TE: [5.3, -1.15] },
+  single: { name: 'Singleback',  QB: [0, -1.2], RB: [0, -5.6], WR1: [-13, -0.6], WR2: [12, -0.6], WR3: [-8, -1.3], TE: [5.3, -1.15] },
+  punt:   { name: 'Punt',        QB: [0, -12], RB: [2.5, -5], WR1: [-20, -0.6], WR2: [20, -0.6], WR3: [-5.3, -1.15], TE: [5.3, -1.15] },
+  fg:     { name: 'Field Goal',  QB: [0, -7], RB: [1.5, -9.5], WR1: [-5.3, -1.1], WR2: [5.3, -1.1], WR3: [-6.6, -1.7], TE: [6.6, -1.7] },
+  pistol: { name: 'Pistol',      QB: [0, -3.2], RB: [0, -6.4], WR1: [-13, -0.6], WR2: [13, -0.6], WR3: [8.5, -1.3], TE: [-5.3, -1.15] },
+  iform:  { name: 'I-Form',      QB: [0, -1.2], RB: [0, -7.2], WR1: [-13, -0.6], WR2: [11, -0.6], WR3: [-8, -1.3], TE: [5.3, -1.15] },
+  empty:  { name: 'Empty',       QB: [0, -4.5], RB: [17, -0.8], WR1: [-14, -0.6], WR2: [-7.5, -1.3], WR3: [9.5, -1.3], TE: [5.3, -1.15] },
+  bunch:  { name: 'Gun Bunch',   QB: [0, -4.5], RB: [-1.6, -4.9], WR1: [8, -0.6], WR2: [10, -1.8], WR3: [9.2, -3.0], TE: [-5.3, -1.15] },
+  spread: { name: 'Spread',      QB: [0, -4.5], RB: [-1.6, -4.9], WR1: [-17, -0.6], WR2: [17, -0.6], WR3: [-9.5, -1.3], TE: [9.5, -1.3] },
 };
 export const PLAY_FORMS = ['gun', 'trips', 'single', 'pistol', 'iform', 'empty', 'bunch', 'spread'];
-export const LINE = { C: [0, -0.9], LG: [-1.75, -1.0], RG: [1.75, -1.0] };
+export const LINE = { C: [0, -0.9], LG: [-1.75, -1.0], RG: [1.75, -1.0], LT: [-3.5, -1.05], RT: [3.5, -1.05] };
 
 export const OFF_CATS = ['Quick', 'Deep', 'Run', 'Play Action', 'Screen', 'Special'];
 export const DEF_CATS = ['Man', 'Zone', 'Blitz'];
@@ -153,6 +153,66 @@ export const DEF_PLAYS = [
   { id: 'zoneblitz', cat: 'Blitz', name: 'Zone Blitz', tip: 'End drops into coverage, safety blitzes', zone: { CB1: [-13, 15], CB2: [13, 15], DL3: [6, 6], LB: [0, 12] }, rush: ['S'] },
 ];
 
+// ---------------- 11-on-11: tight end, slot receiver and the extra defenders ----------------
+// Plays are drawn for the main receivers; the TE and slot get routes that fit the concept, and the extra
+// defenders (a second DT, two outside linebackers and a strong safety) get jobs that fit the coverage.
+function h32s(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+export function fillOffense(play) {
+  if (!play || play.side === 'def' || play.type !== 'pass' || play.filled) return play;
+  const f = FORMS[play.form] || FORMS.gun, routes = { ...play.routes }, block = [...(play.block || [])], h = h32s(play.id || play.name || 'x');
+  const R = (role, opts) => { if (routes[role] || block.includes(role)) return; const [sx] = f[role]; const inn = sx === 0 ? 1 : -Math.sign(sx); const o = opts(sx, inn); const pickd = o[h % o.length]; if (pickd === 'block') block.push(role); else routes[role] = pickd; };
+  const cat = play.cat;
+  if (cat === 'Screen') { R('TE', () => ['block']); R('WR3', () => ['block']); }
+  else if (cat === 'Special') { R('TE', (x, i) => [[[x, 1], [x - i * 7, 3]]]); R('WR3', () => ['block']); }
+  else if (cat === 'Deep') {
+    R('TE', (x, i) => [[[x, 8], [x + i * 1.5, 32]], [[x, 10], [x + i * 9, 12]]]);
+    R('WR3', (x, i) => [[[x, 12], [x + i * 12, 13]], [[x, 11], [x + i * 6, 26], [x + i * 8, 40]], [[x, 10], [x - i * 6, 22]]]);
+  } else if (cat === 'Play Action') {
+    R('TE', (x, i) => (play.drop || -7) <= -9 ? ['block'] : [[[x, 1.5], [x + i * 10, 4], [x + i * 22, 6]], 'block']);
+    R('WR3', (x, i) => [[[x, 10], [x - i * 6, 20]], [[x, 12], [x + i * 10, 13]]]);
+  } else {
+    R('TE', (x, i) => [[[x, 5], [x + i * 0.5, 5.5, 'stop']], [[x - i * 2, 2], [x - i * 8, 3]], [[x, 6], [x + i * 6, 7]]]);
+    R('WR3', (x, i) => [[[x, 2], [x + i * 5, 7], [x + i * 9, 12]], [[x, 5], [x - i * 6, 5]], [[x, 7], [x + i * 1, 5.5, 'stop']]]);
+  }
+  return { ...play, routes, block, filled: true };
+}
+const ZONE_EXTRA = {
+  cover2: { S: [-11, 18], SS: [11, 18], LB2: [-6, 7], LB3: [6, 7] },
+  tampa2: { S: [-11, 20], SS: [11, 20], LB2: [-6, 7], LB3: [6, 7] },
+  cover3: { SS: [8, 9], LB2: [-6, 7], LB3: [4, 7] },
+  cover3buzz: { SS: [8, 10], LB2: [-7, 6], LB3: [6, 6] },
+  cover4: { S: [-5, 22], SS: [5, 22], LB2: [-7, 7], LB3: [7, 7] },
+  cover6: { SS: [-9, 9], LB2: [-5, 7], LB3: [7, 7] },
+  prevent: { SS: [9, 26], LB2: [-8, 10], LB3: [8, 10] },
+  goalline: { SS: [5, 5], LB2: [-4, 3], LB3: [4, 3] },
+  firezone: { SS: [8, 10], LB2: [-7, 6], LB3: [6, 6] },
+  zoneblitz: { SS: [-8, 10], LB2: [-6, 6], LB3: [6, 7] },
+};
+export function fillDefense(dp) {
+  if (!dp || dp.filledD) return dp;
+  const out = { ...dp, man: { ...(dp.man || {}) }, zone: { ...(dp.zone || {}) }, rush: [...(dp.rush || [])], spy: [...(dp.spy || [])], deep: [...(dp.deep || [])], filledD: true };
+  const given = r => r in out.man || r in out.zone || out.rush.includes(r) || out.spy.includes(r) || out.deep.includes(r);
+  const blitz = dp.cat === 'Blitz';
+  if (Object.keys(dp.man || {}).length) {
+    const covered = new Set(Object.values(out.man));
+    const want = ['WR3', 'TE', 'RB', 'WR2', 'WR1'].filter(t => !covered.has(t));
+    for (const d of ['SS', 'LB2', 'LB3']) {
+      if (given(d)) continue;
+      const t = d === 'SS' ? want.find(x => x !== 'TE') : d === 'LB2' ? (want.includes('TE') ? 'TE' : want[0]) : want[0];
+      if (t) { out.man[d] = t; want.splice(want.indexOf(t), 1); }
+      else if (blitz) out.rush.push(d);
+      else out.zone[d] = d === 'SS' ? [8, 11] : d === 'LB2' ? [-5, 6] : [5, 6];
+    }
+  } else {
+    const z = ZONE_EXTRA[dp.id] || { SS: [8, 11], LB2: [-6, 6], LB3: [6, 6] };
+    for (const [r, spot] of Object.entries(z)) if (!given(r) || r === 'S') out.zone[r] = spot;
+    for (const d of ['SS', 'LB2', 'LB3']) if (!given(d)) out.zone[d] = d === 'SS' ? [8, 11] : d === 'LB2' ? [-6, 6] : [6, 6];
+  }
+  return out;
+}
+for (let i = 0; i < OFF_PLAYS.length; i++) OFF_PLAYS[i] = fillOffense(OFF_PLAYS[i]);
+for (let i = 0; i < DEF_PLAYS.length; i++) DEF_PLAYS[i] = fillDefense(DEF_PLAYS[i]);
+
 // ---------------- team playbook styles ----------------
 export const OFF_STYLES = {
   air:      { name: 'Air Raid',       plays: ['slants', 'curlflat', 'mesh', 'stick', 'hitches', 'quickouts', 'drive', 'spacing', 'emptyslant', 'rbangle', 'postdig', 'verts', 'smash', 'flood', 'dagger', 'sluggo', 'emptyverts', 'bunchcorner', 'goout', 'draw', 'qbdraw', 'toss', 'pinpull', 'bubble', 'rbscreen', 'tunnel', 'padeep', 'paflood'], weight: { Quick: 3, Deep: 3, Run: 1, 'Play Action': 1, Screen: 1.5 } },
@@ -183,7 +243,7 @@ export function signaturePlay(ti, abbr, city) {
   const routes = {};
   for (const [k, pts] of Object.entries(base.routes)) routes[k] = pts.map(w => [w[0] * (k === 'RB' ? 1 : 1), w[1] > 2 ? w[1] * deep : w[1], ...(w[2] ? [w[2]] : [])]);
   if (flip < 0) { const a = routes.WR1, b = routes.WR2; if (a && b && base.form === 'gun') { routes.WR1 = b.map(w => [-w[0], w[1], ...w.slice(2)]); routes.WR2 = a.map(w => [-w[0], w[1], ...w.slice(2)]); } }
-  return { ...base, id: 'sig_' + abbr, name: `${city} ${st.sig}`, tip: `${abbr} signature play`, signature: true, routes };
+  return fillOffense({ ...base, filled: false, id: 'sig_' + abbr, name: `${city} ${st.sig}`, tip: `${abbr} signature play`, signature: true, routes });
 }
 
 export function teamPlaybook(ti, team) {
@@ -202,7 +262,7 @@ export function cleanCustom(def) {
   if (!id.startsWith('c_')) return null;
   const name = String(def.name || 'My Play').replace(/[<>]/g, '').slice(0, 22) || 'My Play';
   if (def.side === 'def') {
-    const roles = ['DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'], tgts = ['WR1', 'WR2', 'RB', 'QB'];
+    const roles = ['DL1', 'DL2', 'DL3', 'DL4', 'LB', 'LB2', 'LB3', 'CB1', 'CB2', 'S', 'SS'], tgts = ['WR1', 'WR2', 'WR3', 'TE', 'RB', 'QB'];
     const out = { id, name, side: 'def', cat: 'Custom', tip: 'Your custom defense', man: {}, zone: {}, rush: [], spy: [], deep: [] };
     for (const r of roles) {
       const a = def.assign && def.assign[r]; if (!a) continue;
@@ -211,12 +271,12 @@ export function cleanCustom(def) {
       else if (a.t === 'zone') out.zone[r] = [num(a.x, -24, 24), num(a.z, 1, 35, 8)];
       else if (a.t === 'deep') out.deep.push(r);
     }
-    return out;
+    return fillDefense(out);
   }
   const form = FORMS[def.form] && def.form !== 'punt' && def.form !== 'fg' ? def.form : (def.special && FORMS[def.form] ? def.form : 'gun');
   const type = def.type === 'run' ? 'run' : 'pass';
   const routes = {};
-  for (const r of ['WR1', 'WR2', 'RB', 'QB']) {
+  for (const r of ['WR1', 'WR2', 'WR3', 'TE', 'RB', 'QB']) {
     const pts = def.routes && def.routes[r];
     if (!Array.isArray(pts) || !pts.length) continue;
     routes[r] = pts.slice(0, 6).map(w => [num(w[0], -25, 25), num(w[1], -12, 55), ...(w[2] === 'stop' ? ['stop'] : [])]);
@@ -226,5 +286,5 @@ export function cleanCustom(def) {
     if (def.carrier === 'QB') out.qbRun = true; else out.hand = num(def.hand, 0.3, 1.2, 0.5);
   }
   if (def.pa) out.pa = 0.65;
-  return out;
+  return fillOffense(out);
 }

@@ -1,6 +1,6 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792248186';
+import { TEAMS } from './teams.js?v=1792249585';
 
 export const TIERS = [
   { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 15, train: 220, mv: 180 },
@@ -13,14 +13,17 @@ export const MAX_BOOST = [5, 5, 5, 4, 3];
 export const CLUB_CAP = 200;
 
 // position groups and the lineup slots they can fill
-export const GROUPS = { QB: ['QB'], HB: ['RB'], WR: ['WR1', 'WR2'], OL: ['C', 'LG', 'RG'], DL: ['DL1', 'DL2', 'DL3'], LB: ['LB'], CB: ['CB1', 'CB2'], S: ['S'] };
-export const SLOTS = ['QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG', 'DL1', 'DL2', 'DL3', 'LB', 'CB1', 'CB2', 'S'];
+// TE is listed last so the group numbers baked into older card ids don't move
+export const GROUPS = { QB: ['QB'], HB: ['RB'], WR: ['WR1', 'WR2', 'WR3'], OL: ['LT', 'LG', 'C', 'RG', 'RT'], DL: ['DL1', 'DL4', 'DL2', 'DL3'], LB: ['LB2', 'LB', 'LB3'], CB: ['CB1', 'CB2'], S: ['S', 'SS'], TE: ['TE'] };
+export const OFF_SLOTS = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'LT', 'LG', 'C', 'RG', 'RT'];
+export const DEF_SLOTS = ['DL1', 'DL4', 'DL2', 'DL3', 'LB2', 'LB', 'LB3', 'CB1', 'CB2', 'S', 'SS'];
+export const SLOTS = [...OFF_SLOTS, ...DEF_SLOTS];
 export const SLOT_GROUP = Object.fromEntries(Object.entries(GROUPS).flatMap(([g, ss]) => ss.map(s => [s, g])));
-export const SLOT_LABEL = { QB: 'QB', RB: 'HB', WR1: 'WR', WR2: 'WR', C: 'C', LG: 'LG', RG: 'RG', DL1: 'DE', DL2: 'DT', DL3: 'DE', LB: 'MLB', CB1: 'CB', CB2: 'CB', S: 'S' };
-const KEYS = { QB: ['acc', 'arm'], HB: ['spd', 'elu'], WR: ['spd', 'hands'], OL: ['blk'], DL: ['rush', 'tkl'], LB: ['tkl', 'spd'], CB: ['cov', 'spd'], S: ['cov', 'tkl'] };
+export const SLOT_LABEL = { QB: 'QB', RB: 'HB', WR1: 'WR', WR2: 'WR', WR3: 'Slot', TE: 'TE', LT: 'LT', LG: 'LG', C: 'C', RG: 'RG', RT: 'RT', DL1: 'DE', DL4: 'DT', DL2: 'DT', DL3: 'DE', LB2: 'OLB', LB: 'MLB', LB3: 'OLB', CB1: 'CB', CB2: 'CB', S: 'FS', SS: 'SS' };
+const KEYS = { QB: ['acc', 'arm'], HB: ['spd', 'elu'], WR: ['spd', 'hands'], OL: ['blk'], DL: ['rush', 'tkl'], LB: ['tkl', 'spd'], CB: ['cov', 'spd'], S: ['cov', 'tkl'], TE: ['hands', 'blk'] };
 const RK = ['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'];
 const GROUP_KEYS = Object.keys(GROUPS);
-const NUMS = { QB: [1, 19], HB: [20, 39], WR: [10, 89], OL: [50, 79], DL: [90, 99], LB: [40, 59], CB: [20, 39], S: [20, 49] };
+const NUMS = { QB: [1, 19], HB: [20, 39], WR: [10, 89], OL: [50, 79], DL: [90, 99], LB: [40, 59], CB: [20, 39], S: [20, 49], TE: [80, 89] };
 export const RATING_NAMES = { spd: 'Speed', hands: 'Hands', acc: 'Accuracy', arm: 'Arm', elu: 'Elusive', blk: 'Block', rush: 'Pass rush', tkl: 'Tackle', cov: 'Coverage' };
 
 const FIRST = ['Marcus', 'Jalen', 'Tyler', 'Devin', 'Chris', 'Jordan', 'Darius', 'Andre', 'Malik', 'Josh', 'Caleb', 'Trey', 'Isaiah', 'Brandon', 'DeShawn', 'Cole', 'Logan', 'Zach', 'Mason', 'Elijah', 'Jaylen', 'Nate', 'Kendall', 'Bryce', 'Austin', 'Xavier', 'Terrell', 'Cameron', 'Hunter', 'Quinton', 'Jamal', 'Owen', 'Dante', 'Rashad', 'Kyle', 'Luke', 'Micah', 'Jace', 'Victor', 'Garrett', 'Tavon', 'Keon', 'Blake', 'Desmond', 'Eli', 'Jabari', 'Kobe', 'Myles', 'Noah', 'Omar', 'Reggie', 'Tariq', 'Wyatt', 'Zion', 'Amari', 'Bo', 'Cedric', 'Dillon', 'Gavin', 'Hakeem', 'Jarvis', 'Kareem', 'Montez', 'Nico', 'Preston', 'Quincy', 'Roman', 'Sincere', 'Tobias', 'Ulysses', 'Vince', 'Wes', 'Yusuf', 'Ezra', 'Fletcher', 'Ronnie', 'Sterling', 'Booker', 'Ahmad', 'Brooks'];
@@ -44,7 +47,7 @@ export function card(id) {
   const r = rng(id * 2654435761);
   const ovr = Math.round(T.lo + r() * (T.hi - T.lo));
   const keys = KEYS[group];
-  const c = { id, tier, tierKey: T.key, tierName: T.name, group, pos: group === 'HB' ? 'HB' : group, first: FIRST[(r() * FIRST.length) | 0], last: LAST[(r() * LAST.length) | 0] };
+  const c = { id, tier, tierKey: T.key, tierName: T.name, group, pos: group, first: FIRST[(r() * FIRST.length) | 0], last: LAST[(r() * LAST.length) | 0] };
   for (const k of RK) c[k] = clampR(keys.includes(k) ? ovr + (r() - 0.35) * 6 : ovr - 14 + (r() - 0.5) * 16);
   if (group === 'OL' || group === 'DL') c.spd = clampR(Math.min(c.spd, 62 + r() * 18));
   if (group === 'QB') c.spd = clampR(55 + r() * 30);
@@ -82,14 +85,14 @@ function pickTier(w, r) { const tot = w.reduce((a, b) => a + b, 0); let x = r() 
 export function rollPack(key, seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) {
   const P = packByKey(key); const r = rng(seed);
   const ids = [];
-  for (let i = 0; i < P.n; i++) ids.push(makeId(pickTier(P.w, r), (r() * 8) | 0, (r() * 1e7) | 0));
-  if (!ids.some(id => Math.floor(id / 1e8) >= P.guar)) ids[0] = makeId(P.guar, (r() * 8) | 0, (r() * 1e7) | 0);
+  for (let i = 0; i < P.n; i++) ids.push(makeId(pickTier(P.w, r), (r() * GROUP_KEYS.length) | 0, (r() * 1e7) | 0));
+  if (!ids.some(id => Math.floor(id / 1e8) >= P.guar)) ids[0] = makeId(P.guar, (r() * GROUP_KEYS.length) | 0, (r() * 1e7) | 0);
   return ids.sort((a, b) => card(a).ovr - card(b).ovr);
 }
 // the starter squad: one bronze-ish player for every slot
 export function starterIds(seed) {
   const r = rng(seed); const ids = [];
-  const need = { QB: 1, HB: 1, WR: 2, OL: 3, DL: 3, LB: 1, CB: 2, S: 1 };
+  const need = Object.fromEntries(Object.entries(GROUPS).map(([g, ss]) => [g, ss.length]));
   for (const [g, n] of Object.entries(need)) for (let i = 0; i < n; i++) ids.push(makeId(0, GROUP_KEYS.indexOf(g), (r() * 1e7) | 0));
   return ids;
 }
@@ -108,10 +111,10 @@ export function lineupCards(ut) {
   return out;
 }
 export function squadOvr(ut) {
-  const L = lineupCards(ut); const v = SLOTS.map(s => L[s] ? L[s].ovr : 40);
-  const off = v.slice(0, 7), def = v.slice(7);
+  const L = lineupCards(ut), o = s => L[s] ? L[s].ovr : 40;
   const avg = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
-  return { ovr: Math.round((avg([off[0], ...off]) + avg(def)) / 2), off: avg([off[0], ...off]), def: avg(def), full: SLOTS.every(s => L[s]) };
+  const off = avg(['QB', ...OFF_SLOTS].map(o)), def = avg(DEF_SLOTS.map(o));
+  return { ovr: Math.round((off + def) / 2), off, def, full: SLOTS.every(s => L[s]) };
 }
 // roster object the sim understands (see sim.js cleanRoster)
 export function squadRoster(ut) {
@@ -189,3 +192,11 @@ export function fpReward(t) {
   return { coins: 500 + t * 60 };
 }
 export const fpSeason = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}`;
+
+// clubs from before 11-on-11: top up any position you don't have enough players for, then fill the new spots
+export function missingForLineup(cards) {
+  const have = {}; for (const c of cards) { const g = card(c.id).group; have[g] = (have[g] || 0) + 1; }
+  const out = []; let n = 1;
+  for (const [g, ss] of Object.entries(GROUPS)) for (let i = have[g] || 0; i < ss.length; i++) out.push(makeId(1, GROUP_KEYS.indexOf(g), (Date.now() + n++ * 7919) % 1e7));
+  return out;
+}

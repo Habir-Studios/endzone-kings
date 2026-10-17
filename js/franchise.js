@@ -1,8 +1,8 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792248186';
-import * as Season from './season.js?v=1792248186';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792249585';
+import * as Season from './season.js?v=1792249585';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -233,8 +233,15 @@ export function initFranchise(ctx) {
   C.$$('.fr-tab').forEach(b => b.addEventListener('click', () => { tab = b.dataset.fr; C.sfx.play('ui'); renderFranchise(); }));
 }
 export function franchiseSub() { const F = load(); if (!F) return 'Run a team for years: draft, contracts, progression'; const s = F.season.standings[F.team]; return `${TEAMS[F.team].city}, ${F.year}, ${F.phase === 'season' ? `${s.w}-${s.l}` : 'offseason'}`; }
+// franchises started before 11-on-11 get the team's real tight end, slot, tackles and extra defenders
+function migrate(F) {
+  const r = getRoster(F.team); let n = 0;
+  for (const role of r.order) if (!F.players[F.starters[role]]) { const p = fromRoster(F, role, r.players[role]); F.players[p.id] = p; F.starters[role] = p.id; n++; }
+  if (n) { F.log.unshift(`${F.year}: the league went 11-on-11, ${n} players joined your team`); save(F); }
+}
 export function renderFranchise() {
   const F = load(), { $ } = C;
+  if (F) migrate(F);
   $('#fr-new').classList.toggle('hidden', !!F); $('#fr-hub').classList.toggle('hidden', !F);
   if (!F) {
     let pickT = -1;

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792266498">
+  <link rel="stylesheet" href="css/style.css?v=1792266723">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#f6c445"/><stop offset="1" stop-color="#d98a00"/></linearGradient></defs></svg>
@@ -601,6 +601,7 @@
       <form id="chat-form" class="chat-form hidden"><input id="chat-in" maxlength="120" placeholder="Say something (Enter to send, Esc to close)" autocomplete="off" aria-label="Chat message"></form>
     </div>
     <div id="hint" class="hint"></div>
+    <div id="inj-ask" class="inj-ask hidden" role="alertdialog"><b id="inj-ask-t"></b><div><button class="btn sm primary" id="inj-back" type="button">Put him back in</button><button class="btn sm" id="inj-keep" type="button">Keep him out</button></div></div>
     <div id="cel-pick" class="cel-pick hidden" role="dialog" aria-label="Pick a celebration"><b>Celebration</b><div id="cel-opts"></div><small>1-9 or click to pick · E to close</small></div>
     <div id="net-badge" class="net-badge hidden"></div>
     <button id="pause-btn" class="pause-btn" title="Pause (Esc)" aria-label="Pause"><span></span><span></span></button>
@@ -623,6 +624,7 @@
       <h2 class="title sm">Paused</h2>
       <button class="btn primary" id="resume">Resume</button>
       <button class="btn" id="p-howto">Controls</button>
+      <button class="btn" id="p-subs">Subs &amp; injuries</button>
       <button class="btn" id="p-settings">Settings</button>
       <button class="btn hidden" id="p-replay">Instant replay</button>
       <button class="btn" id="p-clip">Clip last play</button>
@@ -669,6 +671,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792266498"></script>
+  <script type="module" src="js/main.js?v=1792266723"></script>
 </body>
 </html>

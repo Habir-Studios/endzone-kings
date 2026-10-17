@@ -1,20 +1,20 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes } from './ui.js?v=1792266498';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266498';
-import { Renderer } from './render.js?v=1792266498';
-import { Sfx } from './audio.js?v=1792266498';
-import { Auth } from './auth.js?v=1792266498';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266498';
-import { getRoster, teamOvr } from './teams.js?v=1792266498';
-import * as Season from './season.js?v=1792266498';
-import * as Fr from './franchise.js?v=1792266498';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266498';
-import { celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266498';
-import * as UTm from './ut.js?v=1792266498';
-import { initCreator, renderCreator } from './creator.js?v=1792266498';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266498';
-import { portraitURL } from './faces.js?v=1792266498';
-import { logoURL, clearLogoCache } from './logos.js?v=1792266498';
+import { askYes } from './ui.js?v=1792266723';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792266723';
+import { Renderer } from './render.js?v=1792266723';
+import { Sfx } from './audio.js?v=1792266723';
+import { Auth } from './auth.js?v=1792266723';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792266723';
+import { getRoster, teamOvr } from './teams.js?v=1792266723';
+import * as Season from './season.js?v=1792266723';
+import * as Fr from './franchise.js?v=1792266723';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792266723';
+import { celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792266723';
+import * as UTm from './ut.js?v=1792266723';
+import { initCreator, renderCreator } from './creator.js?v=1792266723';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792266723';
+import { portraitURL } from './faces.js?v=1792266723';
+import { logoURL, clearLogoCache } from './logos.js?v=1792266723';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -901,6 +901,32 @@ function togglePause(force) {
 $('#pause-btn').addEventListener('click', () => togglePause());
 $('#resume').addEventListener('click', () => togglePause(false));
 $('#p-howto').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('howto'); });
+// subs & injuries (pause menu)
+function renderSubs() {
+  const S = st.snap; if (!S) return;
+  const me = st.local, inj = Object.fromEntries((S.inj || []).filter(j => j.team === me).map(j => [j.role, j]));
+  const fat = (S.fat && S.fat[me]) || {}, live = S.ph === 'live';
+  const rows = S.pl.filter(p => p[0] === me).map(p => p[2]).filter((r, i, a) => a.indexOf(r) === i);
+  const body = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'DL1', 'DL4', 'DL2', 'DL3', 'LB2', 'LB', 'LB3', 'CB1', 'CB2', 'S', 'SS'].map(role => {
+    const j = inj[role], f = Math.round((fat[role] || 0) * 100), name = j ? j.name : (st.game ? (st.game.opts.rosters && st.game.opts.rosters[me] ? st.game.opts.rosters[me].players[role] : null) : null);
+    const pl = S.pl.find(q => q[0] === me && q[2] === role), label = j ? j.name : (pl && pl[11]) || role;
+    const status = j ? (j.kind === 'Resting' ? 'Resting on the sideline' : j.out === 'plays' ? (j.ready ? `${j.kind}, cleared to return` : j.sub ? `${j.kind}, kept out` : `${j.kind}, back in ${j.plays} play${j.plays === 1 ? '' : 's'}`) : j.out === 'game' ? `${j.kind}, out for the game` : `${j.kind}, out for the game (weeks)`) : 'Playing';
+    const can = !live && (!j || (j.out === 'plays' && (j.sub || j.ready)));
+    const btn = !j ? `<button class="btn sm" data-subout="${role}" ${can ? '' : 'disabled'}>Sub out</button>` : (j.out === 'plays' && (j.sub || j.ready)) ? `<button class="btn sm primary" data-subin="${role}" ${can ? '' : 'disabled'}>Put back in</button>` : '';
+    void name;
+    return `<div class="sub-row ${j ? 'hurt' : ''}"><span class="sub-pos">${role}</span><div><b>${escapeHtml(label)}</b><small>${status}</small></div><i class="fat" title="Fatigue ${f}%"><i style="width:${f}%;background:${f > 60 ? '#ff5a5a' : f > 35 ? '#f6c445' : '#22c55e'}"></i></i>${btn}</div>`;
+  }).join('');
+  void rows;
+  const el = document.getElementById('subs-dlg') || Object.assign(document.createElement('div'), { id: 'subs-dlg', className: 'modal' });
+  el.innerHTML = `<div class="panel subs-panel"><h3>Subs &amp; injuries</h3><p class="note">Tired players slow down and get hurt more. Sub someone out and his backup plays until you put him back in. ${live ? 'You can sub between plays.' : ''}</p><div class="sub-list">${body}</div><button class="btn" id="subs-x" type="button">Done</button></div>`;
+  el.classList.remove('hidden'); if (!el.parentNode) document.body.appendChild(el);
+  $('#subs-x').onclick = () => el.classList.add('hidden');
+  $$('[data-subout]', el).forEach(b => b.onclick = () => { pushEv({ t: 'sub', role: b.dataset.subout, out: true }); setTimeout(renderSubs, 120); });
+  $$('[data-subin]', el).forEach(b => b.onclick = () => { pushEv({ t: 'sub', role: b.dataset.subin, out: false }); pushEv({ t: 'injback', role: b.dataset.subin, back: true }); setTimeout(renderSubs, 120); });
+}
+$('#p-subs').addEventListener('click', renderSubs);
+$('#inj-back').addEventListener('click', () => { const S = st.snap; const r = S && S.injAsk && S.injAsk[st.local]; if (r) pushEv({ t: 'injback', role: r, back: true }); $('#inj-ask').classList.add('hidden'); });
+$('#inj-keep').addEventListener('click', () => { const S = st.snap; const r = S && S.injAsk && S.injAsk[st.local]; if (r) pushEv({ t: 'injback', role: r, back: false }); $('#inj-ask').classList.add('hidden'); });
 $('#p-settings').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('settings'); });
 $('#p-replay').addEventListener('click', () => { togglePause(false); startReplay(); });
 const CAM_NAME = { behind: 'Follow ball', player: 'Follow you', broadcast: 'Sideline' };
@@ -974,7 +1000,7 @@ function showGameOver(S) {
     st.seasonSaved = true;
     const F = Fr.load();
     if (F && F.phase === 'season') {
-      const ups = Fr.recordResult(F, S.sc[0], S.sc[1], S.ps || [], 0);
+      const ups = Fr.recordResult(F, S.sc[0], S.sc[1], S.ps || [], 0, st.game && st.game.injLog ? st.game.injLog.filter(j => j.team === 0) : []);
       const done = F.phase !== 'season';
       setTimeout(() => toast(done ? `Season over. ${F.history[0] && F.history[0].champ ? 'KINGS BOWL CHAMPIONS!' : 'Time for the offseason.'}` : ups.length ? 'Progression: ' + ups.slice(0, 3).join(', ') : `Record: ${F.season.standings[F.team].w}-${F.season.standings[F.team].l}`, 4000), 400);
     }
@@ -1350,6 +1376,11 @@ function updateHud(S) {
     if (hudCache.to !== toKey) { hudCache.to = toKey; $('#pc-to').innerHTML = [0, 1, 2].map(i => `<i class="${i < tos ? '' : 'used'}"></i>`).join(''); $('#pc-timeout').disabled = !tos || S.mode === 'practice'; }
   }
 
+  // injuries: a heads-up when someone goes down, and the "put him back in?" question
+  if (S.msgInj && S.msgInj.text !== hudCache.injMsg) { hudCache.injMsg = S.msgInj.text; if (st.mode !== 'clip') toast((S.msgInj.team === me ? '' : 'Opponent: ') + S.msgInj.text, 4200); }
+  { const ask = S.injAsk && S.injAsk[me], j = ask && (S.inj || []).find(x => x.team === me && x.role === ask);
+    const show = !!(j && j.ready) && S.ph !== 'live'; $('#inj-ask').classList.toggle('hidden', !show);
+    if (show) setTxt('#inj-ask-t', `${j.name} (${j.kind}) is cleared to go back in.`); }
   // contextual hints
   if (S.ph === 'dead' && S.msg && S.msg.big && S.msg.team === me) hint([['hold E', 'pick a celebration']]);
   else if (S.ph === 'live') {

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266498';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266723';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792266498';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792266723';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -114,7 +114,7 @@ export function createGame(opts = {}) {
     losZ: 0, ballX: 0, fdZ: 0, down: 1, togo: 10,
     offPlay: null, defPlay: null, defChosen: false, playClock: 20,
     players: [], ball: { state: 'held', carrier: 1, x: 0, y: 0.3, z: 0 },
-    ctrl: [-1, -1], play: null, playId: 0, runoff: 0,
+    ctrl: [-1, -1], play: null, playId: 0, runoff: 0, inj: [{}, {}], injLog: [], fat: [{}, {}], injAsk: [null, null],
     msg: null, flash: null, events: [], kick: null, winner: -1,
     stats: [mkStats(), mkStats()],
     custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], to: [3, 3], lastRunoff: 0, books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
@@ -188,13 +188,43 @@ function setFirstDown(g) {
 }
 
 function makePlayer(g, id, team, unit, role, x, z) { const pl = makePlayer0(g, id, team, unit, role, x, z); pl.max0 = pl.max; return pl; }
+// ---------------- injuries, fatigue and subs ----------------
+const INJURIES = [
+  ['Cramp', 'plays', 3], ['Stinger', 'plays', 4], ['Ankle sprain', 'plays', 6], ['Hamstring tightness', 'plays', 6], ['Knee contusion', 'plays', 5],
+  ['Shoulder sprain', 'game', 0], ['Concussion protocol', 'game', 0], ['High ankle sprain', 'weeks', 2], ['Hamstring strain', 'weeks', 3], ['Turf toe', 'weeks', 2], ['Broken hand', 'weeks', 4],
+];
+const INJ_W = [16, 12, 14, 12, 10, 8, 6, 7, 6, 5, 4];
+function backupFor(rt, role) {
+  const k = ['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'];
+  const b = { ...rt, first: 'Backup', last: (ROSTER[role] ? role : 'Sub'), name: `Backup ${role}`, num: (rt.num + 37) % 100, face: (rt.face || 7) ^ 0x5bd1, ovr: Math.max(50, (rt.ovr || 70) - 9) };
+  for (const x of k) b[x] = Math.max(40, (rt[x] || 60) - 9);
+  return b;
+}
+export function injuryReport(g) {
+  const out = [];
+  for (let t = 0; t < 2; t++) for (const [role, j] of Object.entries(g.inj[t])) out.push({ team: t, role, name: j.name, kind: j.kind, out: j.out, plays: j.plays, ready: !!j.ready, sub: !!j.sub });
+  return out;
+}
+function injure(g, p, power) {
+  if (g.opts.practice || g.opts.drill || g.inj[p.team][p.role]) return;
+  const base = 0.0045 * (1 + (g.fat[p.team][p.role] || 0) * 1.5) * power;
+  if (g.rng() > base) return;
+  let x = g.rng() * INJ_W.reduce((a, b) => a + b, 0), i = 0; while (x > INJ_W[i]) { x -= INJ_W[i]; i++; }
+  const [kind, out, n] = INJURIES[i], name = rosterFor(g, p.team).players[p.role].name || p.rt.name;
+  g.inj[p.team][p.role] = { name, kind, out, plays: out === 'plays' ? n : 0, weeks: out === 'weeks' ? n : 0 };
+  g.injLog.push({ team: p.team, role: p.role, name, kind, out, weeks: out === 'weeks' ? n : 0 });
+  g.flash = { text: `INJURY: ${name}`, until: 2.2 }; g.events.push('injury');
+  g.msgInj = { team: p.team, text: `${name} is hurt (${kind}). ${out === 'plays' ? `Out for a few plays.` : out === 'game' ? 'Out for the game.' : `Out for the game, about ${n} weeks.`} A backup is in.` };
+}
 function makePlayer0(g, id, team, unit, role, x, z) {
   const r = ROSTER[role];
-  const rt = rosterFor(g, team).players[role];
+  const j = g.inj && g.inj[team][role];
+  const base = rosterFor(g, team).players[role];
+  const rt = j ? (j.bk || (j.bk = backupFor(base, role))) : base;   // an injured or resting starter: his backup plays
   const d = dirOf(g.poss);
   const faceOff = d > 0 ? 0 : Math.PI;
   return {
-    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.70 + Math.min(rt.spd, 99) / 100 * 0.39) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1), rt,
+    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.70 + Math.min(rt.spd, 99) / 100 * 0.39) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1) * (1 - Math.min(0.6, (g.fat && g.fat[team][role]) || 0) * 0.12), rt,
     x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI, max0: 0,
     stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, truck: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
     engagedBy: -1, blockOn: -1, shedCd: 0, svx: 0, svz: 0,
@@ -326,6 +356,16 @@ function pickW(r, w) {
 function handleEvent(g, team, ev) {
   const P = g.play;
   if (ev.t === 'custom') { const c = cleanCustom(ev.def); if (c) g.custom[team][c.id] = c; return; }
+  // injured player cleared to return: put him back in or keep him out
+  if (ev.t === 'injback' && typeof ev.role === 'string') { const j = g.inj[team][ev.role]; if (j && j.ready) { if (ev.back) delete g.inj[team][ev.role]; else { j.ready = false; j.sub = true; } } if (g.injAsk[team] === ev.role) g.injAsk[team] = null; return; }
+  // manual subs (between plays): sub a tired starter out, or bring him back
+  if (ev.t === 'sub' && typeof ev.role === 'string' && ROSTER[ev.role] && g.phase !== 'live') {
+    const j = g.inj[team][ev.role];
+    if (ev.out && !j) { const nm = rosterFor(g, team).players[ev.role].name; g.inj[team][ev.role] = { name: nm, kind: 'Resting', out: 'plays', plays: 0, sub: true }; }
+    else if (!ev.out && j && (j.sub || j.ready) && j.out === 'plays') delete g.inj[team][ev.role];
+    if (g.phase === 'presnap') { const roleIdx = g.players.findIndex(p => p.team === team && p.role === ev.role); if (roleIdx >= 0) { const p = g.players[roleIdx]; const fresh = makePlayer(g, p.id, p.team, p.unit, p.role, p.x, p.z); fresh.hx = p.hx; fresh.hz = p.hz; g.players[roleIdx] = fresh; } }
+    return;
+  }
   // pick a touchdown celebration while you're celebrating
   if (ev.t === 'cel') { const v = +ev.id; if (Number.isFinite(v) && v >= -1 && v <= 8) { g.opts.cel[team] = v; if (g.phase === 'dead' && g.celebrate === team) { for (const p of g.players) if (p.team === team) p.celReset = 1; g.events.push('cel' + (v < 0 ? 0 : v)); } } return; }
   if (g.phase === 'half') { if (ev.t === 'snap' || ev.t === 'ready') g.halfReady[team] = true; return; }
@@ -1050,7 +1090,23 @@ function cpuTimeout(g) {
     if (late && g.poss === t && g.score[t] <= g.score[1 - t]) { g.to[t]--; g.runoff = 0; g.runBudget = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
   }
 }
+function wearAndTear(g) {
+  if (!g.play || g.opts.practice || g.opts.drill) return;
+  for (let t = 0; t < 2; t++) {
+    const onField = new Set(g.players.filter(p => p.team === t).map(p => p.role));
+    for (const role of Object.keys(ROSTER)) {
+      const j = g.inj[t][role], rest = j && (j.sub || j.out !== 'plays' || j.plays > 0 || j.ready);
+      const f = g.fat[t][role] || 0;
+      g.fat[t][role] = rest || !onField.has(role) ? Math.max(0, f - 0.12) : Math.min(1, f + (role === 'RB' || role.startsWith('DL') ? 0.045 : 0.025));
+      if (j && j.out === 'plays' && !j.sub && j.plays > 0) {
+        j.plays--;
+        if (j.plays <= 0) { if (g.opts.humans[t]) { j.ready = true; g.injAsk[t] = role; } else delete g.inj[t][role]; }   // CPU puts him right back
+      }
+    }
+  }
+}
 function nextPlay(g) {
+  wearAndTear(g);
   cpuTimeout(g);
   g.lastRunoff = Math.min(g.runoff || 0, g.clock);
   if (g.opts.practice) {
@@ -1384,6 +1440,7 @@ function updateLive(g, dt, inputs) {
           { const dd = dirOf(ct), vf = c2.vz * dd, front = ((d.z - c2.z) * dd) > 0.3;
             const sack = c2.id === 0 && !P.thrown && !P.crossed;
             if (vf > 1 && !sack) { const fall = clamp(vf * 0.2, 0, 1.7) * (front ? 0.55 : 1) * (0.8 + c2.size * 0.25); c2.z = zOf(ct, Math.min(99.4, prog(ct, c2.z) + fall)); } }
+          { const big = c2.vx * c2.vx + c2.vz * c2.vz > 30; injure(g, c2, hitting ? 7 : big ? 2.6 : 1); if (hitting || big) injure(g, d, 0.6); }
           return endPlay(g, 'tackle', c2, d);
         }
       }
@@ -2162,6 +2219,7 @@ export function snapshot(g) {
     bT: g.ball.state === 'air' && !g.ball.auto ? r2(g.ball.T - g.ball.t) : -1,
     ks: g.phase === 'kickset' && g.ks ? { type: g.ks.type, stage: g.ks.stage, m: r2(g.ks.m), aim: r2(g.ks.aim), power: r2(g.ks.power), fd: g.ks.fd, maxR: r2(g.ks.maxR), sweet: KICK_SWEET } : null,
     to: g.to.slice(), pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
+    inj: injuryReport(g), injAsk: g.injAsk.slice(), fat: g.fat, msgInj: g.msgInj || null,
     wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
     hls: g.phase === 'gameover' ? g.hl : null,
     hr: g.phase === 'half' ? g.halfReady.slice() : null, hl: g.opts.halftime,

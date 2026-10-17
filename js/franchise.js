@@ -1,9 +1,9 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { askYes, askPick } from './ui.js?v=1792266498';
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266498';
-import * as Season from './season.js?v=1792266498';
+import { askYes, askPick } from './ui.js?v=1792266723';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792266723';
+import * as Season from './season.js?v=1792266723';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -61,8 +61,16 @@ export function newFranchise(team) {
 
 // ---------------- helpers ----------------
 export const payroll = F => Object.values(F.players).reduce((s, p) => s + p.sal, 0);
+// who actually plays a spot this week: the starter, or (if he's hurt) the best healthy backup at his position
+function activeAt(F, role) {
+  const p = F.players[F.starters[role]];
+  if (p && !(p.inj && p.inj.weeks > 0)) return p;
+  const g = GROUP(role), alt = F.bench.map(id => F.players[id]).filter(q => q && q.group === g && !(q.inj && q.inj.weeks > 0)).sort((a, b) => b.ovr - a.ovr)[0];
+  if (alt) return alt;
+  return p ? { ...p, first: 'Backup', last: role, ovr: Math.max(50, p.ovr - 10), spd: p.spd - 8, hands: p.hands - 8, acc: p.acc - 8, arm: p.arm - 8, elu: p.elu - 8, blk: p.blk - 8, rush: p.rush - 8, tkl: p.tkl - 8, cov: p.cov - 8 } : null;
+}
 export function teamRating(F) {
-  const P = id => F.players[id] || { ovr: 50 };
+  const P = id => { const role = Object.keys(F.starters).find(r => F.starters[r] === id); return (role && activeAt(F, role)) || F.players[id] || { ovr: 50 }; };
   const off = ['QB', 'QB', 'RB', 'WR1', 'WR2', 'C', 'LG', 'RG'].filter(r => r === 'QB' || F.starters[r] !== undefined).map(r => P(F.starters[r]).ovr);
   const defR = Object.keys(F.starters).filter(r => /^(DL|LB|CB|S)/.test(r));
   const def = defR.map(r => P(F.starters[r]).ovr);
@@ -72,8 +80,8 @@ export function teamRating(F) {
 // the roster object the sim reads
 export function simRoster(F) {
   const players = {}, used = new Set();
-  for (const [role, id] of Object.entries(F.starters)) {
-    const p = F.players[id]; if (!p) return null;
+  for (const [role] of Object.entries(F.starters)) {
+    const p = activeAt(F, role); if (!p) return null;
     let num = p.num || 0; while (used.has(num)) num = (num + 1) % 100; used.add(num);
     players[role] = { first: p.first, last: p.last, num, face: p.face, ovr: p.ovr, spd: p.spd, hands: p.hands, acc: p.acc, arm: p.arm, elu: p.elu, blk: p.blk, rush: p.rush, tkl: p.tkl, cov: p.cov };
   }
@@ -112,9 +120,33 @@ export function applyGame(F, ps, myIdx, won, myScore, oppScore) {
   return out;
 }
 function setOvr(F) { const t = teamRating(F); Season.setOvrOverride({ [F.team]: t.ovr }); }
-export function recordResult(F, myScore, oppScore, ps, myIdx) {
+// ---------------- wear and tear ----------------
+// fatigue builds on starters all season; practice intensity trades growth for freshness; tired guys pull muscles
+const SOFT = ['Hamstring strain', 'Groin strain', 'Calf strain', 'Back spasms', 'Quad strain'];
+export const PRACTICE = { light: { fat: 0.01, xp: 0, inj: 0.004, n: 'Light' }, normal: { fat: 0.05, xp: 25, inj: 0.008, n: 'Normal' }, hard: { fat: 0.09, xp: 60, inj: 0.016, n: 'Hard' } };
+function weekly(F, gameInj) {
+  const pr = PRACTICE[F.practice || 'normal'], notes = [];
+  for (const j of gameInj || []) {   // injuries from the game you just played
+    const id = F.starters[j.role], p = F.players[id]; if (!p) continue;
+    if (j.out === 'weeks') { p.inj = { kind: j.kind, weeks: j.weeks }; notes.push(`${p.first} ${p.last}: ${j.kind}, out ${j.weeks} weeks`); }
+  }
+  const starters = new Set(Object.values(F.starters));
+  for (const p of Object.values(F.players)) {
+    if (p.inj) { p.inj.weeks--; if (p.inj.weeks <= 0) { notes.push(`${p.first} ${p.last} is healthy again`); delete p.inj; } }
+    const st = starters.has(p.id) && !p.inj;
+    p.fat = Math.max(0, Math.min(1, (p.fat || 0) + (st ? 0.04 + pr.fat : -0.15)));
+    if (st && pr.xp) { p.xp += Math.round(pr.xp * devMul(p.dev)); while (p.xp >= xpNeed(p) && p.ovr < 99) { p.xp -= xpNeed(p); levelUp(p); } }
+    if (st && Math.random() < pr.inj + p.fat * 0.03) { const w = 1 + ((Math.random() * 3) | 0); p.inj = { kind: SOFT[(Math.random() * SOFT.length) | 0], weeks: w }; notes.push(`${p.first} ${p.last}: ${p.inj.kind} in practice, out ${w} week${w > 1 ? 's' : ''}`); }
+  }
+  for (const n of notes) F.log.unshift(`${F.year}: ${n}`);
+  return notes;
+}
+export function setPractice(F, k) { if (PRACTICE[k]) { F.practice = k; save(F); } }
+export function restPlayer(F, id, on) { const p = F.players[id]; if (p) { p.rest = !!on; save(F); } }
+export function recordResult(F, myScore, oppScore, ps, myIdx, gameInj) {
   setOvr(F);
   const ups = applyGame(F, ps, myIdx, myScore > oppScore, myScore, oppScore);
+  F.lastNotes = weekly(F, gameInj);
   Season.finishWeek(F.season, myScore, oppScore);
   if (F.season.phase === 'done') endSeason(F);
   save(F);
@@ -123,6 +155,7 @@ export function recordResult(F, myScore, oppScore, ps, myIdx) {
 export function simWeek(F) {
   setOvr(F);
   const mine = Season.simMyGame(F.season);
+  F.lastNotes = weekly(F, []);
   // simulated games still give a little XP to starters
   if (mine) for (const id of Object.values(F.starters)) { const p = F.players[id]; if (!p) continue; p.xp += Math.round((70 + (mine[0] > mine[1] ? 40 : 0)) * devMul(p.dev)); while (p.xp >= xpNeed(p) && p.ovr < 99) { p.xp -= xpNeed(p); levelUp(p); } }
   if (F.season.phase === 'done') endSeason(F);
@@ -281,11 +314,14 @@ function hubTab(F) {
   const bye = Season.onBye && Season.onBye(S);
   pane.innerHTML = `<div class="fr-next">${bye ? `<div><small>${Season.phaseLabel(S)}</small><h3>Bye week</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Rest up, the rest of the league plays.</p></div><div class="cr-btns"><button class="btn primary big" id="fr-sim">Next week</button></div>` : g ? `<div><small>${Season.phaseLabel(S)}</small><h3>${g.home === F.team ? 'vs' : 'at'} ${TEAMS[opp].city}</h3><p class="note">You're ${st.w}-${st.l}${st.t ? '-' + st.t : ''}. Opponent ${C.teamOvr(opp)} OVR.</p></div>
       <div class="cr-btns"><button class="btn primary big" id="fr-play">Play game</button><button class="btn" id="fr-sim">Simulate</button></div>` : `<p class="note">${S.eliminated ? 'Your season is over.' : 'Season complete.'}</p>`}</div>
+    <div class="fr-practice"><b>Practice this week</b><div class="seg" id="fr-prac"></div><small class="note">${PRACTICE[F.practice || 'normal'].n === 'Hard' ? 'Hard: players grow faster but wear down and get hurt more.' : PRACTICE[F.practice || 'normal'].n === 'Light' ? 'Light: players stay fresh, but grow slower.' : 'Normal: a balance of growth and freshness.'}</small></div>
+    ${(() => { const hurt = Object.values(F.players).filter(p => p.inj); const tired = Object.values(F.players).filter(p => !p.inj && (p.fat || 0) > 0.55 && Object.values(F.starters).includes(p.id)); return (hurt.length ? `<h3 class="store-h">Injuries</h3><ul class="fr-log">${hurt.map(p => `<li><b>${esc(p.first)} ${esc(p.last)}</b> (${p.group}): ${esc(p.inj.kind)}, out ${p.inj.weeks} more week${p.inj.weeks > 1 ? 's' : ''}</li>`).join('')}</ul>` : '') + (tired.length ? `<h3 class="store-h">Worn down</h3><p class="note">${tired.map(p => `${esc(p.last)} (${Math.round(p.fat * 100)}%)`).join(', ')}. Ease up in practice or sit them to avoid injuries.</p>` : ''); })()}
     <h3 class="store-h">Recent moves</h3><ul class="fr-log">${F.log.slice(0, 8).map(l => `<li>${esc(l)}</li>`).join('') || '<li>Nothing yet. Go win some games.</li>'}</ul>`;
+  { const ps = C.$('#fr-prac'); if (ps) C.seg(ps, [['light', 'Light'], ['normal', 'Normal'], ['hard', 'Hard']], F.practice || 'normal', v => { setPractice(F, v); renderFranchise(); }); }
   const pb = C.$('#fr-play'); if (pb) pb.onclick = () => { const ros = simRoster(F); if (!ros) return C.toast('Your lineup has holes'); C.startCPU({ teams: [F.team, opp], rosters: [ros, null], franchise: true }); };
   const sb = C.$('#fr-sim'); if (sb) sb.onclick = () => { const m = simWeek(F); if (m) C.toast(`${m[0] > m[1] ? 'Won' : m[0] < m[1] ? 'Lost' : 'Tied'} ${m[0]}-${m[1]}`); else C.toast('Bye week done'); renderFranchise(); };
 }
-function pRow(p, extra = '') { const dv = p.hidden ? `projected ${devName(p.proj || p.dev)} (?)` : devName(p.dev) + (p.tag === 'sleeper' ? ' · SLEEPER' : p.tag === 'bust' ? ' · BUST' : ''); return `<div class="fr-p"><span class="fr-ovr">${p.ovr}</span><div><b>${esc(p.first)} ${esc(p.last)}</b><small>${p.group}, age ${p.age}, ${dv}, $${p.sal.toFixed(2)}M x ${Math.max(0, p.yrs)} yr${p.yrs === 1 ? '' : 's'}</small></div>${extra}</div>`; }
+function pRow(p, extra = '') { const hurtTag = p.inj ? ` · <b style="color:#ff8b8b">OUT ${p.inj.weeks} wk (${esc(p.inj.kind)})</b>` : (p.fat || 0) > 0.55 ? ` · <b style="color:#f6c445">tired ${Math.round(p.fat * 100)}%</b>` : ''; extra = hurtTag ? `<small class="fr-hurt">${hurtTag}</small>` + extra : extra; const dv = p.hidden ? `projected ${devName(p.proj || p.dev)} (?)` : devName(p.dev) + (p.tag === 'sleeper' ? ' · SLEEPER' : p.tag === 'bust' ? ' · BUST' : ''); return `<div class="fr-p"><span class="fr-ovr">${p.ovr}</span><div><b>${esc(p.first)} ${esc(p.last)}</b><small>${p.group}, age ${p.age}, ${dv}, $${p.sal.toFixed(2)}M x ${Math.max(0, p.yrs)} yr${p.yrs === 1 ? '' : 's'}</small></div>${extra}</div>`; }
 function rosterTab(F) {
   const pane = C.$('#fr-pane'), order = getRoster(F.team).order;
   pane.innerHTML = `<h3 class="store-h">Starters</h3><div class="fr-list">${order.map(role => { const p = F.players[F.starters[role]]; return p ? `<div class="fr-slot"><small>${POS_LABEL[role] || role}</small>${pRow(p, `<div class="fr-xp" title="XP to next point"><i style="width:${Math.min(100, p.xp / xpNeed(p) * 100)}%"></i></div><button class="btn sm" data-sw="${role}">Swap</button>`)}</div>` : `<div class="fr-slot"><small>${role}</small><p class="note">Empty</p></div>`; }).join('')}</div>

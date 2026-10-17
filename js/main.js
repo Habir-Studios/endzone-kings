@@ -1,22 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792272794';
-import * as Form from './form.js?v=1792272794';
-import { watchSim } from './simview.js?v=1792272794';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792272794';
-import { Renderer } from './render.js?v=1792272794';
-import { Sfx } from './audio.js?v=1792272794';
-import { Auth } from './auth.js?v=1792272794';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792272794';
-import { getRoster, teamOvr } from './teams.js?v=1792272794';
-import * as Season from './season.js?v=1792272794';
-import * as Fr from './franchise.js?v=1792272794';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792272794';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792272794';
-import * as UTm from './ut.js?v=1792272794';
-import { initCreator, renderCreator } from './creator.js?v=1792272794';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792272794';
-import { portraitURL } from './faces.js?v=1792272794';
-import { logoURL, clearLogoCache } from './logos.js?v=1792272794';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792273307';
+import * as Form from './form.js?v=1792273307';
+import { watchSim } from './simview.js?v=1792273307';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792273307';
+import { Renderer } from './render.js?v=1792273307';
+import { Sfx } from './audio.js?v=1792273307';
+import { Auth } from './auth.js?v=1792273307';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792273307';
+import { getRoster, teamOvr } from './teams.js?v=1792273307';
+import * as Season from './season.js?v=1792273307';
+import * as Fr from './franchise.js?v=1792273307';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792273307';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792273307';
+import * as UTm from './ut.js?v=1792273307';
+import { initCreator, renderCreator } from './creator.js?v=1792273307';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792273307';
+import { portraitURL } from './faces.js?v=1792273307';
+import { logoURL, clearLogoCache } from './logos.js?v=1792273307';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -258,7 +258,7 @@ function refreshProfile() {
   $('#pc-name').textContent = u.name;
   $('#pc-avatar').textContent = u.name[0].toUpperCase();
   { const R2 = u.recs, f = (w, l, t) => `${w || 0}W-${l || 0}L${t ? '-' + t + 'T' : ''}`;
-    const box = (n, w, l, t) => `<span class="rec-mini"><small>${n}</small><span class="rec-nums"><i><b>${w || 0}</b><em>W</em></i><i class="dash">-</i><i><b>${l || 0}</b><em>L</em></i>${t ? `<i class="dash">-</i><i><b>${t}</b><em>T</em></i>` : ''}</span></span>`;
+    const box = (n, w, l, t) => `<span class="rec-mini"><small>${n}</small><span class="rec-nums"><i><b>${w || 0}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${l || 0}</b><em>L</em></i>${t ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${t}</b><em>T</em></i>` : ''}</span></span>`;
     $('#pc-rec').innerHTML = u.kind === 'guest' ? 'Guest' : R2 ? box('Overall', u.wins, u.losses) + box('Online', R2.on_w, R2.on_l, R2.on_t) + box('UT', R2.ut_wins, R2.ut_l, R2.ut_t) : box('Record', u.wins, u.losses, u.ties); void f; }
   $('#logout').textContent = u.kind === 'guest' ? 'Sign in' : 'Log out';
   const guest = isGuest() && !LOCALNET;
@@ -749,6 +749,8 @@ function keyToEvent(k) {
   const digit = k.startsWith('Digit') ? +k.slice(5) : k.startsWith('Numpad') ? +k.slice(6) : 0;
   if (S.ph === 'half') return k === 'Space' || k === 'Enter' ? { t: 'ready' } : null;
   if (S.ph === 'dead' && (k === 'Space' || k === 'Enter')) return { t: 'skip' };
+  if (S.ph === 'dead' && onOff && k === 'KeyN') return { t: 'nohuddle' };
+  if ((S.ph === 'dead' || S.ph === 'kickset') && onOff && k === 'KeyO') return { t: 'onside' };
   if (S.ph === 'kickset') return onOff && (k === 'Space' || k === 'Enter') ? { t: 'kick' } : null;
   if (k === 'KeyV' && (S.ph === 'presnap' || S.ph === 'dead' || S.ph === 'live')) {
     if (!((S.to || [0, 0])[me] > 0)) { toast('No timeouts left'); return null; }
@@ -765,6 +767,11 @@ function keyToEvent(k) {
       if (k === 'KeyP' && !(S.sp && S.sp.pat)) { sfx.play('ui'); return { t: 'play', id: 'punt' }; }
       if (k === 'KeyF' && S.sp && S.sp.fg) { sfx.play('ui'); return { t: 'play', id: 'fg' }; }
       if (k === 'Space' || k === 'Enter') return { t: 'snap' };
+      if (k === 'KeyL') return { t: 'flip' };
+      if (k === 'KeyJ') return { t: 'motion' };
+      if (k === 'KeyK') return { t: 'spike' };
+      if (k === 'KeyN') return { t: 'nohuddle' };
+      if (k === 'KeyO') return { t: 'onside' };
     } else if (k === 'KeyQ') return { t: 'switch' };
     return null;
   }
@@ -780,6 +787,7 @@ function keyToEvent(k) {
   if (k === 'KeyX' && iCarry) return { t: 'cdive' };
   if (k === 'KeyX' && !iCarry && S.b[3] === 1 && S.off === me) return { t: 'rdive' };
   if (k === 'KeyG' && iCarry) return { t: 'slide' };
+  if (k === 'KeyO' && iCarry && S.canThrow) return { t: 'throwaway' };
   if ((k === 'KeyH' || k === 'KeyR') && !iCarry && carrier >= 0 && S.off !== me) return { t: 'hitstick' };
   if (k === 'Space') {
     const v = moveVec();
@@ -961,7 +969,7 @@ function togglePause(force) {
   st.paused = open && st.mode === 'cpu';
   if (st.paused) { sfx.setSituation('idle'); if (window.speechSynthesis) speechSynthesis.cancel(); }
   $('#p-cam-l').textContent = CAM_NAME[SET.cam] || 'Follow ball';
-  $('#quit').textContent = st.mode === 'cpu' ? 'Quit to menu' : 'Leave online game';
+  $('#quit').textContent = st.mode === 'spec' ? 'Stop watching' : st.mode === 'cpu' ? 'Quit to menu' : 'Leave online game';
   $('#p-chat').classList.toggle('hidden', st.mode === 'cpu');
   $('#p-replay').classList.toggle('hidden', st.mode !== 'cpu' || !st.snap || st.snap.ph === 'live');
   if (st.practice) $('#quit').textContent = 'Leave practice'; $('#p-chat').textContent = SET.chat ? 'Mute chat' : 'Unmute chat';
@@ -1470,11 +1478,12 @@ function updateHud(S) {
     if (on) { const s = st.local === 1 ? -1 : 1, ang = Math.atan2(-Math.sin(W.dir) * s, Math.cos(W.dir) * s) * 180 / Math.PI, key = W.mph + '|' + Math.round(ang);
       if (hudCache.wind !== key) { hudCache.wind = key; $('#wind-arrow').style.transform = `rotate(${ang - 90}deg)`; setTxt('#wind-mph', `${W.mph} mph`); } } }
   // contextual hints
-  if (S.ph === 'dead' && st.mode !== 'clip' && st.mode !== 'spec') hint([['hold Tab', 'celebrate'], ['Space', 'skip']]);
+  if (S.ph === 'dead' && st.mode !== 'clip' && st.mode !== 'spec') hint(S.poss === me ? [['hold Tab', 'celebrate'], ['Space', 'skip'], ['N', 'no huddle'], ['O', (S.osd || [])[me] ? 'cancel onside' : 'onside kick']] : [['hold Tab', 'celebrate'], ['Space', 'skip']]);
+  else if (S.ph === 'presnap' && S.poss === me && st.mode !== 'clip' && st.mode !== 'spec' && !(S.sp && S.sp.pat) && S.mode !== 'drill') hint([['Space', 'snap'], ['Backspace', 'audible'], ['L', S.flip ? 'unflip' : 'flip play'], ['J', 'motion'], ['N', 'same play'], ['K', 'spike'], ['V', 'timeout'], ['hold Tab', 'celebrate']]);
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
-    if (S.canThrow && S.off === me) hint([['hold 1-5', 'throw: tap = touch, hold = bullet, green = on target'], ['W A S D', 'move'], ['Shift', 'sprint']]);
+    if (S.canThrow && S.off === me) hint([['hold 1-5', 'throw: tap = touch, hold = bullet, green = on target'], ['W A S D', 'move'], ['Shift', 'sprint'], ['O', 'throw it away'], ['G', 'slide']]);
     else if (iCarry) hint([['Space', 'juke'], ['E', 'spin'], ['R', 'stiff arm'], ['B', 'truck'], ['F', 'hurdle'], ['X', 'dive'], ['G', 'go down'], ['Shift', 'sprint']]);
     else if (S.b[3] === 1 && S.b[4] && S.off === me) hint([['W A S D', 'get to the ring'], ['E', 'aggressive catch'], ['X', 'dive for it']]);
     else if (S.b[3] === 1 && S.b[4]) hint([['E', 'play the ball'], ['Q', 'switch'], ['Shift', 'sprint']]);

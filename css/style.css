@@ -1524,3 +1524,5 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .profile-chip .coins-pill b, .profile-chip #pc-coins { font-size: 21px; }
 .profile-chip .rec-mini .rec-nums i b { font-size: 22px !important; }
 .profile-chip .rec-mini > small { font-size: 12px !important; }
+.rec-nums i.dash { padding-top: 0; }
+.rec-nums i.dash b, .rec-nums i.dash em { opacity: .55; }

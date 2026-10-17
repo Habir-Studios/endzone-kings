@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792274236';
-import { TEAMS } from './teams.js?v=1792274236';
+import { askYes } from './ui.js?v=1792274378';
+import { TEAMS } from './teams.js?v=1792274378';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -76,12 +76,14 @@ export function renderSocial() {
   const { $, $$ } = C;
   const pane = $('#so-pane');
   $$('.so-tab').forEach(b => b.classList.toggle('on', b.dataset.so === view.tab));
+  if (view.tab === 'film') return renderFilm();
   if (!db()) { pane.innerHTML = '<p class="note">The community needs online accounts. Add your Supabase keys in js/config.js.</p>'; return; }
   if (!me() && view.tab !== 'boards' && view.tab !== 'clips' && view.tab !== 'player') { pane.innerHTML = '<p class="note">Sign in with a real account to follow players, message them and post clips.</p>'; return; }
   if (view.tab === 'boards') return renderBoards();
   if (view.tab === 'clips') return renderFeed();
   if (view.tab === 'msgs') return renderInbox();
   if (view.tab === 'friends') return renderFriends();
+  if (view.tab === 'crews') return renderCrews();
   if (view.tab === 'me') return openProfile(me().id);
   if (view.tab === 'player') return openProfile(view.id);
   if (view.tab === 'thread') return openThread(view.id, view.name);
@@ -271,6 +273,59 @@ async function unpackFrames(data) {
   const bin = atob(data.slice(2)); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
   const txt = await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
   return JSON.parse(txt);
+}
+// ---------------- Film Room: every game you play keeps a condensed replay of its biggest plays (saved on this device) ----------------
+const FILM_DB = 'ek-film', FILM_MAX = 6, FILM_PLAYS = 14;
+function filmDb() { return new Promise((res, rej) => { const r = indexedDB.open(FILM_DB, 1); r.onupgradeneeded = () => r.result.createObjectStore('games', { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+async function filmTx(mode, fn) { const d = await filmDb(); return new Promise((res, rej) => { const t = d.transaction('games', mode), st = t.objectStore('games'), out = fn(st); t.oncomplete = () => res(out && out.result !== undefined ? out.result : out); t.onerror = () => rej(t.error); }); }
+const playScore = s => { const t = (s.msg && s.msg.text) || '', sub = (s.msg && s.msg.sub) || '', y = +((sub.match(/([+-]?\d+) ?y/) || [])[1] || 0), f = (s.flash && s.flash.text) || '';
+  return /TOUCHDOWN/.test(t) ? 10 : /INTERCEPT|FUMBLE/.test(t + f) ? 8 : /SAFETY|ONSIDE|2-POINT GOOD/.test(t + f) ? 7 : /IT.S GOOD/.test(t) ? 5 : /SACK/.test(t) ? 4 : /RETURN/.test(t) && y >= 20 ? 5 : Math.max(0, y - 12) / 3; };
+// called when a play is fully over (the dead ball ended); keeps the best plays of the game
+export function filmCapture(rec, deadSnap) {
+  const st = C.st; if (!deadSnap || !rec) return; const sc = playScore(deadSnap); if (sc < 2) return;
+  const frames = lastPlayFrames(rec); if (!frames) return;
+  const thin = []; let acc = 0; frames.forEach((f, i) => { acc += f.dt; if (i % 2 === 0 || i === frames.length - 1) { thin.push({ dt: acc, s: f.s }); acc = 0; } });   // ~15 fps keeps it small
+  st.film = (st.film || []).concat({ sc, q: deadSnap.q, frames: thin }).sort((a, b) => b.sc - a.sc).slice(0, FILM_PLAYS);
+}
+export async function filmSave(S, title) {
+  const st = C.st; const plays = (st.film || []).slice().sort((a, b) => (a.frames[0].s.id || 0) - (b.frames[0].s.id || 0)); st.film = [];
+  if (!plays.length || typeof indexedDB === 'undefined') return;
+  try {
+    const packed = []; for (const p of plays) packed.push(await packFrames(p.frames));
+    const g = { id: Date.now(), at: new Date().toISOString(), title, plays: packed, n: packed.length };
+    await filmTx('readwrite', s => s.put(g));
+    const all = await filmTx('readonly', s => s.getAll()); const old = (all || []).sort((a, b) => b.id - a.id).slice(FILM_MAX);
+    if (old.length) await filmTx('readwrite', s => { for (const o of old) s.delete(o.id); });
+  } catch (e) { console.warn('film save failed', e); }
+}
+async function renderFilm() {
+  const pane = C.$('#so-pane'); pane.innerHTML = '<p class="note">Loading your game film…</p>';
+  let games = []; try { games = ((await filmTx('readonly', s => s.getAll())) || []).sort((a, b) => b.id - a.id); } catch (_) {}
+  pane.innerHTML = `<h3 class="store-h">Film Room</h3><p class="note">Your last ${FILM_MAX} games, cut down to every big play (touchdowns, picks, sacks, long gains). Saved on this device.</p>
+    <div class="film-list">${games.map(g => `<div class="film-row"><div><b>${esc(g.title)}</b><small>${g.n} plays · ${ago(g.at)}</small></div><button class="btn primary sm" data-film="${g.id}" type="button">Watch</button><button class="btn sm" data-filmdel="${g.id}" type="button">Delete</button></div>`).join('') || '<p class="note">Play a game and its big plays show up here.</p>'}</div>`;
+  C.$$('[data-film]', pane).forEach(b => b.onclick = async () => { const g = games.find(x => x.id === +b.dataset.film); if (!g) return; b.disabled = true; b.textContent = 'Loading…';
+    const all = []; for (const d of g.plays) { try { all.push(...await unpackFrames(d)); } catch (_) {} } if (all.length) C.playClip(all); else { C.toast('That film is damaged'); b.disabled = false; b.textContent = 'Watch'; } });
+  C.$$('[data-filmdel]', pane).forEach(b => b.onclick = async () => { await filmTx('readwrite', s => s.delete(+b.dataset.filmdel)); renderFilm(); });
+}
+// ---------------- crews ----------------
+async function renderCrews() {
+  const pane = C.$('#so-pane'), D = db(), uid = me().id; pane.innerHTML = '<p class="note">Loading crews…</p>';
+  const [{ data: crews, error }, { data: mems }] = await Promise.all([D.from('ek_crews').select('*'), D.from('ek_crew_members').select('player,crew')]);
+  if (error) { pane.innerHTML = '<p class="note">Crews aren\u2019t set up on the server yet.</p>'; return; }
+  const ids = [...new Set((mems || []).map(m => m.player))];
+  const { data: ps } = ids.length ? await D.from('ek_players').select('id,name,on_w,on_l,ut_wins,ut_l,team').in('id', ids) : { data: [] };
+  const P = Object.fromEntries((ps || []).map(p => [p.id, p])), mine = (mems || []).find(m => m.player === uid);
+  const rows = (crews || []).map(c => { const ms = (mems || []).filter(m => m.crew === c.id).map(m => P[m.player]).filter(Boolean); const w = ms.reduce((a, p) => a + (p.on_w || 0) + (p.ut_wins || 0), 0), l = ms.reduce((a, p) => a + (p.on_l || 0) + (p.ut_l || 0), 0); return { c, ms, w, l }; }).sort((a, b) => b.w - a.w || a.l - b.l);
+  const myRow = mine && rows.find(r => r.c.id === mine.crew);
+  pane.innerHTML = `${myRow ? `<div class="crew-mine"><div><small>Your crew</small><h3>[${esc(myRow.c.tag)}] ${esc(myRow.c.name)}</h3><span>${myRow.w}W-${myRow.l}L combined · ${myRow.ms.length}/20 members · invite code <b>${esc(myRow.c.id)}</b></span></div><button class="btn sm danger" id="crew-leave" type="button">${myRow.c.owner === uid ? 'Disband crew' : 'Leave crew'}</button></div>
+      <div class="crew-members">${myRow.ms.map(p => `<button class="crew-m" data-pid="${esc(p.id)}" type="button"><img alt="" src="${C.logoURL(p.team ?? 0, 32)}">${esc(p.name)}<small>${(p.on_w || 0) + (p.ut_wins || 0)}W-${(p.on_l || 0) + (p.ut_l || 0)}L</small></button>`).join('')}</div>`
+    : `<div class="crew-make"><h3>Start or join a crew</h3><div class="crew-form"><input id="crew-name" maxlength="20" placeholder="Crew name"><input id="crew-tag" maxlength="4" placeholder="TAG"><button class="btn primary" id="crew-new" type="button">Create</button></div><div class="crew-form"><input id="crew-code" maxlength="8" placeholder="Invite code"><button class="btn" id="crew-join" type="button">Join</button></div></div>`}
+    <h3 class="store-h">Crew leaderboard</h3><div class="tbl-wrap"><table class="tbl"><tr><th>#</th><th>Crew</th><th>Members</th><th>W</th><th>L</th></tr>${rows.map((r, i) => `<tr class="${myRow && r.c.id === myRow.c.id ? 'me' : ''}"><td>${i + 1}</td><td><b>[${esc(r.c.tag)}]</b> ${esc(r.c.name)}</td><td>${r.ms.length}</td><td>${r.w}</td><td>${r.l}</td></tr>`).join('') || '<tr><td colspan="5">No crews yet. Start the first one.</td></tr>'}</table></div>`;
+  C.$$('[data-pid]', pane).forEach(b => b.onclick = () => openProfile(b.dataset.pid));
+  const lv = C.$('#crew-leave'); if (lv) lv.onclick = async () => { if (!(await askYes(myRow.c.owner === uid ? 'Disband your crew? Everyone gets removed.' : 'Leave your crew?', myRow.c.owner === uid ? 'Disband' : 'Leave'))) return; const r = myRow.c.owner === uid ? await D.from('ek_crews').delete().eq('id', myRow.c.id) : await D.from('ek_crew_members').delete().eq('player', uid); if (r.error) C.toast(r.error.message); renderCrews(); };
+  const nw = C.$('#crew-new'); if (nw) nw.onclick = async () => { const name = C.cleanText(C.$('#crew-name').value.trim()).slice(0, 20), tag = C.cleanText(C.$('#crew-tag').value.trim()).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); if (name.length < 2 || tag.length < 2) return C.toast('Give it a name and a 2-4 letter tag');
+    const id = Math.random().toString(36).slice(2, 8).toUpperCase(); const r = await D.from('ek_crews').insert({ id, name, tag, owner: uid }); if (r.error) return C.toast(r.error.message); const j = await D.from('ek_crew_members').insert({ player: uid, crew: id }); if (j.error) C.toast(j.error.message); else C.toast(`[${tag}] ${name} is live. Share code ${id}`, 4000); renderCrews(); };
+  const jn = C.$('#crew-join'); if (jn) jn.onclick = async () => { const code = C.$('#crew-code').value.trim().toUpperCase(); if (!code) return; const r = await D.from('ek_crew_members').insert({ player: uid, crew: code }); if (r.error) return C.toast(/foreign|violates/.test(r.error.message) ? 'No crew with that code (or it\u2019s full)' : r.error.message); C.toast('You joined the crew'); renderCrews(); };
 }
 // the frames of the most recent play (same window as instant replay), thinned to about 30 fps
 export function lastPlayFrames(rec) {

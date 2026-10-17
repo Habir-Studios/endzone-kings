@@ -1588,3 +1588,17 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .bk-champ { text-align: center; font-family: var(--display); font-size: 20px; color: var(--gold-hi, #ffe08a); margin: 10px 0 0; }
 .award-row .fr-ovr { font-size: 15px; } .hof-row .fr-ovr { background: linear-gradient(180deg, #ffe08a, #c58a00); color: #241500; font-size: 14px; }
 .ht-hl { margin: 12px 0 4px; } .ht-hl h4 { margin: 0 0 6px; font-family: var(--display); color: var(--gold-hi, #ffe08a); letter-spacing: 1px; }
+/* quick chat */
+.quick-chat { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.quick-chat button { padding: 5px 10px; border-radius: 99px; border: 1px solid rgba(246,196,69,.45); background: rgba(10,16,36,.85); color: #ffe08a; font: 700 12.5px/1 system-ui, sans-serif; cursor: pointer; }
+.quick-chat button:hover { background: rgba(246,196,69,.18); }
+/* film room + crews */
+.film-list, .crew-members { display: flex; flex-direction: column; gap: 8px; }
+.film-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(160,175,225,.16); }
+.film-row > div { flex: 1; display: flex; flex-direction: column; } .film-row small { opacity: .7; }
+.crew-mine { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 12px; margin-bottom: 10px; background: linear-gradient(135deg, rgba(246,196,69,.14), rgba(10,16,36,.6)); border: 1px solid rgba(246,196,69,.4); }
+.crew-mine > div { flex: 1; } .crew-mine h3 { margin: 2px 0; } .crew-mine small, .crew-mine span { opacity: .85; font-size: 13px; }
+.crew-members { flex-direction: row; flex-wrap: wrap; margin-bottom: 10px; }
+.crew-m { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 5px; border-radius: 99px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: inherit; font: inherit; cursor: pointer; }
+.crew-m img { width: 22px; height: 22px; } .crew-m small { opacity: .65; margin-left: 2px; }
+.crew-make { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; } .crew-form { display: flex; gap: 8px; flex-wrap: wrap; } .crew-form input { flex: 1; min-width: 120px; }

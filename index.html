@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792274236">
+  <link rel="stylesheet" href="css/style.css?v=1792274378">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#f6c445"/><stop offset="1" stop-color="#d98a00"/></linearGradient></defs></svg>
@@ -227,6 +227,8 @@
             <button class="ut-tab so-tab" data-so="clips" role="tab">Clips</button>
             <button class="ut-tab so-tab" data-so="friends" role="tab">Friends<i class="dotn hidden" id="fr-req-n"></i></button>
             <button class="ut-tab so-tab" data-so="msgs" role="tab">Messages<i class="dotn hidden so-unread"></i></button>
+            <button class="ut-tab so-tab" data-so="crews" role="tab">Crews</button>
+            <button class="ut-tab so-tab" data-so="film" role="tab">Film Room</button>
             <button class="ut-tab so-tab" data-so="me" role="tab">My profile</button>
           </div>
           <div class="so-find"><input id="so-search" placeholder="Find a player" autocomplete="off" spellcheck="false" aria-label="Find a player"><div id="so-results" class="so-results hidden"></div></div>
@@ -611,7 +613,7 @@
     <div id="halftime" class="halftime hidden" aria-live="polite"></div>
     <div id="chat" class="chat hidden">
       <div id="chat-log" class="chat-log" aria-live="polite"></div>
-      <form id="chat-form" class="chat-form hidden"><input id="chat-in" maxlength="120" placeholder="Say something (Enter to send, Esc to close)" autocomplete="off" aria-label="Chat message"></form>
+      <form id="chat-form" class="chat-form hidden"><div class="quick-chat" id="quick-chat"></div><input id="chat-in" maxlength="120" placeholder="Say something (Enter to send, Esc to close)" autocomplete="off" aria-label="Chat message"></form>
     </div>
     <div id="hint" class="hint"></div>
     <div id="wind-ind" class="wind-ind hidden" aria-label="Wind"><i id="wind-arrow">➤</i><b id="wind-mph"></b></div>
@@ -685,6 +687,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792274236"></script>
+  <script type="module" src="js/main.js?v=1792274378"></script>
 </body>
 </html>

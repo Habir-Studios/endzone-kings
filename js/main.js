@@ -1,24 +1,25 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792274236';
-import * as Form from './form.js?v=1792274236';
-import { watchSim } from './simview.js?v=1792274236';
-import { bracketHTML } from './bracket.js?v=1792274236';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792274236';
-import { Renderer } from './render.js?v=1792274236';
-import { Sfx } from './audio.js?v=1792274236';
-import { Auth } from './auth.js?v=1792274236';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792274236';
-import { getRoster, teamOvr } from './teams.js?v=1792274236';
-import * as Season from './season.js?v=1792274236';
-import * as Fr from './franchise.js?v=1792274236';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792274236';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792274236';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792274236';
-import * as UTm from './ut.js?v=1792274236';
-import { initCreator, renderCreator } from './creator.js?v=1792274236';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792274236';
-import { portraitURL } from './faces.js?v=1792274236';
-import { logoURL, clearLogoCache } from './logos.js?v=1792274236';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792274378';
+import * as Form from './form.js?v=1792274378';
+import { watchSim } from './simview.js?v=1792274378';
+import { bracketHTML } from './bracket.js?v=1792274378';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792274378';
+import { Renderer } from './render.js?v=1792274378';
+import { Sfx } from './audio.js?v=1792274378';
+import { Auth } from './auth.js?v=1792274378';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792274378';
+import { getRoster, teamOvr } from './teams.js?v=1792274378';
+import * as Season from './season.js?v=1792274378';
+import * as Fr from './franchise.js?v=1792274378';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792274378';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792274378';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792274378';
+import * as UTm from './ut.js?v=1792274378';
+import { initCreator, renderCreator } from './creator.js?v=1792274378';
+import { filmCapture, filmSave } from './social.js?v=1792274378';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792274378';
+import { portraitURL } from './faces.js?v=1792274378';
+import { logoURL, clearLogoCache } from './logos.js?v=1792274378';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -954,6 +955,9 @@ function openChat() {
   $('#chat').classList.add('open'); $('#chat-form').classList.remove('hidden');
   setTimeout(() => $('#chat-in').focus(), 0);
 }
+const QUICK = ['GG', "Let's go!", 'Nice play', 'Too easy', 'Unlucky', 'Run it back?', 'My bad', 'Respect'];
+$('#quick-chat').innerHTML = QUICK.map(q => `<button type="button" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('');
+$$('#quick-chat [data-q]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); if (!st.peer) return closeChat(); if (Date.now() - chatLast < 1200) { chatLine('sys', '', 'Slow down a little.'); return; } chatLast = Date.now(); st.peer.send({ t: 'chat', m: b.dataset.q }, true); chatLine('me', st.names[st.local] || 'You', b.dataset.q); closeChat(); }));
 function closeChat() { $('#chat').classList.remove('open'); $('#chat-form').classList.add('hidden'); $('#chat-in').value = ''; $('#chat-in').blur(); canvas.focus(); }
 function chatLine(cls, who, text) {
   const log = $('#chat-log'), p = document.createElement('p'); p.className = cls;
@@ -1071,8 +1075,10 @@ function forfeitWin() {
   const me = st.local, other = 1 - me;
   try { awardGame({ mode: 'online', ut: !!st.ut, res: 'W', diff: 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: S.st[me], opp: S.st[other] }); setTimeout(() => toast('Your opponent quit. You get the win, XP and rank points.', 3500), 600); } catch (e) { console.warn(e); }
 }
+function filmOk() { return !st.practice && !st.drill && st.mode !== 'spec' && st.mode !== 'clip' && !st.replay; }
 function showGameOver(S) {
   st.overShown = true;
+  if (filmOk() && S.mode === 'game') { if (st.lastDead) filmCapture(st.rec, st.lastDead); const T0 = TEAMS[S.teams[0]], T1 = TEAMS[S.teams[1]]; filmSave(S, `${(st.teamNames && st.teamNames[0]) || T0.abbr} ${S.sc[0]} - ${S.sc[1]} ${(st.teamNames && st.teamNames[1]) || T1.abbr}${st.ut ? ' · UT' : st.seasonGame ? ' · Season' : st.franchiseGame ? ' · Franchise' : st.mode === 'cpu' ? ' · Quick Play' : ' · Online'}`); }
   const me = st.local, other = 1 - me;
   if (st.mode === 'spec') { st.rewarded = true; st.resultSaved = true; st.seasonSaved = true; }
   $('#go-potg').innerHTML = S.mode === 'drill' ? '' : potg(S);
@@ -1895,6 +1901,9 @@ function frameBody(now) {
       }
       updateHud(st.snap);
       if (st.rec && st.snap.ph !== 'presnap') { const L = st.rec[st.rec.length - 1]; if (!L || L.s !== st.snap) { st.rec.push({ s: st.snap, dt }); if (st.rec.length > 2400) st.rec.splice(0, 600); } }
+      // Film Room: when a dead ball ends, keep the play if it was a big one
+      if (st.lastPh === 'dead' && st.snap.ph !== 'dead' && st.lastDead && filmOk()) filmCapture(st.rec, st.lastDead);
+      if (st.snap.ph === 'dead') st.lastDead = st.snap; st.lastPh = st.snap.ph;
       const S0 = st.snap;
       sfx.setSituation(st.paused ? 'idle' : S0.ph === 'presnap' && S0.poss !== st.local && st.local === 0 ? 'homeDefense' : S0.ph === 'live' ? 'live' : 'idle');
       if (st.snap.ph === 'gameover' && !st.overShown) {

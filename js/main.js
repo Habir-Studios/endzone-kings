@@ -1,22 +1,22 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792269984';
-import * as Form from './form.js?v=1792269984';
-import { watchSim } from './simview.js?v=1792269984';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792269984';
-import { Renderer } from './render.js?v=1792269984';
-import { Sfx } from './audio.js?v=1792269984';
-import { Auth } from './auth.js?v=1792269984';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792269984';
-import { getRoster, teamOvr } from './teams.js?v=1792269984';
-import * as Season from './season.js?v=1792269984';
-import * as Fr from './franchise.js?v=1792269984';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792269984';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792269984';
-import * as UTm from './ut.js?v=1792269984';
-import { initCreator, renderCreator } from './creator.js?v=1792269984';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792269984';
-import { portraitURL } from './faces.js?v=1792269984';
-import { logoURL, clearLogoCache } from './logos.js?v=1792269984';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792270211';
+import * as Form from './form.js?v=1792270211';
+import { watchSim } from './simview.js?v=1792270211';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792270211';
+import { Renderer } from './render.js?v=1792270211';
+import { Sfx } from './audio.js?v=1792270211';
+import { Auth } from './auth.js?v=1792270211';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792270211';
+import { getRoster, teamOvr } from './teams.js?v=1792270211';
+import * as Season from './season.js?v=1792270211';
+import * as Fr from './franchise.js?v=1792270211';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792270211';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792270211';
+import * as UTm from './ut.js?v=1792270211';
+import { initCreator, renderCreator } from './creator.js?v=1792270211';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792270211';
+import { portraitURL } from './faces.js?v=1792270211';
+import { logoURL, clearLogoCache } from './logos.js?v=1792270211';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -397,7 +397,7 @@ function renderSeason() {
   if (S.v === 2) {
     // NFL standings: by division; division winners plus 3 wild cards per conference make it
     // injury report: tap a player for the details
-  { let box = $('#season-inj'); if (!box) { box = document.createElement('div'); box.id = 'season-inj'; box.className = 'season-inj'; $('#stand').parentNode.insertBefore(box, $('#stand-h')); }
+  { let box = $('#season-inj'); if (!box) { box = document.createElement('div'); box.id = 'season-inj'; box.className = 'season-inj'; $('#stand-h').parentNode.insertBefore(box, $('#stand-h')); }
     const ros = getRoster(S.team).players, rows = [...Object.entries(S.inj || {}).map(([r, j]) => ({ r, j, out: true })), ...Object.entries(S.ling || {}).filter(([r]) => !(S.inj || {})[r]).map(([r, j]) => ({ r, j, out: false }))];
     const hot = Object.entries(S.form || {}).filter(([, f]) => Math.abs(f) >= 1.5).sort((a, b) => b[1] - a[1]);
     box.innerHTML = (rows.length ? `<h3 class="store-h">Injury report</h3><ul class="fr-log">${rows.map(({ r, j, out }) => `<li class="inj-li" data-sinj="${r}"><i class="inj-cross ${out ? '' : 'q'}">✚</i><b>${escapeHtml(ros[r] ? ros[r].name : r)}</b> (${r}): ${out ? `${escapeHtml(j.kind)}, out ${j.weeks} more week${j.weeks === 1 ? '' : 's'}` : `playing through ${escapeHtml(j.kind.toLowerCase())}`}<small>details</small></li>`).join('')}</ul>` : '')

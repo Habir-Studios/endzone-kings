@@ -1476,3 +1476,5 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .ic-bar i { display: block; height: 100%; background: linear-gradient(90deg, #e11d48, #22c55e); }
 .ic-meta { display: flex; gap: 16px; font-size: 13px; opacity: .9; }
 .ic-meta .hot { color: #4ade80; } .ic-meta .cold { color: #93c5fd; }
+/* italic gradient "KINGS": give the slanted last letter room so it isn't clipped */
+.game-logo .t2 { align-self: center; padding: 0 .16em 0 .08em; overflow: visible; }

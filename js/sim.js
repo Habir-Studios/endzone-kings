@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792349814';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792349957';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792349814';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792349957';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1699,7 +1699,7 @@ function updateLive(g, dt, inputs) {
         if (d.dive > 0 && c2.hurdle <= 0 && !hitting) brk *= 0.75;
         // a landed hit stick is a kill shot unless the runner timed a move into it
         if (hitting) brk = c2.juke > 0 || c2.spin > 0 || c2.hurdle > 0 ? brk + 0.15 : brk * 0.25;
-        brk *= (1.5 - d.rt.tkl / 100) * (0.6 + c2.rt.elu / 100 * 0.6) * (0.85 - 0.12 * defF(g, d.team));   // good defenses wrap up
+        brk *= (1.5 - d.rt.tkl / 100) * (0.6 + c2.rt.elu / 100 * 0.6) * (1 - 0.15 * defF(g, d.team));   // good defenses wrap up, weak ones miss more
         if (youD) brk *= 0.4;
         // skill, not luck: the carrier breaks it when his move is timed into the hit (or the tackler is tied up),
         // with only a sliver of randomness on top
@@ -1855,14 +1855,14 @@ function updateBlocks(g, dt, pocket) {
     if (!bl || dist(bl, t) > 1.9 || bl.stun > 0 || bl.blockOn !== t.id) { t.engagedBy = -1; continue; }
     if (g.play && g.play.type === 'run' && g.play.handed !== undefined) {
       // drive block: on runs the blocker moves his man off the ball, which is what opens the hole
-      const dd = dirOf(g.play.off), push = clamp(0.8 + (bl.rt.blk - Math.max(t.rt.rush, t.rt.tkl)) / 35, 0.15, 1.5) * dt;
+      const dd = dirOf(g.play.off), push = clamp(1.1 + (bl.rt.blk - Math.max(t.rt.rush, t.rt.tkl)) / 35, 0.25, 1.8) * dt;
       t.z += dd * push; bl.z += dd * push * 0.9;
     }
     const line = t.role.startsWith('DL') && g.phaseT < 2.6;
     const shed = g.opts.humans[t.team] && g.ctrl[t.team] === t.id ? Math.max(cfg.shed * 1.8, 0.25) : cfg.shed;   // the rusher you control beats blocks faster
     let rate = (pocket || line) ? shed * (pocket ? 1.9 : 1.4) : shed * 2.2 + 0.3;
     rate *= (0.5 + Math.max(t.rt.rush, t.rt.tkl * 0.8) / 100) / (0.5 + bl.rt.blk / 100);
-    if (g.play && g.play.type === 'run') rate *= 0.55;   // a drive block on a run is harder to shed than a pass set
+    if (g.play && g.play.type === 'run') rate *= 0.38;   // a drive block on a run is harder to shed than a pass set
     if (g.rng() < rate * dt) {
       t.engagedBy = -1; t.shedCd = 1.3; bl.stun = 0.4; bl.blockOn = -1;
       g.events.push('shed');

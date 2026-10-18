@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792281168';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792331845';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792281168';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792331845';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -255,15 +255,15 @@ function injure(g, p, power) {
     const b = benchFor(g, p.team, p.role)[dep - 1]; b.hurt = kind;
     g.flash = { text: `INJURY: ${b.name}`, until: 2.2 }; g.events.push('injury');
     needSub(g, p.team, p.role);
-    g.msgInj = { team: p.team, text: `${b.name} is hurt (${kind}) and out for the game.${g.opts.humans[p.team] ? ' Pick who goes in.' : ''}` };
+    g.msgInj = { team: p.team, text: `${b.name} is hurt (${kind}) and out for the game.${g.opts.humans[p.team] ? ' A backup went in. Change it in Subs if you want.' : ''}` };
     return;
   }
   const name = rosterFor(g, p.team).players[p.role].name || p.rt.name;
-  g.inj[p.team][p.role] = { name, kind, out, plays: out === 'plays' ? n : 0, weeks: out === 'weeks' ? n : 0 };
+  g.inj[p.team][p.role] = { name, kind, out, plays: out === 'plays' ? n : 0, weeks: out === 'weeks' ? n : 0, s0: g.snaps || 0 };
   g.injLog.push({ team: p.team, role: p.role, name, kind, out, weeks: out === 'weeks' ? n : 0 });
   g.flash = { text: `INJURY: ${name}`, until: 2.2 }; g.events.push('injury');
   needSub(g, p.team, p.role);
-  g.msgInj = { team: p.team, text: `${name} is hurt (${kind}). ${out === 'plays' ? `Out for a few plays.` : out === 'game' ? 'Out for the game.' : `Out for the game, about ${n} weeks.`}${g.opts.humans[p.team] ? ' Pick who goes in.' : ' A backup is in.'}` };
+  g.msgInj = { team: p.team, text: `${name} is hurt (${kind}). ${out === 'plays' ? `Out for ${n} plays.` : out === 'game' ? 'Out for the game.' : `Out for the game, about ${n} weeks.`}${g.opts.humans[p.team] ? ' A backup went in. Change it in Subs if you want.' : ' A backup is in.'}` };
 }
 function makePlayer0(g, id, team, unit, role, x, z) {
   const r = ROSTER[role];
@@ -1257,7 +1257,7 @@ function wearAndTear(g) {
         if (!f && key !== playing) continue;
         g.fat[t][key] = key !== playing || !onField.has(role) ? Math.max(0, f - 0.12) : Math.min(1, f + (role === 'RB' || role.startsWith('DL') ? 0.045 : 0.025));
       }
-      if (j && j.out === 'plays' && !j.sub && j.plays > 0) {
+      if (j && j.out === 'plays' && !j.sub && j.plays > 0 && onField.has(role) && (g.snaps || 0) > (j.s0 || 0)) {   // only his own unit's plays count, starting after the one he got hurt on
         j.plays--;
         if (j.plays <= 0) { if (g.opts.humans[t]) { j.ready = true; g.injAsk[t] = role; } else { delete g.inj[t][role]; g.depth[t][role] = 0; } }   // CPU puts him right back
       }

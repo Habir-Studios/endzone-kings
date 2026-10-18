@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792341306';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792344678';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -25,7 +25,7 @@ export const WL_REWARDS = [
 ];
 export const wlReward = w => WL_REWARDS.filter(r => w >= r.w).pop();
 // ---------- daily login: come back every day for a growing reward (a 7-day cycle; miss a day and it restarts) ----------
-export const LOGIN_REWARDS = [{ coins: 100 }, { coins: 150 }, { coins: 200, tp: 10 }, { coins: 250 }, { coins: 300, tp: 20 }, { coins: 350, pack: 'bronze' }, { coins: 600, pack: 'silver', tp: 30 }];
+export const LOGIN_REWARDS = [{ coins: 100 }, { coins: 150 }, { coins: 250 }, { coins: 250 }, { coins: 350 }, { coins: 350, pack: 'bronze' }, { coins: 600, pack: 'silver' }];
 export const xpFor = lvl => 650 + lvl * 200;   // levels take a while
 export function levelReward(lvl) {
   const r = { coins: 80 + lvl * 15, pack: null };
@@ -48,6 +48,19 @@ const DAILY = [
   { k: 'hold10', d: 'Win and allow 10 points or fewer', t: 1, f: r => r.res === 'W' && r.sc[1] <= 10 ? 1 : 0, cum: 1, c: 450, x: 350 },
   { k: 'ut1', d: 'Play an Ultimate Team game', t: 1, f: r => r.ut ? 1 : 0, cum: 1, c: 350, x: 250 },
   { k: 'pack1', d: 'Open a pack', t: 1, f: () => 0, cum: 1, ev: 'pack', c: 250, x: 200 },
+  { k: 'ut_win1', d: 'Win an Ultimate Team game', t: 1, f: r => r.ut && r.res === 'W' ? 1 : 0, cum: 1, c: 500, x: 350 },
+  { k: 'ut_td4', d: 'Score 4 TDs in one Ultimate Team game', t: 4, f: r => r.ut ? r.me.tds : 0, c: 450, x: 350 },
+  { k: 'ut_online', d: 'Play online with your UT squad', t: 1, f: r => r.ut && r.mode === 'online' ? 1 : 0, cum: 1, c: 550, x: 400 },
+  { k: 'qs3', d: 'Quicksell 3 players', t: 3, f: () => 0, cum: 1, ev: 'qs', c: 250, x: 200 },
+  { k: 'train1', d: 'Train a player', t: 1, f: () => 0, cum: 1, ev: 'train', c: 300, x: 250 },
+  { k: 'mkt1', d: 'Buy a player on the market', t: 1, f: () => 0, cum: 1, ev: 'buy', c: 300, x: 250 },
+  { k: 'set1', d: 'Complete a set', t: 1, f: () => 0, cum: 1, ev: 'set', c: 350, x: 300 },
+  { k: 'comp15', d: 'Complete 15 passes in one game', t: 15, f: r => r.me.comp, c: 350, x: 300 },
+  { k: 'tkl8', d: 'Make 8 tackles in one game', t: 8, f: r => r.me.tkl || 0, c: 350, x: 300 },
+  { k: 'fg2', d: 'Make 2 field goals in one game', t: 2, f: r => r.me.fgm || 0, c: 350, x: 300 },
+  { k: 'clean', d: 'Win without throwing a pick', t: 1, f: r => r.res === 'W' && !(r.me.ints) ? 1 : 0, cum: 1, c: 400, x: 300 },
+  { k: 'blowout', d: 'Win by 21 or more', t: 1, f: r => r.res === 'W' && r.sc[0] - r.sc[1] >= 21 ? 1 : 0, cum: 1, c: 500, x: 400 },
+  { k: 'play3', d: 'Play 3 games', t: 3, f: () => 1, cum: 1, c: 450, x: 400 },
 ];
 const WEEKLY = [
   { k: 'w_win5', d: 'Win 5 games', t: 5, f: r => r.res === 'W' ? 1 : 0, cum: 1, c: 2500, x: 1500, pack: 'gold' },
@@ -58,6 +71,16 @@ const WEEKLY = [
   { k: 'w_ut3', d: 'Win 3 Ultimate Team games', t: 3, f: r => r.ut && r.res === 'W' ? 1 : 0, cum: 1, c: 2500, x: 1500, pack: 'silver' },
   { k: 'w_allpro', d: 'Beat the CPU on All-Pro or Legend', t: 1, f: r => r.mode !== 'online' && r.diff >= 2 && r.res === 'W' ? 1 : 0, cum: 1, c: 3000, x: 1800, pack: 'gold' },
   { k: 'w_sack8', d: 'Get 8 sacks', t: 8, f: r => r.me.sacks, cum: 1, c: 1800, x: 1000 },
+  { k: 'w_ut10', d: 'Play 10 Ultimate Team games', t: 10, f: r => r.ut ? 1 : 0, cum: 1, c: 3500, x: 2200, pack: 'gold' },
+  { k: 'w_utonline', d: 'Win 3 online games with your UT squad', t: 3, f: r => r.ut && r.mode === 'online' && r.res === 'W' ? 1 : 0, cum: 1, c: 4000, x: 2500, pack: 'gold' },
+  { k: 'w_set3', d: 'Complete 3 sets', t: 3, f: () => 0, cum: 1, ev: 'set', c: 2200, x: 1300 },
+  { k: 'w_train5', d: 'Train players 5 times', t: 5, f: () => 0, cum: 1, ev: 'train', c: 1800, x: 1200 },
+  { k: 'w_qs15', d: 'Quicksell 15 players', t: 15, f: () => 0, cum: 1, ev: 'qs', c: 1600, x: 1000 },
+  { k: 'w_pack5', d: 'Open 5 packs', t: 5, f: () => 0, cum: 1, ev: 'pack', c: 1500, x: 1000 },
+  { k: 'w_int5', d: 'Intercept 5 passes', t: 5, f: r => r.opp.ints, cum: 1, c: 2000, x: 1300 },
+  { k: 'w_tkl40', d: 'Make 40 tackles', t: 40, f: r => r.me.tkl || 0, cum: 1, c: 1800, x: 1200 },
+  { k: 'w_win10', d: 'Win 10 games', t: 10, f: r => r.res === 'W' ? 1 : 0, cum: 1, c: 5000, x: 3000, pack: 'elite' },
+  { k: 'w_play15', d: 'Play 15 games', t: 15, f: () => 1, cum: 1, c: 3000, x: 2500, pack: 'silver' },
 ];
 const ALL_CH = Object.fromEntries([...DAILY, ...WEEKLY].map(c => [c.k, c]));
 export const challengeDef = k => ALL_CH[k];
@@ -186,8 +209,9 @@ export class Profile {
   refreshChallenges() {
     const P = this.p, dk = dayKey(), wk = weekKey();
     if (this.listeners) this.settleSeasons();
-    if (!P.daily || P.daily.d !== dk) P.daily = { d: dk, list: pickN(DAILY, 3, hashStr(dk + this.key)).map(c => ({ k: c.k, p: 0, done: false, claimed: false })) };
-    if (!P.weekly || P.weekly.d !== wk) P.weekly = { d: wk, list: pickN(WEEKLY, 3, hashStr(wk + this.key)).map(c => ({ k: c.k, p: 0, done: false, claimed: false })) };
+    if (!P.daily || P.daily.d !== dk) P.daily = { d: dk, list: pickN(DAILY, 5, hashStr(dk + this.key)).map(c => ({ k: c.k, p: 0, done: false, claimed: false })) };
+    if (!P.weekly || P.weekly.d !== wk) P.weekly = { d: wk, list: pickN(WEEKLY, 5, hashStr(wk + this.key)).map(c => ({ k: c.k, p: 0, done: false, claimed: false })) };
+    for (const [box, pool, seed] of [[P.daily, DAILY, dk], [P.weekly, WEEKLY, wk]]) if (box.list.length < 5) { const have = new Set(box.list.map(c => c.k)); for (const c of pickN(pool.filter(x => !have.has(x.k)), 5 - box.list.length, hashStr(seed + this.key + 'more'))) box.list.push({ k: c.k, p: 0, done: false, claimed: false }); }
     const U = P.ut; if (!U.mk) U.mk = { slot: 0, bought: [], list: [], sold: 0 };
     if (!U.sets || U.sets.w !== wk) U.sets = { w: wk, done: [] };
     if (!U.solos || U.solos.w !== wk) U.solos = { w: wk, done: [] };
@@ -294,9 +318,8 @@ export class Profile {
     // Training Points: Ultimate Team pays the most, Franchise pays some
     const tpB = [], win = r.res === 'W', tds = r.me.tds || 0, ints = (r.opp && r.opp.ints) || 0, sacks = r.me.sacks || 0;
     let tpMul = len;
-    if (r.ut) { tpB.push(['Played a UT game', 15]); if (win) tpB.push(['Win', 15]); if (tds) tpB.push([`${tds} TD${tds > 1 ? 's' : ''}`, tds * 2]); if (ints) tpB.push([`${ints} pick${ints > 1 ? 's' : ''}`, ints * 5]); if (sacks) tpB.push([`${sacks} sack${sacks > 1 ? 's' : ''}`, sacks * 3]); tpMul *= r.mode === 'online' ? 1.3 : [0.6, 1, 1.5, 2.1][r.diff ?? 1] || 1; }
-    else if (r.mode === 'franchise') { tpB.push(['Played a Franchise game', 10]); if (win) tpB.push(['Win', 10]); if (tds) tpB.push([`${tds} TD${tds > 1 ? 's' : ''}`, tds * 2]); }
-    else if (r.mode === 'online') { tpB.push(['Played online', 7]); if (win) tpB.push(['Win', 14]); if (tds) tpB.push([`${tds} TD${tds > 1 ? 's' : ''}`, tds * 2]); if (ints) tpB.push([`${ints} pick${ints > 1 ? 's' : ''}`, ints * 3]); }
+    if (r.ut) { tpB.push([r.mode === 'online' ? 'Online with your UT squad' : 'Played a UT game', 15]);   // Training Points only come from Ultimate Team games
+      if (win) tpB.push(['Win', 15]); if (tds) tpB.push([`${tds} TD${tds > 1 ? 's' : ''}`, tds * 2]); if (ints) tpB.push([`${ints} pick${ints > 1 ? 's' : ''}`, ints * 5]); if (sacks) tpB.push([`${sacks} sack${sacks > 1 ? 's' : ''}`, sacks * 3]); tpMul *= r.mode === 'online' ? 1.3 : [0.6, 1, 1.5, 2.1][r.diff ?? 1] || 1; }
     const tpLines = tpB.map(([l, v]) => ({ label: l, tp: Math.round(v * tpMul * 0.7 * streakMul) })).filter(x => x.tp > 0);
     // rival strength in Ultimate Team climbs with your wins against the CPU
     if (r.ut && r.mode !== 'online' && P.ut) P.ut.rw = Math.max(0, (P.ut.rw || 0) + (r.res === 'W' ? 1 : r.res === 'L' ? -0.5 : 0));
@@ -415,7 +438,7 @@ export class Profile {
   sell(u, value, tp = 0) {
     const U = this.p.ut; if (this.inLineup(u)) return false;
     const i = U.cards.findIndex(c => c.u === u); if (i < 0) return false;
-    U.cards.splice(i, 1); this.p.coins += value; this.p.tp = (this.p.tp || 0) + (tp || 0); this.save(); return true;
+    U.cards.splice(i, 1); this.p.coins += value; this.p.tp = (this.p.tp || 0) + (tp || 0); this.bump('qs'); this.save(); return true;
   }
   unlockAbility(u, k) {
     const inst = this.p.ut.cards.find(c => c.u === u); if (!inst) return 'No such player';
@@ -434,14 +457,14 @@ export class Profile {
   train(u, cost) {
     const inst = this.p.ut.cards.find(c => c.u === u); if (!inst || !cost) return 'This player is maxed out';
     const have = this.p.tp || 0;
-    if (have < cost) return `You need ${(cost - have).toLocaleString()} more Training Points. Play games or quicksell players to earn them`;
-    this.p.tp = have - cost; inst.b = (inst.b || 0) + 1; this.save(); return null;
+    if (have < cost) return `You need ${(cost - have).toLocaleString()} more Training Points. Play Ultimate Team games (offline or online with your squad) or quicksell players to earn them`;
+    this.p.tp = have - cost; inst.b = (inst.b || 0) + 1; this.bump('train'); this.save(); return null;
   }
   // ---------------- field pass ----------------
   get fpTier() { return Math.min(FP_TIERS, Math.floor((this.p.fp.xp || 0) / FP_XP)); }
   fpClaim(t) {
     const F = this.p.fp; if (t < 1 || t > this.fpTier || F.got.includes(t)) return null;
-    const rw = fpReward(t); F.got.push(t); this.p.coins += rw.coins || 0; this.p.tp = (this.p.tp || 0) + 15; if (rw.pack) this.addPack(rw.pack);
+    const rw = fpReward(t); F.got.push(t); this.p.coins += rw.coins || 0; if (rw.pack) this.addPack(rw.pack);
     this.save(); return rw;
   }
   fpClaimAll() { const out = { coins: 0, packs: [] }; for (let t = 1; t <= this.fpTier; t++) { if (this.p.fp.got.includes(t)) continue; const rw = fpReward(t); this.p.fp.got.push(t); this.p.coins += rw.coins || 0; this.p.tp = (this.p.tp || 0) + 15; out.coins += rw.coins || 0; if (rw.pack) { this.addPack(rw.pack); out.packs.push(rw.pack); } } this.save(); return out; }
@@ -452,7 +475,7 @@ export class Profile {
     const m = this.market, l = m.items.find(x => x.k === k); if (!l) return 'Someone already bought that player';
     if (this.p.coins < l.price) return `You need ${(l.price - this.p.coins).toLocaleString()} more coins`;
     if (this.clubFull()) return `Your club is full (${CLUB_CAP} players). Quicksell or sell some players first`;
-    this.p.coins -= l.price; this.p.ut.mk.bought.push(k); const [inst] = this.addCards([l.id]); this.save(); return inst;
+    this.p.coins -= l.price; this.p.ut.mk.bought.push(k); const [inst] = this.addCards([l.id]); this.bump('buy'); this.save(); return inst;
   }
   marketList(u, price, mins) {
     const U = this.p.ut, M = U.mk; if (this.inLineup(u)) return 'Take him out of your lineup first';
@@ -511,7 +534,7 @@ export class Profile {
     if (g.master) [got] = this.addCards([masterId(hashStr(U.sets.w + 'master'))]);
     if (r.set.weekly) U.sets.done.push(k);
     if (r.set.daily) U.setDay.n[k] = (U.setDay.n[k] || 0) + 1;
-    this.p.fp.xp += 40;
+    this.p.fp.xp += 40; this.bump('set');
     this.save(); return { give: g, card: got };
   }
   soloDone(k) { return this.p.ut.solos.done.includes(k); }

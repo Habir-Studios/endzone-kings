@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792341306';
-import * as Form from './form.js?v=1792341306';
-import { watchSim } from './simview.js?v=1792341306';
-import { bracketHTML } from './bracket.js?v=1792341306';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792341306';
-import { Renderer } from './render.js?v=1792341306';
-import { Sfx } from './audio.js?v=1792341306';
-import { Auth } from './auth.js?v=1792341306';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792341306';
-import { getRoster, teamOvr } from './teams.js?v=1792341306';
-import * as Season from './season.js?v=1792341306';
-import * as Fr from './franchise.js?v=1792341306';
-import * as League from './league.js?v=1792341306';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792341306';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792341306';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792341306';
-import * as UTm from './ut.js?v=1792341306';
-import { initCreator, renderCreator } from './creator.js?v=1792341306';
-import { filmCapture, filmSave } from './social.js?v=1792341306';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792341306';
-import { portraitURL } from './faces.js?v=1792341306';
-import { logoURL, clearLogoCache } from './logos.js?v=1792341306';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792344678';
+import * as Form from './form.js?v=1792344678';
+import { watchSim } from './simview.js?v=1792344678';
+import { bracketHTML } from './bracket.js?v=1792344678';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792344678';
+import { Renderer } from './render.js?v=1792344678';
+import { Sfx } from './audio.js?v=1792344678';
+import { Auth } from './auth.js?v=1792344678';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792344678';
+import { getRoster, teamOvr } from './teams.js?v=1792344678';
+import * as Season from './season.js?v=1792344678';
+import * as Fr from './franchise.js?v=1792344678';
+import * as League from './league.js?v=1792344678';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792344678';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792344678';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792344678';
+import * as UTm from './ut.js?v=1792344678';
+import { initCreator, renderCreator } from './creator.js?v=1792344678';
+import { filmCapture, filmSave } from './social.js?v=1792344678';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792344678';
+import { portraitURL } from './faces.js?v=1792344678';
+import { logoURL, clearLogoCache } from './logos.js?v=1792344678';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1099,7 +1099,7 @@ function forfeitWin() {
   if ((performance.now() - (st.startedAt || performance.now())) / 1000 < 45) return;   // left during the intro: no free wins
   st.rewarded = true;
   const me = st.local, other = 1 - me;
-  try { awardGame({ mode: 'online', ut: !!st.ut, res: 'W', diff: 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: S.st[me], opp: S.st[other] }); setTimeout(() => toast('Your opponent quit. You get the win, XP and rank points.', 3500), 600); } catch (e) { console.warn(e); }
+  try { awardGame({ mode: 'online', ut: !!st.myUT, res: 'W', diff: 1, qlen: S.ql, sc: [S.sc[me], S.sc[other]], me: S.st[me], opp: S.st[other] }); setTimeout(() => toast('Your opponent quit. You get the win, XP and rank points.', 3500), 600); } catch (e) { console.warn(e); }
 }
 function filmOk() { return !st.practice && !st.drill && st.mode !== 'spec' && st.mode !== 'clip' && !st.replay; }
 function showGameOver(S) {
@@ -1162,9 +1162,7 @@ function showGameOver(S) {
     st.rewarded = true;
     const P = profile();
     if (st.seasonGame && S.mode === 'game' && P) {
-      const tp = 8 + (res === 'W' ? 8 : 0) + Math.min(6, (S.st[me] && S.st[me].tds) || 0) * 2;
-      P.addTp(tp);
-      $('#go-rewards').innerHTML = `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="tp-ic">TP</i>${(P.p.tp || 0).toLocaleString()}</span></div><p class="note">Season game: <b>+${tp} Training Points</b> (played +8${res === 'W' ? ', win +8' : ''}${Math.min(6, (S.st[me] && S.st[me].tds) || 0) ? `, TDs +${Math.min(6, (S.st[me] && S.st[me].tds) || 0) * 2}` : ''}). Season games don’t pay coins, XP or rank. Spend TP upgrading players in Ultimate Team.</p>`;
+      $('#go-rewards').innerHTML = `<div class="gr-head"><b>Rewards</b><span class="coins-pill">New balance: <i class="tp-ic">TP</i>${(P.p.tp || 0).toLocaleString()}</span></div><p class="note">Season games don’t pay coins, XP, rank or Training Points. Training Points come from Ultimate Team games.</p>`;
     } else $('#go-rewards').innerHTML = NO_REWARDS_HTML;
   }
   if (!st.statsPosted && paid && !isGuest()) {
@@ -1178,7 +1176,7 @@ function showGameOver(S) {
     st.rewarded = true;
     const mine = S.st[me], theirs = S.st[other];
     try {
-      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.franchiseGame ? 'franchise' : st.ut ? 'ut' : 'cpu') : 'online', ut: !!st.ut, solo: st.solo, res, diff: st.mode === 'cpu' ? (st.game && st.game.opts && st.game.opts.difficulty != null ? st.game.opts.difficulty : SET.diff) : 1, qlen: S.ql, oppName: st.names && st.names[other], sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
+      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.franchiseGame ? 'franchise' : st.ut ? 'ut' : 'cpu') : 'online', ut: st.mode === 'cpu' ? !!st.ut : !!st.myUT, solo: st.solo, res, diff: st.mode === 'cpu' ? (st.game && st.game.opts && st.game.opts.difficulty != null ? st.game.opts.difficulty : SET.diff) : 1, qlen: S.ql, oppName: st.names && st.names[other], sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
       if (st.ut && S.mode === 'game') { try { const P = profile(); if (P && P.p.ut) { const fl = UTm.updateForm(P.p.ut, S.ps || [], me, res === 'W', S.sc[me] - S.sc[other]); P.save(); if (fl.length) $('#go-rewards').insertAdjacentHTML('beforeend', `<div class="gr-extra">${fl.map(t => `<span class="up">${escapeHtml(t)}</span>`).join('')}</div>`); } } catch (e) { console.warn(e); } }
     } catch (e) { console.warn(e); $('#go-rewards').innerHTML = ''; }
   }
@@ -1581,8 +1579,10 @@ function renderOnline() {
   if (!w) startLobby();
 }
 function myOnlineInfo() {
+  st.myUT = false;
   const P = profile(), useUT = $('#use-ut').checked && P && P.ut.started;
   const roster = useUT ? UTm.squadRoster(P.ut) : null;
+  st.myUT = !!roster && !st.league;   // TP online only when YOU bring your UT squad
   return { name: Auth.user ? Auth.user.name : 'Player', team: useUT ? P.ut.club : onlineTeam, rank: P ? P.rank.name : '', roster, squad: roster ? P.ut.name : null, cel: SET.cel, ...(League.onlineOverride() || {}) };
 }
 // ---------------- spectating ----------------

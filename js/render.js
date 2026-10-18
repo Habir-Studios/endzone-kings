@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792337172';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792337172';
-import { drawLogo } from './logos.js?v=1792337172';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792337172';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792337750';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792337750';
+import { drawLogo } from './logos.js?v=1792337750';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792337750';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -806,7 +806,7 @@ export class Renderer {
     this._curKit = uk;
     const F = faceParams(fseed);
     const skin = this.quality === 'high' ? new THREE.MeshPhysicalMaterial({ color: F.skin, roughness: 0.5, sheen: 0.22, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xffe2cc) }) : new THREE.MeshStandardMaterial({ color: F.skin, roughness: 0.52 });
-    const faceMat = new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => drawFaceTexture(c, w, h, fseed)), roughness: 0.6 });
+    const fz = this.quality === 'potato' ? 128 : 256, faceMat = new THREE.MeshStandardMaterial({ map: canvasTex(fz, fz, (c, w, h) => drawFaceTexture(c, w, h, fseed)), roughness: 0.6 });   // Chromebook: smaller face pictures
     const white = this._white || (this._white = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6 }));
     const sleeve = (num % 5 === 0) ? (this._sleeve || (this._sleeve = new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.5 }))) : skin;
     const mask = this._mask || (this._mask = new THREE.MeshStandardMaterial({ color: 0xd8dde6, roughness: 0.3, metalness: 0.7 }));

@@ -134,3 +134,25 @@ export function portraitURL(seed, jersey, trim, size = 160) {
   cache.set(k, url);
   return url;
 }
+
+// Face for the sideline crowd and cheer squads. fem: no beard or eye black, lashes, lip color and a little blush.
+export function drawFaceTextureLite(c, w, h, seed, fem = false) {
+  const F = { ...faceParams(seed) };
+  if (fem) { F.beard = 0; F.eyeBlack = false; F.smile = true; F.brow = 0.75; F.lips = 0.9; F.nose = 0.85; }
+  else F.eyeBlack = false;
+  c.fillStyle = F.skin; c.fillRect(0, 0, w, h);
+  const g = c.createRadialGradient(w * 0.25, h * 0.45, 0, w * 0.25, h * 0.5, w * 0.45);
+  g.addColorStop(0, 'rgba(255,255,255,0.1)'); g.addColorStop(1, 'rgba(0,0,0,0.22)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+  c.save(); c.translate(w * 0.25, h * 0.5); c.scale(0.5, 1);
+  const fw = h * 0.62, u = fw / 100;
+  features(c, F, 0, 0, fw);
+  if (fem) {
+    const ey = -6 * u, gap = 17 * u * F.eyeGap;
+    c.strokeStyle = '#120a06'; c.lineWidth = 1.6 * u; c.lineCap = 'round';
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) { const x = s * gap + s * (k * 2.6 - 3) * u; c.beginPath(); c.moveTo(x, ey - 4 * u); c.lineTo(x + s * 1.5 * u, ey - 7 * u); c.stroke(); }
+    c.fillStyle = 'rgba(200,40,70,0.55)'; c.beginPath(); c.moveTo(-11 * u, 24 * u); c.quadraticCurveTo(0, 33 * u, 11 * u, 24 * u); c.quadraticCurveTo(0, 27 * u, -11 * u, 24 * u); c.fill();
+    c.fillStyle = 'rgba(230,90,110,0.18)'; for (const s of [-1, 1]) { c.beginPath(); c.ellipse(s * 24 * u, 10 * u, 9 * u, 5 * u, 0, 0, Math.PI * 2); c.fill(); }
+  }
+  c.restore();
+  return F;
+}

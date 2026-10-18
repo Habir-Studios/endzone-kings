@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792349128';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792349814';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792349128';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792349814';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1712,23 +1712,33 @@ function updateLive(g, dt, inputs) {
           if (stiffWin) highlight(g, 'STIFF ARM', c2.rt.name, ct);
         } else {
           c2.fallen = 3; d.fallen = 3; d.wrapAt = g.t; c2.hitAt = g.t;
-          { const fx = Math.sin(c2.face), fz = Math.cos(c2.face); c2.fallBack = ((d.x - c2.x) * fx + (d.z - c2.z) * fz) > 0.2 ? 1 : 0; }
-          // tackler wraps up: drive him into the carrier
-          const ux = c2.x - d.x, uz = c2.z - d.z, ul = hyp(ux, uz) || 1;
-          d.vx = ux / ul * 3 + c2.vx * 0.5; d.vz = uz / ul * 3 + c2.vz * 0.5; d.face = Math.atan2(ux, uz);
-          c2.face = Math.atan2(c2.vx || ux, c2.vz || uz);
-          g.events.push(hitting || c2.vx * c2.vx + c2.vz * c2.vz > 30 ? 'bighit' : 'tackle');
+          // real momentum: the two bodies lock together and keep going the way their combined momentum points.
+          // A big defender meeting a runner head-on stops him cold (or drives him back); a runner hit from the side
+          // or behind keeps sliding forward. Heavier (bigger) players carry more momentum.
+          const dvx0 = d.vx, dvz0 = d.vz, impact = hyp(d.vx - c2.vx, d.vz - c2.vz);
+          const ux = c2.x - d.x, uz = c2.z - d.z, ul = hyp(ux, uz) || 1, nx = ux / ul, nz = uz / ul;
+          const mc = 100 * (c2.size || 1), md = 100 * (d.size || 1) * (hitting ? 1.3 : 1);
+          const cvx = (mc * c2.vx + md * d.vx) / (mc + md), cvz = (mc * c2.vz + md * d.vz) / (mc + md);
+          const preFwd = cvz * dirOf(ct);   // forward momentum left after the hit decides forward progress
+          c2.vx = cvx; c2.vz = cvz;
+          d.vx = cvx * 0.9 + nx * 1.4; d.vz = cvz * 0.9 + nz * 1.4; d.face = Math.atan2(ux, uz);   // the tackler wraps and drives through him
           if (hitting) {
-            c2.fallBack = 1; c2.vx += Math.sin(d.face) * 4; c2.vz += Math.cos(d.face) * 4;
+            // hit stick: the shoulder lands and the runner gets knocked back off his feet, harder the faster and bigger the hitter
+            const kick = clamp(hyp(dvx0, dvz0) / 8, 0.6, 1.5) * clamp(md / mc, 0.75, 1.5) * 4.2;
+            c2.vx += nx * kick; c2.vz += nz * kick; d.vx = cvx * 0.6 + nx * 2.2; d.vz = cvz * 0.6 + nz * 2.2;
             g.flash = { text: 'HIT STICK!', until: 1.1 }; mom(g, d.team, 6);
             highlight(g, 'BIG HIT', d.rt.name, d.team);
           }
+          // he falls the way his body is moving: backward if he's knocked back, forward if he's falling forward
+          { const sp = hyp(c2.vx, c2.vz); if (sp > 0.4) { const fx = Math.sin(c2.face), fz = Math.cos(c2.face); c2.fallBack = (c2.vx * fx + c2.vz * fz) < -0.3 ? 1 : 0; } else c2.fallBack = ((d.x - c2.x) * Math.sin(c2.face) + (d.z - c2.z) * Math.cos(c2.face)) > 0.2 ? 1 : 0; }
+          if (hitting) c2.fallBack = 1;
+          g.events.push(hitting || impact > 6.5 ? 'bighit' : 'tackle');
           // fumbles: rare on a normal tackle, real on a big hit or a hit stick. Going down (slide) protects the ball.
           // whoever is closest to the loose ball comes up with it, so it can bounce back to the offense too
           if (!P.isPat && !c2.slide && !(c2.id === 0 && !P.thrown && !P.crossed && !hitting && g.rng() > 0.4)) {
-            const hp = hyp(d.vx, d.vz) / 9 + (d.size - 1) * 1.5 + d.rt.tkl / 100 * 0.4;
+            const hp = hyp(dvx0, dvz0) / 9 + (d.size - 1) * 1.5 + d.rt.tkl / 100 * 0.4;
             const sec = c2.rt.elu / 100 * 0.25 + (c2.role === 'RB' ? 0.08 : 0) + (c2.role === 'QB' ? -0.05 : 0);
-            const big = c2.vx * c2.vx + c2.vz * c2.vz > 30;
+            const big = impact > 6.5;
             const fc = hitting ? clamp(0.12 + (hp - sec) * 0.12, 0.06, 0.28) : clamp((big ? 0.045 : 0.016) + (hp - sec) * 0.012 + (c2.juke > 0 || c2.spin > 0 ? 0.015 : 0), 0.008, 0.07);   // moves in traffic are riskier
             if (g.rng() < fc) {
               // the ball is LOOSE: it bounces around and whoever gets to it first (or dives on it) owns it
@@ -1742,10 +1752,11 @@ function updateLive(g, dt, inputs) {
             }
           }
           // forward progress: a runner going downhill falls forward, more if he's hit from the side or behind
-          { const dd = dirOf(ct), vf = c2.vz * dd, front = ((d.z - c2.z) * dd) > 0.3;
-            const sack = c2.id === 0 && !P.thrown && !P.crossed;
-            if (vf > 1 && !sack) { const fall = clamp(vf * 0.2, 0, 1.7) * (front ? 0.55 : 1) * (0.8 + c2.size * 0.25); c2.z = zOf(ct, Math.min(99.4, prog(ct, c2.z) + fall)); } }
-          { const big = c2.vx * c2.vx + c2.vz * c2.vz > 30; injure(g, c2, hitting ? 7 : big ? 2.6 : 1); if (hitting || big) injure(g, d, 0.6); }
+          // forward progress: if the pile is still moving forward he falls forward for extra yards; if he's stopped or
+          // driven back the ball stays where he was hit (the body still flies back for the look)
+          { const sack = c2.id === 0 && !P.thrown && !P.crossed;
+            if (preFwd > 0.6 && !sack) { const fall = clamp(preFwd * 0.26, 0, 2) * (0.8 + c2.size * 0.25); c2.z = zOf(ct, Math.min(99.4, prog(ct, c2.z) + fall)); } }
+          { const big = impact > 6.5; injure(g, c2, hitting ? 7 : big ? 2.6 : 1); if (hitting || big) injure(g, d, 0.6); }
           return endPlay(g, 'tackle', c2, d);
         }
       }

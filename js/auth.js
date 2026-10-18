@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792345963';
+import { CONFIG } from './config.js?v=1792346110';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -23,6 +23,8 @@ function unpack(e) {
   try { return { ...e, log: [], ut: { ...e.ut, cards: (e.ut.cards || []).map(a => { const c = { u: a[0], id: a[1], b: a[2] }; if (a[3]) c.x = a[3]; if (a[4]) c.ab = a[4]; if (a[5]) c.xf = 1; return c; }) } }; } catch (_) { return null; }
 }
 // how far along a save is: level and XP only ever go up, so the save with more of them is the real one
+// email links (confirm, reset password) open the real site: inside itch.io the game runs in a sandboxed frame
+const authHome = () => /(^|\.)itch\.(zone|io)$/.test(location.hostname) ? 'https://hussainz2.github.io/endzone-kings/' : location.origin + location.pathname;
 export const progOf = p => p ? (p.lvl || 1) * 1e7 + (p.xp || 0) * 10 + Math.min(9, p.games || 0) : 0;
 
 export const Auth = {
@@ -66,7 +68,7 @@ export const Auth = {
     if (this.mode === 'supabase') {
       const { data, error } = await this.client.auth.signUp({
         email: (email || '').trim(), password,
-        options: { data: { username, wins: 0, losses: 0, ties: 0 }, emailRedirectTo: location.origin + location.pathname },
+        options: { data: { username, wins: 0, losses: 0, ties: 0 }, emailRedirectTo: authHome() },
       });
       if (error) throw new Error(error.message);
       if (!data.session) return { needsConfirm: true };
@@ -101,7 +103,7 @@ export const Auth = {
 
   async resetPassword(email) {
     if (this.mode !== 'supabase') throw new Error('Password reset needs online accounts set up');
-    const { error } = await this.client.auth.resetPasswordForEmail((email || '').trim(), { redirectTo: location.origin + location.pathname });
+    const { error } = await this.client.auth.resetPasswordForEmail((email || '').trim(), { redirectTo: authHome() });
     if (error) throw new Error(error.message);
   },
 

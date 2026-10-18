@@ -313,7 +313,9 @@ export class Sfx {
   pickVoice() {
     const ms = this.maleVoices();
     this.voice = ms[0] || null;   // always the best-sounding male voice on the device: no picking
-    this.fallback = !this.voice;   // no male voice on this device: deepen whatever there is
+    // only voices we KNOW are male count as male; anything else (Chromebook voices, unknown names) gets pitched way down
+    const KNOWN = /\b(andrew|christopher|guy|brian|eric|davis|roger|steffan|ryan|thomas|liam|william|tony|jason|aaron|evan|nathan|reed|tom|daniel|david|mark|alex|fred|rocko|george|james|richard|male|matthew|justin|joey|russell|lee|rishi|oliver|arthur|gordon|ralph|albert)\b/i;
+    this.fallback = !this.voice || !KNOWN.test(this.voice.name);
   }
   // hype = touchdowns, picks, big plays: faster, higher energy. Normal calls stay smooth and low.
   say(text, urgent = false, hype = false) {
@@ -325,8 +327,9 @@ export class Sfx {
       if (this.voice) { u.voice = this.voice; u.lang = this.voice.lang; }
       const j = (Math.random() - 0.5) * 0.06, natural = this.voice && /natural|online|neural/i.test(this.voice.name);
       const hy = hype || /!$/.test(text) && urgent;
-      u.rate = (hy ? 1.24 : urgent ? 1.14 : 1.08) + j;   // broadcast pace: quick and punchy
-      u.pitch = this.fallback ? 0.6 : natural ? (hy ? 1.12 : 1.02) : (hy ? 1.02 : 0.9) + j;
+      u.rate = (hy ? 1.18 : urgent ? 1.08 : 1.02) + j;   // broadcast pace: quick and punchy
+      // deep broadcast voice: everything sits low, hype calls lift a touch
+      u.pitch = this.fallback ? (hy ? 0.5 : 0.42) : natural ? (hy ? 0.88 : 0.8) : (hy ? 0.78 : 0.7) + j;
       u.volume = Math.min(1, this.vol * 1.3);
       speechSynthesis.speak(u);
     } catch (_) {}

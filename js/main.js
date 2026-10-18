@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792332158';
-import * as Form from './form.js?v=1792332158';
-import { watchSim } from './simview.js?v=1792332158';
-import { bracketHTML } from './bracket.js?v=1792332158';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792332158';
-import { Renderer } from './render.js?v=1792332158';
-import { Sfx } from './audio.js?v=1792332158';
-import { Auth } from './auth.js?v=1792332158';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792332158';
-import { getRoster, teamOvr } from './teams.js?v=1792332158';
-import * as Season from './season.js?v=1792332158';
-import * as Fr from './franchise.js?v=1792332158';
-import * as League from './league.js?v=1792332158';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792332158';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792332158';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792332158';
-import * as UTm from './ut.js?v=1792332158';
-import { initCreator, renderCreator } from './creator.js?v=1792332158';
-import { filmCapture, filmSave } from './social.js?v=1792332158';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792332158';
-import { portraitURL } from './faces.js?v=1792332158';
-import { logoURL, clearLogoCache } from './logos.js?v=1792332158';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792333852';
+import * as Form from './form.js?v=1792333852';
+import { watchSim } from './simview.js?v=1792333852';
+import { bracketHTML } from './bracket.js?v=1792333852';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792333852';
+import { Renderer } from './render.js?v=1792333852';
+import { Sfx } from './audio.js?v=1792333852';
+import { Auth } from './auth.js?v=1792333852';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792333852';
+import { getRoster, teamOvr } from './teams.js?v=1792333852';
+import * as Season from './season.js?v=1792333852';
+import * as Fr from './franchise.js?v=1792333852';
+import * as League from './league.js?v=1792333852';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792333852';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792333852';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792333852';
+import * as UTm from './ut.js?v=1792333852';
+import { initCreator, renderCreator } from './creator.js?v=1792333852';
+import { filmCapture, filmSave } from './social.js?v=1792333852';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792333852';
+import { portraitURL } from './faces.js?v=1792333852';
+import { logoURL, clearLogoCache } from './logos.js?v=1792333852';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -522,7 +522,7 @@ function renderSettings() {
 }
 $('#set-vol').addEventListener('input', (e) => { SET.vol = +e.target.value; sfx.setVolume(SET.vol); saveSet(); });
 $('#set-music').addEventListener('input', (e) => { SET.music = +e.target.value; sfx.setMusicVolume(SET.music); saveSet(); });
-function applyGfx() { R.setQuality(SET.gfx); }
+function applyGfx() { R.setQuality(SET.gfx); document.documentElement.dataset.q = SET.gfx; }
 
 // ---------------- game start / end ----------------
 function enterGame() {

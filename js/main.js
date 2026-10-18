@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792349957';
-import * as Form from './form.js?v=1792349957';
-import { watchSim } from './simview.js?v=1792349957';
-import { bracketHTML } from './bracket.js?v=1792349957';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792349957';
-import { Renderer } from './render.js?v=1792349957';
-import { Sfx } from './audio.js?v=1792349957';
-import { Auth } from './auth.js?v=1792349957';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792349957';
-import { getRoster, teamOvr } from './teams.js?v=1792349957';
-import * as Season from './season.js?v=1792349957';
-import * as Fr from './franchise.js?v=1792349957';
-import * as League from './league.js?v=1792349957';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792349957';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792349957';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792349957';
-import * as UTm from './ut.js?v=1792349957';
-import { initCreator, renderCreator } from './creator.js?v=1792349957';
-import { filmCapture, filmSave } from './social.js?v=1792349957';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792349957';
-import { portraitURL } from './faces.js?v=1792349957';
-import { logoURL, clearLogoCache } from './logos.js?v=1792349957';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792350512';
+import * as Form from './form.js?v=1792350512';
+import { watchSim } from './simview.js?v=1792350512';
+import { bracketHTML } from './bracket.js?v=1792350512';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792350512';
+import { Renderer } from './render.js?v=1792350512';
+import { Sfx } from './audio.js?v=1792350512';
+import { Auth } from './auth.js?v=1792350512';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792350512';
+import { getRoster, teamOvr } from './teams.js?v=1792350512';
+import * as Season from './season.js?v=1792350512';
+import * as Fr from './franchise.js?v=1792350512';
+import * as League from './league.js?v=1792350512';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792350512';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792350512';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792350512';
+import * as UTm from './ut.js?v=1792350512';
+import { initCreator, renderCreator } from './creator.js?v=1792350512';
+import { filmCapture, filmSave } from './social.js?v=1792350512';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792350512';
+import { portraitURL } from './faces.js?v=1792350512';
+import { logoURL, clearLogoCache } from './logos.js?v=1792350512';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -865,8 +865,8 @@ function renderHot(S) {
   const key = st.hot.role + '|' + (S.opDef.hot || []).join();
   if (hudCache.hot === key) return; hudCache.hot = key;
   const g = st.hot.role === 'RB' ? 'RB' : st.hot.role === 'TE' ? 'TE' : 'WR', arrows = HOT_KEYS;
-  el.innerHTML = `<h4>Hot route</h4><div class="who">${HOT_ROLES.map((r, i) => `<button data-r="${r}" class="${r === st.hot.role ? 'on' : ''}" style="--rc:${RCOLS[r]}"><kbd>${i + 1}</kbd>${HOT_NAME(r)}</button>`).join('')}</div>
-    <div class="kinds">${HOT_LABELS[g].map((h, i) => `<button data-k="${i}"><kbd>${arrows[i]}</kbd>${h[1]}</button>`).join('')}</div><small>Changed: ${(S.opDef.hot || []).map(HOT_NAME).join(', ') || 'nothing yet'}. Press H or Esc when you're done.</small>`;
+  el.innerHTML = `<h4>Hot route</h4><div class="who">${HOT_ROLES.map((r, i) => `<button data-r="${r}" class="${r === st.hot.role ? 'on' : ''}" style="--rc:${RCOLS[r]}">${document.body.classList.contains('pad-mode') ? '' : `<kbd>${i + 1}</kbd>`}${HOT_NAME(r)}</button>`).join('')}</div>
+    <div class="kinds">${HOT_LABELS[g].map((h, i) => `<button data-k="${i}">${document.body.classList.contains('pad-mode') ? '' : `<kbd>${arrows[i]}</kbd>`}${h[1]}</button>`).join('')}</div><small>Changed: ${(S.opDef.hot || []).map(HOT_NAME).join(', ') || 'nothing yet'}. ${document.body.classList.contains('pad-mode') ? `Press ${glyphs().B || 'B'} when you're done.` : 'Press H or Esc when you\'re done.'}</small>`;   // controller players see their button
   $$('[data-r]', el).forEach(b => b.onclick = () => { st.hot.role = b.dataset.r; hudCache.hot = null; sfx.play('ui'); });
   $$('[data-k]', el).forEach(b => b.onclick = () => setHot(+b.dataset.k));
 }

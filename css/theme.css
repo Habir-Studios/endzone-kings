@@ -168,3 +168,6 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
   #hud.touch-mode .scorebug { transform: translateX(-50%) scale(.6); }
   #hud.touch-mode .sb-team { min-width: 104px; }
 }
+
+/* error lines (failed loads) stand out from normal notes */
+.note.err { color: #ff8994; border-left: 3px solid var(--red); padding-left: 10px; }

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792346964';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792347133';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792346964';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792347133';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -71,8 +71,10 @@ export function cfgFor(diff, adapt = 0) {
 
 const R = 0.55; // player radius
 const dirOf = t => (t === 0 ? 1 : -1);
-// everyone moves a little slower than before, so the 100 yards take longer to cover and the field plays bigger
-const FIELD_FEEL = 0.94;
+// the field is a little longer than before: still marked 100 yards, but each yard takes a bit more ground to cover.
+// The sim runs players at this fraction of a yard per step and the renderer stretches the field back out (render.js),
+// so on screen players run at full speed on a longer field.
+export const FIELD_FEEL = 0.94;
 // how good this team's defense is (from its defenders' tackling, coverage and pass rush): -0.4 weak ... 1 elite
 function defF(g, team) {
   g._defF = g._defF || [];

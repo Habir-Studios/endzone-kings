@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792346964';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792346964';
-import { drawLogo } from './logos.js?v=1792346964';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792346964';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792347133';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792347133';
+import { drawLogo } from './logos.js?v=1792347133';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792347133';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -58,6 +58,12 @@ export class Renderer {
     r.shadowMap.enabled = quality === 'high';
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene = new THREE.Scene();
+    // everything in the world sits in one group stretched along the field (see FIELD_FEEL in sim.js): the field reads 100
+    // yards but plays slightly longer. Lights stay in the scene itself; the camera gets the same stretch when we draw.
+    { const sc = this.scene, W = this.world = new THREE.Group(), add = THREE.Object3D.prototype.add, rem = THREE.Object3D.prototype.remove;
+      this.zk = 1 / FIELD_FEEL; W.scale.z = this.zk; W.position.z = 50 * (1 - this.zk); add.call(sc, W);
+      sc.add = (...objs) => { for (const o of objs) { if (o === W || o.isLight) add.call(sc, o); else W.add(o); } return sc; };
+      sc.remove = (...objs) => { for (const o of objs) { W.remove(o); rem.call(sc, o); } return sc; }; }
     this.scene.fog = new THREE.FogExp2(0x070b1f, 0.0042);
     this.cam = new THREE.PerspectiveCamera(48, 1, 0.3, 900);
     this.cam.position.set(0, 12, -20);
@@ -1479,7 +1485,17 @@ export class Renderer {
   }
 
   render() {
-    if (this.quality === 'high') this.composer.render(); else this.r.render(this.scene, this.cam);
+    // draw with the camera moved into the stretched world, then put it back so everything else keeps using field coords
+    const cam = this.cam, k = this.zk || 1; let sp = null, sq = null;
+    if (k !== 1) {
+      sp = cam.position.clone(); sq = cam.quaternion.clone();
+      const f = this._fv || (this._fv = new THREE.Vector3()); cam.getWorldDirection(f);
+      const d = f.y < -0.05 ? Math.min(220, -sp.y / f.y) : 40, tgt = sp.clone().addScaledVector(f, d);
+      sp.z !== undefined && cam.position.set(sp.x, sp.y, (sp.z - 50) * k + 50);
+      cam.lookAt(tgt.x, tgt.y, (tgt.z - 50) * k + 50); cam.updateMatrixWorld();
+    }
+    if (this.quality === 'high') this.composer.render(); else this.r.render(this.scene, cam);
+    if (sp) { cam.position.copy(sp); cam.quaternion.copy(sq); cam.updateMatrixWorld(); }
   }
 }
 

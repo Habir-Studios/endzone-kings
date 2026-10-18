@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792352838';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792352838';
-import { drawLogo } from './logos.js?v=1792352838';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792352838';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792353241';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792353241';
+import { drawLogo } from './logos.js?v=1792353241';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792353241';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -712,7 +712,7 @@ export class Renderer {
     });
     this.ctrlRing = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, depthWrite: false, toneMapped: false }));
     this.ctrlRing.rotation.x = -Math.PI / 2; this.ctrlRing.position.y = 0.04; this.ctrlRing.renderOrder = 3; s.add(this.ctrlRing);
-    // your opponent's player (when the other side is a person): red ring and a red arrow, like Madden
+    // your opponent's player (when the other side is a person): red ring and a red arrow
     const oppTex = canvasTex(128, 128, (c) => {
       const g = c.createRadialGradient(64, 64, 30, 64, 64, 64);
       g.addColorStop(0, 'rgba(255,60,80,0)'); g.addColorStop(0.55, 'rgba(255,60,80,0.9)'); g.addColorStop(0.7, 'rgba(255,170,180,1)'); g.addColorStop(1, 'rgba(255,60,80,0)');

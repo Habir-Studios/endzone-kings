@@ -61,7 +61,7 @@ function rng(seed) {
 }
 const clampR = v => Math.max(40, Math.min(99, Math.round(v)));
 
-// Team strength follows Madden NFL 27's launch ratings for the matching city (team OVR / OFF / DEF), and each
+// Team strength follows a set rating for each city (team OVR / OFF / DEF), and each
 // club's starting QB and biggest stars carry the same overall as their real-life counterpart. Names stay made up.
 // [OVR, OFF, DEF, QB, { role: overall } stars]
 const M27 = {
@@ -111,7 +111,7 @@ export function getRoster(ti) {
     const [, offT, defT, qb, stars] = m;
     const fixed = { QB: qb, ...stars };
     for (const [role, v] of Object.entries(fixed)) setOvr(players[role], role, v);
-    // everyone else moves together until the unit matches its Madden rating
+    // everyone else moves together until the unit matches its team rating
     for (const [roles, target, w] of [[OFF_ROLES, offT, OFFW], [DEF_ROLES, defT, DEF_ROLES]]) {
       for (let it = 0; it < 6; it++) {
         const free = roles.filter(r => !(r in fixed)); if (!free.length) break;

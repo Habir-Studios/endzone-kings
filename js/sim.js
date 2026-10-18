@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792352838';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792353241';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,10 +16,10 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792352838';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792353241';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
-// top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
+// top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
 const ROSTER = {
   QB:  { spd: 6.6, size: 1.0 },
   C:   { spd: 5.2, size: 1.22 },
@@ -922,7 +922,7 @@ function throwBall(g, qb, r, err, pw) {
 
 // ---------------- kicks ----------------
 // ---------------- kick meter (human kickers) ----------------
-// Madden-style three press: aim with left/right, press to start the meter, press to lock power,
+// three-press kick: aim with left/right, press to start the meter, press to lock power,
 // press again on the line as it drops back for accuracy. Early or late hooks the kick.
 const KICK_SWEET = 0.1;
 function legOf(g, team) { const q = rosterFor(g, team).players.QB; return clamp(((q.arm || 70) * 0.7 + (q.acc || 70) * 0.3), 50, 99); }
@@ -1326,7 +1326,7 @@ function updatePresnap(g, dt, inputs) {
   }
 }
 
-// Madden-style timeout: the game clock freezes, the play clock resets, both sides get a breather and the team that
+// timeout: the game clock freezes, the play clock resets, both sides get a breather and the team that
 // called it can pick a different play
 function callTimeout(g, team) {
   if (g.to[team] <= 0) return;
@@ -1543,7 +1543,7 @@ function updateLive(g, dt, inputs) {
         if (dz > 8.5 && want.z * (p.z > 50 ? 1 : -1) > 0) want = { ...want, z: 0 };
       }
     }
-    if (human && idle && p.id === 0 && pocket && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) want = qbPocketMove(g, p);   // the QB's scripted drop-back at the snap (Madden does this too); touch the stick and it's all you
+    if (human && idle && p.id === 0 && pocket && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) want = qbPocketMove(g, p);   // the QB's scripted drop-back at the snap; touch the stick and it's all you
     applyMove(g, p, want, dt);
     if (!(carrier && carrier.id === p.id) && !p.dive && !p.fallen) { const lim = HALF_W + 0.4; if (p.x > lim) p.x = lim; else if (p.x < -lim) p.x = -lim; if (p.z > 109.5) p.z = 109.5; else if (p.z < -9.5) p.z = -9.5; }
   }

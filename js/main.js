@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792352838';
-import * as Form from './form.js?v=1792352838';
-import { watchSim } from './simview.js?v=1792352838';
-import { bracketHTML } from './bracket.js?v=1792352838';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792352838';
-import { Renderer } from './render.js?v=1792352838';
-import { Sfx } from './audio.js?v=1792352838';
-import { Auth } from './auth.js?v=1792352838';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792352838';
-import { getRoster, teamOvr } from './teams.js?v=1792352838';
-import * as Season from './season.js?v=1792352838';
-import * as Fr from './franchise.js?v=1792352838';
-import * as League from './league.js?v=1792352838';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792352838';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792352838';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792352838';
-import * as UTm from './ut.js?v=1792352838';
-import { initCreator, renderCreator } from './creator.js?v=1792352838';
-import { filmCapture, filmSave } from './social.js?v=1792352838';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792352838';
-import { portraitURL } from './faces.js?v=1792352838';
-import { logoURL, clearLogoCache } from './logos.js?v=1792352838';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792353241';
+import * as Form from './form.js?v=1792353241';
+import { watchSim } from './simview.js?v=1792353241';
+import { bracketHTML } from './bracket.js?v=1792353241';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792353241';
+import { Renderer } from './render.js?v=1792353241';
+import { Sfx } from './audio.js?v=1792353241';
+import { Auth } from './auth.js?v=1792353241';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792353241';
+import { getRoster, teamOvr } from './teams.js?v=1792353241';
+import * as Season from './season.js?v=1792353241';
+import * as Fr from './franchise.js?v=1792353241';
+import * as League from './league.js?v=1792353241';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792353241';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792353241';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792353241';
+import * as UTm from './ut.js?v=1792353241';
+import { initCreator, renderCreator } from './creator.js?v=1792353241';
+import { filmCapture, filmSave } from './social.js?v=1792353241';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792353241';
+import { portraitURL } from './faces.js?v=1792353241';
+import { logoURL, clearLogoCache } from './logos.js?v=1792353241';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -330,7 +330,7 @@ function shade(hex, f) {
   return `rgb(${m(r)},${m(g)},${m(b)})`;
 }
 function randomTeam(avoid) { let v; do { v = (Math.random() * TEAMS.length) | 0; } while (v === avoid); return v; }
-// "Random" spins through a few teams, then lands on one (like Madden's random team)
+// "Random" spins through a few teams, then lands on one
 function spinTeam(set, avoid) {
   let n = 0; const tick = () => { set(randomTeam(avoid)); sfx.play('ui'); if (++n < 9) setTimeout(tick, 40 + n * 18); };
   tick();
@@ -1168,7 +1168,7 @@ function showGameOver(S) {
     }
   }
   if (!st.rewarded && isGuest() && !LOCALNET) { st.rewarded = true; $('#go-rewards').innerHTML = '<div class="gr-head"><b>Rewards</b></div><p class="note">Guests don\'t earn coins, XP or rank. <button class="link" id="go-signup">Make a free account</button> and this game would have paid out.</p>'; setTimeout(() => { const b = $('#go-signup'); if (b) b.onclick = () => lockPrompt(''); }); }
-  // like Madden: coins, XP, rank and leaderboard stats come from Online 1v1, Ultimate Team and Franchise. Quick Play,
+  // coins, XP, rank and leaderboard stats come from Online 1v1, Ultimate Team and Franchise. Quick Play,
   // Season, practice and drills against the CPU are just for fun.
   const paid = S.mode === 'game' && (st.mode === 'host' || st.mode === 'guest' || st.ut || st.franchiseGame);
   if (!st.rewarded && !paid && !isGuest()) {
@@ -1343,7 +1343,7 @@ function buildPlaycall(S) {
   box.scrollLeft = 0;
   hudCache.pcSel = null;
 }
-// once you call a play the playbook folds away (Madden style); Backspace, Z/X or a click brings it back
+// once you call a play the playbook folds away; Backspace, Z/X or a click brings it back
 function pcCollapsed(S) {
   if (!S || S.ph !== 'presnap') return false;
   const onOff = S.poss === st.local, picked = onOff ? !!S.op : !!S.dc;

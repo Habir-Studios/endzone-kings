@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792347610';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792347610';
-import { drawLogo } from './logos.js?v=1792347610';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792347610';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js';
+import { drawFaceTexture, faceParams } from './faces.js';
+import { drawLogo } from './logos.js';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -803,9 +803,13 @@ export class Renderer {
     t.anisotropy = Math.min(8, this.r.capabilities.getMaxAnisotropy()); return t;
   }
   // a decal that wraps around the oval torso (front number, back number, nameplate)
+  // built on the jersey's own shape (a hair bigger) so numbers and names sit right on the fabric instead of sinking into it
   wrapDecal(tex, r, h, y, center, arc, zs) {
     const map = tex.clone(); map.needsUpdate = true;
-    const g = new THREE.CylinderGeometry(r, r, h, 16, 1, true, center - arc / 2, arc);
+    const prof = [[0.2, 0.222], [0.38, 0.262], [0.57, 0.292], [0.72, 0.288], [0.84, 0.2]];
+    const jr = yy => { for (let i = 0; i < prof.length - 1; i++) { const [a0, r0] = prof[i], [a1, r1] = prof[i + 1]; if (yy <= a1) return r0 + (r1 - r0) * Math.max(0, (yy - a0) / (a1 - a0)); } return prof[prof.length - 1][1]; };
+    const pts = []; for (let i = 0; i <= 8; i++) { const yy = y - h / 2 + h * i / 8; pts.push(new THREE.Vector2(jr(yy) * 1.014, yy - y)); }
+    const g = new THREE.LatheGeometry(pts, 20, center - arc / 2, arc);
     const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map, transparent: true, depthWrite: false, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 }));
     m.scale.z = zs; m.position.y = y;
     return m;
@@ -902,7 +906,7 @@ export class Renderer {
 
     // arms: jersey sleeve over the pad, then muscle, wrist tape and a proper glove
     const arms = [];
-    for (const sx of [-0.4, 0.4]) {
+    for (const sx of [0.4, -0.4]) {   // arms[1] is the player's RIGHT arm (the model faces +z): he carries and throws right-handed
       const sh = new THREE.Group(); sh.position.set(sx, 0.77, 0); torso.add(sh);
       const cap0 = det(new THREE.SphereGeometry(0.15, 16, 12), M.jersey); cap0.scale.set(1.0, 0.9, 1.0); sh.add(cap0);
       const sleeveTop = det(this.limbGeo('sleeve', 0.105, 0.098, 0.09, 0.14), M.jersey); sleeveTop.position.y = -0.04; sh.add(sleeveTop);
@@ -1181,7 +1185,7 @@ export class Renderer {
     } else if (dead && run < 0.15 && !celebrating && !fallen) {
       // between plays: hands on hips, or big guys catching their breath on their knees
       if (lineman && m.cel % 2 === 0) { lean = 0.75; drop = 0.14; lk[0] = lk[1] = 0.55; lh[0] = lh[1] = -0.35; as[0] = as[1] = -0.55; ae[0] = ae[1] = 0.25; az[0] = 0.25; az[1] = -0.25; headX = -0.35; }
-      else if (m.cel % 3 !== 2) { as[0] = as[1] = 0.25; ae[0] = ae[1] = 1.95; az[0] = 0.85; az[1] = -0.85; lean = 0.02; }
+      else if (m.cel % 3 !== 2) { as[0] = as[1] = 0.25; ae[0] = ae[1] = 1.95; az[0] = -0.85; az[1] = 0.85; lean = 0.02; }
     }
     if (hasBall && !throwing) { as[1] = -0.3; ae[1] = 1.95; az[1] = 0.28; }
     if (engaged) { const pump = Math.sin(this.time * 9 + m.celT) * 0.12; lean = 0.6; as[0] = -1.3 + pump; as[1] = -1.3 - pump; ae[0] = ae[1] = 0.3; drop = 0.16; lk[0] = Math.max(lk[0], 0.75); lk[1] = Math.max(lk[1], 0.75); }
@@ -1251,7 +1255,7 @@ export class Renderer {
         const s1 = Math.sin(c * 7); roll = s1 * 0.18; hipTwist = s1 * 0.35; twist = -s1 * 0.25; jump = Math.abs(Math.sin(c * 7)) * 0.08;
         as[0] = -1.2 + s1 * 0.8; as[1] = -1.2 - s1 * 0.8; ae[0] = ae[1] = 1.4; lk[0] = 0.35 + Math.max(0, s1) * 0.5; lk[1] = 0.35 + Math.max(0, -s1) * 0.5; lean = 0.05;
       } else if (kind === 2) { // flex
-        as[0] = as[1] = -1.55; az[0] = 1.25; az[1] = -1.25; ae[0] = ae[1] = 2.2 + Math.sin(c * 6) * 0.15; lean = -0.12; drop = 0.08; lk[0] = lk[1] = 0.45;
+        as[0] = as[1] = -1.55; az[0] = -1.25; az[1] = 1.25; ae[0] = ae[1] = 2.2 + Math.sin(c * 6) * 0.15; lean = -0.12; drop = 0.08; lk[0] = lk[1] = 0.45;
       } else if (kind === 3) { // point to the sky
         as[1] = -3.0; ae[1] = 0.05; az[1] = -0.2; as[0] = 0.2; ae[0] = 0.6; lean = -0.2; headX = 0.6; twist = Math.sin(c * 1.5) * 0.2;
       } else if (kind === 4) { // spin hop
@@ -1288,7 +1292,7 @@ export class Renderer {
     for (let k = 0; k < 2; k++) {
       m.legs[k].hip.rotation.x = j.lh[k] - j.lean * 0.55 * (1 - j.fall);
       m.legs[k].knee.rotation.x = j.lk[k];
-      m.arms[k].sh.rotation.set(j.as[k], 0, j.az[k]);
+      m.arms[k].sh.rotation.set(j.as[k], 0, -j.az[k]);
       m.arms[k].elbow.rotation.x = -j.ae[k];
     }
     m.head.rotation.x = -j.lean * 0.6 * (1 - j.fall) - j.headX * 0.5 + (j.headX < 0 ? 0 : 0);
@@ -1328,7 +1332,7 @@ export class Renderer {
       const cap = new THREE.Mesh(new THREE.SphereGeometry(0.155, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: looks[i][1], roughness: 0.6 })); cap.position.y = 0.03; head.add(cap);
       const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.015, 16, 1, false, -Math.PI / 2, Math.PI), cap.material); brim.position.set(0, 0.035, 0.1); head.add(brim);
       const arms = [];
-      for (const sx of [-0.3, 0.3]) {
+      for (const sx of [0.3, -0.3]) {
         const sh = new THREE.Group(); sh.position.set(sx, 0.76, 0); torso.add(sh);
         sh.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), shirt));
         const up = new THREE.Mesh(this.limbGeo('rsleeve', 0.075, 0.07, 0.062, 0.18), shirt); sh.add(up);
@@ -1378,7 +1382,7 @@ export class Renderer {
       let da = want - r.face; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; r.face += da * Math.min(1, dt * 6);
       r.root.position.set(r.x, 0, r.z); r.root.rotation.y = r.face; r.blob.position.set(r.x, 0.015, r.z);
       this.animate(r, { ph: 'live' }, 'REF', l > 0.3 ? sp : 0, 0, false, dt);
-      if (i === flagger && S.fl) { r.arms[1].sh.rotation.set(-2.9, 0, -0.2); r.arms[1].elbow.rotation.x = -0.1; }
+      if (i === flagger && S.fl) { r.arms[1].sh.rotation.set(-2.9, 0, 0.2); r.arms[1].elbow.rotation.x = -0.1; }
     });
     this.flagMesh.visible = !!S.fl;
     if (S.fl) { this.flagMesh.position.set(S.fl[0], 0, S.fl[1]); this.flagMesh.rotation.y = 0.6; }

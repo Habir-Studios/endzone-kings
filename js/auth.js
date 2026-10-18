@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792358629';
+import { CONFIG } from './config.js?v=1792360357';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -91,7 +91,14 @@ export const Auth = {
 
   async signIn(id, password) {
     if (this.mode === 'supabase') {
-      const { data, error } = await this.client.auth.signInWithPassword({ email: (id || '').trim(), password });
+      let email = (id || '').trim();
+      if (!email.includes('@')) {   // a username: the server swaps it for the email only if the password is right
+        const { data: e, error: re } = await this.client.rpc('ek_login_email', { p_user: email, p_pw: password });
+        if (re) throw new Error('Log in with your email for now (username log in isn’t set up yet)');
+        if (!e) throw new Error('Wrong username or password');
+        email = e;
+      }
+      const { data, error } = await this.client.auth.signInWithPassword({ email, password });
       if (error) throw new Error(error.message === 'Email not confirmed' ? 'Confirm your email first (check your inbox)' : error.message);
       this.user = this.fromSb(data.user);
       return this.user;
@@ -106,8 +113,16 @@ export const Auth = {
 
   async resetPassword(email) {
     if (this.mode !== 'supabase') throw new Error('Password reset needs online accounts set up');
-    const { error } = await this.client.auth.resetPasswordForEmail((email || '').trim(), { redirectTo: authHome() });
+    const v = (email || '').trim();
+    if (!v.includes('@')) {   // a username: the server sends the email to whatever address is on that account
+      const { data, error } = await this.client.rpc('ek_reset_by_username', { p_user: v });
+      if (error) throw new Error('Use your email for now (username reset isn’t set up yet)');
+      if (!data) throw new Error('No account with that username');
+      return data;   // hidden email, like h***@gmail.com
+    }
+    const { error } = await this.client.auth.resetPasswordForEmail(v, { redirectTo: authHome() });
     if (error) throw new Error(error.message);
+    return v;
   },
 
   async setNewPassword(pw) {
@@ -155,6 +170,8 @@ export const Auth = {
   },
   async flushCloud() {
     const p = this._pendP; if (!p || this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return;
+    const cur = this._row && this._row.p;
+    if (cur && !cur.tampered && progOf(p) < progOf(cur) && !p.tampered) { this._pendP = null; return; }   // stale copy from before the cloud save loaded
     const row = { ...(this._row || {}), ...(this._pendX || {}), p, at: Date.now() };
     try {
       const { error } = await this.client.from('ek_saves').upsert({ id: this.user.id, data: row, prog: progOf(p), updated_at: new Date().toISOString() });

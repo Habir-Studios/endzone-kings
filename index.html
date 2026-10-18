@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792358629">
-  <link rel="stylesheet" href="css/theme.css?v=1792358629">
+  <link rel="stylesheet" href="css/style.css?v=1792360357">
+  <link rel="stylesheet" href="css/theme.css?v=1792360357">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8994"/><stop offset=".45" stop-color="#ff3347"/><stop offset="1" stop-color="#b3101f"/></linearGradient></defs></svg>
@@ -70,14 +70,14 @@
           <button class="tab" data-tab="signup">Create account</button>
         </div>
         <form id="form-login" class="form">
-          <label><span class="lbl-id">Email</span><input id="li-id" autocomplete="username" required></label>
+          <label><span class="lbl-id">Email or username</span><input id="li-id" autocomplete="username" required></label>
           <label>Password<input id="li-pw" type="password" autocomplete="current-password" required></label>
           <button class="btn primary" type="submit">Log in</button>
           <button class="link forgot-link" type="button" id="li-forgot">Forgot password?</button>
         </form>
         <form id="form-forgot" class="form hidden">
-          <p class="note">Type the email on your account and we’ll send you a link to pick a new password.</p>
-          <label>Email<input id="fp-email" type="email" autocomplete="email" required></label>
+          <p class="note">Type your username or the email on your account. We’ll send a link to pick a new password to the email on that account.</p>
+          <label>Email or username<input id="fp-email" autocomplete="username" required></label>
           <button class="btn primary" type="submit">Send reset link</button>
           <button class="link" type="button" id="fp-back">Back to log in</button>
         </form>
@@ -130,13 +130,10 @@
         <button class="tile t-modes" data-go="modes"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 3h2v5.4l3.6 2.1-1 1.7L11 13.6z"/></svg></i><span class="tl-k">Practice</span><small>Offense, defense and special teams practice, plus drills</small></button>
         <button class="tile t-rosters" data-go="rosters"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M9 2h6v2h4v18H5V4h4zm1 2v1.5h4V4zM8 9v2h2V9zm4 0v2h4V9zm-4 4v2h2v-2zm4 0v2h4v-2zm-4 4v2h2v-2zm4 0v2h4v-2z"/></svg></i><span class="tl-k">Rosters</span><small>Every player on all 32 teams</small></button>
         <button class="tile t-howto" data-go="howto"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 6h10a5 5 0 0 1 4.9 6l-1.1 5.2a2.6 2.6 0 0 1-4.5 1.2L14 16h-4l-2.3 2.4a2.6 2.6 0 0 1-4.5-1.2L2.1 12A5 5 0 0 1 7 6zm0 3v1.5H5.5V12H7v1.5h1.5V12H10v-1.5H8.5V9zm9.5.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm-2.2 2.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/></svg></i><span class="tl-k">How to Play</span><small>Controls, moves and tips</small></button>
+        <button class="tile t-daily" id="daily-tile" type="button"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 10h18v3H3zm1 3h16v8H4zm7-3h2v11h-2zM12 10S9.5 3 6.8 5.2C4.6 7 8 10 12 10zm0 0s2.5-7 5.2-4.8C19.4 7 16 10 12 10z"/></svg></i><span class="tl-k">Daily Reward</span><small id="daily-sub">Claim your daily coins</small></button>
         <button class="tile wide t-admin hidden" data-go="admin" id="admin-tile"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.6 8 11 4.6-1.4 8-6 8-11V5zm0 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 12c-2 0-3.8-1-4.8-2.6.4-1.6 3-2.4 4.8-2.4s4.4.8 4.8 2.4C15.8 17 14 18 12 18z"/></svg></i><span class="tl-k">Admin <i class="dotn hidden" id="admin-n"></i></span><small>Reports and bans</small></button>
         <button class="tile wide t-settings" data-go="settings"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M10.2 2h3.6l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.8 3.1-2 1.7c.1.6.1 1.2 0 1.8l2 1.7-1.8 3.1-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.6l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.8-3.1 2-1.7a6 6 0 0 1 0-1.8l-2-1.7 1.8-3.1 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></i><span class="tl-k">Settings</span><small>Sound, announcer, camera, graphics and controls</small></button>
       </nav>
-      <section class="menu-board hidden" id="menu-board" aria-label="Live leaderboard">
-        <div class="mb-head"><b><span class="live-dot" aria-hidden="true"></span> Live leaderboard</b><span id="mb-cat">Wins</span></div>
-        <ol class="mb-list" id="mb-list"><li class="mb-empty">Loading…</li></ol>
-      </section>
     </div>
     <footer class="foot">© <span id="yr"></span> Habir Studios. Endzone Kings v2.1 <button class="link foot-link" data-go="about">About the game</button></footer>
   </section>
@@ -715,6 +712,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792358629"></script>
+  <script type="module" src="js/main.js?v=1792360357"></script>
 </body>
 </html>

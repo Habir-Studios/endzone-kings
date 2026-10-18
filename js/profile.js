@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792358629';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792360357';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -175,11 +175,19 @@ export class Profile {
     // both flagged (the old sync bug flagged good saves) and about as far along: keep the richer one, since the flag knocked coins down
     const W = q => (q.coins || 0) + (q.tp || 0) * 10 + ((q.ut && q.ut.cards) || []).length * 60 + Object.values(q.packs || {}).reduce((s, n) => s + n * 400, 0);
     if (remote.tampered && this.p.tampered && Math.abs(a - b) <= 2e7) { if (W(remote) > W(this.p)) { /* take it */ } else return false; }
-    const take = (remote.tampered && this.p.tampered && Math.abs(a - b) <= 2e7) || a > b || (a === b && (remote.at || 0) > (this.p.at || 0) && remote.rev !== this.p.rev) || (this.p.tampered && !remote.tampered && a >= b - 2e7);
+    const take = (remote.tampered && this.p.tampered && Math.abs(a - b) <= 2e7) || (this.p.tampered && !remote.tampered && W(remote) > W(this.p)) || a > b || (a === b && (remote.at || 0) > (this.p.at || 0) && remote.rev !== this.p.rev) || (this.p.tampered && !remote.tampered && a >= b - 2e7);
     if (take) { this.p = { ...blank(), ...remote, ut: { ...blank().ut, ...remote.ut }, fp: remote.fp || blank().fp, ach: remote.ach || {}, drill: remote.drill || { best: 0, runs: [] } }; this.verify(); this.refreshChallenges(); if (this.listeners) this.upgradeClub(); try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {} this.tampered = !!this.p.tampered; return true; } return false; }
 
   get rank() { return rankInfo(this.p.rp); }
-  // first visit of the day: returns the reward it just paid, or null
+  // today's login reward without paying it: { claimable, streak (today's day in the 7-day cycle), R, next (ms until it resets) }
+  loginState() {
+    const P = this.p, today = dayKey(), y = new Date(); y.setDate(y.getDate() - 1);
+    const mid = new Date(); mid.setHours(24, 0, 0, 0);
+    if (P.login && P.login.d === today) return { claimable: false, streak: P.login.streak, R: LOGIN_REWARDS[P.login.streak - 1], next: mid - Date.now() };
+    const streak = P.login && P.login.d === dayKey(y) ? (P.login.streak % 7) + 1 : 1;
+    return { claimable: true, streak, R: LOGIN_REWARDS[streak - 1], next: mid - Date.now() };
+  }
+  // pays today's login reward (only when the player hits Claim): returns the reward, or null if it's already claimed
   claimLogin() {
     const P = this.p, today = dayKey(), y = new Date(); y.setDate(y.getDate() - 1);
     if (P.login && P.login.d === today) return null;

@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792358629';
-import * as Form from './form.js?v=1792358629';
-import { watchSim } from './simview.js?v=1792358629';
-import { bracketHTML } from './bracket.js?v=1792358629';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792358629';
-import { Renderer } from './render.js?v=1792358629';
-import { Sfx } from './audio.js?v=1792358629';
-import { Auth } from './auth.js?v=1792358629';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792358629';
-import { getRoster, teamOvr } from './teams.js?v=1792358629';
-import * as Season from './season.js?v=1792358629';
-import * as Fr from './franchise.js?v=1792358629';
-import * as League from './league.js?v=1792358629';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792358629';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792358629';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792358629';
-import * as UTm from './ut.js?v=1792358629';
-import { initCreator, renderCreator } from './creator.js?v=1792358629';
-import { filmCapture, filmSave } from './social.js?v=1792358629';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792358629';
-import { portraitURL } from './faces.js?v=1792358629';
-import { logoURL, clearLogoCache } from './logos.js?v=1792358629';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792360357';
+import * as Form from './form.js?v=1792360357';
+import { watchSim } from './simview.js?v=1792360357';
+import { bracketHTML } from './bracket.js?v=1792360357';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792360357';
+import { Renderer } from './render.js?v=1792360357';
+import { Sfx } from './audio.js?v=1792360357';
+import { Auth } from './auth.js?v=1792360357';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792360357';
+import { getRoster, teamOvr } from './teams.js?v=1792360357';
+import * as Season from './season.js?v=1792360357';
+import * as Fr from './franchise.js?v=1792360357';
+import * as League from './league.js?v=1792360357';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792360357';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792360357';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792360357';
+import * as UTm from './ut.js?v=1792360357';
+import { initCreator, renderCreator } from './creator.js?v=1792360357';
+import { filmCapture, filmSave } from './social.js?v=1792360357';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792360357';
+import { portraitURL } from './faces.js?v=1792360357';
+import { logoURL, clearLogoCache } from './logos.js?v=1792360357';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -184,7 +184,7 @@ function show(id) {
   if (id === 'modes') renderModes();
   if (id === 'social') renderSocial();
   if (id === 'menu') { renderMenuBoard(); refreshUnread(); checkBan(); refreshAdminBadge(); const P = !isGuest() && profile(); if (P && !st.playing) { try { const q = JSON.parse(localStorage.getItem(QUIT_KEY()) || 'null'); if (q && q.k) { applyQuitLoss(q); setTimeout(() => toast('You left your last game in the middle, so it counted as a loss.', 5000), 800); } } catch (_) {} }
-  if (P) { P.settleSeasons(); for (const n of P.notice || []) toast(n, 6000); P.notice = []; const L = P.claimLogin(); if (L) setTimeout(() => showInfo(`Day ${L.streak} login reward`, `<div class="login-row">${LOGIN_REWARDS_.map((r, i) => `<div class="lg-day ${i + 1 < L.streak ? 'got' : i + 1 === L.streak ? 'now' : ''}"><small>Day ${i + 1}</small><b>${r.coins}</b><span>coins${r.tp ? ` +${r.tp} TP` : ''}${r.pack ? ' + pack' : ''}</span></div>`).join('')}</div><p class="note">Come back tomorrow to keep the streak going. Miss a day and it starts over.</p>`), 600); refreshChip(); } }
+  if (P) { P.settleSeasons(); for (const n of P.notice || []) toast(n, 6000); P.notice = []; (P.cloudReady || Promise.resolve()).then(() => { if (!st.dailyShown && !st.playing && st.screen === 'menu' && P === profile() && P.loginState().claimable) { st.dailyShown = true; setTimeout(() => openDaily(), 600); } updateDailyTile(); }); refreshChip(); } }
   if (id === 'admin') renderAdmin();
   if (id === 'franchise') Fr.renderFranchise();
   if (id === 'league') League.renderLeague();
@@ -234,8 +234,8 @@ setTimeout(endSplash, 2900);
 // ---------------- auth UI ----------------
 function setupAuthUI() {
   const sb = Auth.mode === 'supabase';
-  $('.lbl-id').textContent = sb ? 'Email' : 'Username';
-  $('#li-id').type = sb ? 'email' : 'text';
+  $('.lbl-id').textContent = sb ? 'Email or username' : 'Username';
+  $('#li-id').type = 'text';
   $('.email-row').classList.toggle('hidden', !sb);
   $('#su-email').required = sb;
   $('#auth-mode').innerHTML = sb ? '✓ Online accounts are on — your record syncs everywhere.'
@@ -258,13 +258,13 @@ function showAuthForm(f, fromTab) {
 Auth.onRecovery = () => showAuthForm('newpw');
 $('#li-forgot').addEventListener('click', () => {
   if (Auth.mode !== 'supabase') { authMsg('Accounts on this device can’t be reset. Online accounts can.', true); return; }
-  $('#fp-email').value = $('#li-id').value.includes('@') ? $('#li-id').value.trim() : ''; authMsg(''); showAuthForm('forgot', true);
+  $('#fp-email').value = $('#li-id').value.trim(); authMsg(''); showAuthForm('forgot', true);
 });
 $('#fp-back').addEventListener('click', () => { authMsg(''); showAuthForm('login', true); });
 $('#form-forgot').addEventListener('submit', (e) => {
   e.preventDefault();
   busy(e.submitter || $('#form-forgot .btn'), async () => {
-    try { await Auth.resetPassword($('#fp-email').value); authMsg('Sent! Check your email (and spam) for the reset link.'); $('#li-id').value = $('#fp-email').value.trim(); showAuthForm('login', true); }
+    try { const to = await Auth.resetPassword($('#fp-email').value); authMsg(`Sent to ${to}! Check your email (and spam) for the reset link.`); $('#li-id').value = $('#fp-email').value.trim(); showAuthForm('login', true); }
     catch (err) { authMsg(/rate|seconds/i.test(err.message) ? 'Hold up, wait a minute before asking for another link.' : err.message, true); }
   });
 });
@@ -276,6 +276,39 @@ $('#form-newpw').addEventListener('submit', (e) => {
     catch (err) { authMsg(err.message, true); }
   });
 });
+// ---------------- daily login reward: you see it, you hit Claim, THEN the coins land; a timer counts down to the next one
+const hms = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+function updateDailyTile() {
+  const P = !isGuest() && Auth.user ? profile() : null, el = $('#daily-sub'), tile = $('#daily-tile'); if (!el || !tile) return;
+  if (!P) { tile.classList.remove('ready'); el.textContent = 'Log in to an account to claim'; return; }
+  const L = P.loginState(); tile.classList.toggle('ready', L.claimable);
+  el.textContent = L.claimable ? `Day ${L.streak} ready: ${L.R.coins} coins${L.R.pack ? ' + pack' : ''}` : `Next reward in ${hms(L.next)}`;
+}
+setInterval(() => { if (st.screen === 'menu') updateDailyTile(); }, 1000);
+function openDaily() {
+  const P = !isGuest() && Auth.user ? profile() : null; if (!P) return;
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
+  document.body.appendChild(m);
+  let tick = null;
+  const close = () => { clearInterval(tick); m.remove(); document.removeEventListener('keydown', key, true); };
+  const key = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  const draw = (justGot) => {
+    const L = P.loginState();
+    const days = LOGIN_REWARDS_.map((r, i) => `<div class="lg-day ${i + 1 < L.streak || (i + 1 === L.streak && !L.claimable) ? 'got' : i + 1 === L.streak ? 'now' : ''}"><small>Day ${i + 1}</small><b>${r.coins}</b><span>coins${r.tp ? ` +${r.tp} TP` : ''}${r.pack ? ' + pack' : ''}</span></div>`).join('');
+    const foot = L.claimable
+      ? `<button class="btn primary" type="button" data-claim>Claim ${L.R.coins} coins${L.R.pack ? ` + ${L.R.pack} pack` : ''}</button>`
+      : `<p class="daily-done">${justGot ? `Claimed! +${justGot.coins} coins${justGot.pack ? ` and a ${justGot.pack} pack` : ''}` : 'Already claimed today'}</p><p class="note">Next reward in <b class="daily-left">${hms(L.next)}</b>. Miss a day and the streak starts over.</p><button class="btn" type="button" data-x>Close</button>`;
+    m.innerHTML = `<div class="panel info-card daily-card"><h3 style="margin:0">Daily reward · Day ${L.streak}</h3><div class="login-row">${days}</div>${foot}</div>`;
+    const c = m.querySelector('[data-claim]');
+    if (c) c.onclick = () => { const got = P.claimLogin(); sfx.play('ui'); refreshChip(); updateDailyTile(); draw(got || null); };
+    const x = m.querySelector('[data-x]'); if (x) x.onclick = close;
+  };
+  draw(null);
+  tick = setInterval(() => { const e = m.querySelector('.daily-left'); if (e) e.textContent = hms(P.loginState().next); if (P.loginState().claimable && e) draw(null); }, 1000);
+  m.onclick = e => { if (e.target === m) close(); };
+  document.addEventListener('keydown', key, true);
+}
+$('#daily-tile').addEventListener('click', () => { sfx.play('ui'); if (isGuest() || !Auth.user) return toast('Daily rewards need an account. Guests can’t claim them.'); openDaily(); });
 function authMsg(t, err) { const m = $('#auth-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
 async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } }
 $('#form-login').addEventListener('submit', (e) => {

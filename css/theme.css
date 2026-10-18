@@ -171,3 +171,11 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 
 /* error lines (failed loads) stand out from normal notes */
 .note.err { color: #ff8994; border-left: 3px solid var(--red); padding-left: 10px; }
+
+/* daily reward tile + card */
+.tile.t-daily.ready { box-shadow: inset 0 0 0 2px var(--red-2); }
+.tile.t-daily.ready .tl-k::after { content: ''; display: inline-block; width: 9px; height: 9px; margin-left: 8px; border-radius: 50%; background: var(--red-2); vertical-align: middle; animation: dailyPulse 1.4s ease-in-out infinite; }
+@keyframes dailyPulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .tile.t-daily.ready .tl-k::after { animation: none; } }
+.daily-card .daily-done { margin: 4px 0 0; font-weight: 800; font-size: 18px; }
+.daily-card .note b { font-variant-numeric: tabular-nums; }

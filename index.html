@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792331845">
+  <link rel="stylesheet" href="css/style.css?v=1792332158">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".45" stop-color="#f6c445"/><stop offset="1" stop-color="#d98a00"/></linearGradient></defs></svg>
@@ -108,6 +108,7 @@
         <button class="tile t-season" data-go="season"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v3h3.5v2.5A4.5 4.5 0 0 1 16.4 13 5.5 5.5 0 0 1 13 15.8V18h3v3H8v-3h3v-2.2A5.5 5.5 0 0 1 7.6 13 4.5 4.5 0 0 1 3.5 8.5V6H7zm-1.5 5v.5c0 1 .6 1.9 1.5 2.3V8zm12 2.8c.9-.4 1.5-1.3 1.5-2.3V8h-1.5z"/></svg></i><span class="tl-k">Season</span><small id="tile-season-sub">Fourteen weeks to the Kings Bowl</small></button>
         <button class="tile t-online" data-go="online" id="online-btn"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M13.5 2 4 13.5h6.5L9 22l11-12.5h-6.8z"/></svg></i><span class="tl-k">Online 1v1</span><small>Play a friend with a game code</small></button>
         <button class="tile t-franchise" data-go="franchise"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 21V9l9-6 9 6v12h-6v-7H9v7zm8-12h2V7h-2z"/></svg></i><span class="tl-k">Franchise</span><small id="tile-fr-sub">Run a team for years: draft, contracts, progression</small></button>
+        <button class="tile t-league" data-go="league"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M5 3h14v3a5 5 0 0 1-4 4.9V13h2v2H7v-2h2v-2.1A5 5 0 0 1 5 6zm-3 15h20v3H2zm3-2h14v1H5z"/></svg></i><span class="tl-k">Online Franchise</span><small>16 teams: draft, trade, win the Kings Bowl</small></button>
         <button class="tile t-social" data-go="social"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm8.5 1a3 3 0 1 1 0-6 3 3 0 0 1 0 6zM1 20c.4-4 3.2-6.5 7-6.5s6.6 2.5 7 6.5zm15.2 0c-.2-2.3-1-4.2-2.4-5.6.8-.3 1.7-.4 2.7-.4 3.2 0 5.3 2 5.5 6z"/></svg></i><span class="tl-k">Community <i class="dotn hidden so-unread"></i></span><small>Live leaderboards, clips, friends and messages</small></button>
         <button class="tile t-locker" data-go="locker"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M8 3l-5 3 2 5 2-1v11h10V10l2 1 2-5-5-3c-.5 1.7-2 3-4 3S8.5 4.7 8 3z"/></svg></i><span class="tl-k">Locker Room</span><small>Design your own uniform</small></button>
         <button class="tile t-progress" data-go="progress"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 16.9 6.1 20l1.2-6.5L2.5 8.9 9.1 8z"/></svg></i><span class="tl-k">Progress</span><small id="tile-prog-sub">Level, rank and challenges</small></button>
@@ -214,6 +215,14 @@
         <div id="fr-pane"></div>
         <div class="actions"><button class="btn" data-go="menu">Main menu</button></div>
       </div>
+    </div>
+  </section>
+
+  <section id="league" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title">Online Franchise</h2>
+      <div class="panel"><div id="lg-pane"></div>
+        <div class="actions"><button class="btn" data-go="menu">Main menu</button></div></div>
     </div>
   </section>
 
@@ -686,6 +695,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792331845"></script>
+  <script type="module" src="js/main.js?v=1792332158"></script>
 </body>
 </html>

@@ -1,25 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792331845';
-import * as Form from './form.js?v=1792331845';
-import { watchSim } from './simview.js?v=1792331845';
-import { bracketHTML } from './bracket.js?v=1792331845';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792331845';
-import { Renderer } from './render.js?v=1792331845';
-import { Sfx } from './audio.js?v=1792331845';
-import { Auth } from './auth.js?v=1792331845';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792331845';
-import { getRoster, teamOvr } from './teams.js?v=1792331845';
-import * as Season from './season.js?v=1792331845';
-import * as Fr from './franchise.js?v=1792331845';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792331845';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792331845';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792331845';
-import * as UTm from './ut.js?v=1792331845';
-import { initCreator, renderCreator } from './creator.js?v=1792331845';
-import { filmCapture, filmSave } from './social.js?v=1792331845';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792331845';
-import { portraitURL } from './faces.js?v=1792331845';
-import { logoURL, clearLogoCache } from './logos.js?v=1792331845';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792332158';
+import * as Form from './form.js?v=1792332158';
+import { watchSim } from './simview.js?v=1792332158';
+import { bracketHTML } from './bracket.js?v=1792332158';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792332158';
+import { Renderer } from './render.js?v=1792332158';
+import { Sfx } from './audio.js?v=1792332158';
+import { Auth } from './auth.js?v=1792332158';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792332158';
+import { getRoster, teamOvr } from './teams.js?v=1792332158';
+import * as Season from './season.js?v=1792332158';
+import * as Fr from './franchise.js?v=1792332158';
+import * as League from './league.js?v=1792332158';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792332158';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792332158';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792332158';
+import * as UTm from './ut.js?v=1792332158';
+import { initCreator, renderCreator } from './creator.js?v=1792332158';
+import { filmCapture, filmSave } from './social.js?v=1792332158';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792332158';
+import { portraitURL } from './faces.js?v=1792332158';
+import { logoURL, clearLogoCache } from './logos.js?v=1792332158';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -186,9 +187,11 @@ function show(id) {
   if (P) { P.settleSeasons(); for (const n of P.notice || []) toast(n, 6000); P.notice = []; const L = P.claimLogin(); if (L) setTimeout(() => showInfo(`Day ${L.streak} login reward`, `<div class="login-row">${LOGIN_REWARDS_.map((r, i) => `<div class="lg-day ${i + 1 < L.streak ? 'got' : i + 1 === L.streak ? 'now' : ''}"><small>Day ${i + 1}</small><b>${r.coins}</b><span>coins${r.tp ? ` +${r.tp} TP` : ''}${r.pack ? ' + pack' : ''}</span></div>`).join('')}</div><p class="note">Come back tomorrow to keep the streak going. Miss a day and it starts over.</p>`), 600); refreshChip(); } }
   if (id === 'admin') renderAdmin();
   if (id === 'franchise') Fr.renderFranchise();
+  if (id === 'league') League.renderLeague();
+  if (id === 'menu' && !st.playing) League.leftLeagueScreen();
   if (id !== 'online') stopLobby();
 }
-const LOCKED = ['ut', 'season', 'online', 'progress', 'creator', 'modes', 'franchise'];
+const LOCKED = ['ut', 'season', 'online', 'progress', 'creator', 'modes', 'franchise', 'league'];
 const isGuest = () => !Auth.user || Auth.user.kind === 'guest';
 function lockPrompt(what) {
   $('#lock-title').textContent = what ? `${what} needs a free account` : 'Make a free account';
@@ -562,7 +565,7 @@ $('#intro').addEventListener('click', endIntro);
 function startCPU(opts = {}) {
   sfx.init();
   st.mode = 'cpu'; st.local = 0;
-  st.seasonGame = !!opts.season; st.franchiseGame = !!opts.franchise;
+  st.seasonGame = !!opts.season; st.franchiseGame = !!opts.franchise; st.league = opts.league || null;
   st.lastCpu = opts;
   const teams = opts.teams || [SET.team, SET.cpuTeam];
   st.learned = false; st.ut = !!opts.ut; st.solo = opts.solo || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
@@ -582,6 +585,7 @@ function startCPU(opts = {}) {
 }
 
 function leaveGame() {
+  if (st.league && st.playing && !st.overShown && st.snap) League.reportResult(st.snap, true);   // walking out of a league game is a loss
   stopSpec(); stopUserCast();
   if (st.mode === 'spec') st.mode = 'cpu';
   $('#hud').classList.remove('spec'); $('#pause').classList.remove('spec');
@@ -1120,6 +1124,7 @@ function showGameOver(S) {
   el.textContent = res === 'W' ? 'VICTORY' : res === 'L' ? 'DEFEAT' : 'TIE GAME';
   el.className = 'go-res ' + (res === 'W' ? 'win' : res === 'L' ? 'loss' : '');
   if (st.mode === 'spec') { el.textContent = 'FINAL'; el.className = 'go-res'; }
+  if (st.league && S.mode === 'game') League.reportResult(S);
   $('#gameover').classList.toggle('spec', st.mode === 'spec');
   const T = S.teams.map(i => TEAMS[i]);
   $('#go-score').innerHTML = `<span style="color:${T[0].jersey === '#121a14' ? '#18c964' : T[0].jersey}">${T[0].abbr}</span> ${S.sc[0]} – ${S.sc[1]} <span style="color:${T[1].jersey === '#121a14' ? '#18c964' : T[1].jersey}">${T[1].abbr}</span>`;
@@ -1578,7 +1583,7 @@ function renderOnline() {
 function myOnlineInfo() {
   const P = profile(), useUT = $('#use-ut').checked && P && P.ut.started;
   const roster = useUT ? UTm.squadRoster(P.ut) : null;
-  return { name: Auth.user ? Auth.user.name : 'Player', team: useUT ? P.ut.club : onlineTeam, rank: P ? P.rank.name : '', roster, squad: roster ? P.ut.name : null, cel: SET.cel };
+  return { name: Auth.user ? Auth.user.name : 'Player', team: useUT ? P.ut.club : onlineTeam, rank: P ? P.rank.name : '', roster, squad: roster ? P.ut.name : null, cel: SET.cel, ...(League.onlineOverride() || {}) };
 }
 // ---------------- spectating ----------------
 let spec = null, liveLobby = null, specAcc = 0, liveAt = 0;
@@ -1966,6 +1971,7 @@ initSocial(CTX);
 initAdmin();
 initGamepad({ toast, zoomCam, context: padContext, cardNav, cardPickFocused, hotOpen: () => st.hot.open, onModeChange: (on) => { hudCache = {}; R.setBadgeLabels(on ? (() => { const g = glyphs(); return [g.A, g.B, g.X, g.Y, g.RB]; })() : ['1', '2', '3', '4', '5']); } });
 Fr.initFranchise(CTX);
+League.initLeague(CTX);
 $('#ban-ok').addEventListener('click', () => $('#banned').classList.add('hidden'));
 $('#ban-out').addEventListener('click', async () => { $('#banned').classList.add('hidden'); await Auth.signOut(); show('auth'); });
 

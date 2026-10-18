@@ -1618,3 +1618,70 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 #hud.spec .sb-pc { display: none !important; }
 #pause.spec .pause-panel > .btn:not(#resume):not(#quit):not(#p-settings) { display: none !important; }
 #gameover.spec #go-stats, #gameover.spec #go-rec, #gameover.spec #go-potg, #gameover.spec #go-hl, #gameover.spec #go-rewards, #gameover.spec #go-clip, #gameover.spec #go-again { display: none !important; }
+
+/* ---------- Online Franchise ---------- */
+.lg-start { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 14px 0; }
+.lg-box { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: rgba(10,16,36,.5); }
+.lg-box h3, .lg-h { margin: 0; font-size: 17px; }
+.lg-h { margin: 16px 0 8px; }
+.lg-box input, .lg-trade select { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--night); color: var(--chalk); font: inherit; }
+.lg-box small { color: var(--steel); }
+.lg-list { display: grid; gap: 8px; }
+.lg-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: rgba(26,37,84,.55); color: var(--chalk); cursor: pointer; font: inherit; }
+.lg-row:hover { border-color: var(--gold); }
+.lg-row span { color: var(--gold-hi); font-size: 13px; }
+.lg-row small { color: var(--steel); grid-column: 1 / -1; }
+.lg-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.lg-head h3 { margin: 2px 0 0; font-size: 22px; }
+.lg-head small { color: var(--steel); }
+.lg-code { color: var(--gold-hi); letter-spacing: .12em; font-size: 18px; }
+.lg-members { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 12px 0; }
+.lg-mem { display: grid; grid-template-columns: 36px 1fr; gap: 0 10px; align-items: center; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(10,16,36,.5); min-height: 52px; }
+.lg-mem img { grid-row: span 3; width: 36px; height: 36px; }
+.lg-mem span, .lg-mem small { color: var(--steel); font-size: 12px; }
+.lg-mem small { color: var(--gold); }
+.lg-mem.empty { display: flex; justify-content: center; border-style: dashed; opacity: .6; }
+.lg-clock { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line-2); background: rgba(26,37,84,.6); }
+.lg-clock.me { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.lg-clock div { flex: 1; display: flex; flex-direction: column; }
+.lg-clock small { color: var(--steel); }
+.lg-clock b { font-size: 18px; }
+.lg-secs { font-size: 26px; font-weight: 900; color: var(--gold-hi); font-variant-numeric: tabular-nums; }
+.lg-recent { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.lg-recent span { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 999px; background: rgba(10,16,36,.6); border: 1px solid var(--line); font-size: 12px; }
+.lg-recent i { color: var(--steel); font-style: normal; }
+.lg-filter { flex-wrap: wrap; margin-bottom: 8px; }
+.lg-filter i { font-style: normal; color: var(--gold); font-size: 11px; }
+.lg-pool { max-height: 46vh; overflow-y: auto; display: grid; gap: 6px; padding-right: 4px; }
+.lg-pl { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); border-left: 4px solid var(--steel); background: rgba(10,16,36,.55); }
+.lg-pl .ovr { font-size: 20px; text-align: center; }
+.lg-pl span { display: flex; flex-direction: column; min-width: 0; }
+.lg-pl small { color: var(--steel); font-size: 12px; }
+.lg-pl.t-silver { border-left-color: #c9d1dd; } .lg-pl.t-gold { border-left-color: var(--gold); } .lg-pl.t-elite { border-left-color: #b57bff; } .lg-pl.t-kings { border-left-color: #ff6b6b; } .lg-pl.t-bronze { border-left-color: #cd7f32; }
+label.lg-pl { cursor: pointer; grid-template-columns: auto 44px 1fr; }
+label.lg-pl.on { border-color: var(--gold); }
+.lg-teams { display: grid; gap: 8px; }
+.lg-tm { border: 1px solid var(--line); border-radius: 10px; background: rgba(10,16,36,.5); padding: 4px 10px 8px; }
+.lg-tm.me { border-color: var(--gold); }
+.lg-tm summary { display: grid; grid-template-columns: 30px 1fr auto; gap: 0 10px; align-items: center; padding: 6px 0; cursor: pointer; }
+.lg-tm summary img { grid-row: span 2; width: 30px; height: 30px; }
+.lg-tm summary span, .lg-tm summary small { color: var(--steel); font-size: 12px; }
+.lg-tm summary small { grid-column: 2 / -1; }
+.lg-tm .lg-pl { margin-top: 6px; }
+.lg-next, .lg-champ { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 14px; margin-bottom: 14px; border-radius: 10px; border: 1px solid var(--gold); background: linear-gradient(120deg, rgba(246,196,69,.16), rgba(10,16,36,.4)); }
+.lg-next div, .lg-champ div { display: flex; flex-direction: column; }
+.lg-next small, .lg-champ small { color: var(--gold-hi); }
+.lg-next b { font-size: 20px; } .lg-champ b { font-size: 26px; }
+.lg-next span { color: var(--steel); font-size: 13px; }
+.lg-champ { justify-content: flex-start; }
+.lg-bracket .bk-t img { width: 22px; height: 22px; }
+.lg-bracket .bk-t span { overflow-wrap: anywhere; }
+.lg-bracket .bk-g small { display: block; color: var(--steel); font-size: 11px; }
+.lg-bracket .bk-g .link { font-size: 12px; margin-top: 4px; }
+.lg-trade h4 { margin: 14px 0 6px; }
+.lg-trade h5 { margin: 8px 0 4px; color: var(--steel); }
+.lg-offer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; }
+.lg-offer p { flex: 1; margin: 0; min-width: 200px; }
+.lg-tcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.lg-tcols .lg-pl { margin-bottom: 6px; }
+.lg-bracket .bk-t { grid-template-columns: 22px 1fr auto; }

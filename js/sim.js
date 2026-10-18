@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792347133';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792347497';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792347133';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792347497';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -783,7 +783,7 @@ function snap(g) {
   }
   const qb = g.players[0];
   const sd = dist(qb, g.players[1]);
-  launchBall(g, qb.x, qb.z, sd < 2 ? 0.12 : 0.32, sd < 2 ? 0.05 : 0.4, qb.id, true);
+  launchBall(g, qb.x, qb.z, sd < 2 ? 0.14 : 0.4, sd < 2 ? 0.03 : 0.22, qb.id, true);   // shotgun snap: a quick, flat spiral back to his hands
 }
 
 function launchBall(g, tx, tz, T, h, target, auto) {
@@ -980,8 +980,8 @@ function flyBall(g, dt) {
   const f = g.ballFly, b = g.ball; if (!f) return;
   f.vy -= 9.8 * dt; b.x += f.vx * dt; b.z += f.vz * dt; b.y += f.vy * dt;
   if (b.y <= 0.14) { b.y = 0.14; if (Math.abs(f.vy) > 1.5) { f.vy = -f.vy * 0.35; f.vx *= 0.6; f.vz *= 0.6; } else { f.vy = 0; f.vx *= Math.max(0, 1 - dt * 3); f.vz *= Math.max(0, 1 - dt * 3); } }
-  if (Math.abs(b.z - 50) > 64) { f.vz = 0; f.vx = 0; }   // the stands stop it
-  if (f.vy === 0 && Math.hypot(f.vx, f.vz) < 0.05) g.ballFly = null;
+  if (Math.abs(b.z - 50) > 80) { f.vz = 0; f.vx = 0; }   // the wall in front of the stands stops it
+  if (f.vy === 0 && Math.hypot(f.vx, f.vz) < 0.05) { g.ballFly = null; b.state = 'dead'; }   // at rest: no more spinning
 }
 function updateKick(g, dt) {
   const k = g.kick;
@@ -990,9 +990,10 @@ function updateKick(g, dt) {
   const b = g.ball;
   if (k.type !== 'punt' && k.t > k.T) {
     // past the posts the ball keeps going and comes down behind the end zone instead of hanging in the air
-    if (!g.ballFly) g.ballFly = { vx: (k.tx - k.fx) / k.T, vz: (k.tz - k.fz) / k.T, vy: (3 - 4 * k.h) / k.T };
+    if (!g.ballFly) { const pv = k.pv || [b.x, b.y, b.z], st = Math.max(dt, 1 / 120); g.ballFly = { vx: (b.x - pv[0]) / st, vz: (b.z - pv[2]) / st, vy: (b.y - pv[1]) / st }; }   // keep the speed it had going through the posts
     flyBall(g, dt);
   } else {
+    k.pv = [b.x, b.y, b.z];
     b.x = k.fx + (k.tx - k.fx) * s; b.z = k.fz + (k.tz - k.fz) * s;
     b.y = 0.5 + 4 * k.h * s * (1 - s) + (k.type !== 'punt' ? s * 3 : 0);
   }
@@ -1525,8 +1526,8 @@ function updateLive(g, dt, inputs) {
   // tackles / boundaries / scoring
   if (c2) {
     const ct = c2.team;
+    if (Math.abs(c2.x) > HALF_W - 0.2) return endPlay(g, 'oob', c2);   // stepped out first: no score
     if (prog(ct, c2.z) >= 100) return touchdown(g, c2);
-    if (Math.abs(c2.x) > HALF_W) return endPlay(g, 'oob', c2);
     if (prog(ct, c2.z) < -9.5) return endPlay(g, 'oob', c2);
     for (const d of g.players) {
       if (d.team === ct || d.stun > 0 || d.tackleCd > 0 || d.fallen > 0) continue;
@@ -2193,7 +2194,7 @@ function resolveBall(g) {
     else if (outcome === 'catch' && !g.opts.humans[ro.team] && r < 0.02 * FOUL_RATE) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
   }
   // feet have to be in bounds: a catch made on or past the sideline (or out the back of the end zone) is incomplete
-  if ((outcome === 'catch' || outcome === 'int') && (() => { const q = outcome === 'catch' ? ro : rd; return q && (Math.abs(q.x) > HALF_W - 0.15 || prog(q.team === offTeam ? offTeam : 1 - offTeam, q.z) > 109.9); })()) {
+  if ((outcome === 'catch' || outcome === 'int') && (() => { const q = outcome === 'catch' ? ro : rd; const tm = q && (q.team === offTeam ? offTeam : 1 - offTeam); return q && (Math.abs(q.x) > HALF_W - 0.4 || Math.abs(L.x) > HALF_W - 0.1 || prog(tm, q.z) > 109.6 || prog(tm, L.z) > 109.9); })()) {   // strict: a foot or the ball on/over the line is out
     outcome = 'inc'; g.flash = { text: 'OUT OF BOUNDS', until: 1.2 };
   }
   if (outcome === 'catch' && ro.rdive > 0 && ro.dive > 0) diving = true;   // you laid out for it

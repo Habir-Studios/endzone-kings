@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792347133';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792347133';
-import { drawLogo } from './logos.js?v=1792347133';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792347133';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792347497';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792347497';
+import { drawLogo } from './logos.js?v=1792347497';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792347497';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -164,9 +164,13 @@ export class Renderer {
     const fill = this.fill = new THREE.DirectionalLight(0xb9c8ff, 0.9); fill.position.set(40, 50, 120); s.add(fill);
     const rim = this.rim = new THREE.DirectionalLight(0xffe2b0, 0.6); rim.position.set(30, 40, -60); s.add(rim);
 
-    const surround = new THREE.Mesh(new THREE.PlaneGeometry(110, 190), new THREE.MeshStandardMaterial({ color: 0x1c5524, roughness: 1 }));
+    // the turf keeps going past the lines and out to the walls (same grass, a shade darker), so kicks and runs land on grass
+    const grass = canvasTex(256, 256, (c, w, h) => { c.fillStyle = '#2f7a35'; c.fillRect(0, 0, w, h); for (let i = 0; i < 5000; i++) { const v = Math.random(); c.fillStyle = v < 0.5 ? 'rgba(10,40,12,0.18)' : 'rgba(150,210,120,0.12)'; c.fillRect(Math.random() * w, Math.random() * h, 1, 2 + Math.random() * 3); } for (let y = 0; y < h; y += 64) { c.fillStyle = 'rgba(255,255,255,0.03)'; c.fillRect(0, y, w, 32); } });
+    grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
+    const gm = (rx, ry, col) => { const t = grass.clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return new THREE.MeshStandardMaterial({ map: t, color: col, roughness: 1 }); };
+    const surround = new THREE.Mesh(new THREE.PlaneGeometry(110, 190), gm(14, 24, 0x9ab89c));
     surround.rotation.x = -Math.PI / 2; surround.position.set(0, -0.03, 50); surround.receiveShadow = true; s.add(surround);
-    const apron = new THREE.Mesh(new THREE.PlaneGeometry(W + 8, 128), new THREE.MeshStandardMaterial({ color: 0x24692c, roughness: 1 }));
+    const apron = new THREE.Mesh(new THREE.PlaneGeometry(W + 8, 128), gm(8, 16, 0xb8d4b8));
     apron.rotation.x = -Math.PI / 2; apron.position.set(0, -0.015, 50); apron.receiveShadow = true; s.add(apron);
 
     this.fieldMat = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0 });
@@ -1056,7 +1060,7 @@ export class Renderer {
       const h = Math.hypot(dx, dz);
       if (h > 0.001) { this.ball.rotation.y = Math.atan2(dx, dz); this.ball.rotation.x = -Math.atan2(dy, h) * 0.8; }
     } else if (S.ph === 'presnap') {
-      this.ball.rotation.set(0, S.poss === 0 ? 0 : Math.PI, 0); this.ball.position.y = 0.17;
+      this.ball.rotation.set(-0.12, S.poss === 0 ? 0 : Math.PI, 0); this.ball.position.y = 0.19;   // on the ground under the center's hand, nose tipped up a touch
     } else {
       const c = bc >= 0 && S.pl[bc];
       this.ball.rotation.set(0.5, c ? c[6] : 0, 0);
@@ -1105,7 +1109,7 @@ export class Renderer {
     });
 
     const showRoutes = local >= 0 && !this.spectating && S.ph === 'presnap' && S.poss === local && !!S.opDef;   // spectators never see the play call
-    const rk = showRoutes ? `${S.id}-${S.op}` : '';
+    const rk = showRoutes ? `${S.id}-${S.op}-${S.pl.filter(q => q[1] === 1 && q[0] === S.poss && q[2] !== 'C').map(q => Math.round(q[4] * 2) + ',' + Math.round(q[5] * 2)).join('|')}` : '';   // redraw as receivers settle into the formation, so each line starts at its man
     if (rk !== this.routeKey) { this.routeKey = rk; this.buildRoutes(S, local, showRoutes); }
 
     const bk = `${S.sc}|${S.q}|${Math.ceil(S.clk)}|${S.msg && S.msg.big ? S.msg.text : ''}`;
@@ -1159,12 +1163,21 @@ export class Renderer {
       headX -= lean * 0.35;   // head stays up, looking downfield
     }
     if (presnap) {
-      if (lineman) {
+      if (role === 'C') {
+        // center over the ball: wide base, hips low, snapping hand on the ball, off hand resting on his thigh
+        lean = 1.1; drop = 0.46; lh[0] = -1.05; lh[1] = -1.05; lk[0] = 1.65; lk[1] = 1.65;
+        as[1] = -1.42; ae[1] = 0.05; az[1] = -0.05; as[0] = -0.55; ae[0] = 1.35; az[0] = 0.45; headX = -0.55;
+      } else if (lineman) {
         lean = 1.05; drop = 0.42; lh[0] = -1.15; lh[1] = -0.85; lk[0] = 1.7; lk[1] = 1.4;
         as[0] = -1.35; ae[0] = 0.05; as[1] = -0.4; ae[1] = 0.9; headX = -0.5;
       } else if (role === 'QB') { lean = 0.25; drop = 0.12; lk[0] = lk[1] = 0.45; lh[0] = lh[1] = -0.3; as[0] = as[1] = -0.7; ae[0] = ae[1] = 0.9; }
       else if (role === 'WR1' || role === 'WR2' || role === 'WR3' || role === 'CB1' || role === 'CB2') { lean = 0.45; drop = 0.15; lh[0] = -0.6; lh[1] = 0.1; lk[0] = 0.9; lk[1] = 0.6; as[0] = 0.3; as[1] = -0.4; ae[0] = ae[1] = 1.1; }
       else { lean = 0.5; drop = 0.2; lh[0] = lh[1] = -0.55; lk[0] = lk[1] = 0.95; as[0] = as[1] = -0.45; ae[0] = ae[1] = 0.6; az[0] = 0.25; az[1] = -0.25; }
+    } else if (role === 'C' && S.ph === 'live' && (S.pt || 0) < 0.32) {
+      // the snap: the ball hand whips back between his legs, then he pops up into his block
+      const k = Math.min(1, (S.pt || 0) / 0.18), up = Math.max(0, ((S.pt || 0) - 0.18) / 0.14);
+      lean = 1.1 - up * 0.45; drop = 0.46 - up * 0.26; lh[0] = lh[1] = -1.05 + up * 0.6; lk[0] = lk[1] = 1.65 - up * 0.9;
+      as[1] = lerp(-1.42, 0.85, k); ae[1] = 0.1; as[0] = -0.55 - up * 0.6; ae[0] = 1.2; headX = -0.5;
     } else if (dead && run < 0.15 && !celebrating && !fallen) {
       // between plays: hands on hips, or big guys catching their breath on their knees
       if (lineman && m.cel % 2 === 0) { lean = 0.75; drop = 0.14; lk[0] = lk[1] = 0.55; lh[0] = lh[1] = -0.35; as[0] = as[1] = -0.55; ae[0] = ae[1] = 0.25; az[0] = 0.25; az[1] = -0.25; headX = -0.35; }

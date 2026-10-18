@@ -1,8 +1,8 @@
 // ENDZONE KINGS — stadium dressing: sidelines (benches, players, coaches, coolers), chain gang, camera crews,
 // skycam, railings, roof trusses, speakers, flags and facade boards.
 import * as THREE from 'three';
-import { TEAMS, HALF_W } from './sim.js?v=1792333852';
-import { drawLogo } from './logos.js?v=1792333852';
+import { TEAMS, HALF_W } from './sim.js?v=1792335368';
+import { drawLogo } from './logos.js?v=1792335368';
 
 const vis = (t, k) => (t[k] === '#121a14' ? '#18c964' : t[k]);
 function tex(w, h, draw) {
@@ -354,3 +354,92 @@ export function waveFlags(R) {
     a.needsUpdate = true;
   }
 }
+
+// ---------------- extra stadium detail: kick nets, hanging banners, tunnels, exit lights, cheer squads ----------------
+export function buildStadiumDetail(R) {
+  const s = R.scene, lite = R.quality === 'potato', o = new THREE.Object3D();
+  // kick nets behind both sets of uprights
+  const netTex = tex(128, 128, (c, w, h) => { c.clearRect(0, 0, w, h); c.strokeStyle = 'rgba(235,240,255,0.85)'; c.lineWidth = 2; for (let i = 0; i <= w; i += 16) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, h); c.stroke(); c.beginPath(); c.moveTo(0, i); c.lineTo(w, i); c.stroke(); } });
+  netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping; netTex.repeat.set(14, 10);
+  const netMat = new THREE.MeshBasicMaterial({ map: netTex, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+  const poleMat = M(0x2a2f3c, { metalness: 0.6, roughness: 0.4 });
+  for (const z of [-12.6, 112.6]) {
+    const net = new THREE.Mesh(new THREE.PlaneGeometry(13, 9), netMat); net.position.set(0, 9, z); s.add(net);
+    for (const x of [-6.6, 6.6]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 13.6, 6), poleMat); p.position.set(x, 6.8, z); s.add(p); }
+  }
+  // championship and division banners hanging from the roof at both ends
+  const banner = (top, mid, low, col) => tex(128, 320, (c, w, h) => {
+    const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, col[0]); g.addColorStop(1, col[1]); c.fillStyle = g; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#f6c445'; c.fillRect(0, 0, w, 10); c.fillRect(8, 18, w - 16, 3); c.fillRect(8, h - 24, w - 16, 3);
+    c.beginPath(); c.moveTo(0, h - 14); c.lineTo(w / 2, h); c.lineTo(w, h - 14); c.lineTo(w, h); c.lineTo(0, h); c.fillStyle = '#05070f'; c.fill();
+    c.fillStyle = '#ffffff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = '900 30px "Big Shoulders Display", Impact, sans-serif'; c.fillText(top, w / 2, 60);
+    c.font = '900 64px "Big Shoulders Display", Impact, sans-serif'; c.fillStyle = '#f6c445'; c.fillText(mid, w / 2, 150);
+    c.font = '800 24px "Big Shoulders Display", Impact, sans-serif'; c.fillStyle = '#d7def7'; low.split('|').forEach((l, i) => c.fillText(l, w / 2, 222 + i * 28));
+  });
+  const kinds = [['KINGS BOWL', '★', 'CHAMPIONS|2019', ['#14205a', '#070b22']], ['KINGS BOWL', '★', 'CHAMPIONS|2023', ['#14205a', '#070b22']], ['DIVISION', '7×', 'CHAMPIONS', ['#3a0c18', '#12040a']],
+    ['CONFERENCE', '4×', 'CHAMPIONS', ['#0b3a2a', '#03120c']], ['RETIRED', '12', 'THE|CAPTAIN', ['#2a1f05', '#0d0902']], ['RETIRED', '88', 'MR.|SUNDAY', ['#2a1f05', '#0d0902']]];
+  const bgeo = new THREE.PlaneGeometry(5, 12.5);
+  let bi = 0;
+  for (const base of [Math.PI / 2, Math.PI * 1.5]) for (let j = -2; j <= 2; j++) {
+    const t = base + j * 0.16, [x, z] = R.bowlPoint(t, 1.5), k = kinds[bi++ % kinds.length];
+    const m = new THREE.Mesh(bgeo, new THREE.MeshStandardMaterial({ map: banner(...k), side: THREE.DoubleSide, roughness: 0.85 }));
+    m.position.set(x, 55, z); m.lookAt(0, 55, 50); s.add(m);
+    const rod = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 0.12), poleMat); rod.position.set(x, 61.3, z); rod.lookAt(0, 61.3, 50); s.add(rod);
+  }
+  // tunnels (vomitories) cut into the lower bowl, each with a lit frame and a green exit sign
+  const vN = 16, dark = new THREE.InstancedMesh(new THREE.BoxGeometry(4.2, 3.4, 3.2), new THREE.MeshBasicMaterial({ color: 0x020308 }), vN);
+  const frame = new THREE.InstancedMesh(new THREE.BoxGeometry(4.8, 0.25, 3.3), new THREE.MeshBasicMaterial({ color: 0xbfc8e6, toneMapped: false }), vN);
+  const exitM = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.35, 0.1), new THREE.MeshBasicMaterial({ color: 0x29ff7a, toneMapped: false }), vN * 2);
+  for (let i = 0; i < vN; i++) {
+    const t = (i + 0.5) / vN * Math.PI * 2, [x, z] = R.bowlPoint(t, 1.2);
+    o.position.set(x, 10, z); o.lookAt(0, 10, 50); o.scale.set(1, 1, 1); o.updateMatrix(); dark.setMatrixAt(i, o.matrix);
+    o.position.y = 11.8; o.updateMatrix(); frame.setMatrixAt(i, o.matrix);
+    o.position.y = 12.4; o.updateMatrix(); exitM.setMatrixAt(i, o.matrix);
+    const [x2, z2] = R.bowlPoint(t + 0.09, 1.43); o.position.set(x2, 20.1, z2); o.lookAt(0, 20.1, 50); o.updateMatrix(); exitM.setMatrixAt(vN + i, o.matrix);
+  }
+  s.add(dark, frame, exitM);
+  // cheer squads at the four corners, poms in team colors (they shake harder when the place gets loud)
+  const P = personParts(R), N = 24, parts = {};
+  const skirt = new THREE.CylinderGeometry(0.12, 0.3, 0.32, 10, 1, true); skirt.translate(0, -0.08, 0);
+  const pom = new THREE.IcosahedronGeometry(0.17, 1);
+  const hair = new THREE.SphereGeometry(0.145, 10, 8); hair.scale(1, 1.05, 1.15);
+  const mk = (geo, mat) => { const m = new THREE.InstancedMesh(geo, mat || new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 }), N); m.frustumCulled = false; s.add(m); return m; };
+  for (const [k, geo] of [['torso', P.torso], ['skirt', skirt], ['head', P.head], ['hair', hair], ['legL', P.leg], ['legR', P.leg], ['armL', P.arm], ['armR', P.arm]]) parts[k] = mk(geo);
+  parts.pomL = mk(pom, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.3 })); parts.pomR = mk(pom, parts.pomL.material);
+  const skins = ['#4a2c18', '#6b4226', '#8d5524', '#c68642', '#e0ac69', '#f1c27d'].map(c => new THREE.Color(c)), hairs = ['#1a0f08', '#3b2414', '#6b4a2a', '#c99a55', '#0d0d0d'].map(c => new THREE.Color(c));
+  const poses = [];
+  for (let i = 0; i < N; i++) {
+    const k = i < N / 2 ? 0 : 1, sx = k === 0 ? -1 : 1, j = i % (N / 2), end = j < 6 ? 0 : 1, n = j % 6;
+    poses.push({ k, x: sx * (HALF_W + 3.4 + (n % 2) * 1.1), z: end ? 96 + n * 1.25 : 4 - n * 1.25, face: sx < 0 ? Math.PI / 2 : -Math.PI / 2, ph: n * 0.55 + k, skin: skins[(i * 7) % skins.length], hair: hairs[(i * 3) % hairs.length] });
+  }
+  R.cheer = { parts, poses, lite };
+  for (const [i, p] of poses.entries()) { parts.head.setColorAt(i, p.skin); parts.armL.setColorAt(i, p.skin); parts.armR.setColorAt(i, p.skin); parts.legL.setColorAt(i, p.skin); parts.legR.setColorAt(i, p.skin); parts.hair.setColorAt(i, p.hair); }
+  placeCheer(R, 0, 0);
+}
+export function colorCheer(R, teams) {
+  const C = R.cheer; if (!C) return;
+  C.poses.forEach((p, i) => { const t = TEAMS[teams[p.k]]; C.parts.torso.setColorAt(i, new THREE.Color(vis(t, 'jersey'))); C.parts.skirt.setColorAt(i, new THREE.Color(vis(t, 'jersey'))); C.parts.pomL.setColorAt(i, new THREE.Color(vis(t, 'trim'))); C.parts.pomR.setColorAt(i, new THREE.Color(vis(t, 'trim'))); });
+  for (const m of Object.values(C.parts)) if (m.instanceColor) m.instanceColor.needsUpdate = true;
+}
+const _cm = new THREE.Matrix4(), _co = new THREE.Object3D(), _cq = new THREE.Quaternion(), _ce = new THREE.Euler(), _cv = new THREE.Vector3(), _cs = new THREE.Vector3(1, 1, 1);
+function placeCheer(R, t, hype) {
+  const C = R.cheer, P = C.parts, sp = 3 + hype * 5;
+  C.poses.forEach((p, i) => {
+    const beat = Math.sin(t * sp + p.ph), hop = hype > 0.45 ? Math.max(0, beat) * 0.25 * hype : Math.max(0, beat) * 0.03;
+    _cm.compose(_cv.set(p.x, hop, p.z), _cq.setFromEuler(_ce.set(0, p.face, 0)), _cs);
+    const put = (mesh, x, y, z, rx = 0, rz = 0) => { _co.position.set(x, y, z); _co.rotation.set(rx, 0, rz); _co.updateMatrix(); mesh.setMatrixAt(i, _cm.clone().multiply(_co.matrix)); };
+    const hy = 0.9, up = -1.4 - (beat * 0.5 + 0.5) * 1.6;    // arms swing from out to the side up over the head
+    put(P.torso, 0, hy - 0.02, 0); put(P.skirt, 0, hy, 0);
+    put(P.head, 0, hy + 0.78, 0.02); put(P.hair, 0, hy + 0.8, -0.03);
+    put(P.legL, -0.09, hy, 0); put(P.legR, 0.09, hy, 0);
+    const b = i % 2 ? up : -1.4 - (0.5 - beat * 0.5) * 1.6;
+    put(P.armL, -0.24, hy + 0.55, 0, up, -0.35); put(P.armR, 0.24, hy + 0.55, 0, b, 0.35);
+    _co.position.set(0, -0.58, 0); _co.rotation.set(0, 0, 0); _co.updateMatrix(); const hand = _co.matrix.clone();
+    const m4 = new THREE.Matrix4();
+    P.armL.getMatrixAt(i, m4); P.pomL.setMatrixAt(i, m4.multiply(hand));
+    P.armR.getMatrixAt(i, m4); P.pomR.setMatrixAt(i, m4.multiply(hand));
+  });
+  for (const m of Object.values(P)) m.instanceMatrix.needsUpdate = true;
+}
+export function updateCheer(R) { const C = R.cheer; if (!C) return; if (C.lite && C._done) return; C._done = true; placeCheer(R, R.time, R.hype || 0); }

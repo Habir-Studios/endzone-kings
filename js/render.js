@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792333852';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792333852';
-import { drawLogo } from './logos.js?v=1792333852';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags } from './stadium.js?v=1792333852';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792335368';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792335368';
+import { drawLogo } from './logos.js?v=1792335368';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792335368';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -440,6 +440,7 @@ export class Renderer {
       s.add(g);
     }
     buildBowlExtras(this, ring);
+    buildStadiumDetail(this);
     this.buildCrowd([lower, upper]);
   }
 
@@ -976,7 +977,7 @@ export class Renderer {
     this.drawRibbon(teams);
     this.colorCrowd(teams);
     this.drawBoard(null);
-    colorSidelines(this, teams); colorFlags(this, teams);
+    colorSidelines(this, teams); colorFlags(this, teams); colorCheer(this, teams);
   }
 
   // re-draw text canvases once web fonts have loaded
@@ -1001,6 +1002,7 @@ export class Renderer {
     if (this.precip) this.stepWeather(dt);
     waveFlags(this);
     if (this.side) updateSidelines(this, this._lastS, dt);
+    updateCheer(this);
   }
 
   // receiver icons show 1 2 3 on keyboard, or the controller's buttons

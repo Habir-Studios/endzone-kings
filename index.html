@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792353995">
-  <link rel="stylesheet" href="css/theme.css?v=1792353995">
+  <link rel="stylesheet" href="css/style.css?v=1792358629">
+  <link rel="stylesheet" href="css/theme.css?v=1792358629">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8994"/><stop offset=".45" stop-color="#ff3347"/><stop offset="1" stop-color="#b3101f"/></linearGradient></defs></svg>
@@ -73,13 +73,25 @@
           <label><span class="lbl-id">Email</span><input id="li-id" autocomplete="username" required></label>
           <label>Password<input id="li-pw" type="password" autocomplete="current-password" required></label>
           <button class="btn primary" type="submit">Log in</button>
-          <p class="pw-warn">Heads up: passwords can’t be recovered or reset. If you forget yours, that account is gone.</p>
+          <button class="link forgot-link" type="button" id="li-forgot">Forgot password?</button>
+        </form>
+        <form id="form-forgot" class="form hidden">
+          <p class="note">Type the email on your account and we’ll send you a link to pick a new password.</p>
+          <label>Email<input id="fp-email" type="email" autocomplete="email" required></label>
+          <button class="btn primary" type="submit">Send reset link</button>
+          <button class="link" type="button" id="fp-back">Back to log in</button>
+        </form>
+        <form id="form-newpw" class="form hidden">
+          <p class="note">Pick a new password for your account.</p>
+          <label>New password<input id="np-pw" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters"></label>
+          <label>Type it again<input id="np-pw2" type="password" autocomplete="new-password" required minlength="6"></label>
+          <button class="btn primary" type="submit">Save new password</button>
         </form>
         <form id="form-signup" class="form hidden">
           <label>Username<input id="su-name" maxlength="16" autocomplete="nickname" required placeholder="3 to 16 letters, numbers or _"></label>
           <label class="email-row">Email<input id="su-email" type="email" autocomplete="email"></label>
           <label>Password<input id="su-pw" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters"></label>
-          <p class="pw-warn">Write your password down. Passwords can’t be recovered or reset, so if you forget it you lose the account and everything on it.</p>
+          <p class="pw-warn">Use a real email you can get into. If you forget your password, the reset link goes there.</p>
           <label class="check"><input type="checkbox" id="su-tos" required> I agree to the <button class="link" type="button" data-go="tos">Terms of Service</button>, including the rules on cheating and bans</label>
           <button class="btn primary" type="submit">Create account</button>
         </form>
@@ -161,7 +173,7 @@
         <h3>1. The game</h3>
         <p>Endzone Kings is a free browser football game made by Habir Studios. Teams, players and logos are made up and aren’t connected to any real league or team.</p>
         <h3>2. Your account</h3>
-        <p>You need to be at least 13 to make an account. Keep your login to yourself. <b>Passwords can’t be recovered or reset.</b> If you forget yours, Habir Studios can’t get the account back for you. One person, one account.</p>
+        <p>You need to be at least 13 to make an account. Keep your login to yourself. If you forget your password, use “Forgot password?” on the log in screen and we’ll email you a reset link. Without access to that email, Habir Studios can’t get the account back for you. One person, one account.</p>
         <h3>3. Coins, packs and items</h3>
         <p>Coins, packs, cards and everything else in the game are earned by playing. They have no real-money value, can’t be bought or sold for real money, and can be changed, reset or removed at any time, for example to fix bugs or balance the game.</p>
         <h3>4. Fair play and anti-cheat</h3>
@@ -703,6 +715,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792353995"></script>
+  <script type="module" src="js/main.js?v=1792358629"></script>
 </body>
 </html>

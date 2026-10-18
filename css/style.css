@@ -1680,3 +1680,4 @@ label.lg-pl.on { border-color: var(--gold); }
 .lg-tcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .lg-tcols .lg-pl { margin-bottom: 6px; }
 .lg-bracket .bk-t { grid-template-columns: 22px 1fr auto; }
+.forgot-link { align-self: flex-end; margin-top: -6px; font-size: 13px; }

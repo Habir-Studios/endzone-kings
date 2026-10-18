@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792353995';
+import { CONFIG } from './config.js?v=1792358629';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -40,6 +40,9 @@ export const Auth = {
           auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
         });
         this.mode = 'supabase';
+        // opened from a reset-password email: let the player pick a new password before anything else
+        if (/type=recovery/.test(location.hash + location.search)) this.recovery = true;
+        this.client.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') { this.recovery = true; if (this.onRecovery) this.onRecovery(); } });
         const { data } = await this.client.auth.getSession();
         if (data && data.session) this.user = this.fromSb(data.session.user);
         return this.user;
@@ -105,6 +108,15 @@ export const Auth = {
     if (this.mode !== 'supabase') throw new Error('Password reset needs online accounts set up');
     const { error } = await this.client.auth.resetPasswordForEmail((email || '').trim(), { redirectTo: authHome() });
     if (error) throw new Error(error.message);
+  },
+
+  async setNewPassword(pw) {
+    const { data, error } = await this.client.auth.updateUser({ password: pw });
+    if (error) throw new Error(/different from the old/i.test(error.message) ? 'That’s your old password. Pick a new one.' : /expired|invalid/i.test(error.message) ? 'That reset link expired. Ask for a new one.' : error.message);
+    this.recovery = false;
+    if (data && data.user) this.user = this.fromSb(data.user);
+    try { history.replaceState(null, '', location.pathname); } catch (_) {}
+    return this.user;
   },
 
   guest() {

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792344678';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792345963';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792344678';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792345963';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1852,7 +1852,7 @@ function routeMove(g, p) {
     const dx = tx - p.x, dz = tz - p.z, l = hyp(dx, dz);
     if (l < 0.9) {
       p.ri++;
-      if (w[2] === 'stop' && p.ri >= r.length) { p.rstop = true; break; }
+      if (w[2] === 'stop' && p.ri >= r.length) { p.rstop = true; p.stopX = p.x; p.stopZ = p.z; break; }
       continue;
     }
     p.ldx = dx / l; p.ldz = dz / l;
@@ -1862,7 +1862,11 @@ function routeMove(g, p) {
     // sit in the window, drift away from nearest defender a bit
     let nd = null, best = 1e9;
     for (const q of g.players) if (q.team !== p.team) { const dd = dist(q, p); if (dd < best) { best = dd; nd = q; } }
-    if (nd && best < 3) { let dx = p.x - nd.x, dz = p.z - nd.z; if (Math.abs(p.x) > HALF_W - 3 && dx * p.x > 0) dx = 0; if (prog(P.off, p.z) > 105 && dz * d > 0) dz = 0; const l = hyp(dx, dz); if (l < 0.01) return { x: 0, z: 0, s: 0 }; return { x: dx / l, z: dz / l, s: 0.35 }; }   // find space, but not out of bounds
+    // sit in the window: slide a step or two away from the closest defender, but never wander off the spot
+    // (a man defender sticking to him used to chase him all the way back up the field)
+    const ax = p.stopX ?? p.x, az = p.stopZ ?? p.z, off = hyp(p.x - ax, p.z - az);
+    if (off > 2.2) { const l = off || 1; return { x: (ax - p.x) / l, z: (az - p.z) / l, s: 0.45 }; }
+    if (nd && best < 3) { let dx = p.x - nd.x, dz = (p.z - nd.z) * 0.3; if (dz * d < 0) dz = 0; if (Math.abs(p.x) > HALF_W - 3 && dx * p.x > 0) dx = 0; if (prog(P.off, p.z) > 105 && dz * d > 0) dz = 0; const l = hyp(dx, dz); if (l < 0.01) return { x: 0, z: 0, s: 0 }; return { x: dx / l, z: dz / l, s: 0.35 }; }
     return { x: 0, z: 0, s: 0 };
   }
   let x = p.ldx, z = p.ldz;

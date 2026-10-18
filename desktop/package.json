@@ -1,0 +1,9 @@
+{
+  "name": "endzone-kings",
+  "productName": "Endzone Kings",
+  "version": "2.1.0",
+  "description": "Endzone Kings by Habir Studios",
+  "author": "Habir Studios",
+  "main": "main.js",
+  "private": true
+}

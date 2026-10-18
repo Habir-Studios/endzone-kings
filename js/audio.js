@@ -185,7 +185,8 @@ export class Sfx {
       case 'int': this.groan(); this.cheer(0.4, 2.6); break;
       case 'breakup': this.pads(0.4); this.groan(); break;
       case 'incomplete': this.thud(); break;
-      case 'td': case 'score': this.cheer(0.75, 4.5); this.airHorn(); this.fanfare(); break;
+      case 'td': this.touchdown(); break;
+      case 'score': this.cheer(0.7, 4); this.airHorn(); this.fanfare(); break;
       case 'kick': this.kick(); this.cheer(0.2, 2.5); break;
       case 'final': this.cheer(0.5, 3.5); this.airHorn(); break;
       case 'ui': this.tone(900, 0.05, 'triangle', 0.06); break;
@@ -199,6 +200,20 @@ export class Sfx {
       case 'cel7': this.whoosh(0.3); setTimeout(() => this.airHorn(), 180); break;   // dab
       case 'cel8': [0, 1, 2, 3, 4, 5, 6, 7].forEach(i => setTimeout(() => { this.tone(i % 2 ? 1400 : 160, 0.06, i % 2 ? 'square' : 'sine', i % 2 ? 0.03 : 0.1); }, i * 110)); this.cheer(0.35, 2); break;   // shuffle beat
     }
+  }
+  // the full touchdown moment: cannon boom, stadium horn, a brass hit, and the place goes off for a good few seconds
+  touchdown() {
+    if (!this.ctx) return; const c = this.ctx, t = c.currentTime + 0.02;
+    const boom = c.createBufferSource(); boom.buffer = this.noise; const bl = c.createBiquadFilter(); bl.type = 'lowpass'; bl.frequency.value = 180;
+    const bg = c.createGain(); bg.gain.setValueAtTime(0.0001, t); bg.gain.exponentialRampToValueAtTime(0.9, t + 0.02); bg.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    boom.connect(bl).connect(bg).connect(this.sfxBus); boom.start(t, Math.random()); boom.stop(t + 1.3);
+    const o = c.createOscillator(), og = c.createGain(); o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(30, t + 0.6);
+    og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.6, t + 0.02); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.7); o.connect(og).connect(this.sfxBus); o.start(t); o.stop(t + 0.75);
+    this.cheer(1, 6.5);
+    setTimeout(() => this.airHorn(), 250);
+    setTimeout(() => this.fanfare(), 900);
+    setTimeout(() => this.cheer(0.6, 3.5), 2600);
+    if (this.voiceBurst) [1700, 2300, 2900].forEach(d => setTimeout(() => { if (this.ctx) this.voiceBurst(this.ctx.currentTime, 0.45, 150, 0.18, 'oh'); }, d));   // crowd chant
   }
   fanfare() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => { this.tone(f, 0.3, 'square', 0.05); this.tone(f / 2, 0.3, 'triangle', 0.06); }, 250 + i * 130)); }
 
@@ -345,5 +360,10 @@ export class Sfx {
     }
     else if (t === 'OUT OF BOUNDS') { if (Math.random() < 0.3) this.say(`${name} pushed out of bounds.`); }
   }
-  flashCall(text) { if (text && text.startsWith('INTERCEPTED')) this.say(`Intercepted! ${text.replace('INTERCEPTED!', '').trim()} picks it off!`, true, true); else if (text === 'BROKEN TACKLE' && Math.random() < 0.5) this.say('Breaks the tackle!'); else if (text === 'ONE-HANDED CATCH!') this.say(['One hand! Are you kidding me?', 'What a grab, one hand!', 'He snags it with one hand!'][(Math.random() * 3) | 0], true); }
+  flashCall(text) {
+    const title = w => w.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    if (text && text.startsWith('FUMBLE BY')) { const m = text.match(/^FUMBLE BY (.+?)! (.+?) RECOVERS!$/); if (m) { const pick = a => a[(Math.random() * a.length) | 0]; this.say(pick([`Oh! Fumble by ${title(m[1])}! And ${title(m[2])} recovers it!`, `It's out! Fumble! ${title(m[2])} comes up with the football!`, `Fumble by ${title(m[1])}... and ${title(m[2])} has it! Turnover!`]), true, true); } return; }
+    if (text && text.startsWith('FUMBLE!') && text.includes('FALLS ON IT')) { const team = title(text.replace('FUMBLE! ', '').replace(' FALLS ON IT', '')); this.say(`Fumble! But ${team} falls on it. They keep the ball.`, true); return; }
+    if (text === 'FUMBLE! BALL IS LOOSE') { this.say('Fumble! The ball is loose!', true, true); return; }
+    if (text && text.startsWith('INTERCEPTED')) this.say(`Intercepted! ${text.replace('INTERCEPTED!', '').trim()} picks it off!`, true, true); else if (text === 'BROKEN TACKLE' && Math.random() < 0.5) this.say('Breaks the tackle!'); else if (text === 'ONE-HANDED CATCH!') this.say(['One hand! Are you kidding me?', 'What a grab, one hand!', 'He snags it with one hand!'][(Math.random() * 3) | 0], true); }
 }

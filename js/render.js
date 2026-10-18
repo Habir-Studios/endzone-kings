@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792346110';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792346110';
-import { drawLogo } from './logos.js?v=1792346110';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792346110';
+import { TEAMS, OFF_PLAYS, HALF_W } from './sim.js?v=1792346964';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792346964';
+import { drawLogo } from './logos.js?v=1792346964';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792346964';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -782,14 +782,15 @@ export class Renderer {
     return t;
   }
   nameTex(name, col, outline) {
-    return canvasTex(256, 48, (c) => {
+    const t = canvasTex(512, 80, (c) => {   // sharp enough to read up close
       const txt = String(name || '').toUpperCase();
-      let size = 40; c.font = `900 ${size}px "Big Shoulders Display", Impact, sans-serif`;
-      while (c.measureText(txt).width > 236 && size > 18) { size -= 2; c.font = `900 ${size}px "Big Shoulders Display", Impact, sans-serif`; }
+      let size = 66; c.font = `900 ${size}px "Big Shoulders Display", Impact, sans-serif`;
+      while (c.measureText(txt).width > 480 && size > 30) { size -= 2; c.font = `900 ${size}px "Big Shoulders Display", Impact, sans-serif`; }
       c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
-      c.lineWidth = 6; c.strokeStyle = outline; c.strokeText(txt, 128, 26);
-      c.fillStyle = col; c.fillText(txt, 128, 26);
+      c.lineWidth = 9; c.strokeStyle = outline; c.strokeText(txt, 256, 43);
+      c.fillStyle = col; c.fillText(txt, 256, 43);
     });
+    t.anisotropy = Math.min(8, this.r.capabilities.getMaxAnisotropy()); return t;
   }
   // a decal that wraps around the oval torso (front number, back number, nameplate)
   wrapDecal(tex, r, h, y, center, arc, zs) {
@@ -850,9 +851,10 @@ export class Renderer {
     const chest = jersey;
     const pads = mesh(new THREE.SphereGeometry(0.3, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), M.jersey); pads.scale.set(1.62, 0.56, 0.92); pads.position.y = 0.73; torso.add(pads);
     const collar = det(new THREE.TorusGeometry(0.105, 0.028, 8, 18), M.trim); collar.rotation.x = Math.PI / 2; collar.position.y = 0.92; torso.add(collar);
-    if (!lite) torso.add(this.wrapDecal(nTex, 0.283, 0.36, 0.5, 0, 1.25, tz));
-    torso.add(this.wrapDecal(nTex, 0.283, 0.34, 0.43, Math.PI, 1.25, tz));
-    if (last && !lite) { const nm = this.nameTex(last, t.num, outline); torso.add(this.wrapDecal(nm, 0.284, 0.07, 0.655, Math.PI, 1.5, tz)); }
+    torso.add(this.wrapDecal(nTex, 0.283, 0.36, 0.5, 0, 1.25, tz));   // number on the front, every setting
+    torso.add(this.wrapDecal(nTex, 0.283, 0.3, 0.39, Math.PI, 1.2, tz));
+    // his real last name above the number on the back, every setting
+    if (last) { const nm = this.nameTex(last, t.num, outline); torso.add(this.wrapDecal(nm, 0.2845, 0.085, 0.585, Math.PI, 1.45, tz)); }   // sits between the shoulder pads and the number so the pads don't cover it
     if (!lite) for (const sx of [-1, 1]) {
       const sn = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), new THREE.MeshBasicMaterial({ map: nTex, transparent: true, depthWrite: false }));
       sn.position.set(sx * 0.35, 0.86, 0); sn.rotation.set(-Math.PI / 2, 0, 0); sn.rotation.order = 'YXZ'; sn.rotation.z = sx * 0.35; torso.add(sn);
@@ -940,10 +942,10 @@ export class Renderer {
     return m;
   }
 
-  _meshKey(p) { const [team, isOff, role, num, , , , , , , size] = p; const uk = this.userKit && team === this.userSlot ? this.userKit : null; return `${this.teams[team]}-${team}-${isOff ? 'off' : 'def'}-${role}-${num}-${p[14] || 0}${uk ? '-k' + JSON.stringify(uk) : ''}`; }
+  _meshKey(p) { const [team, isOff, role, num, , , , , , , size] = p; const uk = this.userKit && team === this.userSlot ? this.userKit : null; return `${this.teams[team]}-${team}-${isOff ? 'off' : 'def'}-${role}-${num}-${p[14] || 0}-${p[11] || ''}${uk ? '-k' + JSON.stringify(uk) : ''}`; }
   getMesh(team, unit, role, num, size, fseed, name) {
     const uk = this.userKit && team === this.userSlot ? this.userKit : null;   // your Locker Room uniform on your own team
-    const key = `${this.teams[team]}-${team}-${unit}-${role}-${num}-${fseed || 0}${uk ? '-k' + JSON.stringify(uk) : ''}`;
+    const key = `${this.teams[team]}-${team}-${unit}-${role}-${num}-${fseed || 0}-${name || ''}${uk ? '-k' + JSON.stringify(uk) : ''}`;   // the name is part of who he is: a sub never wears the starter's jersey
     let m = this.pmeshes.get(key);
     if (!m) { const last = String(name || '').replace(/^.\.\s*/, ''); m = this.makePlayer(this.teams[team], role, num, size, fseed || (num * 7919 + this.teams[team] * 104729), last, team === 1, uk); this.pmeshes.set(key, m); }   // team slot 1 wears the away uniform
     return m;

@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792346110';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792346964';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792346110';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792346964';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -71,6 +71,19 @@ export function cfgFor(diff, adapt = 0) {
 
 const R = 0.55; // player radius
 const dirOf = t => (t === 0 ? 1 : -1);
+// everyone moves a little slower than before, so the 100 yards take longer to cover and the field plays bigger
+const FIELD_FEEL = 0.94;
+// how good this team's defense is (from its defenders' tackling, coverage and pass rush): -0.4 weak ... 1 elite
+function defF(g, team) {
+  g._defF = g._defF || [];
+  if (g._defF[team] == null) {
+    const P = rosterFor(g, team).players, roles = ['DL1', 'DL2', 'DL3', 'DL4', 'LB', 'LB2', 'LB3', 'CB1', 'CB2', 'S', 'SS'].filter(r => P[r]);
+    const avg = roles.length ? roles.reduce((a, r) => a + ((P[r].tkl || 60) + (P[r].cov || 60) + (P[r].rush || 60)) / 3, 0) / roles.length : 70;
+    g._defF[team] = Math.max(-0.4, Math.min(1, (avg - 70) / 16));
+  }
+  return g._defF[team];
+}
+const cityOf = (g, t) => (TEAMS[g.opts.teams[t]] ? TEAMS[g.opts.teams[t]].city : (t ? 'AWAY' : 'HOME')).toUpperCase();
 const prog = (t, z) => (t === 0 ? z : 100 - z);
 const zOf = (t, p) => (t === 0 ? p : 100 - p);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -203,10 +216,12 @@ function makeBench(g, team, role) {
   let h = (g.opts.teams[team] + 1) * 7919 + team * 131; for (const c of role) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   const r = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
   const k = ['spd', 'hands', 'acc', 'arm', 'elu', 'blk', 'rush', 'tkl', 'cov'];
+  const used = new Set(Object.values(rosterFor(g, team).players).map(q => q.num));   // backups get numbers nobody else on the roster wears
   return [1, 2].map(n => {
     const drop = n === 1 ? 4 + r() * 6 : 9 + r() * 7, first = BK_FIRST[(r() * BK_FIRST.length) | 0], last = BK_LAST[(r() * BK_LAST.length) | 0];
     const b = { ...base, first, last, name: `${first[0]}. ${last}`, num: (base.num + 17 * n + ((r() * 9) | 0)) % 100, face: ((base.face || 7) ^ (0x5bd1 * n)) >>> 0, ovr: Math.max(45, Math.round((base.ovr || 70) - drop)), depth: n };
-    for (const x of k) b[x] = Math.max(38, Math.round((base[x] || 60) - drop + (r() - 0.5) * 6));   // a backup can be faster or better at one thing
+    for (const x of k) b[x] = Math.max(38, Math.round((base[x] || 60) - drop + (r() - 0.5) * 6));
+    while (used.has(b.num)) b.num = (b.num + 1) % 100; used.add(b.num);   // a backup can be faster or better at one thing
     return b;
   });
 }
@@ -274,7 +289,7 @@ function makePlayer0(g, id, team, unit, role, x, z) {
   const d = dirOf(g.poss);
   const faceOff = d > 0 ? 0 : Math.PI;
   return {
-    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.70 + Math.min(rt.spd, 99) / 100 * 0.39) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1) * (1 - Math.min(0.6, (g.fat && g.fat[team][fatKey(g, team, role)]) || 0) * 0.12), rt,
+    id, team, unit, role, num: rt.num, size: r.size, max: r.spd * (0.70 + Math.min(rt.spd, 99) / 100 * 0.39) * (g.opts.weather === 'snow' ? 0.95 : 1) * (momOf(g, team) >= 60 ? 1.025 : 1) * (1 - Math.min(0.6, (g.fat && g.fat[team][fatKey(g, team, role)]) || 0) * 0.12) * FIELD_FEEL * (unit === 'def' ? 1.015 + 0.03 * defF(g, team) : 1), rt,
     x, z, vx: 0, vz: 0, face: unit === 'off' ? faceOff : faceOff + Math.PI, max0: 0,
     stam: 1, stun: 0, juke: 0, jukeCd: 0, dive: 0, tackleCd: 0, fallen: 0, spin: 0, stiff: 0, truck: 0, hurdle: 0, moveCd: 0, playBall: 0, hx: x, hz: z,
     engagedBy: -1, blockOn: -1, shedCd: 0, svx: 0, svz: 0,
@@ -1469,9 +1484,9 @@ function updateLive(g, dt, inputs) {
       const fum = g.players[P.fumbler], fumTeam = fum ? fum.team : P.off;
       if (rec.team !== fumTeam) {
         P.turnover = !P.turnover || rec.team !== P.off; g.poss = rec.team; mom(g, rec.team, 14); g.events.push('turnover');
-        g.flash = { text: rec.team === P.off ? 'THEY GOT IT BACK!' : 'FUMBLE RECOVERED! TURNOVER!', until: 1.8 };
+        g.flash = { text: `FUMBLE BY ${cityOf(g, fumTeam)}! ${cityOf(g, rec.team)} RECOVERS!`, until: 2.4, team: rec.team };
         if (rec.team !== P.off) highlight(g, 'FUMBLE RECOVERY', rec.rt.name, rec.team);
-      } else g.flash = { text: 'RECOVERED! STILL THEIR BALL', until: 1.6 };
+      } else g.flash = { text: `FUMBLE! ${cityOf(g, fumTeam)} FALLS ON IT`, until: 2 };
       if (g.opts.humans[rec.team]) g.ctrl[rec.team] = rec.id;
       const other = 1 - rec.team;
       if (g.opts.humans[other]) { let best = null, bd = 1e9; for (const q of g.players) if (q.team === other && dist(q, rec) < bd) { bd = dist(q, rec); best = q; } if (best) g.ctrl[other] = best.id; }
@@ -1557,7 +1572,7 @@ function updateLive(g, dt, inputs) {
         if (d.dive > 0 && c2.hurdle <= 0 && !hitting) brk *= 0.75;
         // a landed hit stick is a kill shot unless the runner timed a move into it
         if (hitting) brk = c2.juke > 0 || c2.spin > 0 || c2.hurdle > 0 ? brk + 0.15 : brk * 0.25;
-        brk *= (1.5 - d.rt.tkl / 100) * (0.6 + c2.rt.elu / 100 * 0.6);
+        brk *= (1.5 - d.rt.tkl / 100) * (0.6 + c2.rt.elu / 100 * 0.6) * (0.85 - 0.12 * defF(g, d.team));   // good defenses wrap up
         if (youD) brk *= 0.4;
         // skill, not luck: the carrier breaks it when his move is timed into the hit (or the tackler is tied up),
         // with only a sliver of randomness on top

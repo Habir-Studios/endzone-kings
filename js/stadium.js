@@ -1,9 +1,9 @@
 // ENDZONE KINGS — stadium dressing: sidelines (benches, players, coaches, coolers), chain gang, camera crews,
 // skycam, railings, roof trusses, speakers, flags and facade boards.
 import * as THREE from 'three';
-import { TEAMS, HALF_W } from './sim.js?v=1792346110';
-import { drawLogo } from './logos.js?v=1792346110';
-import { drawFaceTextureLite, faceParams } from './faces.js?v=1792346110';
+import { TEAMS, HALF_W } from './sim.js?v=1792346964';
+import { drawLogo } from './logos.js?v=1792346964';
+import { drawFaceTextureLite, faceParams } from './faces.js?v=1792346964';
 
 const vis = (t, k) => (t[k] === '#121a14' ? '#18c964' : t[k]);
 function tex(w, h, draw) {
@@ -480,12 +480,12 @@ export function colorCheer(R, teams) {
 }
 const _cm = new THREE.Matrix4(), _co = new THREE.Object3D(), _cq = new THREE.Quaternion(), _ce = new THREE.Euler(), _cv = new THREE.Vector3(), _cs = new THREE.Vector3(1, 1, 1), _m4 = new THREE.Matrix4(), _hand = new THREE.Matrix4().makeTranslation(0, -0.56, 0);
 function placeCheer(R, t, hype) {
-  const C = R.cheer, P = C.parts, sp = 3 + hype * 5;
+  const C = R.cheer, P = C.parts;
   C.poses.forEach((p, i) => {
-    const beat = Math.sin(t * sp + p.ph), hop = hype > 0.45 ? Math.max(0, beat) * 0.25 * hype : Math.max(0, beat) * 0.03;
+    const beat = Math.sin(t + p.ph), hop = hype > 0.45 ? Math.max(0, beat) * 0.25 * hype : Math.max(0, beat) * 0.03;
     _cm.compose(_cv.set(p.x, hop, p.z), _cq.setFromEuler(_ce.set(0, p.face, 0)), _cs);
     const put = (mesh, x, y, z, rx = 0, rz = 0) => { _co.position.set(x, y, z); _co.rotation.set(rx, 0, rz); _co.updateMatrix(); mesh.setMatrixAt(i, _m4.multiplyMatrices(_cm, _co.matrix)); };
-    const hy = 0.86, sway = Math.sin(t * sp * 0.5 + p.ph) * 0.06;
+    const hy = 0.86, sway = Math.sin(t * 0.5 + p.ph) * 0.06;
     put(P.legL, -0.08, hy, 0, hop > 0.05 ? 0.25 : 0); put(P.legR, 0.08, hy, 0, hop > 0.05 ? -0.15 : 0);
     put(P.shoeL, -0.08, hy, 0, hop > 0.05 ? 0.25 : 0); put(P.shoeR, 0.08, hy, 0, hop > 0.05 ? -0.15 : 0);
     put(P.skirt, 0, hy + 0.08, 0, 0, sway * 0.5); put(P.hem, 0, hy + 0.08, 0, 0, sway * 0.5);
@@ -502,6 +502,9 @@ function placeCheer(R, t, hype) {
 }
 export function updateCheer(R) {
   const C = R.cheer; if (!C) return;
+  // the routine's clock runs smoothly: a louder crowd speeds it up a little, but it never jumps or goes frantic
+  const now = R.time, dt = Math.min(0.1, Math.max(0, now - (C._t ?? now))); C._t = now;
+  C.phase = (C.phase || 0) + dt * (3.2 + Math.min(1, R.hype || 0) * 1.6);
   if (C.lite) { C._acc = (C._acc || 0) + 1; if (C._acc % 3) return; }   // Chromebook: still dances, a third as often
-  placeCheer(R, R.time, R.hype || 0);
+  placeCheer(R, C.phase, R.hype || 0);
 }

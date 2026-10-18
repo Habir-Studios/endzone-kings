@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792347523';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792347610';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792347523';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792347610';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1419,7 +1419,7 @@ function updateLive(g, dt, inputs) {
     const tracking = airPass && p.id === b.target && p.team === P.off && idle;   // the AI only runs to the ball for you if you let go of the stick: your input always wins
     if (human && !tracking && !(idle && assistIdle(g, p, carrier))) {
       let mx = inp.mx || 0, mz = inp.mz || 0;
-      if (p.id === 0 && pocket && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) { want = qbPocketMove(g, p); }
+      if (p.id === 0 && pocket && idle && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) { want = qbPocketMove(g, p); }   // auto drop-back only if you're not steering
       else if (P.type === 'run' && p.id === 0 && !P.handed) { want = aiMove(g, p, carrier, pocket, airPass, tl); }
       else {
         const l = hyp(mx, mz); if (l > 1) { mx /= l; mz /= l; }
@@ -1429,8 +1429,8 @@ function updateLive(g, dt, inputs) {
         want = { x: mx, z: mz, s };
         if (carrier && carrier.team !== p.team && g.phase === 'live' && !(inp.mx === 0 && inp.mz === 0)) {
           const dx = carrier.x + carrier.vx * 0.2 - p.x, dz = carrier.z + carrier.vz * 0.2 - p.z, l = hyp(dx, dz);
-          if (l < 4.5 && l > 0.01 && (dx * mx + dz * mz) / l > 0.1) {   // only if you're already heading roughly at him
-            const pull = 0.55 * (1 - l / 4.5);
+          if (l < 3.5 && l > 0.01 && (dx * mx + dz * mz) / l > 0.8) {   // a light tackle assist, only when you're already running right at him
+            const pull = 0.3 * (1 - l / 3.5);
             const nx = mx * (1 - pull) + dx / l * pull, nz = mz * (1 - pull) + dz / l * pull, nl = hyp(nx, nz) || 1;
             want = { x: nx / nl, z: nz / nl, s };
           }
@@ -1631,11 +1631,8 @@ function updateLive(g, dt, inputs) {
 }
 
 function assistIdle(g, p, carrier) {
-  // AI takes over an idle human-controlled player when they don't have the ball (prevents frozen defenders/receivers)
-  if (carrier && carrier.id === p.id) return false;
-  if (p.id === 0 && carrier && carrier.id === 0) return false;
-  if (g.play && p.team !== g.play.off) return false;   // the defender you control only moves when YOU move him
-  return true;
+  // the player you control is yours: he never moves unless you move him (the only help is running to a pass thrown to him, see tracking)
+  return false;
 }
 
 function seek(p, tx, tz, s, arrive = 1.2) {

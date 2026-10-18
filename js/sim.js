@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792350512';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792350696';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792350512';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792350696';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1860,7 +1860,7 @@ function updateBlocks(g, dt, pocket) {
     }
     const line = t.role.startsWith('DL') && g.phaseT < 2.6;
     const shed = g.opts.humans[t.team] && g.ctrl[t.team] === t.id ? Math.max(cfg.shed * 1.8, 0.25) : cfg.shed;   // the rusher you control beats blocks faster
-    let rate = (pocket || line) ? shed * (pocket ? 3.8 : 1.4) : shed * 2.2 + 0.3;
+    let rate = (pocket || line) ? shed * (pocket ? 4.8 : 1.4) : shed * 2.2 + 0.3;
     rate *= (0.5 + Math.max(t.rt.rush, t.rt.tkl * 0.8) / 100) / (0.5 + bl.rt.blk / 100);
     if (g.play && g.play.type === 'run') rate *= 0.38;   // a drive block on a run is harder to shed than a pass set
     if (g.rng() < rate * dt) {
@@ -2067,7 +2067,7 @@ function aiQB(g, tl) {
     const sc = Math.min(sep - L.T * 1.6, 6) + gain * 0.05 - (gain < 0 ? 1 : 0) - L.T * 0.3 + (g.rng() - 0.5) * 0.5;
     if (sc > bs) { bs = sc; best = r; }
   }
-  const urgent = pressure < 2.3;
+  const urgent = pressure < 2.8;
   const want = tl > P.readT ? 2.4 : 3.6;
   // finish the drop before throwing: quick game is out fast, deep shots take a real five or seven step drop
   const minT = pdq.screen ? pdq.screen + 0.15 : pdq.cat === 'Quick' ? 1.55 : (pdq.drop || -7) <= -8 ? 2.8 : 2.3;   // real NFL time to throw: ~2.5-3s

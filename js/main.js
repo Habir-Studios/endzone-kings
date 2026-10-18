@@ -515,7 +515,7 @@ function renderSettings() {
   $('#set-vol').value = SET.vol; $('#set-music').value = SET.music;
 
   seg($('#seg-notif'), [['on', 'On'], ['off', 'Mute']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications muted: no pop-ups or badges, they still show in the bell' : 'Notifications on'); });
-  seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('Announcer is on. Let\'s go!', true); } else if (window.speechSynthesis) speechSynthesis.cancel(); });
+  seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('annOn', {}, true); } else sfx.stopVoice(); });
   seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
   seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); });
@@ -554,7 +554,7 @@ function startIntro() {
   st.intro = 4.2; st.introLen = 4.2; st.introOn = true;
   clearTimeout(st.introFail); st.introFail = setTimeout(() => endIntro(), 7000);   // never get stuck on the matchup screen
   sfx.cheer(0.5, 4); sfx.airHorn();
-  sfx.say(`Welcome to ${T[0].city}! Tonight it's ${T[1].city} against ${T[0].city}. Let's play some football!`, true);
+  sfx.say('welcome', { city: T[0].city, city2: T[1].city }, true);
 }
 function endIntro() {
   if (!st.introOn) return;
@@ -1005,7 +1005,7 @@ function togglePause(force) {
   const open = force !== undefined ? force : $('#pause').classList.contains('hidden');
   $('#pause').classList.toggle('hidden', !open);
   st.paused = open && st.mode === 'cpu';
-  if (st.paused) { sfx.setSituation('idle'); if (window.speechSynthesis) speechSynthesis.cancel(); }
+  if (st.paused) { sfx.setSituation('idle'); sfx.stopVoice(); }
   $('#p-cam-l').textContent = CAM_NAME[SET.cam] || 'Follow ball';
   $('#quit').textContent = st.mode === 'spec' ? 'Stop watching' : st.mode === 'cpu' ? 'Quit to menu' : 'Leave online game';
   $('#p-chat').classList.toggle('hidden', st.mode === 'cpu');
@@ -1410,8 +1410,7 @@ function renderHalftime(S) {
   setTxt('#ht-left', `Second half in ${Math.max(0, Math.ceil((S.hl || 12) - S.pt))}s`);
   if (!st.halfSaid) {
     st.halfSaid = true;
-    const lead = S.sc[0] === S.sc[1] ? `All tied up at ${S.sc[0]}` : `${T[S.sc[0] > S.sc[1] ? 0 : 1].city} leads it ${Math.max(...S.sc)} to ${Math.min(...S.sc)}`;
-    sfx.say(`That's halftime. ${lead}. Stay with us.`, true); sfx.cheer(0.4, 3);
+    if (S.sc[0] === S.sc[1]) sfx.say('htTie', { n: S.sc[0] }, true); else sfx.say('htLead', { city: T[S.sc[0] > S.sc[1] ? 0 : 1].city, n: Math.max(...S.sc), n2: Math.min(...S.sc) }, true); sfx.cheer(0.4, 3);
   }
 }
 

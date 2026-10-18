@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792360357';
-import { TEAMS } from './teams.js?v=1792360357';
+import { askYes } from './ui.js?v=1792367732';
+import { TEAMS } from './teams.js?v=1792367732';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -33,6 +33,15 @@ export function initSocial(ctx) {
 }
 
 // one heartbeat: refresh whatever leaderboard is on screen, every second
+let pingT = 0;
+// 'Online' (pinged in the last 2.5 min) or 'Offline · last on 3h ago'
+function seenTag(ts) {
+  if (!ts) return '<span class="pf-status off"><i></i>Offline</span>';
+  const ago = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (ago < 150) return '<span class="pf-status on"><i></i>Online</span>';
+  const t = ago < 3600 ? `${Math.max(1, Math.round(ago / 60))}m` : ago < 86400 ? `${Math.round(ago / 3600)}h` : `${Math.round(ago / 86400)}d`;
+  return `<span class="pf-status off"><i></i>Offline · last on ${t} ago</span>`;
+}
 let boardCat = 'wins', menuCat = 0, menuSpin = 0, boardRows = [], ticking = false;
 async function tick() {
   if (ticking || !db()) return;
@@ -41,6 +50,7 @@ async function tick() {
   try {
     if (scr === 'menu') { await renderMenuBoard(); if (playerCountT++ % 30 === 0) refreshPlayerCount(); }
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
+    if (me() && pingT++ % 60 === 0 && !document.hidden) db().rpc('ek_ping').then(() => {}, () => {});   // online status: one ping a minute while the game is open
     if (me()) { ensureProfile(); listenInvites(); if (++kickPollT % 5 === 0 && C.st.playing) pollKicks(); }
     if (me() && (++unreadT % 10 === 0)) { refreshUnread(); refreshRequests(); loadNotifs(); }
   } catch (_) {} finally { ticking = false; }
@@ -150,7 +160,7 @@ async function openProfile(id) {
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
-      <div class="pf-id"><h3>${esc(p.name)}</h3><small>Level ${p.lvl}, ${t.city} fan</small>
+      <div class="pf-id"><h3>${esc(p.name)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<small>Level ${p.lvl}, ${t.city} fan</small>
         <div class="pf-recs">${[['Overall', p.wins, p.losses, 0], ['Online 1v1', p.on_w, p.on_l, p.on_t], ['Ultimate Team', p.ut_wins, p.ut_l, p.ut_t]].map(([n, w, l, tt]) => `<span class="rec-card"><small>${n}</small><span class="rec-nums"><i><b>${fmt(w || 0)}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(l || 0)}</b><em>L</em></i>${tt ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(tt)}</b><em>T</em></i>` : ''}</span></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}${(() => { const P = !mine && C.profile && C.profile(); const h = P && P.p.h2h && P.p.h2h[String(p.name).toLowerCase().slice(0, 24)]; return h ? `<span class="h2h">You vs ${esc(p.name)}: <b>${h[0]}W-${h[1]}L${h[2] ? '-' + h[2] + 'T' : ''}</b></span>` : ''; })()}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>

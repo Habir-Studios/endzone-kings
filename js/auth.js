@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792350696';
+import { CONFIG } from './config.js?v=1792352838';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -24,7 +24,7 @@ function unpack(e) {
 }
 // how far along a save is: level and XP only ever go up, so the save with more of them is the real one
 // email links (confirm, reset password) open the real site: inside itch.io the game runs in a sandboxed frame
-const authHome = () => (!/^https?:$/.test(location.protocol) || /(^|\.)itch\.(zone|io)$/.test(location.hostname)) ? 'https://hussainz2.github.io/endzone-kings/' : location.origin + location.pathname;   // itch.io and the desktop app send email links to the website
+const authHome = () => (!/^https?:$/.test(location.protocol) || /(^|\.)itch\.(zone|io)$/.test(location.hostname)) ? 'https://habir-studios.github.io/endzone-kings/' : location.origin + location.pathname;   // itch.io and the desktop app send email links to the website
 export const progOf = p => p ? (p.lvl || 1) * 1e7 + (p.xp || 0) * 10 + Math.min(9, p.games || 0) : 0;
 
 export const Auth = {

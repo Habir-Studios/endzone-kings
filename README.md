@@ -1,7 +1,7 @@
 # 🏈 ENDZONE KINGS
 ### A Habir Studios game
 
-**▶ Play it free: https://hussainz2.github.io/endzone-kings/**
+**▶ Play it free: https://habir-studios.github.io/endzone-kings/**
 
 Endzone Kings is a 3D arcade football game that runs right in your browser. There's nothing to download, nothing to install and nothing to pay for. It's built to feel like a primetime broadcast: a packed stadium under the lights, a crowd that goes wild on big plays, a play-by-play announcer and a TV-style scoreboard.
 

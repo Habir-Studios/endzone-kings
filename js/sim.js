@@ -4,7 +4,7 @@
 
 export const HALF_W = 26.65;
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792349128';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +16,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792349128';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (Madden-like pace: elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -118,6 +118,7 @@ export function createGame(opts = {}) {
     practice: ['off', 'def', 'st'].includes(opts.practice) ? opts.practice : null,
     pspot: clamp(+opts.pspot || 25, 20, 97),
     drill: !!opts.drill,
+    playoff: !!opts.playoff,   // playoff game: overtime keeps going until somebody wins
     cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 8 ? v : -1; }),
   };
   const rng = mulberry(o.seed);
@@ -137,7 +138,7 @@ export function createGame(opts = {}) {
   };
   if (o.practice) { g.poss = o.practice === 'def' ? 1 : 0; g.firstReceiver = g.poss; }
   if (o.drill) { g.poss = 0; g.firstReceiver = 0; g.quarter = 4; }
-  g.losZ = zOf(g.poss, o.practice && o.practice !== 'st' ? o.pspot : 25);
+  g.losZ = zOf(g.poss, o.practice && o.practice !== 'st' ? o.pspot : o.practice || o.drill ? 25 : 35);   // opening kickoff: touchback to the 35
   setFirstDown(g);
   if (o.practice === 'st') nextPlay(g); else setupPlay(g);
   g.msg = o.practice ? { text: 'PRACTICE', sub: o.practice === 'off' ? 'Run any play you want · no clock' : o.practice === 'st' ? 'Field goals and punts from all over the field' : 'Defend any play · no clock', until: 2.4 }
@@ -148,12 +149,18 @@ export function createGame(opts = {}) {
 
 export function getPlay(g, team, id) {
   if (!id) return null;
+  if (id === 'kneel') return KNEEL_PLAY;
   const k = KICK_PLAYS.find(p => p.id === id); if (k) return k;
   const b = g.books[team];
   if (b.sig && b.sig.id === id) return b.sig;
   if (id.startsWith('c_')) return g.custom[team][id] || null;
   return OFF_PLAYS.find(p => p.id === id) || DEF_PLAYS.find(p => p.id === id) || null;
 }
+
+// victory formation: the QB takes the snap and goes down a yard behind the line, the clock keeps running
+export const KNEEL_PLAY = { id: 'kneel', cat: 'Special', name: 'Kneel', tip: 'Take a knee, run the clock', type: 'run', form: 'single', routes: {}, kneel: true };
+export const XP_DIST = 33;   // PAT snapped from the 15
+const PAT_XP_P = 85, PAT_TWO_P = 98;
 
 export const WEATHERS = ['clear', 'rain', 'snow', 'fog'];
 export const TODS = ['day', 'dusk', 'night'];
@@ -319,7 +326,7 @@ function setupPlay(g) {
   g.ctrl = [-1, -1];
   g.ctrl[off] = 0; // QB
   g.ctrl[def] = byRole(g, 'LB').id;
-  g.kick = null; g.ballFly = null; g.flip = false; g.motion = null; g.noHuddle = false; g.spiked = false; g.celebrate = -1; g.deadInit = false; g.deadSkip = [false, false]; g.lastFlag = null; g.hot = {}; g.mom *= 0.94; g.cadence = 0; g.cpuSnapAt = 4.8 + g.rng() * 2.4;
+  g.kick = null; g.ballFly = null; g.flip = false; g.motion = null; g.noHuddle = false; g.spiked = false; g.celebrate = -1; g.deadInit = false; g.deadSkip = [false, false]; g.lastFlag = null; g.msgNote = null; g.hot = {}; g.mom *= 0.94; g.cadence = 0; g.cpuSnapAt = 4.8 + g.rng() * 2.4;
   g.playId++;
   if (!g.opts.humans[off]) cpuCallOffense(g);
   if (!g.opts.humans[def]) { g.defPlay = cpuCallDefense(g); g.defChosen = true; }
@@ -330,6 +337,14 @@ function setupPlay(g) {
 const mirror = pts => pts && pts.map(q => [-q[0], q[1], ...q.slice(2)]);   // flipped plays run to the other side
 function alignOffense(g, instant) {
   const pl = getPlay(g, g.poss, g.offPlay);
+  // try after a touchdown: kicks are snapped from the 15, two-point tries from the 2
+  if (g.play && g.play.isPat && g.pat === g.poss && g.phase !== 'live') {
+    const want = zOf(g.poss, !g.offPlay || g.offPlay === 'xp' ? PAT_XP_P : PAT_TWO_P);
+    if (Math.abs(g.losZ - want) > 0.01) {
+      g.losZ = want; g.play.los = want; setFirstDown(g); instant = true;
+      if (g.ball && g.ball.state === 'held') g.ball.z = want;
+    }
+  }
   const form = pl && pl.form ? pl.form : (pl && pl.id === 'punt' ? 'punt' : pl && (pl.id === 'fg' || pl.id === 'xp') ? 'fg' : 'gun');
   const oa = offAlign(form);
   for (const p of g.players) if (p.unit === 'off') {
@@ -376,9 +391,19 @@ function cpuCallOffense(g) {
     const diff = g.score[g.poss] + 6 - g.score[1 - g.poss];
     const goTwo = (g.quarter >= 4 && [-1, -2, 1, -5, -9].includes(diff - 6)) || r() < 0.08;
     if (!goTwo) { g.offPlay = 'xp'; alignOffense(g); return; }
-  } else if (g.down === 4) {
+  }
+  const deficit = g.score[1 - g.poss] - g.score[g.poss];
+  if (g.pat < 0) {
+    // protect the lead at the end: take a knee
+    if (g.quarter === 4 && deficit < 0 && g.clock < 40 && (g.down < 4 || g.clock <= 8)) { g.offPlay = 'kneel'; alignOffense(g); return; }
+    // the clock's about to run out: kick it on any down if it's in range (end of the half, or to tie/win late)
+    const fdA = fgDistance(g);
+    if (g.clock < 6 && fdA <= 52 && (g.quarter === 2 || (g.quarter >= 4 && deficit >= 0 && deficit <= 3))) { g.offPlay = 'fg'; alignOffense(g); return; }
+  }
+  if (g.pat !== g.poss && g.down === 4) {
     const fd = fgDistance(g);
-    const late = g.quarter >= 4 && g.clock < 60 && g.score[g.poss] < g.score[1 - g.poss];
+    const late = g.quarter >= 4 && g.clock < 60 && deficit > 0;
+    if (late && deficit <= 3 && fd <= 52) { g.offPlay = 'fg'; alignOffense(g); return; }   // a field goal ties it or wins it
     if (!late) {
       if (fd <= 52) { g.offPlay = 'fg'; alignOffense(g); return; }
       const desperate = g.quarter >= 4 && g.clock < 300 && g.score[g.poss] < g.score[1 - g.poss] && g.score[1 - g.poss] - g.score[g.poss] <= 11;
@@ -459,15 +484,15 @@ function handleEvent(g, team, ev) {
         if (!pl || pl.side === 'def' || DEF_PLAYS.includes(pl)) return;
         const isPat = g.pat === team;
         if (pl.id === 'xp' && !isPat) return;
-        if ((pl.id === 'fg' && (!canFG(g) || isPat)) || (pl.id === 'punt' && isPat)) return;
+        if ((pl.id === 'fg' && (!canFG(g) || isPat)) || (pl.id === 'punt' && isPat) || (pl.id === 'kneel' && isPat)) return;
         if (g.opts.practice === 'st' && pl.id !== 'fg' && pl.id !== 'punt') return;
         if (['fakepunt', 'fakefg', 'fakepuntpass', 'fakefgrun'].includes(pl.id) && isPat) return;
         if (g.offPlay && g.offPlay !== pl.id && g.phaseT > 0.6 && !g.opts.humans[team] === false) { g.flash = { text: 'AUDIBLE!', until: 1.1 }; g.events.push('audible'); }
         if (g.offPlay !== pl.id) { g.hot = {}; g.flip = false; g.motion = null; }
         g.offPlay = pl.id; g.lastPlay[team] = pl.id; alignOffense(g);
-      } else if (ev.t === 'flip' && g.offPlay && !['punt', 'fg', 'xp'].includes(g.offPlay)) {
+      } else if (ev.t === 'flip' && g.offPlay && !['punt', 'fg', 'xp', 'kneel'].includes(g.offPlay)) {
         g.flip = !g.flip; g.motion = null; alignOffense(g); g.flash = { text: g.flip ? 'PLAY FLIPPED' : 'PLAY FLIPPED BACK', until: 0.9 };
-      } else if (ev.t === 'motion' && g.offPlay && !g.motion && !['punt', 'fg', 'xp'].includes(g.offPlay)) {
+      } else if (ev.t === 'motion' && g.offPlay && !g.motion && !['punt', 'fg', 'xp', 'kneel'].includes(g.offPlay)) {
         // send the slot (or TE) across the formation; a defender who follows him is in man coverage
         const m = byRole(g, 'WR3') || byRole(g, 'TE');
         if (m) { const side = Math.sign(m.hx - g.ballX) || 1, toX = clamp(g.ballX - side * Math.min(9, Math.abs(m.hx - g.ballX) + 3), -HALF_W + 2, HALF_W - 2); g.motion = { role: m.role, from: m.hx, to: toX, dx: 0, t: 0, read: false }; g.flash = { text: 'MOTION', until: 0.7 }; }
@@ -475,8 +500,11 @@ function handleEvent(g, team, ev) {
         const id = g.lastPlay[team]; if (getPlay(g, team, id)) { g.offPlay = id; g.hot = {}; alignOffense(g, true); g.phaseT = Math.max(g.phaseT, 0.7); g.flash = { text: 'NO HUDDLE', until: 0.9 }; }
       } else if (ev.t === 'spike' && g.pat < 0 && g.down < 4 && g.phaseT > 0.3 && !g.opts.practice) {
         // clock it: costs a down, stops the clock
-        g.offPlay = g.offPlay && !['punt', 'fg', 'xp'].includes(g.offPlay) ? g.offPlay : (OFF_PLAYS.find(q => q.type === 'pass') || OFF_PLAYS[0]).id;
-        alignOffense(g, true); snap(g); g.clock = Math.max(0, g.clock - 1); g.spiked = true;
+        g.offPlay = g.offPlay && !['punt', 'fg', 'xp', 'kneel'].includes(g.offPlay) ? g.offPlay : (OFF_PLAYS.find(q => q.type === 'pass') || OFF_PLAYS[0]).id;
+        alignOffense(g, true); snap(g);
+        if (g.phase !== 'live') return;   // a foul before the snap: no spike, no lost down
+        g.clock = Math.max(0, g.clock - 1); g.spiked = true; g.play.thrown = true;
+        g.stats[team].att++;   // a spike is an incomplete pass
         endPlay(g, 'incomplete', null, null, 'SPIKED: CLOCK STOPPED'); g.deadDur = 1.2; g.noHuddle = true;
       } else if (ev.t === 'hot' && g.offPlay) {
         const pl = getPlay(g, team, g.offPlay);
@@ -508,7 +536,7 @@ function handleEvent(g, team, ev) {
     if (qb && qb.role === 'QB' && qb.team === team && !g.play.crossed) {
       const outside = Math.abs(qb.x - g.play.bx) > 6.5;   // outside the tackle box you can throw it away; inside it's grounding
       if (outside) { g.play.thrown = true; g.stats[team].att = (g.stats[team].att || 0) + 1; endPlay(g, 'incomplete', null, null, 'THROWN AWAY'); }
-      else { g.play.thrown = true; endPlay(g, 'incomplete', null, null, 'INTENTIONAL GROUNDING: LOSS OF DOWN'); if (g.poss === team && g.phase === 'dead') { g.losZ = clamp(g.losZ - dirOf(team) * 10, 1, 99); g.togo = Math.abs(g.fdZ - g.losZ); } }
+      else grounding(g, qb);
       return;
     }
   }
@@ -637,16 +665,16 @@ const PEN = {
 };
 export const PENALTY_NAMES = Object.fromEntries(Object.entries(PEN).map(([k, v]) => [k, v.name]));
 function throwFlag(g, type, who, z) {
-  const P = g.play; if (!P || P.flag || P.isPat || g.phase !== 'live' || g.opts.practice) return;
+  const P = g.play; if (!P || P.flag || P.isPat || g.phase !== 'live' || g.opts.practice) return false;
   P.flag = { type, on: who.team, num: who.num, name: who.rt.name, z: z ?? who.z, x: who.x };
   g.flash = { text: 'FLAG ON THE PLAY', until: 1.4 };
   g.events.push('flag');
+  return true;
 }
-// move the ball for a foul: positive yds help the offense (toward their goal). Half the distance near a goal line.
+// move the ball for a foul: positive yds help the offense (toward their goal). A foul can never move it more than
+// half the distance to the goal line.
 function penaltyMove(g, team, fromP, yds) {
-  let to = fromP + yds;
-  if (to > 99) to = fromP + (100 - fromP) / 2;      // half the distance to the goal
-  if (to < 1) to = fromP / 2;
+  let to = yds >= 0 ? fromP + Math.min(yds, (100 - fromP) / 2) : fromP - Math.min(-yds, fromP / 2);
   to = clamp(to, 1, 99);
   g.losZ = zOf(team, to);
   return to;
@@ -662,6 +690,26 @@ function presnapFoul(g, type, offender) {
   g.msg = { text: pen.name, sub: `${pen.off ? 'Offense' : 'Defense'}${offender ? ` · #${offender.num} ${offender.rt.name}` : ''} · ${Math.round(Math.abs(to - fromP))} yards`, until: 2.2, pen: 1 };
   g.events.push('flag', 'whistle');
 }
+// intentional grounding: loss of down, 10 yards from the line or the spot of the foul if that's worse
+// (half the distance inside the 20), a safety if he's standing in his own end zone
+function grounding(g, qb) {
+  const P = g.play, team = P.off;
+  P.thrown = true; g.stats[team].att++;
+  const losP = prog(team, P.los), spotP = prog(team, qb.z);
+  g.stats[team].pens++;
+  if (spotP <= 0) {
+    qb.z = zOf(team, Math.min(spotP, -0.1)); qb.fallen = 0;
+    g.ball.state = 'held'; g.ball.carrier = qb.id;
+    endPlay(g, 'tackle', qb, null);
+    if (g.msg && g.msg.text === 'SAFETY!') g.msg.sub = 'Intentional grounding in the end zone · ' + g.msg.sub;
+    return;
+  }
+  const yds = Math.max(10, losP - spotP), to = clamp(losP - Math.min(yds, losP / 2), 1, 99);
+  g.stats[team].penYds += Math.round(losP - to);
+  g.losZ = zOf(team, to);
+  endPlay(g, 'incomplete', null, null, 'INTENTIONAL GROUNDING');
+  if (g.msg && !g.msg.pen && g.msg.text === 'INTENTIONAL GROUNDING') g.msg.sub = `Loss of down · ${Math.round(losP - to)} yards`;
+}
 const FOUL_RATE = 1; // overall penalty frequency multiplier
 const fouls = g => (g.opts.practice ? 0 : 1);
 // returns true when the flag decided how the play ended (so the caller should stop)
@@ -671,7 +719,10 @@ function enforceFlag(g, endP, turnover, td) {
   const pen = PEN[F.type], off = P.off, losP = prog(off, P.los);
   const resYds = endP == null ? 0 : endP - losP;
   let accept;
-  if (pen.off) accept = !turnover && (endP == null || td || resYds > -pen.yds);
+  // an offensive foul: the defense takes it unless the play already hurt the offense more. On 3rd down a stop
+  // (incomplete or short of the sticks) brings up 4th, and on 4th down a stop is a turnover on downs, so they decline
+  const stopped = endP == null || endP < prog(off, g.fdZ);
+  if (pen.off) accept = !turnover && (td || endP >= 100 || (!(g.down >= 3 && stopped) && (endP == null || resYds > -pen.yds)));
   else if (td) accept = false;
   else if (pen.from === 'end' || turnover || endP == null) accept = true;
   else accept = pen.auto1 ? (prog(off, g.fdZ) > endP || resYds < pen.yds) : resYds < pen.yds;
@@ -688,7 +739,9 @@ function enforceFlag(g, endP, turnover, td) {
   if (pen.auto1 || prog(off, g.fdZ) <= to) setFirstDown(g);
   else g.togo = Math.max(1, Math.round(prog(off, g.fdZ) - to));
   g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.6; g.runoff = 0;
-  g.msg = { text: pen.name, sub: `${pen.off ? 'Offense' : 'Defense'} · #${F.num} ${F.name} · ${Math.abs(yds)} yards${pen.auto1 ? ' · automatic first down' : pen.replay ? ' · replay the down' : ''}`, until: 2.6, pen: 1 };
+  const untimed = !pen.off && g.clock <= 0 && !g.opts.practice;   // a quarter can't end on an accepted defensive foul
+  if (untimed) g.untimed = true;
+  g.msg = { text: pen.name, sub: `${pen.off ? 'Offense' : 'Defense'} · #${F.num} ${F.name} · ${Math.abs(yds)} yards${pen.auto1 ? ' · automatic first down' : pen.replay ? ' · replay the down' : ''}${untimed ? ' · untimed down' : ''}`, until: 2.6, pen: 1 };
   g.events.push('whistle');
   return true;
 }
@@ -738,8 +791,11 @@ function snap(g) {
     if (!g.opts.humans[g.poss] && r < 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'fs', byRole(g, ['LT', 'LG', 'C', 'RG', 'RT', 'TE'][(g.rng() * 6) | 0]));
     if (!g.opts.humans[1 - g.poss] && r > 1 - 0.008 * FOUL_RATE * fouls(g)) return presnapFoul(g, 'offside', byRole(g, ['DL1', 'DL2', 'DL3', 'DL4'][(g.rng() * 4) | 0]));
   }
+  g.untimed = false;   // the untimed down (if any) is being played now
+  g.ctrl[g.poss] = 0;   // the offense always has the QB at the snap
   let play = getPlay(g, g.poss, g.offPlay);
   if (!play) { g.offPlay = 'dive'; alignOffense(g); play = getPlay(g, g.poss, 'dive') || OFF_PLAYS[0]; }   // never crash on a stale play id
+  if (play.kneel && !P.isPat) return kneelDown(g, play);
   P.type = play.type; P.playDef = play; P.snapT = g.t;
   P.readT = (g.opts.humans[1 - g.poss] ? 2.0 : 1.7) + g.rng() * 1.2;
   P.def = 1 - g.poss;
@@ -784,6 +840,21 @@ function snap(g) {
   const qb = g.players[0];
   const sd = dist(qb, g.players[1]);
   launchBall(g, qb.x, qb.z, sd < 2 ? 0.14 : 0.4, sd < 2 ? 0.03 : 0.22, qb.id, true);   // shotgun snap: a quick, flat spiral back to his hands
+}
+
+// victory formation: snap, QB goes down a yard behind the line. The clock keeps running (up to 40 seconds before the
+// next snap; the play clock still applies)
+function kneelDown(g, play) {
+  const P = g.play, off = g.poss, d = dirOf(off);
+  P.type = 'run'; P.playDef = play; P.snapT = g.t; P.def = 1 - off; P.flag = null; P.handed = true; P.kneel = true; P.holdT = 0;
+  g.phase = 'live'; g.phaseT = 0; g.events.push('snap');
+  const qb = g.players[0];
+  qb.x = g.ballX; qb.z = g.losZ - d; qb.vx = 0; qb.vz = 0; qb.fallen = 2; qb.warpT = g.t;
+  const b = g.ball; b.state = 'held'; b.carrier = 0; b.x = qb.x; b.z = qb.z; b.y = 0.5;
+  g.clock = Math.max(0, g.clock - 1);
+  g.msgNote = 'takes a knee';
+  endPlay(g, 'tackle', qb, null);
+  if (g.poss === off && g.phase === 'dead') g.runoff = Math.min(40, g.clock);
 }
 
 function launchBall(g, tx, tz, T, h, target, auto) {
@@ -859,7 +930,7 @@ function kickRange(g, team, type) { const leg = legOf(g, team); return type === 
 function beginKickSet(g, type) {
   const off = g.poss, d = dirOf(off);
   g.phase = 'kickset'; g.phaseT = 0;
-  const fd = type === 'xp' ? 20 : type === 'fg' ? fgDistance(g) : 0;
+  const fd = type === 'xp' ? XP_DIST : type === 'fg' ? fgDistance(g) : 0;
   g.ks = { type, stage: 'aim', aim: type === 'punt' ? clamp(g.ballX, -12, 12) : 0, m: 0, dir: 1, power: 0, fd, maxR: kickRange(g, off, type), t: 0 };
   if (!g.opts.humans[off]) {
     // CPU kicker: decide the swing up front, then let the meter play out so it looks (and takes as long as) a real kick
@@ -916,10 +987,10 @@ function startKick(g, type, sk) {
       tx = clamp(tx, -HALF_W - 1, HALF_W + 1);
       k.tx = tx; k.T = 1.6 + sk.power * 1.6; k.h = 6 + sk.power * 11;
       if (land >= 100) { k.result = 'touchback'; k.newP = 20; land = Math.min(land, 108); }
-      else { k.result = oob ? 'oob' : 'punt'; k.newP = 100 - land; }
+      else { k.result = oob ? 'oob' : 'punt'; k.newP = Math.max(1, 100 - land); }
       k.tz = zOf(off, land); k.yds = Math.round(Math.min(land, 100) - p); k.shank = shank;
     } else {
-      const fd = type === 'xp' ? 20 : fgDistance(g);
+      const fd = type === 'xp' ? XP_DIST : fgDistance(g);
       const W = g.opts.wind || { mph: 0, dir: 0 }, tail = Math.cos(W.dir) * d * W.mph, cross = Math.sin(W.dir) * W.mph;
       const reach = sk.power * kickRange(g, off, type) * 1.08 * (1 + tail * 0.01);
       const hook = sk.acc * 13 * (0.55 + fd / 45);
@@ -947,10 +1018,10 @@ function startKick(g, type, sk) {
     k.tx = clamp(g.ballX + (g.rng() - 0.5) * 16, -22, 22);
     k.T = 2.6; k.h = 14;
     if (land >= 100) { k.result = 'touchback'; k.newP = 20; land = Math.min(land, 108); }
-    else { k.result = 'punt'; k.newP = 100 - land; }
+    else { k.result = 'punt'; k.newP = Math.max(1, 100 - land); }
     k.tz = zOf(off, land); k.yds = Math.round(Math.min(land, 100) - p);
   } else if (type === 'xp') {
-    k.good = g.rng() < 0.94; k.dist = 20;
+    k.good = g.rng() < 0.94; k.dist = XP_DIST;
     k.tx = k.good ? (g.rng() - 0.5) * 4 : (g.rng() < 0.5 ? -1 : 1) * (4.2 + g.rng() * 2);
     k.tz = zOf(off, 110); k.T = 1.4; k.h = 6;
   } else {
@@ -997,7 +1068,7 @@ function updateKick(g, dt) {
     b.x = k.fx + (k.tx - k.fx) * s; b.z = k.fz + (k.tz - k.fz) * s;
     b.y = 0.5 + 4 * k.h * s * (1 - s) + (k.type !== 'punt' ? s * 3 : 0);
   }
-  g.clock = Math.max(0, g.clock - dt);
+  if (k.type !== 'xp') g.clock = Math.max(0, g.clock - dt);   // tries are untimed
   if (k.type === 'punt' && k.result === 'punt') {
     // hang time: the coverage team sprints downfield, the returner settles under it, his teammates set up a wall
     puntFlight(g, k, dt);
@@ -1027,7 +1098,9 @@ function updateKick(g, dt) {
       g.deadDur = 2.8;
     } else {
       g.msg = { text: 'NO GOOD', sub: `${k.dist} yd attempt${k.miss ? ' · ' + k.miss : ''}`, until: 2.2 }; if (off === 0) g.events.push('boo');
-      g.poss = 1 - off; g.ballX = 0; setFirstDown(g);
+      // missed: the defense takes over at the spot of the kick or its own 20, whichever is better for it
+      const spotP = prog(off, g.losZ) - 7;
+      g.poss = 1 - off; g.ballX = 0; g.losZ = zOf(g.poss, clamp(Math.max(20, 100 - spotP), 1, 99)); setFirstDown(g);
       sudden(g);
     }
   }
@@ -1078,7 +1151,21 @@ function startReturn(g, k) {
 
 function score(g, team, pts) {
   g.score[team] += pts; g.acPts = (g.acPts || 0) + pts;
-  if (g.quarter >= 5) { g.otScored = true; }
+  if (g.quarter >= 5) {
+    // overtime: a field goal on the first possession gives the other team a shot; a touchdown, a safety or a
+    // defensive score ends it, and once both teams have had the ball the next score wins
+    const O = g.ot || (g.ot = { recv: g.firstReceiver, stage: 0 });
+    if (O.stage === 0 && pts === 3 && team === O.recv) O.stage = 1;
+    else if (g.score[0] !== g.score[1]) g.otEnd = true;
+    else O.stage = 2;   // they tied it back up: sudden death
+    g.otScored = g.otEnd;
+  }
+}
+// overtime possession bookkeeping, between plays
+function otCheck(g) {
+  const O = g.ot; if (!O || g.quarter < 5 || g.pat >= 0 || g.otEnd) return;
+  if (O.stage === 0 && g.poss !== O.recv) O.stage = 2;   // first possession came up empty: next score wins
+  else if (O.stage === 1 && g.poss === O.recv && g.score[0] !== g.score[1]) g.otEnd = true;   // answered with nothing: the field goal holds up
 }
 function sudden(g) { /* placeholder for possession change hooks */ }
 
@@ -1100,7 +1187,7 @@ function kickoffTo(g, team) {
     else { g.poss = team; g.losZ = zOf(team, 55); g.flash = { text: 'ONSIDE KICK... THEY COVER IT', until: 2 }; }
     g.ballX = 0; setFirstDown(g); return;
   }
-  g.poss = team; g.losZ = zOf(team, 25); g.ballX = 0; setFirstDown(g);
+  g.poss = team; g.losZ = zOf(team, 35); g.ballX = 0; setFirstDown(g);   // touchback to the 35
 }
 
 // ---------------- main step ----------------
@@ -1228,7 +1315,8 @@ function updatePresnap(g, dt, inputs) {
   if (!g.opts.humans[off]) {
     if (!g.offPlay) cpuCallOffense(g);
     const humanDef = g.opts.humans[def];
-    const ready = !humanDef ? g.phaseT > 2.0 : (g.defChosen && g.phaseT > g.cpuSnapAt);
+    const milk = g.offPlay === 'kneel' && g.runBudget > 0 && g.playClock > 1.5;   // victory formation: let the clock run before the snap
+    const ready = !milk && (!humanDef ? g.phaseT > 2.0 : (g.defChosen && g.phaseT > g.cpuSnapAt));
     if (humanDef && !g.cadence && g.phaseT > g.cpuSnapAt - 1.4 && g.defChosen) { g.cadence = 1; g.events.push('cadence'); }
     if (ready || g.playClock <= 0) snap(g);
   } else if (g.playClock <= 0) {
@@ -1262,6 +1350,10 @@ function cpuTimeout(g) {
     const late = (g.quarter === 2 || g.quarter >= 4) && g.clock < 50 && g.clock > 3 && (g.runoff > 0 || g.runBudget > 0);
     g.toSnap = g.toSnap || [-1, -1];
     if (late && g.poss === t && g.score[t] <= g.score[1 - t] && g.toSnap[t] !== (g.snaps || 0)) { g.toSnap[t] = g.snaps || 0; g.to[t]--; g.runoff = 0; g.runBudget = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
+    // on defense, trailing by one score late in the 4th: stop the clock to save time for a last drive
+    const down = g.score[1 - t] - g.score[t];
+    const lateD = g.quarter === 4 && g.clock < Math.min(100, g.opts.quarterLen * 0.5) && g.clock > 3 && (g.runoff > 0 || g.runBudget > 0) && g.pat < 0;
+    if (lateD && g.poss !== t && down >= 1 && down <= 8 && g.toSnap[t] !== (g.snaps || 0)) { g.toSnap[t] = g.snaps || 0; g.to[t]--; g.runoff = 0; g.runBudget = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
   }
 }
 function wearAndTear(g) {
@@ -1304,14 +1396,17 @@ function nextPlay(g) {
   }
   if (g.opts.drill) {
     if (g.runoff) { g.clock = Math.max(0, g.clock - Math.min(g.runoff, 6)); g.runoff = 0; }
-    if (g.clock <= 0 && g.pat < 0) return endGame(g);
+    if (g.clock <= 0 && g.pat < 0 && !g.untimed) return endGame(g);
     if (g.poss !== 0 && g.pat < 0) { g.poss = 0; g.losZ = zOf(0, 25); g.ballX = 0; setFirstDown(g); }
     g.phase = 'presnap'; g.phaseT = 0; setupPlay(g); return;
   }
   g.runBudget = g.runoff || 0; g.runoff = 0;   // runs off live during the next pre-snap instead of all at once
-  if (g.otScored) return endGame(g);
-  if (g.clock <= 0 && g.pat < 0) {
+  otCheck(g);
+  if (g.otEnd) return endGame(g);
+  if (g.clock <= 0 && g.pat < 0 && !g.untimed) {
     const q = g.quarter;
+    g.runBudget = 0;   // the runoff doesn't carry into the next quarter
+    { const W = g.opts.wind; if (W && W.mph) W.dir = (W.dir + Math.PI) % (Math.PI * 2); }   // teams switch ends every quarter
     if (q === 2) {
       g.quarter = 3; g.clock = g.opts.quarterLen; g.to = [3, 3];
       weatherShift(g);
@@ -1324,10 +1419,13 @@ function nextPlay(g) {
       }
       g.msg = { text: 'HALFTIME', sub: `${TEAMS[g.opts.teams[0]].abbr} ${g.score[0]} - ${g.score[1]} ${TEAMS[g.opts.teams[1]].abbr}`, until: 2.5 };
     } else if (q === 4 || q >= 5) {
-      if (q === 4 && g.score[0] === g.score[1]) {
-        g.quarter = 5; g.clock = g.opts.quarterLen;
-        kickoffTo(g, g.rng() < 0.5 ? 0 : 1);
-        g.msg = { text: 'OVERTIME', sub: 'Next score wins', until: 2.5 };
+      if (g.score[0] === g.score[1] && (q === 4 || (g.opts.playoff && q < 12))) {
+        g.quarter = q + 1; g.clock = g.opts.quarterLen; g.to = [2, 2];
+        if (q === 4) {
+          kickoffTo(g, g.rng() < 0.5 ? 0 : 1);
+          g.ot = { recv: g.poss, stage: 0 }; g.otEnd = false;
+          g.msg = { text: 'OVERTIME', sub: 'A touchdown wins it · a field goal gives them a chance to answer', until: 2.8 };
+        } else g.msg = { text: `END OF OT${q > 5 ? ' ' + (q - 4) : ''}`, sub: 'Still tied · another overtime period', until: 2.5 };
       } else return endGame(g);
     } else {
       g.quarter = q + 1; g.clock = g.opts.quarterLen;
@@ -1402,7 +1500,7 @@ function updateLive(g, dt, inputs) {
   const airPass = b.state === 'air' && !b.auto;
 
   // AI QB decision
-  if (pocket && !g.opts.humans[P.off]) aiQB(g, tl);
+  if (pocket && !g.opts.humans[P.off]) { aiQB(g, tl); if (g.phase !== 'live') return; }
 
   // desired velocities
   let diveDone = null;
@@ -1416,12 +1514,11 @@ function updateLive(g, dt, inputs) {
     const inp = human ? (inputs[p.team] || {}) : null;
     let want; // {x,z,s} direction * speedFactor
     const idle = !inp || (Math.abs(inp.mx || 0) + Math.abs(inp.mz || 0) < 0.12);
-    const tracking = airPass && p.id === b.target && p.team === P.off && idle;   // the AI only runs to the ball for you if you let go of the stick: your input always wins
-    if (human && !tracking && !(idle && assistIdle(g, p, carrier))) {
+    // the player you control only ever moves when you move him: no autopilot to the ball, no auto drop-back.
+    // Let go of the stick and he stops (the handoff/pitch still happens on time without him walking to the mesh)
+    if (human) {
       let mx = inp.mx || 0, mz = inp.mz || 0;
-      if (p.id === 0 && pocket && idle && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) { want = qbPocketMove(g, p); }   // auto drop-back only if you're not steering
-      else if (P.type === 'run' && p.id === 0 && !P.handed) { want = aiMove(g, p, carrier, pocket, airPass, tl); }
-      else {
+      {
         const l = hyp(mx, mz); if (l > 1) { mx /= l; mz /= l; }
         const canSprint = inp.sprint && p.stam > 0.05;
         if (canSprint && l > 0.1) p.stam = Math.max(0, p.stam - dt * 0.24); else p.stam = Math.min(1, p.stam + dt * 0.13);
@@ -1446,6 +1543,7 @@ function updateLive(g, dt, inputs) {
         if (dz > 8.5 && want.z * (p.z > 50 ? 1 : -1) > 0) want = { ...want, z: 0 };
       }
     }
+    if (human && idle && p.id === 0 && pocket && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) want = qbPocketMove(g, p);   // the QB's scripted drop-back at the snap (Madden does this too); touch the stick and it's all you
     applyMove(g, p, want, dt);
     if (!(carrier && carrier.id === p.id) && !p.dive && !p.fallen) { const lim = HALF_W + 0.4; if (p.x > lim) p.x = lim; else if (p.x < -lim) p.x = -lim; if (p.z > 109.5) p.z = 109.5; else if (p.z < -9.5) p.z = -9.5; }
   }
@@ -1468,10 +1566,23 @@ function updateLive(g, dt, inputs) {
     b.x += b.vx * dt; b.z += b.vz * dt; b.vy -= 18 * dt; b.y += b.vy * dt;
     if (b.y < 0.15) { b.y = 0.15; if (Math.abs(b.vy) > 1.2) { b.vy = -b.vy * 0.45; b.vx += (g.rng() - 0.5) * 3; b.vz += (g.rng() - 0.5) * 3; } else b.vy = 0; b.vx *= 0.88; b.vz *= 0.88; }   // a football bounces funny
     b.vx *= 1 - dt * 0.7; b.vz *= 1 - dt * 0.7;
-    // out of bounds: the team that fumbled keeps it there
+    // out of bounds: the team that fumbled keeps it there. Fumbled forward out of bounds it comes back to the spot
+    // of the fumble; fumbled forward out of the other team's end zone it's a touchback for them
     if (Math.abs(b.x) > HALF_W || b.z > 110 || b.z < -10) {
-      const f = g.players[P.fumbler] || g.players[0]; f.x = clamp(b.x, -HALF_W, HALF_W); f.z = clamp(b.z, -9.9, 109.9);
+      const f = g.players[P.fumbler] || g.players[0], ft = f.team;
+      const fumZ = P.fumZ ?? b.z, ballP = prog(ft, b.z), fumP = prog(ft, fumZ);
+      if (ballP >= 100 && fumP < 100 && !P.isPat) {
+        g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.4; g.runoff = 0; g.events.push('whistle');
+        b.state = 'dead'; b.vx = 0; b.vy = 0; b.vz = 0;
+        if (P.flag && enforceFlag(g, null, true, false)) return;
+        P.flag = null;
+        g.poss = 1 - ft; g.losZ = zOf(1 - ft, 20); g.ballX = 0; setFirstDown(g);
+        g.msg = { text: 'TOUCHBACK', sub: 'Fumbled out of the end zone', until: 2.4 }; g.events.push('turnover');
+        return;
+      }
+      f.x = clamp(b.x, -HALF_W, HALF_W); f.z = ballP > fumP ? fumZ : clamp(b.z, -9.9, 109.9); f.warpT = g.t;
       b.state = 'held'; b.carrier = f.id; g.flash = { text: 'BALL WENT OUT OF BOUNDS', until: 1.4 };
+      if (ft !== P.off && !P.turnover) { P.turnover = true; g.poss = ft; }
       return endPlay(g, 'oob', f);
     }
     let rec = null, rd = 1e9;
@@ -1481,12 +1592,25 @@ function updateLive(g, dt, inputs) {
       const dd = hyp(p.x - b.x, p.z - b.z), reach = diving ? 1.5 : 0.95;
       if (dd < reach && dd < rd) { rd = dd; rec = p; }
     }
-    if (!rec && b.looseT > 7) for (const p of g.players) { const dd = hyp(p.x - b.x, p.z - b.z); if (dd < rd) { rd = dd; rec = p; } }
+    if (!rec && b.looseT > 7) {
+      // nobody's coming up with it: the nearest man gets it if he's right there, otherwise it's dead where it lies
+      let nb = null, nd = 1e9;
+      for (const p of g.players) { const dd = hyp(p.x - b.x, p.z - b.z); if (dd < nd) { nd = dd; nb = p; } }
+      if (nb && nd <= 3) rec = nb;
+      else if (nb) {
+        const fum = g.players[P.fumbler], fumTeam = fum ? fum.team : P.off;
+        if (nb.team !== fumTeam) { P.turnover = !P.turnover || nb.team !== P.off; g.poss = nb.team; P.possZ = b.z; }
+        const spot = Object.create(nb); spot.x = clamp(b.x, -HALF_W, HALF_W); spot.z = b.z;
+        b.state = 'dead'; b.vx = 0; b.vy = 0; b.vz = 0; b.y = 0.15;
+        g.flash = { text: 'BALL IS DEAD', until: 1.4 };
+        return endPlay(g, 'tackle', spot, null);
+      }
+    }
     if (rec) {
       b.state = 'held'; b.carrier = rec.id; rec.x = b.x; rec.z = b.z; rec.warpT = g.t;
       const fum = g.players[P.fumbler], fumTeam = fum ? fum.team : P.off;
       if (rec.team !== fumTeam) {
-        P.turnover = !P.turnover || rec.team !== P.off; g.poss = rec.team; mom(g, rec.team, 14); g.events.push('turnover');
+        P.turnover = !P.turnover || rec.team !== P.off; g.poss = rec.team; P.possZ = rec.z; mom(g, rec.team, 14); g.events.push('turnover');
         g.flash = { text: `FUMBLE BY ${cityOf(g, fumTeam)}! ${cityOf(g, rec.team)} RECOVERS!`, until: 2.4, team: rec.team };
         if (rec.team !== P.off) highlight(g, 'FUMBLE RECOVERY', rec.rt.name, rec.team);
       } else g.flash = { text: `FUMBLE! ${cityOf(g, fumTeam)} FALLS ON IT`, until: 2 };
@@ -1610,7 +1734,7 @@ function updateLive(g, dt, inputs) {
               // the ball is LOOSE: it bounces around and whoever gets to it first (or dives on it) owns it
               const b = g.ball, a = g.rng() * Math.PI * 2, sp = 3 + g.rng() * 4;
               b.state = 'loose'; b.carrier = -1; b.x = c2.x; b.z = c2.z; b.y = 0.9; b.vx = Math.sin(a) * sp + c2.vx * 0.3; b.vz = Math.cos(a) * sp + c2.vz * 0.3; b.vy = 2.6; b.looseT = 0;
-              P.fumbler = c2.id; P.recognized = true;
+              P.fumbler = c2.id; P.fumZ = c2.z; P.recognized = true;
               c2.fallen = 1.4; c2.stun = 1.1; d.fallen = 1.1; d.stun = 0.8; d.tackleCd = 1.5; d.vx *= 0.3; d.vz *= 0.3; c2.vx *= 0.3; c2.vz *= 0.3;
               highlight(g, 'FORCED FUMBLE', d.rt.name, d.team);
               g.flash = { text: 'FUMBLE! BALL IS LOOSE', until: 1.6 }; g.events.push('bighit');
@@ -1658,7 +1782,9 @@ function applyMove(g, p, w, dt) {
   if (p.playBall > 0 && p.unit === 'def') spd *= 1.04;
   if (p.unit === 'def' && g.opts.humans[p.team] && g.ctrl[p.team] === p.id) spd *= 1.04;   // you're the quickest guy on your defense
   const tvx = (w.x || 0) * spd, tvz = (w.z || 0) * spd;
-  const acc = (p.size > 1.15 ? 13 : 20) * dt * (0.82 + Math.min(p.rt.spd, 99) / 100 * 0.25) * (p.juke > 0 ? 0.3 : 1) * (p.spin > 0 ? 0.6 : 1);
+  let acc = (p.size > 1.15 ? 13 : 20) * dt * (0.82 + Math.min(p.rt.spd, 99) / 100 * 0.25) * (p.juke > 0 ? 0.3 : 1) * (p.spin > 0 ? 0.6 : 1);
+  // the guy you control plants and stops when you let go (about 0.15-0.2s from full speed), no coasting
+  if (g.opts.humans[p.team] && g.ctrl[p.team] === p.id && hyp(tvx, tvz) < hyp(p.vx, p.vz) * 0.5) acc = Math.max(acc, 46 * dt);
   let dvx = tvx - p.vx, dvz = tvz - p.vz; const dl = hyp(dvx, dvz);
   if (dl > acc) { dvx *= acc / dl; dvz *= acc / dl; }
   p.vx += dvx; p.vz += dvz;
@@ -1744,7 +1870,7 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
 
   // ball carrier AI
   if (carrier && carrier.id === p.id) {
-    if (p.id === 0 && pocket) return qbPocketMove(g, p);
+    if (p.id === 0 && pocket) return P.scramble && !g.opts.humans[p.team] ? carrierSteer(g, p, ai) : qbPocketMove(g, p);   // CPU QB breaks the pocket and runs
     if (P.type === 'run' && p.route && p.ri < p.route.length && !P.turnover) {
       const w = routeMove(g, p);
       return { ...w, s: ai };
@@ -1933,8 +2059,14 @@ function aiQB(g, tl) {
   const want = tl > P.readT ? 2.2 : 3.4;
   // finish the drop before throwing: quick game is out fast, deep shots take a real five or seven step drop
   const minT = pdq.screen ? pdq.screen + 0.15 : pdq.cat === 'Quick' ? 1.2 : (pdq.drop || -7) <= -8 ? 2.3 : 1.85;
-  if (best && ((tl > minT && bs > want) || (urgent && bs > 0.8 && tl > 0.9) || tl > 4.6)) {
-    const vsHuman = g.opts.humans[1 - qb.team] && !g.opts.humans[qb.team];
+  const open = best && ((tl > minT && bs > want) || (urgent && bs > 0.8 && tl > 0.9));
+  if (!open && best && tl > 4.6 && bs < 0.8 && Math.abs(qb.x - P.bx) > 6.5) {
+    // everybody's covered and he's out of the pocket: throw it away instead of forcing one
+    P.thrown = true; g.stats[P.off].att++; qb.throwAt = g.t;
+    endPlay(g, 'incomplete', null, null, 'THROWN AWAY');
+    return;
+  }
+  if (open || (best && tl > 4.6)) {
     throwBall(g, qb, best, cfg.qbErr * (urgent ? 1.5 : 1) * (1.45 - qb.rt.acc / 100));
   } else if (urgent && tl > 1.2 && !P.scramble && g.rng() < 0.02) {
     P.scramble = true;
@@ -2185,10 +2317,10 @@ function resolveBall(g) {
     const bump = hyp(rd.x - ro.x, rd.z - ro.z) < 1.05;
     if (humanD) {
       // you dove or jumped into him and got there before the ball did
-      if (outcome !== 'catch' && bump && (rd.dive > 0 || (rd.playBall > 0 && dD > dO + 0.3))) { throwFlag(g, 'dpi', rd, L.z); outcome = 'inc'; }
-    } else if (!g.opts.humans[rd.team] && outcome !== 'catch' && dD < 1.1 && r < (rd.dive > 0 ? 0.2 : 0.08) * FOUL_RATE) { throwFlag(g, 'dpi', rd, L.z); outcome = 'inc'; }
-    if (outcome === 'catch' && humanO && ro.playBall > 0 && bump && r < 0.3) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
-    else if (outcome === 'catch' && !g.opts.humans[ro.team] && r < 0.02 * FOUL_RATE) { throwFlag(g, 'opi', ro, L.z); outcome = 'inc'; }
+      if (outcome !== 'catch' && bump && (rd.dive > 0 || (rd.playBall > 0 && dD > dO + 0.3))) { if (throwFlag(g, 'dpi', rd, L.z)) outcome = 'inc'; }
+    } else if (!g.opts.humans[rd.team] && outcome !== 'catch' && dD < 1.1 && r < (rd.dive > 0 ? 0.2 : 0.08) * FOUL_RATE) { if (throwFlag(g, 'dpi', rd, L.z)) outcome = 'inc'; }
+    if (outcome === 'catch' && humanO && ro.playBall > 0 && bump && r < 0.3) { if (throwFlag(g, 'opi', ro, L.z)) outcome = 'inc'; }
+    else if (outcome === 'catch' && !g.opts.humans[ro.team] && r < 0.02 * FOUL_RATE) { if (throwFlag(g, 'opi', ro, L.z)) outcome = 'inc'; }
   }
   // feet have to be in bounds: a catch made on or past the sideline (or out the back of the end zone) is incomplete
   if ((outcome === 'catch' || outcome === 'int') && (() => { const q = outcome === 'catch' ? ro : rd; const tm = q && (q.team === offTeam ? offTeam : 1 - offTeam); return q && (Math.abs(q.x) > HALF_W - 0.4 || Math.abs(L.x) > HALF_W - 0.1 || prog(tm, q.z) > 109.6 || prog(tm, L.z) > 109.9); })()) {   // strict: a foot or the ball on/over the line is out
@@ -2225,7 +2357,7 @@ function resolveBall(g) {
     if (enforceFlag(g, null, true, false)) return;
   } else if (outcome === 'int') {
     b.state = 'held'; b.carrier = rd.id;
-    P.turnover = true; P.recognized = true;
+    P.turnover = true; P.recognized = true; P.possZ = rd.z;
     g.poss = rd.team;
     g.stats[offTeam].ints++; pst(g, rd).int++; mom(g, rd.team, 18); highlight(g, 'INTERCEPTION', rd.rt.name, rd.team);
     if (g.opts.humans[rd.team]) g.ctrl[rd.team] = rd.id;
@@ -2283,7 +2415,7 @@ function touchdown(g, c) {
   g.msg = { text: 'TOUCHDOWN!', sub: `${c.rt.name} · ${TEAMS[g.opts.teams[t]].name}`, until: 3.2, big: true, team: t };
   g.events.push('td', 'whistle');
   if (g.quarter >= 5) { kickoffTo(g, 1 - t); return; }            // walk-off in OT
-  g.pat = t; g.poss = t; g.losZ = zOf(t, 97); g.ballX = 0; setFirstDown(g);
+  g.pat = t; g.poss = t; g.losZ = zOf(t, PAT_XP_P); g.ballX = 0; setFirstDown(g);   // moves to the 2 if they go for two (alignOffense)
 }
 
 function addYards(g, c, endP) {
@@ -2302,6 +2434,7 @@ function endPlay(g, kind, c, tackler, note) {
   if (!P.isPat && !g.opts.practice && kind === 'tackle' && tackler && !g.opts.humans[tackler.team] && c && c.team === P.off && !P.flag && g.rng() < 0.01 * FOUL_RATE) throwFlag2(g, 'mask', tackler, c.z);
   if (P.isReturn && c) {
     const t = c.team, p = prog(t, c.z), yds = Math.round(p - prog(t, P.los));
+    if (p <= 0 && prog(t, P.los) >= 1) { safetyOn(g, t); return; }   // caught it in the field of play and got taken down in his own end zone
     if (p <= 0) { g.poss = t; g.losZ = zOf(t, 20); g.msg = { text: 'TOUCHBACK', sub: '', until: 2 }; }
     else { g.poss = t; g.losZ = zOf(t, clamp(p, 1, 99)); g.msg = { text: kind === 'oob' ? 'RETURN, OUT OF BOUNDS' : 'PUNT RETURN', sub: `${yds} yard return · ${c.rt.name}`, until: 2.2 }; if (yds >= 20) highlight(g, `${yds}-YARD RETURN`, c.rt.name, t); }
     g.ballX = clamp(c.x * 0.5, -9, 9); setFirstDown(g);
@@ -2325,16 +2458,12 @@ function endPlay(g, kind, c, tackler, note) {
   const ct = c.team;
   const p = prog(ct, c.z);
   if (p < 0) {
-    if (P.turnover) {
+    // a takeaway in the end zone (or inside the 1, momentum) downed there is a touchback; one made in the field of
+    // play and carried back into the end zone is a safety
+    if (P.turnover && !(P.possZ != null && prog(ct, P.possZ) >= 1)) {
       g.poss = ct; g.losZ = zOf(ct, 20); g.ballX = 0; setFirstDown(g);
       g.msg = { text: 'TOUCHBACK', sub: '', until: 2 };
-    } else {
-      score(g, 1 - ct, 2);
-      g.poss = 1 - ct; g.losZ = zOf(1 - ct, 35); g.ballX = 0; setFirstDown(g);
-      g.msg = { text: 'SAFETY!', sub: '+2 ' + TEAMS[g.opts.teams[1 - ct]].abbr, until: 2.6, big: true };
-      g.events.push('score');
-      g.deadDur = 2.6;
-    }
+    } else safetyOn(g, ct);
     return;
   }
   const spot = clamp(p, 1, 99);
@@ -2346,9 +2475,10 @@ function endPlay(g, kind, c, tackler, note) {
     g.runoff = 0;
     return;
   }
-  addYards(g, c, p);
   const gained = Math.round(p - prog(ct, P.los));
-  const sack = c.id === 0 && P.type === 'pass' && !P.thrown && !P.crossed && kind === 'tackle';
+  // a QB who goes down (or runs out of bounds) behind the line on a pass play is sacked; sack yards aren't rushing yards
+  const sack = c.id === 0 && P.type === 'pass' && !P.thrown && !P.crossed && (kind === 'tackle' || (kind === 'oob' && p < prog(ct, P.los)));
+  if (!sack) addYards(g, c, p);
   if (sack) { g.stats[1 - ct].sacks++; mom(g, 1 - ct, 9); if (tackler) highlight(g, 'SACK', tackler.rt.name, 1 - ct); }
   if (gained >= 20) { mom(g, ct, 10); highlight(g, `${gained}-YARD ${P.thrown ? 'CATCH' : 'RUN'}`, c.rt.name, ct); }
   if (tackler && kind === 'tackle') { pst(g, tackler).tk++; if (sack) pst(g, tackler).sk++; }
@@ -2369,6 +2499,14 @@ function endPlay(g, kind, c, tackler, note) {
   }
 }
 
+// team ct got tackled in its own end zone: 2 points the other way, and they get the ball back (free kick shorthand)
+function safetyOn(g, ct) {
+  score(g, 1 - ct, 2);
+  g.poss = 1 - ct; g.losZ = zOf(1 - ct, 35); g.ballX = 0; setFirstDown(g);
+  g.msg = { text: 'SAFETY!', sub: '+2 ' + TEAMS[g.opts.teams[1 - ct]].abbr, until: 2.6, big: true };
+  g.events.push('score');
+  g.deadDur = 2.6;
+}
 function throwFlag2(g, type, who, z) { const P = g.play; P.flag = { type, on: who.team, num: who.num, name: who.rt.name, z, x: who.x }; g.events.push('flag'); }
 
 function checkDowns(g) {

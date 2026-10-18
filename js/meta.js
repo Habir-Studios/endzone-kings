@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js';
-import * as UT from './ut.js';
-import { portraitURL } from './faces.js';
-import { TEAMS } from './teams.js';
+import { askYes } from './ui.js?v=1792349128';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792349128';
+import * as UT from './ut.js?v=1792349128';
+import { portraitURL } from './faces.js?v=1792349128';
+import { TEAMS } from './teams.js?v=1792349128';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -40,7 +40,7 @@ export function initMeta(ctx) {
   setInterval(uploadClub, 8000);
   setInterval(() => { if (tdb() && tme()) settleTrades().then(n => { if (n && C.screen() === 'ut') renderUT(); }); if (C.screen() === 'ut' && utTab === 'trade') loadTrades(true); }, 15000);
   const { $, $$ } = C;
-  $$('.ut-tab').forEach(b => b.addEventListener('click', () => { C.sfx.play('ui'); utTab = b.dataset.ut; renderUT(); }));
+  $$('#ut .ut-tab[data-ut]').forEach(b => b.addEventListener('click', () => { C.sfx.play('ui'); utTab = b.dataset.ut; renderUT(); }));
   $('#ut-begin').addEventListener('click', () => {
     const P = profile(); if (!P || utStartTeam < 0) return;
     P.p.ut.name = ($('#ut-name').value || '').replace(/[<>]/g, '').trim().slice(0, 18) || `${C.Auth.user.name}'s Squad`;
@@ -97,13 +97,15 @@ export function renderUT() {
   }
   const np = Object.values(P.p.packs).reduce((a, b) => a + b, 0);
   $('#ut-packs-n').textContent = np; $('#ut-packs-n').classList.toggle('hidden', !np);
-  $$('.ut-tab').forEach(b => b.classList.toggle('on', b.dataset.ut === utTab));
+  const VIEWS = { trade: renderTrade, squad: renderSquad, packs: renderPacks, club: renderClub, play: renderPlay, solos: renderSolos, pass: renderPass, market: renderMarket, sets: renderSets };
+  if (!VIEWS[utTab]) utTab = 'squad';
+  $$('#ut .ut-tab[data-ut]').forEach(b => b.classList.toggle('on', b.dataset.ut === utTab));
   const fpN = P.fpTier - P.p.fp.got.filter(t => t <= P.fpTier).length;
   $('#ut-fp-n').textContent = fpN; $('#ut-fp-n').classList.toggle('hidden', fpN <= 0);
   const settled = P.marketSettle();
   for (const l of settled) C.toast(l.sold ? `${UT.card(l.id).last} sold on the market: +${fmt(l.net)} coins` : `${UT.card(l.id).last} didn't sell and is back in your club`, 3500);
   if (settled.length) $('#ut-coins').textContent = fmt(P.p.coins);
-  ({ trade: renderTrade, squad: renderSquad, packs: renderPacks, club: renderClub, play: renderPlay, solos: renderSolos, pass: renderPass, market: renderMarket, sets: renderSets })[utTab](P);
+  VIEWS[utTab](P);
 }
 
 function renderSquad(P) {
@@ -145,7 +147,7 @@ function cardDetail(u) {
   const abHTML = c.tier < 2 ? '<p class="note">Abilities unlock on Gold cards and up.</p>'
     : `<div class="cd-abs"><b>Ability</b>${abs.map(a => `<button class="btn sm ${inst.ab === a.k ? 'primary' : ''}" data-ab="${a.k}" ${inst.ab === a.k ? 'disabled' : ''}>${a.n} (${a.d})${inst.ab === a.k ? ' ✓' : ` · ${abCost} TP`}</button>`).join('')}
       ${canXf ? `<b>X-Factor</b><button class="btn sm ${inst.xf ? 'primary' : ''}" id="cd-xf" ${inst.xf ? 'disabled' : ''}>${UT.XFACTORS[c.group]} (+3 to key ratings)${inst.xf ? ' ✓' : ` · ${UT.TP_XFACTOR} TP`}</button>` : ''}</div>`;
-  const rate = k => `<div class="cd-rate"><span>${UT.RATING_NAMES[k]}</span><b>${c[k]}</b><i style="--v:${c[k]}%;--bar:${c[k] >= 85 ? 'var(--go)' : c[k] >= 70 ? 'var(--gold)' : '#ff8b97'}"></i></div>`;
+  const rate = k => `<div class="cd-rate"><span>${UT.RATING_NAMES[k]}</span><b>${c[k]}</b><i style="--v:${c[k]}%;--bar:${c[k] >= 85 ? 'var(--go)' : c[k] >= 70 ? '#ffb020' : '#ff8b97'}"></i></div>`;
   const slots = UT.GROUPS[c.group];
   const el = openDlg(`${cardHTML(c)}<div class="cd-info"><h3>${C.escapeHtml(c.first)} ${C.escapeHtml(c.last)}</h3>
     <p class="note">${c.tierName} ${c.pos}${c.program ? `, ${c.program}` : ''}. #${c.num}. Card art in ${t.city} colors. Trained ${c.b} of ${UT.MAX_BOOST[c.tier]} times.</p>
@@ -201,7 +203,7 @@ function renderPacks(P) {
   C.$$('[data-open]', pane).forEach(b => b.onclick = () => openPack(b.dataset.open));
 }
 
-const BACK_SVG = '<svg viewBox="0 0 64 48"><path d="M6 40 12 10l12 14L32 4l8 20 12-14 6 30z" fill="#f6c445"/></svg>';
+const BACK_SVG = '<svg viewBox="0 0 64 48"><path d="M6 40 12 10l12 14L32 4l8 20 12-14 6 30z" fill="#ff3347"/></svg>';
 function openPack(k) {
   const P = profile(); const ids = UT.rollPack(k);
   const added = P.openPack(k, ids);

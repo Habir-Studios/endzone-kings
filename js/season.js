@@ -1,7 +1,7 @@
 // Season mode, NFL style: real divisions, 17 games over 18 weeks (one bye), the NFL scheduling formula with
 // the real 2026 division rotation, 7 playoff teams per conference (top seed gets a bye), Wild Card, Divisional,
 // Conference Championships and the Kings Bowl. Seasons saved before this (v1) keep playing the old way.
-import { TEAMS, teamOvr } from './teams.js';
+import { TEAMS, teamOvr } from './teams.js?v=1792349128';
 
 export const WEEKS = 18;
 const N = TEAMS.length;
@@ -155,7 +155,15 @@ function simGame(g) { if (g.hs !== null) return; const [a, b] = simScore(g.home,
 function poSim(g) { simGame(g); if (g.hs === g.as) g.hs += 3; }
 const winnerOf = g => g.hs > g.as ? g.home : g.away;
 
+// a playoff game can't end tied. The game itself plays extra overtime periods (sim opts.playoff); if a tie still
+// comes back, settle it with an overtime coin flip instead of always handing it to the home team
+function noTie(S, my, opp) {
+  if (S.phase === 'regular' || my == null || opp == null || my !== opp) return [my, opp];
+  const r = rng(((S.seed >>> 0) ^ 0x2f6b) + S.phase.length * 7919 + (S.week || 0) * 31 + my)();
+  return r < 0.5 ? [my + 3, opp] : [my, opp + 3];
+}
 export function finishWeek(S, myScore, oppScore) {
+  [myScore, oppScore] = noTie(S, myScore, oppScore);
   if (!isV2(S)) return finishWeekV1(S, myScore, oppScore);
   const g = userGame(S);
   if (g && myScore != null) { if (g.home === S.team) { g.hs = myScore; g.as = oppScore; } else { g.hs = oppScore; g.as = myScore; } }

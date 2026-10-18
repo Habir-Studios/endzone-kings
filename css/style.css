@@ -1305,11 +1305,6 @@ select { color: var(--chalk); border: 1px solid var(--line-2); padding: 8px 10px
 @keyframes livePulse { 70% { box-shadow: 0 0 0 9px rgba(255,59,59,0); } 100% { box-shadow: 0 0 0 0 rgba(255,59,59,0); } }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 /* injury banner up top */
-.inj-top { position: absolute; left: 50%; top: 70px; transform: translate(-50%, -16px); z-index: 30; display: flex; gap: 10px; align-items: center; max-width: min(560px, 92vw); padding: 10px 16px; border-radius: 10px; background: rgba(40,8,12,.94); border: 1px solid #ff5a5a; box-shadow: 0 8px 28px rgba(255,60,60,.25); color: #fff; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
-.inj-top b { color: #ff7a7a; white-space: nowrap; }
-.inj-top.opp { background: rgba(23,23,25,.94); border-color: #fa2844; box-shadow: 0 8px 28px rgba(250,40,68,.2); }
-.inj-top.opp b { color: #fa2844; }
-.inj-top.show { opacity: 1; transform: translate(-50%, 0); }
 /* live game on a profile */
 .pf-live { display: flex; align-items: center; gap: 12px; margin: 12px 0; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,70,70,.55); background: linear-gradient(90deg, rgba(255,50,50,.14), rgba(255,50,50,.03)); }
 .pf-live.hidden { display: none; }

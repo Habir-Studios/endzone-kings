@@ -7,10 +7,14 @@ export function askYes(msg, yes = 'Yes', no = 'Cancel') {
     m.innerHTML = `<div class="panel"><p style="margin:0 0 6px;font-weight:700">${esc(msg)}</p><div style="display:flex;gap:8px"><button class="btn" data-a="0" type="button">${esc(no)}</button><button class="btn primary" data-a="1" type="button" style="flex:1">${esc(yes)}</button></div></div>`;
     document.body.appendChild(m);
     const done = v => { m.remove(); document.removeEventListener('keydown', key, true); res(v); };
-    const key = e => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } if (e.key === 'Enter') { e.stopPropagation(); done(true); } };
+    // Enter presses whichever button has focus (Cancel by default, so a stray Enter never confirms)
+    const key = e => {
+      if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); done(false); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); const f = document.activeElement; if (f && m.contains(f) && f.dataset.a) done(f.dataset.a === '1'); }
+    };
     document.addEventListener('keydown', key, true);
     m.querySelectorAll('[data-a]').forEach(b => b.onclick = () => done(b.dataset.a === '1'));
-    setTimeout(() => m.querySelector('[data-a="1"]').focus(), 30);
+    setTimeout(() => { const c = m.querySelector('[data-a="0"]'); if (c && m.isConnected) c.focus(); }, 30);
   });
 }
 // pick one option from a list (replaces prompt() menus)

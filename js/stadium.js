@@ -1,9 +1,9 @@
 // ENDZONE KINGS — stadium dressing: sidelines (benches, players, coaches, coolers), chain gang, camera crews,
 // skycam, railings, roof trusses, speakers, flags and facade boards.
 import * as THREE from 'three';
-import { TEAMS, HALF_W } from './sim.js';
-import { drawLogo } from './logos.js';
-import { drawFaceTextureLite, faceParams } from './faces.js';
+import { TEAMS, HALF_W } from './sim.js?v=1792349128';
+import { drawLogo } from './logos.js?v=1792349128';
+import { drawFaceTextureLite, faceParams } from './faces.js?v=1792349128';
 
 const vis = (t, k) => (t[k] === '#121a14' ? '#18c964' : t[k]);
 function tex(w, h, draw) {
@@ -205,18 +205,27 @@ export function buildSidelines(R) {
   side.skyPos = new THREE.Vector3(0, 22, 30);
 }
 
+// reused scratch objects: this runs every frame for 80 people x 9 parts, so no allocations in here
+const _sb = new THREE.Matrix4(), _so = new THREE.Object3D(), _sq = new THREE.Quaternion(), _se = new THREE.Euler(), _sv = new THREE.Vector3(), _ss = new THREE.Vector3(), _sm = new THREE.Matrix4(), _zero = new THREE.Matrix4().makeScale(0, 0, 0);
+let _sI = 0;
+const _sput = (mesh, x, y, z, rx = 0, rz = 0) => { _so.position.set(x, y, z); _so.rotation.set(rx, 0, rz); _so.updateMatrix(); mesh.setMatrixAt(_sI, _sm.multiplyMatrices(_sb, _so.matrix)); };
 function placeSidelinePeople(R, t, hype) {
-  const side = R.side, P = side.people, o = new THREE.Object3D();
-  side.poses.forEach((p, i) => {
+  const side = R.side, P = side.people, first = !side._seated;
+  if (!first && R.quality === 'potato') { side._acc = (side._acc || 0) + 1; if (side._acc % 3) return; }   // Chromebook: a third as often
+  const put = _sput; _so.scale.set(1, 1, 1);
+  const poses = side.poses;
+  for (let i = 0; i < poses.length; i++) {
+    const p = poses[i];
+    if (p.sitting && !first) continue;                 // bench players never move: placed once
+    _sI = i;
     const bob = p.sitting ? 0 : Math.sin(t * 1.4 + p.ph) * 0.02;
     const jump = !p.sitting && hype > 0.5 ? Math.max(0, Math.sin(t * 6 + p.ph * 3)) * 0.35 * (hype - 0.4) : 0;
-    const base = new THREE.Matrix4().compose(new THREE.Vector3(p.x, bob + jump, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, p.face, 0)), new THREE.Vector3(p.size, p.size, p.size));
-    const put = (mesh, x, y, z, rx = 0, rz = 0) => { o.position.set(x, y, z); o.rotation.set(rx, 0, rz); o.scale.set(1, 1, 1); o.updateMatrix(); mesh.setMatrixAt(i, base.clone().multiply(o.matrix)); };
+    _sb.compose(_sv.set(p.x, bob + jump, p.z), _sq.setFromEuler(_se.set(0, p.face, 0)), _ss.set(p.size, p.size, p.size));
     const hy = p.sitting ? 0.55 : 0.92;                 // hip height
     put(P.torso, 0, hy, 0);
     put(P.pads, 0, hy + 0.57, 0);
     put(P.head, 0, hy + 0.82, 0.02);
-    if (p.helmOn || p.bald) put(P.hair, 0, -5, 0); else put(P.hair, 0, hy + 0.855, -0.028);
+    if (p.helmOn || p.bald) P.hair.setMatrixAt(i, _zero); else put(P.hair, 0, hy + 0.855, -0.028);
     if (p.helmOn) put(P.helmet, 0, hy + 0.84, 0.0);
     else put(P.helmet, 0.34, hy + 0.05, 0.12);        // helmet carried at his side
     const cheer = jump > 0.05 ? -2.7 : 0;
@@ -224,8 +233,9 @@ function placeSidelinePeople(R, t, hype) {
     else { put(P.legL, -0.1, hy, 0); put(P.legR, 0.1, hy, 0); }
     put(P.armL, -0.3, hy + 0.55, 0, cheer || (p.sitting ? -0.5 : 0), 0.15);
     put(P.armR, 0.3, hy + 0.55, 0, cheer || (p.helmOn ? 0 : -0.15), -0.15);
-  });
-  for (const m of Object.values(P)) m.instanceMatrix.needsUpdate = true;
+  }
+  side._seated = true;
+  for (const k in P) P[k].instanceMatrix.needsUpdate = true;
 }
 
 export function colorSidelines(R, teams) {
@@ -240,7 +250,7 @@ export function colorSidelines(R, teams) {
       c.font = '900 40px "Big Shoulders Display", Impact, sans-serif'; c.textBaseline = 'middle';
       for (let x = 10; x < w; x += 256) { drawLogo(c, ti, 54, x, 5); c.fillStyle = '#ffffff'; c.fillText(t.city.toUpperCase(), x + 64, h / 2 + 2); }
     });
-    const mats = side['banner' + k].material; mats[4].map = ban; mats[5].map = ban; mats[4].needsUpdate = mats[5].needsUpdate = true;
+    const mats = side['banner' + k].material; if (mats[4].map && mats[4].map !== ban) mats[4].map.dispose(); mats[4].map = ban; mats[5].map = ban; mats[4].needsUpdate = mats[5].needsUpdate = true;
     for (const c of side.coaches) if (c.k === k) { c.polo.color.set(vis(t, 'jersey')); }
   });
   const P = side.people;
@@ -254,6 +264,7 @@ export function colorSidelines(R, teams) {
   for (const m of Object.values(P)) if (m.instanceColor) m.instanceColor.needsUpdate = true;
 }
 
+const _skyWant = new THREE.Vector3();
 export function updateSidelines(R, S, dt) {
   const side = R.side; if (!side) return;
   placeSidelinePeople(R, R.time, R.hype);
@@ -280,7 +291,7 @@ export function updateSidelines(R, S, dt) {
   }
   // skycam floats behind the play
   const f = R.focus, d = S && S.poss === 1 ? -1 : 1;
-  const want = new THREE.Vector3(f.x * 0.5, 20 + Math.sin(R.time * 0.4) * 0.6, f.z - 16 * d);
+  const want = _skyWant.set(f.x * 0.5, 20 + Math.sin(R.time * 0.4) * 0.6, f.z - 16 * d);
   side.skyPos.lerp(want, Math.min(1, dt * 0.8));
   side.sky.position.copy(side.skyPos); side.sky.rotation.y = d > 0 ? 0 : Math.PI;
   for (const c of side.cables) { const a = c.line.geometry.attributes.position; a.setXYZ(0, side.skyPos.x, side.skyPos.y + 0.3, side.skyPos.z); a.needsUpdate = true; }
@@ -314,7 +325,9 @@ export function seatTexture() {
 export function buildBowlExtras(R, ring) {
   const s = R.scene;
   // glass + rail along the front of each deck
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0x9fb8ff, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false });
+  const glass = R.quality === 'potato'   // Chromebook: unlit glass (a big transparent ring of physical shading is costly fill)
+    ? new THREE.MeshBasicMaterial({ color: 0x9fb8ff, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false })
+    : new THREE.MeshPhysicalMaterial({ color: 0x9fb8ff, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false });
   ring(1.0, 2.2, 3.2, glass, 24);
   ring(1.52, 27, 28, glass, 24);
   const railMat = new THREE.MeshStandardMaterial({ color: 0xc9d1e0, metalness: 0.7, roughness: 0.3 });
@@ -371,6 +384,7 @@ export function colorFlags(R, teams) {
   if (!R.flags) return;
   for (const fl of R.flags) {
     const t = TEAMS[teams[fl.k]];
+    if (fl.f.material.map) fl.f.material.map.dispose();
     fl.f.material.map = tex(128, 80, (c, w, h) => { c.fillStyle = t.jersey; c.fillRect(0, 0, w, h); c.fillStyle = vis(t, 'trim'); c.fillRect(0, h * 0.42, w, h * 0.16); drawLogo(c, teams[fl.k], 56, 36, 12); });
     fl.f.material.needsUpdate = true;
   }

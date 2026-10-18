@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js';
-import { drawFaceTexture, faceParams } from './faces.js';
-import { drawLogo } from './logos.js';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792349128';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792349128';
+import { drawLogo } from './logos.js?v=1792349128';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792349128';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -42,6 +42,21 @@ function mergeTwo(a, b) {
   }
   return g;
 }
+// the reflection environment: a dim bowl, a green field below and a ring of very bright light banks up high
+function stadiumEnvScene() {
+  const es = new THREE.Scene(); es.background = new THREE.Color(0x0b1024);
+  const box = new THREE.BoxGeometry(1, 1, 1), lamp = new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.96, 0.88).multiplyScalar(24) });
+  for (let i = 0; i < 12; i++) {
+    const a = (i + 0.5) / 12 * Math.PI * 2, m = new THREE.Mesh(box, lamp);
+    m.position.set(Math.cos(a) * 24, 13, Math.sin(a) * 24); m.scale.set(7, 2.2, 0.6); m.lookAt(0, 13, 0); es.add(m);
+  }
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 12, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x1a2048, side: THREE.BackSide }));
+  bowl.position.y = 4; es.add(bowl);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x1f5a28).multiplyScalar(0.7) }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -2; es.add(ground);
+  return es;
+}
+const _up = new THREE.Vector3(0, 1, 0), _ftw = new THREE.Vector3(), _fd = new THREE.Vector3(), _fr = new THREE.Vector3(), _fu = new THREE.Vector3();
 const kickingNow = S => S.ph === 'kickset' || S.ph === 'kick';
 const damp = (a, b, rate, dt) => a + (b - a) * (1 - Math.exp(-rate * dt));
 
@@ -78,12 +93,20 @@ export class Renderer {
     this.hype = 0.15; this.hypeTarget = 0.15;
     this.boardKey = '';
 
+    // reflections: a ring of bright stadium light banks over a green field (computed once), so helmets and
+    // pads pick up real stadium-light streaks. Chromebook skips the environment entirely (see _applyEnv).
     const pm = new THREE.PMREMGenerator(r);
-    this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+    const es = stadiumEnvScene();
+    this.envTex = pm.fromScene(es, 0.02, 0.1, 400).texture;
+    pm.dispose(); es.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    this.scene.environment = quality === 'potato' ? null : this.envTex;
     this.scene.environmentIntensity = 0.35;
 
     this.buildWorld();
-    this.composer = new EffectComposer(r);
+    // High: multisampled (4x MSAA) half-float target, so edges stay smooth through the post-processing chain
+    // (the canvas' own antialias doesn't apply once we render through the composer). resize() sizes it.
+    const crt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }); crt.texture.name = 'EffectComposer.rt1';
+    this.composer = new EffectComposer(r, crt);
     this.composer.addPass(new RenderPass(this.scene, this.cam));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.32, 0.4, 0.93);
     this.composer.addPass(this.bloom);
@@ -112,11 +135,20 @@ export class Renderer {
     this.key.castShadow = q === 'high';
     this.scene.traverse(o => { if (o.material && !Array.isArray(o.material)) o.material.needsUpdate = true; });
     this.pr = this.basePR(q); this.r.setPixelRatio(this.pr);
+    this._applyEnv();
+    if (this.fieldMat && this.fieldMat.map) { const an = this.fieldAniso(); if (this.fieldMat.map.anisotropy !== an) { this.fieldMat.map.anisotropy = an; this.fieldMat.map.needsUpdate = true; } }
     this.applyCrowdQuality();
     if (this.precip) this.precip.geometry.setDrawRange(0, q === 'potato' ? Math.floor(this.precip.geometry.attributes.position.count * 0.3) : Infinity);
     if ((was === 'potato') !== (q === 'potato')) this.clearPlayers();   // rebuild players at the new detail level
     this.resize();
   }
+  // Chromebook: no environment lighting (saves the env lookups in every lit pixel); a stronger sky light makes up for it
+  _applyEnv() {
+    const lite = this.quality === 'potato';
+    this.scene.environment = lite ? null : this.envTex || null;
+    if (this.hemi && this._hemiI !== undefined) this.hemi.intensity = this._hemiI * (lite ? 1.3 : 1);
+  }
+  fieldAniso() { return this.quality === 'potato' ? 2 : Math.min(16, this.r.capabilities.getMaxAnisotropy()); }
   // dynamic resolution for slow machines: nudge the render scale to hold the frame rate
   adaptResolution(fps) {
     if (this.quality === 'high') return;
@@ -149,7 +181,8 @@ export class Renderer {
   // ======================= WORLD =======================
   buildWorld() {
     const s = this.scene;
-    this.sky = canvasTex(4, 512, () => {});
+    this.sky = canvasTex(4, 256, () => {});
+    this.sky.mapping = THREE.EquirectangularReflectionMapping;   // mapped by view direction: the horizon stays put when the camera pitches
     s.background = this.sky;
     this.buildStars();
 
@@ -210,7 +243,7 @@ export class Renderer {
     // a thin layer of snow (or a wet sheen) over the field
     this.cover = new THREE.Mesh(new THREE.PlaneGeometry(W + 8, 128), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0, roughness: 0.9, depthWrite: false,
       map: canvasTex(256, 256, (c) => { c.fillStyle = '#fff'; c.fillRect(0, 0, 256, 256); const d = c.getImageData(0, 0, 256, 256); for (let i = 0; i < d.data.length; i += 4) d.data[i + 3] = 120 + Math.random() * 135; c.putImageData(d, 0, 0); }) }));
-    this.cover.rotation.x = -Math.PI / 2; this.cover.position.set(0, 0.012, 50); this.cover.renderOrder = 1; this.cover.receiveShadow = true;
+    this.cover.rotation.x = -Math.PI / 2; this.cover.position.set(0, 0.016, 50); this.cover.renderOrder = 1; this.cover.receiveShadow = true;
     this.cover.material.map.wrapS = this.cover.material.map.wrapT = THREE.RepeatWrapping; this.cover.material.map.repeat.set(6, 12);
     this.scene.add(this.cover);
   }
@@ -224,16 +257,19 @@ export class Renderer {
     }[tod] || {};
     const sk = TOD.sky.slice();
     if (wx === 'rain' || wx === 'fog' || wx === 'snow') { const gray = tod === 'day' ? ['#6d7887', '#8b95a3', '#a9b2bd', '#c4cad2'] : tod === 'dusk' ? ['#22202e', '#3a3446', '#5e5363', '#7d7280'] : ['#040509', '#0b0e1c', '#1a2036', '#262c44']; for (let i = 0; i < 4; i++) sk[i] = gray[i]; }
-    const c = this.sky._canvas.getContext('2d'), gr = c.createLinearGradient(0, 0, 0, 512);
-    [0, 0.5, 0.8, 1].forEach((t, i) => gr.addColorStop(t, sk[i]));
-    c.fillStyle = gr; c.fillRect(0, 0, 4, 512); this.sky.needsUpdate = true;
+    // equirect sky: top row = straight up, middle row (v = 0.5) = the horizon; below the horizon just holds the horizon color
+    const cv = this.sky._canvas, H = cv.height, c = cv.getContext('2d'), gr = c.createLinearGradient(0, 0, 0, H);
+    [0, 0.25, 0.4, 0.5].forEach((t, i) => gr.addColorStop(t, sk[i])); gr.addColorStop(1, sk[3]);
+    c.fillStyle = gr; c.fillRect(0, 0, cv.width, H);
+    this.sky.dispose(); this.sky.needsUpdate = true;   // dispose drops three's cached cube conversion of the sky, so the new colors show
     const fogCol = wx === 'fog' ? (tod === 'day' ? 0xc9d0d8 : tod === 'dusk' ? 0x6a5e6c : 0x2a3040) : wx === 'snow' ? (tod === 'day' ? 0xd6dde6 : 0x3a4256) : wx === 'rain' ? (tod === 'day' ? 0x8a949f : 0x161b2a) : TOD.fog;
     this.scene.fog.color.setHex(fogCol);
     this.scene.fog.density = wx === 'fog' ? 0.022 : wx === 'snow' ? 0.0085 : wx === 'rain' ? 0.0075 : tod === 'day' ? 0.0022 : 0.0042;
     const dim = wx === 'clear' ? 1 : wx === 'fog' ? 0.8 : 0.75;
-    this.hemi.color.setHex(TOD.hemi[0]); this.hemi.groundColor.setHex(TOD.hemi[1]); this.hemi.intensity = TOD.hemi[2] * (wx === 'clear' ? 1 : 1.1);
+    this.hemi.color.setHex(TOD.hemi[0]); this.hemi.groundColor.setHex(TOD.hemi[1]); this._hemiI = TOD.hemi[2] * (wx === 'clear' ? 1 : 1.1);
     this.key.color.setHex(TOD.key[0]); this.key.intensity = TOD.key[1] * dim;
-    this.key.position.set(tod === 'dusk' ? -60 : -25, tod === 'dusk' ? 38 : 70, tod === 'dusk' ? 20 : 35);
+    this.keyOff = tod === 'dusk' ? [-60, 38, 10] : [-25, 70, 20];   // key light offset from the shadow focus: low side sun at dusk
+    this.key.position.set(this.keyOff[0], this.keyOff[1], 50 + this.keyOff[2]);
     this.fill.intensity = TOD.fill; this.rim.intensity = TOD.rim;
     if (this.starPts) this.starPts.material.opacity = wx === 'clear' ? TOD.stars : 0;
     this.r.toneMappingExposure = TOD.exp;
@@ -248,13 +284,14 @@ export class Renderer {
     this.cover.visible = wx === 'snow';
     this.fieldMat.roughness = wx === 'rain' ? 0.45 : 0.92;
     this.fieldMat.color.setHex(wx === 'rain' ? 0xc8d4cc : 0xffffff);
+    this._applyEnv();
   }
   stepWeather(dt) {
     if (!this.precip.visible) return;
     const pos = this.precip.geometry.attributes.position, a = pos.array, sd = this.precipSeed;
     const rain = this.wx === 'rain', fx = this.focus.x, fz = this.focus.z, t = this.time;
     this.precip.position.set(fx, 0, fz);
-    for (let i = 0, n = sd.length; i < n; i++) {
+    for (let i = 0, n = Math.min(sd.length, this.precip.geometry.drawRange.count); i < n; i++) {   // only the drawn ones (Chromebook draws 30%)
       const k = i * 3;
       if (rain) { a[k + 1] -= dt * (26 + sd[i] * 10); a[k] += dt * 2.5; }
       else { a[k + 1] -= dt * (1.6 + sd[i] * 1.4); a[k] += Math.sin(t * 0.8 + sd[i] * 20) * dt * 0.9; a[k + 2] += Math.cos(t * 0.6 + sd[i] * 14) * dt * 0.5; }
@@ -349,7 +386,7 @@ export class Renderer {
       c.fillStyle = '#ffc83d'; c.font = `900 ${PX * 1.7}px "Big Shoulders Display", Impact, sans-serif`; c.fillText('ENDZONE KINGS', 0, PX * 2.4);
       c.restore();
     });
-    tex.anisotropy = Math.min(16, this.r.capabilities.getMaxAnisotropy());
+    tex.anisotropy = this.fieldAniso();
     // fine grass-blade grain (one small tiled texture, cheap enough for every setting)
     if (!this._turfBump) { this._turfBump = canvasTex(128, 128, (c) => { const img = c.createImageData(128, 128), d = img.data; for (let i = 0; i < d.length; i += 4) { const v = 110 + Math.random() * 120; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } c.putImageData(img, 0, 0); for (let i = 0; i < 260; i++) { c.strokeStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.25})`; c.lineWidth = 1; const x = Math.random() * 128, y = Math.random() * 128; c.beginPath(); c.moveTo(x, y); c.lineTo(x + (Math.random() - 0.5) * 2, y - 3 - Math.random() * 4); c.stroke(); } }, false);
       this._turfBump.wrapS = this._turfBump.wrapT = THREE.RepeatWrapping; this._turfBump.repeat.set(70, 150); }
@@ -749,7 +786,7 @@ export class Renderer {
       jersey: (() => { const base = uk ? { color: '#ffffff', map: this.kitTex(uk), roughness: uk.pattern === 'chrome' ? 0.25 : 0.66, metalness: uk.pattern === 'chrome' ? 0.45 : 0, bumpMap: this.fabric(), bumpScale: 0.6 } : { color: t.jersey, roughness: 0.66, bumpMap: this.fabric(), bumpScale: 0.6 };
         return lite ? new THREE.MeshLambertMaterial({ color: base.color, map: base.map || null }) : new THREE.MeshPhysicalMaterial({ ...base, sheen: 0.55, sheenRoughness: 0.75, sheenColor: new THREE.Color(0xffffff) }); })(),
       pants: lite ? new THREE.MeshLambertMaterial({ color: t.pants }) : new THREE.MeshPhysicalMaterial({ color: t.pants, roughness: 0.36, metalness: 0.04, clearcoat: 0.35, clearcoatRoughness: 0.45, sheen: 0.3, sheenRoughness: 0.5 }),
-      helmet: lite ? new THREE.MeshPhongMaterial({ color: t.helmet, shininess: 80, specular: 0x666666, side: THREE.DoubleSide }) : new THREE.MeshPhysicalMaterial({ color: t.helmet, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.08, side: THREE.DoubleSide }),
+      helmet: lite ? new THREE.MeshPhongMaterial({ color: t.helmet, shininess: 80, specular: 0x666666, side: THREE.DoubleSide }) : new THREE.MeshPhysicalMaterial({ color: t.helmet, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.8, side: THREE.DoubleSide }),
       trim: new THREE.MeshStandardMaterial({ color: vis(t, 'trim') === vis(t, 'jersey') ? '#ffffff' : t.trim, roughness: 0.6 }),
       sock: new THREE.MeshStandardMaterial({ color: t.jersey === '#121a14' ? '#0b0f0c' : t.jersey, roughness: 0.7 }),
       glove: new THREE.MeshStandardMaterial({ color: vis(t, 'trim'), roughness: 0.5 }),
@@ -769,6 +806,12 @@ export class Renderer {
     this._geo = this._geo || {};
     if (!this._geo[key]) this._geo[key] = new THREE.LatheGeometry(pts.slice().reverse().map(([r, y]) => new THREE.Vector2(r, y)), seg);
     return this._geo[key];
+  }
+  // one shared geometry per (type, args): every player's pads, cleats, facemask bars... reuse the same GPU buffers
+  sgx(C, ...a) {
+    const pg = this._pgeo || (this._pgeo = new Map());
+    let m = pg.get(C); if (!m) pg.set(C, m = new Map());
+    const k = a.join(','); let g = m.get(k); if (!g) m.set(k, g = new C(...a)); return g;
   }
   limbGeo(key, rTop, rMid, rBot, len) {
     const p = [[0.0001, rTop * 0.7], [rTop * 0.72, rTop * 0.5], [rTop, 0], [rMid, -len * 0.45], [rBot, -len], [rBot * 0.7, -len - rBot * 0.5], [0.0001, -len - rBot * 0.75]];
@@ -808,8 +851,9 @@ export class Renderer {
     const map = tex.clone(); map.needsUpdate = true;
     const prof = [[0.2, 0.222], [0.38, 0.262], [0.57, 0.292], [0.72, 0.288], [0.84, 0.2]];
     const jr = yy => { for (let i = 0; i < prof.length - 1; i++) { const [a0, r0] = prof[i], [a1, r1] = prof[i + 1]; if (yy <= a1) return r0 + (r1 - r0) * Math.max(0, (yy - a0) / (a1 - a0)); } return prof[prof.length - 1][1]; };
-    const pts = []; for (let i = 0; i <= 8; i++) { const yy = y - h / 2 + h * i / 8; pts.push(new THREE.Vector2(jr(yy) * 1.014, yy - y)); }
-    const g = new THREE.LatheGeometry(pts, 20, center - arc / 2, arc);
+    this._geo = this._geo || {}; const gk = `decal_${h}_${y}_${center}_${arc}`;   // same shape for every player: build it once
+    let g = this._geo[gk];
+    if (!g) { const pts = []; for (let i = 0; i <= 8; i++) { const yy = y - h / 2 + h * i / 8; pts.push(new THREE.Vector2(jr(yy) * 1.014, yy - y)); } g = this._geo[gk] = new THREE.LatheGeometry(pts, 20, center - arc / 2, arc); }
     const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map, transparent: true, depthWrite: false, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 }));
     m.scale.z = zs; m.position.y = y;
     return m;
@@ -820,7 +864,8 @@ export class Renderer {
     const M = this.teamMats(teamIdx, away, uk);
     this._curKit = uk;
     const F = faceParams(fseed);
-    const skin = this.quality === 'high' ? new THREE.MeshPhysicalMaterial({ color: F.skin, roughness: 0.5, sheen: 0.22, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xffe2cc) }) : new THREE.MeshStandardMaterial({ color: F.skin, roughness: 0.52 });
+    const skK = (this.quality === 'high' ? 'H' : 'S') + F.skin, skC = this._skinM || (this._skinM = {});   // skin materials are shared by tone + tier
+    const skin = skC[skK] || (skC[skK] = this.quality === 'high' ? new THREE.MeshPhysicalMaterial({ color: F.skin, roughness: 0.5, sheen: 0.22, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xffe2cc) }) : new THREE.MeshStandardMaterial({ color: F.skin, roughness: 0.52 }));
     const fz = this.quality === 'potato' ? 128 : 256, faceMat = new THREE.MeshStandardMaterial({ map: canvasTex(fz, fz, (c, w, h) => drawFaceTexture(c, w, h, fseed)), roughness: 0.6 });   // Chromebook: smaller face pictures
     const white = this._white || (this._white = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6 }));
     const sleeve = (num % 5 === 0) ? (this._sleeve || (this._sleeve = new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.5 }))) : skin;
@@ -841,20 +886,20 @@ export class Renderer {
     // hips + pants
     const hips = mesh(this.lathe('hips2', [[0.0001, 0.24], [0.2, 0.23], [0.215, 0.12], [0.222, 0.0], [0.2, -0.1], [0.0001, -0.15]], 18), M.pants);
     hips.scale.z = 0.74; hips.position.y = 0.0; body.add(hips);
-    const belt = det(new THREE.CylinderGeometry(0.208, 0.21, 0.04, 18, 1, true), black); belt.scale.z = 0.75; belt.position.y = 0.2; body.add(belt);
+    const belt = det(this.sgx(THREE.CylinderGeometry, 0.208, 0.21, 0.04, 18, 1, true), black); belt.scale.z = 0.75; belt.position.y = 0.2; body.add(belt);
     const legs = [];
     for (const sx of [-0.125, 0.125]) {
       const hip = new THREE.Group(); hip.position.set(sx, -0.02, 0); body.add(hip);
       const thigh = mesh(this.limbGeo('thigh3', 0.156, 0.13, 0.094, 0.42), M.pants); hip.add(thigh);
-      const stripe = det(new THREE.BoxGeometry(0.018, 0.4, 0.06), M.trim); stripe.position.set(sx > 0 ? 0.118 : -0.118, -0.2, 0); hip.add(stripe);
+      const stripe = det(this.sgx(THREE.BoxGeometry, 0.018, 0.4, 0.06), M.trim); stripe.position.set(sx > 0 ? 0.118 : -0.118, -0.2, 0); hip.add(stripe);
       const knee = new THREE.Group(); knee.position.y = -0.46; hip.add(knee);
-      const kpad = det(new THREE.SphereGeometry(0.075, 12, 8), M.pants); kpad.position.set(0, 0.0, 0.035); kpad.scale.set(1.05, 0.95, 0.85); knee.add(kpad);
+      const kpad = det(this.sgx(THREE.SphereGeometry, 0.075, 12, 8), M.pants); kpad.position.set(0, 0.0, 0.035); kpad.scale.set(1.05, 0.95, 0.85); knee.add(kpad);
       const calf = mesh(this.lathe('calf2', [[0.0001, 0.05], [0.072, 0.03], [0.086, -0.02], [0.095, -0.12], [0.072, -0.26], [0.054, -0.38], [0.0001, -0.42]]), M.sock); knee.add(calf);
-      const sockTop = det(new THREE.CylinderGeometry(0.083, 0.087, 0.05, 12), M.trim); sockTop.position.y = -0.1; knee.add(sockTop);
+      const sockTop = det(this.sgx(THREE.CylinderGeometry, 0.083, 0.087, 0.05, 12), M.trim); sockTop.position.y = -0.1; knee.add(sockTop);
       const cleat = new THREE.Group(); cleat.position.set(0, -0.43, 0.05); knee.add(cleat);
-      const upper = det(new THREE.SphereGeometry(0.075, 14, 10), num % 3 === 1 ? white : black); upper.scale.set(1.05, 0.72, 1.95); upper.position.set(0, 0.0, 0.02); cleat.add(upper);
-      const sole = det(new RoundedBoxGeometry(0.15, 0.03, 0.3, 2, 0.012), num % 3 === 1 ? black : white); sole.position.set(0, -0.045, 0.02); cleat.add(sole);
-      const swoosh = det(new THREE.BoxGeometry(0.158, 0.02, 0.13), M.trim); swoosh.position.set(0, 0.0, 0.0); cleat.add(swoosh);
+      const upper = det(this.sgx(THREE.SphereGeometry, 0.075, 14, 10), num % 3 === 1 ? white : black); upper.scale.set(1.05, 0.72, 1.95); upper.position.set(0, 0.0, 0.02); cleat.add(upper);
+      const sole = det(this.sgx(RoundedBoxGeometry, 0.15, 0.03, 0.3, 2, 0.012), num % 3 === 1 ? black : white); sole.position.set(0, -0.045, 0.02); cleat.add(sole);
+      const swoosh = det(this.sgx(THREE.BoxGeometry, 0.158, 0.02, 0.13), M.trim); swoosh.position.set(0, 0.0, 0.0); cleat.add(swoosh);
       legs.push({ hip, knee });
     }
 
@@ -863,44 +908,44 @@ export class Renderer {
     const jersey = mesh(this.lathe('jersey2', [[0.0001, 0.86], [0.2, 0.84], [0.288, 0.72], [0.292, 0.57], [0.262, 0.38], [0.222, 0.2], [0.21, 0.1], [0.0001, 0.08]], 20), M.jersey);
     jersey.scale.z = tz; torso.add(jersey);
     const chest = jersey;
-    const pads = mesh(new THREE.SphereGeometry(0.3, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), M.jersey); pads.scale.set(1.62, 0.56, 0.92); pads.position.y = 0.73; torso.add(pads);
-    const collar = det(new THREE.TorusGeometry(0.105, 0.028, 8, 18), M.trim); collar.rotation.x = Math.PI / 2; collar.position.y = 0.92; torso.add(collar);
+    const pads = mesh(this.sgx(THREE.SphereGeometry, 0.3, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), M.jersey); pads.scale.set(1.62, 0.56, 0.92); pads.position.y = 0.73; torso.add(pads);
+    const collar = det(this.sgx(THREE.TorusGeometry, 0.105, 0.028, 8, 18), M.trim); collar.rotation.x = Math.PI / 2; collar.position.y = 0.92; torso.add(collar);
     torso.add(this.wrapDecal(nTex, 0.283, 0.36, 0.5, 0, 1.25, tz));   // number on the front, every setting
     torso.add(this.wrapDecal(nTex, 0.283, 0.3, 0.39, Math.PI, 1.2, tz));
     // his real last name above the number on the back, every setting
     if (last) { const nm = this.nameTex(last, t.num, outline); torso.add(this.wrapDecal(nm, 0.2845, 0.085, 0.585, Math.PI, 1.45, tz)); }   // sits between the shoulder pads and the number so the pads don't cover it
     if (!lite) for (const sx of [-1, 1]) {
-      const sn = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), new THREE.MeshBasicMaterial({ map: nTex, transparent: true, depthWrite: false }));
+      const sn = new THREE.Mesh(this.sgx(THREE.PlaneGeometry, 0.15, 0.15), new THREE.MeshBasicMaterial({ map: nTex, transparent: true, depthWrite: false }));
       sn.position.set(sx * 0.35, 0.86, 0); sn.rotation.set(-Math.PI / 2, 0, 0); sn.rotation.order = 'YXZ'; sn.rotation.z = sx * 0.35; torso.add(sn);
     }
-    const neck = det(new THREE.CylinderGeometry(0.092, 0.112, 0.15, 12), skin); neck.position.y = 0.97; torso.add(neck);
-    if (big || role === 'LB') { const roll = det(new THREE.TorusGeometry(0.13, 0.055, 8, 18), M.jersey); roll.rotation.x = Math.PI / 2; roll.position.y = 0.93; torso.add(roll); }
-    if (!big && num % 4 === 0) { const towel = det(new THREE.PlaneGeometry(0.09, 0.22), this._towel || (this._towel = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9, side: THREE.DoubleSide }))); towel.position.set(0.12, -0.02, 0.17); towel.rotation.x = 0.15; body.add(towel); }
+    const neck = det(this.sgx(THREE.CylinderGeometry, 0.092, 0.112, 0.15, 12), skin); neck.position.y = 0.97; torso.add(neck);
+    if (big || role === 'LB') { const roll = det(this.sgx(THREE.TorusGeometry, 0.13, 0.055, 8, 18), M.jersey); roll.rotation.x = Math.PI / 2; roll.position.y = 0.93; torso.add(roll); }
+    if (!big && num % 4 === 0) { const towel = det(this.sgx(THREE.PlaneGeometry, 0.09, 0.22), this._towel || (this._towel = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9, side: THREE.DoubleSide }))); towel.position.set(0.12, -0.02, 0.17); towel.rotation.x = 0.15; body.add(towel); }
 
     // head + helmet
     const head = new THREE.Group(); head.position.y = 1.15; torso.add(head);
     const shellGeo = this._shellGeo || (this._shellGeo = [
-      new THREE.SphereGeometry(0.235, 28, 9, 0, Math.PI * 2, 0, 1.12),
-      new THREE.SphereGeometry(0.235, 28, 12, Math.PI / 2 + 0.78, Math.PI * 2 - 1.56, 1.12, 1.32),
+      this.sgx(THREE.SphereGeometry, 0.235, 28, 9, 0, Math.PI * 2, 0, 1.12),
+      this.sgx(THREE.SphereGeometry, 0.235, 28, 12, Math.PI / 2 + 0.78, Math.PI * 2 - 1.56, 1.12, 1.32),
     ]);
-    if (lite) { const sh = mesh(this._shellLite || (this._shellLite = new THREE.SphereGeometry(0.235, 14, 8, Math.PI / 2 + 0.7, Math.PI * 2 - 1.4, 0, 2.44)), M.helmet); sh.scale.set(0.98, 1.0, 1.12); sh.position.z = -0.02; head.add(sh); }
+    if (lite) { const sh = mesh(this._shellLite || (this._shellLite = this.sgx(THREE.SphereGeometry, 0.235, 14, 8, Math.PI / 2 + 0.7, Math.PI * 2 - 1.4, 0, 2.44)), M.helmet); sh.scale.set(0.98, 1.0, 1.12); sh.position.z = -0.02; head.add(sh); }
     else for (const gq of shellGeo) { const sh = mesh(gq, M.helmet); sh.scale.set(0.98, 1.0, 1.12); sh.position.z = -0.02; head.add(sh); }
-    const liner = det(new THREE.SphereGeometry(0.222, 16, 10), this._liner || (this._liner = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.9, side: THREE.BackSide })));
+    const liner = det(this.sgx(THREE.SphereGeometry, 0.222, 16, 10), this._liner || (this._liner = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.9, side: THREE.BackSide })));
     liner.scale.set(0.98, 1, 1.1); liner.position.z = -0.02; head.add(liner);
-    const face = mesh(new THREE.SphereGeometry(0.165, 24, 18), faceMat); face.position.set(0, -0.045, 0.075); face.scale.set(0.95, 1.08, 0.85); head.add(face);
-    for (const sx of [-1, 1]) { const dec = det(new THREE.CircleGeometry(0.085, 20), this.helmetDecal(teamIdx)); dec.position.set(sx * 0.231, 0.07, -0.06); dec.rotation.y = sx * Math.PI / 2; head.add(dec); }
-    const strip = det(new THREE.TorusGeometry(0.238, 0.022, 6, 28, Math.PI), M.trim); strip.rotation.y = Math.PI / 2; strip.scale.set(1.12, 1, 1); strip.position.z = -0.02; head.add(strip);
-    for (const sx of [-1, 1]) { const ear = det(new THREE.CircleGeometry(0.035, 12), dark); ear.position.set(sx * 0.236, -0.03, 0.02); ear.rotation.y = sx * Math.PI / 2; head.add(ear); }
+    const face = mesh(this.sgx(THREE.SphereGeometry, 0.165, 24, 18), faceMat); face.position.set(0, -0.045, 0.075); face.scale.set(0.95, 1.08, 0.85); head.add(face);
+    for (const sx of [-1, 1]) { const dec = det(this.sgx(THREE.CircleGeometry, 0.085, 20), this.helmetDecal(teamIdx)); dec.position.set(sx * 0.231, 0.07, -0.06); dec.rotation.y = sx * Math.PI / 2; head.add(dec); }
+    const strip = det(this.sgx(THREE.TorusGeometry, 0.238, 0.022, 6, 28, Math.PI), M.trim); strip.rotation.y = Math.PI / 2; strip.scale.set(1.12, 1, 1); strip.position.z = -0.02; head.add(strip);
+    for (const sx of [-1, 1]) { const ear = det(this.sgx(THREE.CircleGeometry, 0.035, 12), dark); ear.position.set(sx * 0.236, -0.03, 0.02); ear.rotation.y = sx * Math.PI / 2; head.add(ear); }
     // facemask cage: three curved bars, two uprights, and side mounts
     for (const [y, r] of (lite ? [[-0.095, 0.205]] : [[-0.02, 0.215], [-0.095, 0.205], [-0.165, 0.17]])) {
-      const bar = mesh(new THREE.TorusGeometry(r, 0.013, 6, 20, Math.PI * 0.82), mask);
+      const bar = mesh(this.sgx(THREE.TorusGeometry, r, 0.013, 6, 20, Math.PI * 0.82), mask);
       bar.rotation.set(Math.PI / 2, 0, Math.PI * 0.09); bar.position.set(0, y, 0.04); head.add(bar);
     }
-    for (const sx of [-0.055, 0.055]) { const vb = det(new THREE.CylinderGeometry(0.011, 0.011, 0.16, 6), mask); vb.position.set(sx, -0.09, 0.248); vb.rotation.x = -0.12; head.add(vb); }
-    for (const sx of [-1, 1]) { const mt = det(new THREE.SphereGeometry(0.022, 8, 6), mask); mt.position.set(sx * 0.2, -0.03, 0.09); head.add(mt); }
-    const chin = det(new THREE.TorusGeometry(0.085, 0.017, 6, 14, Math.PI), white); chin.rotation.set(Math.PI, 0, 0); chin.position.set(0, -0.16, 0.12); chin.scale.set(1, 0.6, 1); head.add(chin);
+    for (const sx of [-0.055, 0.055]) { const vb = det(this.sgx(THREE.CylinderGeometry, 0.011, 0.011, 0.16, 6), mask); vb.position.set(sx, -0.09, 0.248); vb.rotation.x = -0.12; head.add(vb); }
+    for (const sx of [-1, 1]) { const mt = det(this.sgx(THREE.SphereGeometry, 0.022, 8, 6), mask); mt.position.set(sx * 0.2, -0.03, 0.09); head.add(mt); }
+    const chin = det(this.sgx(THREE.TorusGeometry, 0.085, 0.017, 6, 14, Math.PI), white); chin.rotation.set(Math.PI, 0, 0); chin.position.set(0, -0.16, 0.12); chin.scale.set(1, 0.6, 1); head.add(chin);
     if (num % 3 === 0) {
-      const visor = det(new THREE.SphereGeometry(0.236, 18, 8, Math.PI / 2 - 0.75, 1.5, 1.25, 0.38), (this._curKit && this._curKit.visor && this._curKit.visor !== 'none' ? (this._visorK = this._visorK || {}, this._visorK[this._curKit.visor] || (this._visorK[this._curKit.visor] = new THREE.MeshPhysicalMaterial({ color: this._curKit.visor, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.85 }))) : this._visor || (this._visor = new THREE.MeshPhysicalMaterial({ color: 0x223355, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.82 }))));
+      const visor = det(this.sgx(THREE.SphereGeometry, 0.236, 18, 8, Math.PI / 2 - 0.75, 1.5, 1.25, 0.38), (this._curKit && this._curKit.visor && this._curKit.visor !== 'none' ? (this._visorK = this._visorK || {}, this._visorK[this._curKit.visor] || (this._visorK[this._curKit.visor] = new THREE.MeshPhysicalMaterial({ color: this._curKit.visor, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.85 }))) : this._visor || (this._visor = new THREE.MeshPhysicalMaterial({ color: 0x223355, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.82 }))));
       visor.position.z = -0.02; visor.scale.set(0.98, 1, 1.12); head.add(visor);
     }
 
@@ -908,28 +953,28 @@ export class Renderer {
     const arms = [];
     for (const sx of [0.4, -0.4]) {   // arms[1] is the player's RIGHT arm (the model faces +z): he carries and throws right-handed
       const sh = new THREE.Group(); sh.position.set(sx, 0.77, 0); torso.add(sh);
-      const cap0 = det(new THREE.SphereGeometry(0.15, 16, 12), M.jersey); cap0.scale.set(1.0, 0.9, 1.0); sh.add(cap0);
+      const cap0 = det(this.sgx(THREE.SphereGeometry, 0.15, 16, 12), M.jersey); cap0.scale.set(1.0, 0.9, 1.0); sh.add(cap0);
       const sleeveTop = det(this.limbGeo('sleeve', 0.105, 0.098, 0.09, 0.14), M.jersey); sleeveTop.position.y = -0.04; sh.add(sleeveTop);
-      const sstripe = det(new THREE.CylinderGeometry(0.104, 0.104, 0.03, 14, 1, true), M.trim); sstripe.position.y = -0.13; sh.add(sstripe);
+      const sstripe = det(this.sgx(THREE.CylinderGeometry, 0.104, 0.104, 0.03, 14, 1, true), M.trim); sstripe.position.y = -0.13; sh.add(sstripe);
       const bicep = mesh(this.limbGeo('bicep3', 0.106, 0.096, 0.07, 0.2), sleeve); bicep.position.y = -0.16; sh.add(bicep);
       const elbow = new THREE.Group(); elbow.position.y = -0.37; sh.add(elbow);
       const fore = mesh(this.limbGeo('fore3', 0.077, 0.071, 0.053, 0.22), sleeve); elbow.add(fore);
-      const band = det(new THREE.CylinderGeometry(0.056, 0.058, 0.07, 12), num % 2 ? white : M.trim); band.position.y = -0.22; elbow.add(band);
+      const band = det(this.sgx(THREE.CylinderGeometry, 0.056, 0.058, 0.07, 12), num % 2 ? white : M.trim); band.position.y = -0.22; elbow.add(band);
       const glove = new THREE.Group(); glove.position.y = -0.3; elbow.add(glove);
-      const palm = det(new RoundedBoxGeometry(0.07, 0.09, 0.045, 2, 0.02), M.glove); glove.add(palm);
-      const fingers = det(new RoundedBoxGeometry(0.068, 0.06, 0.036, 2, 0.016), M.glove); fingers.position.set(0, -0.065, 0.008); fingers.rotation.x = 0.35; glove.add(fingers);
-      const thumb = det(new THREE.CapsuleGeometry(0.016, 0.04, 3, 6), M.glove); thumb.position.set(sx > 0 ? -0.045 : 0.045, -0.02, 0.02); thumb.rotation.z = sx > 0 ? 0.6 : -0.6; glove.add(thumb);
+      const palm = det(this.sgx(RoundedBoxGeometry, 0.07, 0.09, 0.045, 2, 0.02), M.glove); glove.add(palm);
+      const fingers = det(this.sgx(RoundedBoxGeometry, 0.068, 0.06, 0.036, 2, 0.016), M.glove); fingers.position.set(0, -0.065, 0.008); fingers.rotation.x = 0.35; glove.add(fingers);
+      const thumb = det(this.sgx(THREE.CapsuleGeometry, 0.016, 0.04, 3, 6), M.glove); thumb.position.set(sx > 0 ? -0.045 : 0.045, -0.02, 0.02); thumb.rotation.z = sx > 0 ? 0.6 : -0.6; glove.add(thumb);
       arms.push({ sh, elbow, glove });
     }
     // extra gear on the High setting only (Fast and Chromebook skip it, so they stay smooth)
     if (this.quality === 'high') {
-      for (const sx of [-1, 1]) { const pnl = mesh(new THREE.BoxGeometry(0.012, 0.42, 0.11), M.trim); pnl.position.set(sx * 0.262, 0.47, 0); pnl.rotation.z = sx * 0.07; torso.add(pnl); }   // jersey side panels
-      const back = mesh(new RoundedBoxGeometry(0.36, 0.2, 0.08, 2, 0.03), M.jersey); back.position.set(0, 0.7, -0.19); back.rotation.x = 0.25; torso.add(back);   // back plate under the pads
-      for (const L of legs) { const tp = mesh(new THREE.SphereGeometry(0.1, 12, 8), M.pants); tp.scale.set(1, 1.5, 0.75); tp.position.set(0, -0.22, 0.07); L.hip.add(tp); }   // thigh pads
-      if (num % 5 === 1) { const mg = mesh(new RoundedBoxGeometry(0.07, 0.022, 0.03, 1, 0.008), M.trim); mg.position.set(0, -0.15, 0.225); head.add(mg); }   // mouthguard
-      if (num % 2 === 0) for (const sx of [-1, 1]) { const eb = mesh(new THREE.PlaneGeometry(0.045, 0.018), black); eb.position.set(sx * 0.05, -0.02, 0.205); eb.rotation.y = sx * 0.28; head.add(eb); }   // eye black
-      if (big) for (const A of arms) { const ep = mesh(new THREE.SphereGeometry(0.06, 10, 8), black); ep.scale.set(1, 0.8, 1); ep.position.set(0, 0, -0.03); A.elbow.add(ep); }   // lineman elbow pads
-      const bump = mesh(new RoundedBoxGeometry(0.16, 0.05, 0.05, 2, 0.02), black); bump.position.set(0, -0.14, -0.235); head.add(bump);   // rear helmet bumper
+      for (const sx of [-1, 1]) { const pnl = mesh(this.sgx(THREE.BoxGeometry, 0.012, 0.42, 0.11), M.trim); pnl.position.set(sx * 0.262, 0.47, 0); pnl.rotation.z = sx * 0.07; torso.add(pnl); }   // jersey side panels
+      const back = mesh(this.sgx(RoundedBoxGeometry, 0.36, 0.2, 0.08, 2, 0.03), M.jersey); back.position.set(0, 0.7, -0.19); back.rotation.x = 0.25; torso.add(back);   // back plate under the pads
+      for (const L of legs) { const tp = mesh(this.sgx(THREE.SphereGeometry, 0.1, 12, 8), M.pants); tp.scale.set(1, 1.5, 0.75); tp.position.set(0, -0.22, 0.07); L.hip.add(tp); }   // thigh pads
+      if (num % 5 === 1) { const mg = mesh(this.sgx(RoundedBoxGeometry, 0.07, 0.022, 0.03, 1, 0.008), M.trim); mg.position.set(0, -0.15, 0.225); head.add(mg); }   // mouthguard
+      if (num % 2 === 0) for (const sx of [-1, 1]) { const eb = mesh(this.sgx(THREE.PlaneGeometry, 0.045, 0.018), black); eb.position.set(sx * 0.05, -0.02, 0.205); eb.rotation.y = sx * 0.28; head.add(eb); }   // eye black
+      if (big) for (const A of arms) { const ep = mesh(this.sgx(THREE.SphereGeometry, 0.06, 10, 8), black); ep.scale.set(1, 0.8, 1); ep.position.set(0, 0, -0.03); A.elbow.add(ep); }   // lineman elbow pads
+      const bump = mesh(this.sgx(RoundedBoxGeometry, 0.16, 0.05, 0.05, 2, 0.02), black); bump.position.set(0, -0.14, -0.235); head.add(bump);   // rear helmet bumper
     }
     const wide = size, tall = 0.97 + (size - 1) * 0.25;
     root.scale.set(wide, tall, wide);
@@ -951,15 +996,18 @@ export class Renderer {
       g.addColorStop(0, 'rgba(0,0,0,0.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
       c.fillStyle = g; c.fillRect(0, 0, 64, 64);
     });
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), new THREE.MeshBasicMaterial({ map: this._blobTex, transparent: true, depthWrite: false }));
+    const mat = this._blobMat || (this._blobMat = new THREE.MeshBasicMaterial({ map: this._blobTex, transparent: true, depthWrite: false }));
+    const m = new THREE.Mesh(this.sgx(THREE.PlaneGeometry, r * 2, r * 2), mat);
     m.rotation.x = -Math.PI / 2; m.position.y = 0.015; m.renderOrder = 1;
     return m;
   }
 
-  _meshKey(p) { const [team, isOff, role, num, , , , , , , size] = p; const uk = this.userKit && team === this.userSlot ? this.userKit : null; return `${this.teams[team]}-${team}-${isOff ? 'off' : 'def'}-${role}-${num}-${p[14] || 0}-${p[11] || ''}${uk ? '-k' + JSON.stringify(uk) : ''}`; }
+  // the Locker Room kit as a key string, re-serialized only when the kit object changes (not 22 times a frame)
+  _ukStr() { const u = this.userKit; if (u !== this._ukRef) { this._ukRef = u; this._ukS = u ? JSON.stringify(u) : ''; } return this._ukS; }
+  _meshKey(p) { const [team, isOff, role, num, , , , , , , size] = p; const uk = this.userKit && team === this.userSlot ? this.userKit : null; return `${this.teams[team]}-${team}-${isOff ? 'off' : 'def'}-${role}-${num}-${p[14] || 0}-${p[11] || ''}${uk ? '-k' + this._ukStr() : ''}`; }
   getMesh(team, unit, role, num, size, fseed, name) {
     const uk = this.userKit && team === this.userSlot ? this.userKit : null;   // your Locker Room uniform on your own team
-    const key = `${this.teams[team]}-${team}-${unit}-${role}-${num}-${fseed || 0}-${name || ''}${uk ? '-k' + JSON.stringify(uk) : ''}`;   // the name is part of who he is: a sub never wears the starter's jersey
+    const key = `${this.teams[team]}-${team}-${unit}-${role}-${num}-${fseed || 0}-${name || ''}${uk ? '-k' + this._ukStr() : ''}`;   // the name is part of who he is: a sub never wears the starter's jersey
     let m = this.pmeshes.get(key);
     if (!m) { const last = String(name || '').replace(/^.\.\s*/, ''); m = this.makePlayer(this.teams[team], role, num, size, fseed || (num * 7919 + this.teams[team] * 104729), last, team === 1, uk); this.pmeshes.set(key, m); }   // team slot 1 wears the away uniform
     return m;
@@ -968,8 +1016,10 @@ export class Renderer {
   // free everything a player owned (geometry, face/number/name textures) so long sessions don't run out of memory
   clearPlayers() {
     const sharedGeo = new Set([...Object.values(this._geo || {}), ...(this._shellGeo || []), this._shellLite].filter(Boolean));
+    if (this._pgeo) for (const mm of this._pgeo.values()) for (const g of mm.values()) sharedGeo.add(g);   // memoized part geometries stay
     const keepMaps = new Set([this._fab, this._blobTex, ...Object.values(this._hd || {}).map(m => m && m.map)].filter(Boolean));
-    const keepMats = new Set([this._liner, this._visor, this._towel, ...Object.values(this._hd || {})].filter(Boolean));
+    const keepMats = new Set([this._liner, this._visor, this._towel, this._blobMat, this._white, this._sleeve, this._mask, this._black, this._dark,
+      ...Object.values(this._hd || {}), ...Object.values(this._skinM || {}), ...Object.values(this._visorK || {})].filter(Boolean));
     for (const tm of Object.values(this._tm || {})) for (const mt of Object.values(tm)) keepMats.add(mt);
     const done = new Set();
     const free = (o) => {
@@ -983,6 +1033,10 @@ export class Renderer {
     };
     for (const m of this.pmeshes.values()) { this.scene.remove(m.root); this.scene.remove(m.blob); m.root.traverse(free); free(m.blob); }
     this.pmeshes.clear();
+    // nobody wears these uniforms any more: free the per-team materials and Locker Room kit textures (rebuilt on demand)
+    for (const tm of Object.values(this._tm || {})) for (const mt of Object.values(tm)) mt.dispose();
+    for (const t of Object.values(this._kt || {})) t.dispose();
+    this._tm = {}; this._kt = {};
   }
 
   setTeams(teams) {
@@ -1129,15 +1183,17 @@ export class Renderer {
     const spinning = flags & 256, stiffing = flags & 512, hurdling = flags & 1024, leaping = flags & 2048, pressing = flags & 4096;
     const wrapping = flags & 8192, catching = flags & 16384, fallBack = flags & 32768, oneHand = flags & 65536, trucking = flags & 131072;
     const run = Math.min(1, spd / 8.5), sprint = Math.max(0, (spd - 6.5) / 2.5);
-    // stride gets longer (not just faster) as speed goes up
-    m.phase += dt * (2.4 + spd * 1.15);
+    // stride gets longer (not just faster) as speed goes up. Cadence comes from the stride so the feet don't skate:
+    // one step (pi of phase) covers about 2*L*sin(amp) of ground. Capped at ~4.2 steps/s so sprinters don't blur.
+    const amp = 0.55 + run * 0.55, L = 0.89 * (m.root.scale.z || 1);
+    m.phase += dt * (run > 0.03 ? Math.min(13.2, Math.PI * spd / Math.max(0.5, 2 * L * Math.sin(amp))) : 2.4);
     const ph = m.phase;
     const presnap = S.ph === 'presnap', dead = S.ph === 'dead';
     const lineman = role === 'C' || role === 'LG' || role === 'RG' || role === 'LT' || role === 'RT' || role.startsWith('DL');
     let lean = run * 0.3 + sprint * 0.12, roll = 0, drop = 0, fall = 0, twist = 0, hipTwist = 0, jump = 0, headX = 0;
     const lh = [0, 0], lk = [0.12, 0.12], as = [0.12, 0.12], az = [0.14, -0.14], ae = [0.3, 0.3];
     if (run > 0.03) {
-      const sw = Math.sin(ph), amp = 0.55 + run * 0.55;
+      const sw = Math.sin(ph);
       lh[0] = -sw * amp; lh[1] = sw * amp;
       // knee folds up behind on the recovery swing, stays soft on the plant
       lk[0] = 0.18 + Math.max(0, Math.sin(ph + 1.9)) * (0.9 + run * 0.9);
@@ -1157,14 +1213,18 @@ export class Renderer {
       roll = b * 0.025; hipTwist = b * 0.04;
     }
     // real-runner weight: lean forward when accelerating, sit back when braking, bank into turns, keep the eyes level
-    if (!presnap) {
+    // (last speed / facing are tracked every frame, and the smoothing is zeroed at the line, so nobody lurches on the snap)
+    {
       const acc = dt > 0 ? (spd - (m.lastSpd ?? spd)) / dt : 0; m.lastSpd = spd;
-      m.accS = (m.accS || 0) + (Math.max(-12, Math.min(12, acc)) - (m.accS || 0)) * Math.min(1, dt * 6);
-      lean += Math.max(-0.22, Math.min(0.24, m.accS * 0.022));
       const yaw = m.root.rotation.y; let dy = yaw - (m.lastYaw ?? yaw); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); m.lastYaw = yaw;
-      m.yawS = (m.yawS || 0) + ((dt > 0 ? dy / dt : 0) - (m.yawS || 0)) * Math.min(1, dt * 8);
-      roll += Math.max(-0.28, Math.min(0.28, m.yawS * 0.045 * (0.3 + run)));   // lean into the cut
-      headX -= lean * 0.35;   // head stays up, looking downfield
+      if (presnap) { m.accS = 0; m.yawS = 0; }
+      else {
+        m.accS = (m.accS || 0) + (Math.max(-12, Math.min(12, acc)) - (m.accS || 0)) * Math.min(1, dt * 6);
+        lean += Math.max(-0.22, Math.min(0.24, m.accS * 0.022));
+        m.yawS = (m.yawS || 0) + ((dt > 0 ? dy / dt : 0) - (m.yawS || 0)) * Math.min(1, dt * 8);
+        roll += Math.max(-0.28, Math.min(0.28, m.yawS * 0.045 * (0.3 + run)));   // lean into the cut
+        headX -= lean * 0.35;   // head stays up, looking downfield
+      }
     }
     if (presnap) {
       if (role === 'C') {
@@ -1208,7 +1268,8 @@ export class Renderer {
     if (pressing) { as[0] = as[1] = -1.45; ae[0] = ae[1] = 0.15; lean = 0.4; }
     if (hurdling) { m.hurT = (m.hurT || 0) + dt; const k = Math.min(1, m.hurT / 0.5); jump = Math.sin(k * Math.PI) * 0.85; lh[0] = -1.5; lk[0] = 0.3; lh[1] = 0.7; lk[1] = 1.5; lean = 0.55; as[0] = 0.6; as[1] = -0.8; } else m.hurT = 0;
     if (leaping) { m.leapT = (m.leapT || 0) + dt; const k = Math.min(1, m.leapT / 0.6); jump = Math.sin(k * Math.PI) * 0.75; as[0] = as[1] = -3.0; ae[0] = ae[1] = 0.15; az[0] = 0.25; az[1] = -0.25; lean = -0.1; lk[0] = 0.3 + (1 - Math.sin(k * Math.PI)) * 0.4; lk[1] = 0.9 * Math.sin(k * Math.PI) + 0.2; headX = 0.4; } else m.leapT = 0;
-    if (spinning) { m.spinT = (m.spinT || 0) + dt; drop += 0.08; as[0] = as[1] = -0.2; az[0] = 0.9; az[1] = -0.9; } else m.spinT = 0;
+    // a spin that has started always finishes its turn (no snapping back if the flag drops mid-spin)
+    if (spinning || (!celebrating && m.spinT > 0 && m.spinT < 0.55)) { m.spinT = (m.spinT || 0) + dt; drop += 0.08; as[0] = as[1] = -0.2; az[0] = 0.9; az[1] = -0.9; } else m.spinT = 0;
     let fallR = 0;
     if (catching && !fallen) {
       // secure it: hands come down from the ball and tuck it into the chest
@@ -1308,6 +1369,7 @@ export class Renderer {
     const black = new THREE.MeshStandardMaterial({ color: 0x0c0c0c, roughness: 0.5 });
     const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
     this.refs = [];
+    const lite = this.quality === 'potato';   // Chromebook: skip the little parts (shoulder balls, hands, cap brim), smaller faces
     const looks = [[3, 0xffffff], [7, 0x111111], [5, 0x111111]];
     for (let i = 0; i < 3; i++) {
       const F = faceParams(9000 + i * 77);
@@ -1328,17 +1390,17 @@ export class Renderer {
       jersey.scale.z = 0.7; torso.add(jersey);
       const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.08, 0.14, 10), skin); neck.position.y = 0.93; torso.add(neck);
       const head = new THREE.Group(); head.position.y = 1.12; torso.add(head);
-      const hd = new THREE.Mesh(new THREE.SphereGeometry(0.15, 22, 16), new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => drawFaceTexture(c, w, h, 9000 + i * 77)), roughness: 0.6 })); hd.scale.set(0.95, 1.1, 1); head.add(hd);
+      const hd = new THREE.Mesh(new THREE.SphereGeometry(0.15, 22, 16), new THREE.MeshStandardMaterial({ map: canvasTex(lite ? 128 : 256, lite ? 128 : 256, (c, w, h) => drawFaceTexture(c, w, h, 9000 + i * 77)), roughness: 0.6 })); hd.scale.set(0.95, 1.1, 1); head.add(hd);
       const cap = new THREE.Mesh(new THREE.SphereGeometry(0.155, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: looks[i][1], roughness: 0.6 })); cap.position.y = 0.03; head.add(cap);
-      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.015, 16, 1, false, -Math.PI / 2, Math.PI), cap.material); brim.position.set(0, 0.035, 0.1); head.add(brim);
+      if (!lite) { const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.015, 16, 1, false, -Math.PI / 2, Math.PI), cap.material); brim.position.set(0, 0.035, 0.1); head.add(brim); }
       const arms = [];
       for (const sx of [0.3, -0.3]) {
         const sh = new THREE.Group(); sh.position.set(sx, 0.76, 0); torso.add(sh);
-        sh.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), shirt));
+        if (!lite) sh.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), shirt));
         const up = new THREE.Mesh(this.limbGeo('rsleeve', 0.075, 0.07, 0.062, 0.18), shirt); sh.add(up);
         const elbow = new THREE.Group(); elbow.position.y = -0.34; sh.add(elbow);
         elbow.add(new THREE.Mesh(this.limbGeo('fore3', 0.077, 0.071, 0.053, 0.22), skin));
-        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), skin); hand.position.y = -0.28; elbow.add(hand);
+        if (!lite) { const hand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), skin); hand.position.y = -0.28; elbow.add(hand); }
         arms.push({ sh, elbow });
       }
       // number on the back
@@ -1475,9 +1537,16 @@ export class Renderer {
     this.followShadow(this.focus.x, this.focus.z + 4 * s);
   }
 
+  // key light follows the play (x, z in field coords). The light lives in the scene, the target in the stretched world,
+  // so work in world space; snap to whole shadow-map texels in light space so shadow edges don't crawl as the camera moves.
   followShadow(x, z) {
-    this.key.position.set(x - 25, 70, z + 20);
-    this.key.target.position.set(x, 0, z);
+    const k = this.zk || 1, o = this.keyOff || [-25, 70, 20], key = this.key, sc = key.shadow.camera;
+    const tw = _ftw.set(x, 0, (z - 50) * k + 50), texel = (sc.right - sc.left) / key.shadow.mapSize.x;
+    const d = _fd.set(o[0], o[1], o[2]).normalize(), rx = _fr.crossVectors(_up, d).normalize(), uy = _fu.crossVectors(d, rx);
+    const a = Math.round(tw.dot(rx) / texel) * texel, b = Math.round(tw.dot(uy) / texel) * texel, c = tw.dot(d);
+    tw.copy(rx).multiplyScalar(a).addScaledVector(uy, b).addScaledVector(d, c);
+    key.position.set(tw.x + o[0], tw.y + o[1], tw.z + o[2]);
+    if (key.target.parent === this.world) key.target.position.set(tw.x, tw.y, (tw.z - 50) / k + 50); else key.target.position.copy(tw);
   }
 
   snapCamera() { this._camInit = false; }
@@ -1505,9 +1574,10 @@ export class Renderer {
     // draw with the camera moved into the stretched world, then put it back so everything else keeps using field coords
     const cam = this.cam, k = this.zk || 1; let sp = null, sq = null;
     if (k !== 1) {
-      sp = cam.position.clone(); sq = cam.quaternion.clone();
-      const f = this._fv || (this._fv = new THREE.Vector3()); cam.getWorldDirection(f);
-      const d = f.y < -0.05 ? Math.min(220, -sp.y / f.y) : 40, tgt = sp.clone().addScaledVector(f, d);
+      if (!this._rsp) { this._rsp = new THREE.Vector3(); this._rsq = new THREE.Quaternion(); this._rtg = new THREE.Vector3(); this._fv = new THREE.Vector3(); }
+      sp = this._rsp.copy(cam.position); sq = this._rsq.copy(cam.quaternion);
+      const f = this._fv; cam.getWorldDirection(f);
+      const d = f.y < -0.05 ? Math.min(220, -sp.y / f.y) : 40, tgt = this._rtg.copy(sp).addScaledVector(f, d);
       sp.z !== undefined && cam.position.set(sp.x, sp.y, (sp.z - 50) * k + 50);
       cam.lookAt(tgt.x, tgt.y, (tgt.z - 50) * k + 50); cam.updateMatrixWorld();
     }

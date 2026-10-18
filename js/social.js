@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js';
-import { TEAMS } from './teams.js';
+import { askYes } from './ui.js?v=1792349128';
+import { TEAMS } from './teams.js?v=1792349128';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -72,13 +72,17 @@ export async function renderMenuBoard() {
 
 // ---------------- social screen ----------------
 let view = { tab: 'boards' }, searchT = null, unreadT = 0;
+// async loaders: each one takes a ticket; if another view opened (or you left Community) while it waited, it drops its result
+let loadSeq = 0;
+const ticket = () => { const t = ++loadSeq; return () => t !== loadSeq || C.screen() !== 'social'; };
+const LOAD_ERR = '<p class="note err">Couldn\u2019t load this right now. Check your connection and try again.</p>';
 export function renderSocial() {
   const { $, $$ } = C;
   const pane = $('#so-pane');
   $$('.so-tab').forEach(b => b.classList.toggle('on', b.dataset.so === view.tab));
   if (view.tab === 'film') return renderFilm();
-  if (!db()) { pane.innerHTML = '<p class="note">The community needs online accounts. Add your Supabase keys in js/config.js.</p>'; return; }
-  if (!me() && view.tab !== 'boards' && view.tab !== 'clips' && view.tab !== 'player') { pane.innerHTML = '<p class="note">Sign in with a real account to follow players, message them and post clips.</p>'; return; }
+  if (!db()) { loadSeq++; pane.innerHTML = '<p class="note">Online features are unavailable right now. You can still play against the CPU.</p>'; console.warn('[Endzone Kings] Community needs Supabase: add your keys in js/config.js (see README).'); return; }
+  if (!me() && view.tab !== 'boards' && view.tab !== 'clips' && view.tab !== 'player') { loadSeq++; pane.innerHTML = '<p class="note">Sign in with a real account to follow players, message them and post clips.</p>'; return; }
   if (view.tab === 'boards') return renderBoards();
   if (view.tab === 'clips') return renderFeed();
   if (view.tab === 'msgs') return renderInbox();
@@ -91,6 +95,7 @@ export function renderSocial() {
 
 // ---------- leaderboards ----------
 function renderBoards() {
+  loadSeq++;
   const pane = C.$('#so-pane');
   pane.innerHTML = `<div class="lb-cats">${Object.entries(BOARDS).map(([g, cols]) => `<div class="lb-group"><small>${g}</small><div class="seg">${cols.map(([k, n]) => `<button type="button" data-col="${k}" class="${k === boardCat ? 'on' : ''}">${n}</button>`).join('')}</div></div>`).join('')}</div>
     <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second. Online 1v1, Ultimate Team and Franchise games count.</span></div>
@@ -101,6 +106,7 @@ function renderBoards() {
 async function loadBoard(col, quiet) {
   const el = C.$('#lb-list'); if (!el || !ALL_COLS.includes(col)) return;
   const { data, error } = await db().from('ek_players').select(`id,name,team,lvl,games,${col}`).eq('banned', false).order(col, { ascending: false }).order('games', { ascending: true }).limit(50);
+  if (!el.isConnected) return;   // switched tabs while it loaded
   if (error) { if (!quiet) el.innerHTML = '<li class="mb-empty">Couldn’t load the leaderboard</li>'; return; }
   const key = JSON.stringify((data || []).map(r => [r.id, r[col]]));
   if (quiet && key === boardRows.key) return;
@@ -126,18 +132,20 @@ async function openProfile(id) {
   view = { tab: id === (me() && me().id) ? 'me' : 'player', id };
   C.$$('.so-tab').forEach(b => b.classList.toggle('on', b.dataset.so === view.tab));
   const pane = C.$('#so-pane'); pane.innerHTML = '<p class="note">Loading…</p>';
-  const D = db();
-  const [{ data: p }, { count: followers }, { count: following }, { data: clips }, iFollow] = await Promise.all([
+  const D = db(), stale = ticket();
+  const [{ data: p, error: pErr }, { count: followers }, { count: following }, { data: clips }, iFollow] = await Promise.all([
     D.from('ek_players').select('*').eq('id', id).maybeSingle(),
     D.from('ek_follows').select('*', { count: 'exact', head: true }).eq('followee', id),
     D.from('ek_follows').select('*', { count: 'exact', head: true }).eq('follower', id),
     D.from('ek_clips').select('id,title,teams,secs,views,created_at,vs').eq('owner', id).order('created_at', { ascending: false }).limit(30),
     me() && me().id !== id ? D.from('ek_follows').select('follower').eq('follower', me().id).eq('followee', id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  if (stale()) return;
+  if (pErr) { pane.innerHTML = LOAD_ERR; return; }
   if (!p) { if (id === (me() && me().id)) { profileMade = false; await ensureProfile(); return openProfile(id); } pane.innerHTML = '<p class="note">That player doesn’t exist.</p>'; return; }
   const mine = me() && me().id === id, fol = !!(iFollow && iFollow.data), t = TEAMS[p.team] || TEAMS[0];
   let theyFollow = false;
-  if (me() && !mine) { const { data: tf } = await D.from('ek_follows').select('follower').eq('follower', id).eq('followee', me().id).maybeSingle(); theyFollow = !!tf; }
+  if (me() && !mine) { const { data: tf } = await D.from('ek_follows').select('follower').eq('follower', id).eq('followee', me().id).maybeSingle(); theyFollow = !!tf; if (stale()) return; }
   const stat = (n, v) => `<div><b>${v}</b><small>${n}</small></div>`;
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
@@ -243,15 +251,18 @@ function wireClipCards(root) {
 }
 async function renderFeed() {
   const pane = C.$('#so-pane'); pane.innerHTML = '<p class="note">Loading clips…</p>';
-  const D = db();
-  let ids = null;
+  const D = db(), stale = ticket();
+  let ids = null, failed = false;
   if (me()) { const { data } = await D.from('ek_follows').select('followee').eq('follower', me().id).limit(500); ids = (data || []).map(r => r.followee); }
-  const fetch = async (q) => { const { data } = await q.order('created_at', { ascending: false }).limit(24); return data || []; };
+  const fetch = async (q) => { const { data, error } = await q.order('created_at', { ascending: false }).limit(24); if (error) failed = true; return data || []; };
   const base = () => D.from('ek_clips').select('id,owner,title,teams,secs,views,created_at,vs');
   const [mine, recent, top] = await Promise.all([ids && ids.length ? fetch(base().in('owner', ids)) : [], fetch(base()), D.from('ek_clips').select('id,owner,title,teams,secs,views,created_at,vs').order('views', { ascending: false }).limit(12).then(r => r.data || [])]);
+  if (stale()) return;
+  if (failed) { pane.innerHTML = LOAD_ERR; return; }
   const owners = [...new Set([...mine, ...recent, ...top].map(c => c.owner))];
   const names = {};
   if (owners.length) { const { data } = await D.from('ek_players').select('id,name').in('id', owners); for (const r of data || []) names[r.id] = r.name; }
+  if (stale()) return;
   for (const c of [...mine, ...recent, ...top]) c.owner_name = names[c.owner] || 'Player';
   pane.innerHTML = `${me() ? `<h3 class="store-h">From people you follow</h3><div class="clip-grid">${mine.length ? clipCards(mine, false) : '<p class="note">Follow players from the leaderboard to see their clips here.</p>'}</div>` : ''}
     <h3 class="store-h">Most watched</h3><div class="clip-grid">${clipCards(top, false)}</div>
@@ -300,7 +311,9 @@ export async function filmSave(S, title) {
 }
 async function renderFilm() {
   const pane = C.$('#so-pane'); pane.innerHTML = '<p class="note">Loading your game film…</p>';
+  const stale = ticket();
   let games = []; try { games = ((await filmTx('readonly', s => s.getAll())) || []).sort((a, b) => b.id - a.id); } catch (_) {}
+  if (stale()) return;
   pane.innerHTML = `<h3 class="store-h">Film Room</h3><p class="note">Your last ${FILM_MAX} games, cut down to every big play (touchdowns, picks, sacks, long gains). Saved on this device.</p>
     <div class="film-list">${games.map(g => `<div class="film-row"><div><b>${esc(g.title)}</b><small>${g.n} plays · ${ago(g.at)}</small></div><button class="btn primary sm" data-film="${g.id}" type="button">Watch</button><button class="btn sm" data-filmdel="${g.id}" type="button">Delete</button></div>`).join('') || '<p class="note">Play a game and its big plays show up here.</p>'}</div>`;
   C.$$('[data-film]', pane).forEach(b => b.onclick = async () => { const g = games.find(x => x.id === +b.dataset.film); if (!g) return; b.disabled = true; b.textContent = 'Loading…';
@@ -309,11 +322,13 @@ async function renderFilm() {
 }
 // ---------------- crews ----------------
 async function renderCrews() {
-  const pane = C.$('#so-pane'), D = db(), uid = me().id; pane.innerHTML = '<p class="note">Loading crews…</p>';
+  const pane = C.$('#so-pane'), D = db(), uid = me().id, stale = ticket(); pane.innerHTML = '<p class="note">Loading crews…</p>';
   const [{ data: crews, error }, { data: mems }] = await Promise.all([D.from('ek_crews').select('*'), D.from('ek_crew_members').select('player,crew')]);
+  if (stale()) return;
   if (error) { pane.innerHTML = '<p class="note">Crews aren\u2019t set up on the server yet.</p>'; return; }
   const ids = [...new Set((mems || []).map(m => m.player))];
   const { data: ps } = ids.length ? await D.from('ek_players').select('id,name,on_w,on_l,ut_wins,ut_l,team').in('id', ids) : { data: [] };
+  if (stale()) return;
   const P = Object.fromEntries((ps || []).map(p => [p.id, p])), mine = (mems || []).find(m => m.player === uid);
   const rows = (crews || []).map(c => { const ms = (mems || []).filter(m => m.crew === c.id).map(m => P[m.player]).filter(Boolean); const w = ms.reduce((a, p) => a + (p.on_w || 0) + (p.ut_wins || 0), 0), l = ms.reduce((a, p) => a + (p.on_l || 0) + (p.ut_l || 0), 0); return { c, ms, w, l }; }).sort((a, b) => b.w - a.w || a.l - b.l);
   const myRow = mine && rows.find(r => r.c.id === mine.crew);
@@ -410,19 +425,22 @@ function closeClip() {
 // ---------- messages ----------
 async function renderInbox() {
   const pane = C.$('#so-pane'); pane.innerHTML = '<p class="note">Loading messages…</p>';
-  const uid = me().id;
-  const { data } = await db().from('ek_messages').select('id,sender,recipient,body,read,created_at').or(`sender.eq.${uid},recipient.eq.${uid}`).order('created_at', { ascending: false }).limit(300);
+  const uid = me().id, stale = ticket();
+  const { data, error } = await db().from('ek_messages').select('id,sender,recipient,body,read,created_at').or(`sender.eq.${uid},recipient.eq.${uid}`).order('created_at', { ascending: false }).limit(300);
+  if (stale()) return;
+  if (error) { pane.innerHTML = LOAD_ERR; return; }
   const convos = new Map();
   for (const m of data || []) { const other = m.sender === uid ? m.recipient : m.sender; if (!convos.has(other)) convos.set(other, { last: m, unread: 0 }); if (m.recipient === uid && !m.read) convos.get(other).unread++; }
   const names = {};
   if (convos.size) { const { data: ps } = await db().from('ek_players').select('id,name,team').in('id', [...convos.keys()]); for (const p of ps || []) names[p.id] = p; }
+  if (stale()) return;
   pane.innerHTML = `<h3 class="store-h">Messages</h3><div class="inbox">${[...convos.entries()].map(([id, c]) => { const p = names[id] || { name: 'Player', team: 0 };
     return `<button class="convo ${c.unread ? 'unread' : ''}" type="button" data-id="${esc(id)}" data-name="${esc(p.name)}"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><b>${esc(p.name)}</b><small>${c.last.sender === uid ? 'You: ' : ''}${parseInvite(c.last.body) ? '🏈 1v1 challenge' : esc(c.last.body.slice(0, 70))}</small></div><em>${c.unread ? `<i class="dotn">${c.unread}</i>` : ago(c.last.created_at)}</em></button>`; }).join('') || '<p class="note">No messages yet. Find someone on the leaderboard and hit Message.</p>'}</div>`;
   C.$$('.convo', pane).forEach(b => b.onclick = () => openThread(b.dataset.id, b.dataset.name));
 }
 let threadSub = null;
 async function openThread(id, name) {
-  view = { tab: 'thread', id, name };
+  view = { tab: 'thread', id, name }; loadSeq++;
   C.$$('.so-tab').forEach(b => b.classList.toggle('on', b.dataset.so === 'msgs'));
   const pane = C.$('#so-pane'), uid = me().id;
   pane.innerHTML = `<div class="thread-head"><button class="btn sm ghost" id="th-back">Back</button><button class="link" id="th-who">${esc(name || 'Player')}</button></div>
@@ -431,8 +449,9 @@ async function openThread(id, name) {
   C.$('#th-back').onclick = () => { view = { tab: 'msgs' }; renderSocial(); };
   C.$('#th-who').onclick = () => openProfile(id);
   const draw = async () => {
-    const { data } = await db().from('ek_messages').select('id,sender,recipient,body,created_at').or(`and(sender.eq.${uid},recipient.eq.${id}),and(sender.eq.${id},recipient.eq.${uid})`).order('created_at', { ascending: true }).limit(200);
-    const box = C.$('#thread'); if (!box) return;
+    const { data, error } = await db().from('ek_messages').select('id,sender,recipient,body,created_at').or(`and(sender.eq.${uid},recipient.eq.${id}),and(sender.eq.${id},recipient.eq.${uid})`).order('created_at', { ascending: true }).limit(200);
+    const box = C.$('#thread'); if (!box || view.tab !== 'thread' || view.id !== id) return;
+    if (error) { box.innerHTML = LOAD_ERR; return; }
     box.innerHTML = (data || []).map(m => { const inv = parseInvite(m.body), fresh = inv && Date.now() - new Date(m.created_at) < 10 * 60000;
       return inv ? `<div class="bubble invite ${m.sender === uid ? 'mine' : ''}"><p>${m.sender === uid ? 'You challenged them to a 1v1' : 'Challenged you to a 1v1'}</p>${m.sender !== uid && fresh ? `<button class="btn sm primary" data-join="${esc(inv)}">Play now</button>` : `<small>${fresh ? 'Waiting…' : 'Expired'}</small>`}<small>${ago(m.created_at)}</small></div>`
         : `<div class="bubble ${m.sender === uid ? 'mine' : ''}"><p>${esc(m.body)}</p><small>${ago(m.created_at)}</small></div>`; }).join('') || '<p class="note">Say hi.</p>';
@@ -705,12 +724,15 @@ async function refreshRequests() {
 const ignoredSet = () => { try { return new Set(JSON.parse(localStorage.getItem('ek_ignored_req') || '[]')); } catch (_) { return new Set(); } };
 const ignore = id => { try { const s = ignoredSet(); s.add(id); localStorage.setItem('ek_ignored_req', JSON.stringify([...s])); } catch (_) {} };
 async function renderFriends() {
-  const pane = C.$('#so-pane'), uid = me().id; pane.innerHTML = '<p class="note">Loading…</p>';
-  const [{ data: inc }, { data: out }] = await Promise.all([db().from('ek_follows').select('follower').eq('followee', uid).limit(500), db().from('ek_follows').select('followee').eq('follower', uid).limit(500)]);
+  const pane = C.$('#so-pane'), uid = me().id, stale = ticket(); pane.innerHTML = '<p class="note">Loading…</p>';
+  const [{ data: inc, error: e1 }, { data: out, error: e2 }] = await Promise.all([db().from('ek_follows').select('follower').eq('followee', uid).limit(500), db().from('ek_follows').select('followee').eq('follower', uid).limit(500)]);
+  if (stale()) return;
+  if (e1 || e2) { pane.innerHTML = LOAD_ERR; return; }
   const incS = new Set((inc || []).map(r => r.follower)), outS = new Set((out || []).map(r => r.followee)), ignored = ignoredSet();
   const friends = [...outS].filter(x => incS.has(x)), requests = [...incS].filter(x => !outS.has(x) && !ignored.has(x)), sent = [...outS].filter(x => !incS.has(x));
   const ids = [...new Set([...friends, ...requests, ...sent])];
   const ps = {}; if (ids.length) { const { data } = await db().from('ek_players').select('id,name,team,lvl').in('id', ids); for (const p of data || []) ps[p.id] = p; }
+  if (stale()) return;
   const row = (id, btns, sub) => { const p = ps[id] || { name: 'Player', team: 0, lvl: 1 }; return `<div class="friend-row"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><button class="link" data-pid="${esc(id)}">${esc(p.name)}</button><small>${sub || 'Level ' + p.lvl}</small></div><div class="ad-btns">${btns}</div></div>`; };
   pane.innerHTML = `<p class="note">Find people with the search box above, open their profile and hit Add friend. When they add you back you're friends, and you can challenge each other to a 1v1 from here.</p>
     ${requests.length ? `<h3 class="store-h">Friend requests (${requests.length})</h3><div class="ad-list">${requests.map(id => row(id, `<button class="btn sm primary" data-accept="${esc(id)}">Accept</button><button class="btn sm ghost" data-ignore="${esc(id)}">Ignore</button>`, 'Wants to be friends')).join('')}</div>` : ''}

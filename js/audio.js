@@ -46,7 +46,7 @@ export class Sfx {
     });
     // slow random swell so the crowd feels alive
     this.swellT = setInterval(() => {
-      if (!this.ctx) return;
+      if (!this.ctx || c.currentTime < (this._busyUntil || 0)) return;   // don't cut a big roar short
       const t = c.currentTime, base = this.crowdBase || 0.05;
       this.crowdLayers[0].gain.setTargetAtTime(base * (0.8 + Math.random() * 0.5), t, 0.8);
     }, 1500);
@@ -54,6 +54,7 @@ export class Sfx {
 
   cheer(level = 0.45, dur = 2.5) {
     if (!this.ctx) return; const t = this.ctx.currentTime;
+    this._busyUntil = Math.max(this._busyUntil || 0, t + dur);
     const [m, b, r] = this.crowdLayers;
     for (const [g, k] of [[m, 1], [b, 0.8], [r, 0.55]]) {
       g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t);
@@ -63,17 +64,18 @@ export class Sfx {
   }
   groan() {
     if (!this.ctx) return; const t = this.ctx.currentTime, g = this.crowdLayers[0].gain;
+    this._busyUntil = Math.max(this._busyUntil || 0, t + 1.6);
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0.22, t + 0.15); g.linearRampToValueAtTime(0.05, t + 1.6);
     this.voiceBurst(t, 0.9, 140, 0.25, 'oh');
   }
 
   // crowd "voice": many-voice formant burst (used for chants)
-  voiceBurst(t, dur, pitch, amp, vowel = 'eh') {
+  voiceBurst(t, dur, pitch, amp, vowel = 'eh', voices = 6) {
     const c = this.ctx;
     const F = { eh: [530, 1840], oh: [450, 800], ah: [730, 1090], ee: [300, 2300] }[vowel];
     const out = c.createGain(); out.gain.setValueAtTime(0.0001, t); out.gain.exponentialRampToValueAtTime(amp, t + 0.05); out.gain.setValueAtTime(amp, t + dur * 0.6); out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     out.connect(this.sfxBus);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < voices; i++) {
       const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = pitch * (0.85 + Math.random() * 0.4); o.detune.value = (Math.random() - 0.5) * 40;
       const f1 = c.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = F[0]; f1.Q.value = 4;
       const f2 = c.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = F[1]; f2.Q.value = 6;
@@ -82,7 +84,8 @@ export class Sfx {
       o.start(t); o.stop(t + dur + 0.05);
     }
     const n = c.createBufferSource(); n.buffer = this.noise; const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = F[1]; nf.Q.value = 1.5;
-    const ng = c.createGain(); ng.gain.value = 0.5; n.connect(nf).connect(ng).connect(out); n.start(t, Math.random()); n.stop(t + dur + 0.05);
+    const ng = c.createGain(); ng.gain.value = 0.5 * Math.sqrt(voices / 6); n.connect(nf).connect(ng).connect(out); n.start(t, Math.random()); n.stop(t + dur + 0.05);
+    n.onended = () => { try { out.disconnect(); } catch (_) {} };   // let the whole burst graph be collected
   }
 
   // "DE-FENSE!" chant: stomp stomp + two syllables
@@ -224,11 +227,12 @@ export class Sfx {
     const tick = () => {
       if (!this.ctx || this.muted || !this._sit) return;
       const t = this.ctx.currentTime, V = ['eh', 'oh', 'ah', 'ee'];
-      for (let i = 0; i < 2; i++) this.voiceBurst(t + Math.random() * 0.2, 0.25 + Math.random() * 0.45, 120 + Math.random() * 170, 0.0035 + Math.random() * 0.005 * (this._sit === 'live' ? 1.4 : 1), V[(Math.random() * 4) | 0]);
+      // 1-2 voices per burst (not 6): same murmur, a fraction of the audio nodes; amp scaled ~sqrt(6/n) to keep the level
+      for (let i = 0; i < 2; i++) { const nv = 1 + (Math.random() < 0.5 ? 1 : 0); this.voiceBurst(t + Math.random() * 0.2, 0.25 + Math.random() * 0.45, 120 + Math.random() * 170, (0.0035 + Math.random() * 0.005 * (this._sit === 'live' ? 1.4 : 1)) * Math.sqrt(6 / nv), V[(Math.random() * 4) | 0], nv); }
     };
     this._murT = setInterval(tick, 260);
   }
-  stopMurmur() { clearInterval(this._murT); this._murT = 0; this._sit = null; }
+  stopMurmur() { clearInterval(this._murT); this._murT = 0; this._sit = null; if (this._chantT) { clearInterval(this._chantT); this._chantT = 0; } }
   setSituation(sit) {
     if (!this.ctx || sit === this._sit) return;
     this._sit = sit; this.startMurmur();
@@ -325,7 +329,6 @@ export class Sfx {
       u.pitch = this.fallback ? 0.6 : natural ? (hy ? 1.12 : 1.02) : (hy ? 1.02 : 0.9) + j;
       u.volume = Math.min(1, this.vol * 1.3);
       speechSynthesis.speak(u);
-      if (hy && this.crowdSwell) this.crowdSwell();
     } catch (_) {}
   }
   // turn a game message into a play-by-play call

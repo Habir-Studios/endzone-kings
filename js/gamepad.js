@@ -84,7 +84,7 @@ function press(i) {
     kick: { 0: 'Space' },
     half: { 0: 'Space' },
     replay: { 0: 'Space', 1: 'Escape' },
-    dead: { 8: 'KeyV', 2: 'KeyR', 3: 'Tab' },
+    dead: { 0: 'Space', 8: 'KeyV', 2: 'KeyR', 3: 'Tab' },   // A skips the break between plays
   }[c] || {};
   const pre = c === 'presnapOff' || c === 'presnapDef';
   if (pre && (i === 14 || i === 15 || i === 12 || i === 13) && !C.hotOpen()) return C.cardNav(i);
@@ -94,14 +94,43 @@ function press(i) {
   if (map[i]) tap(map[i]);
 }
 
-// menus: D-pad / stick moves between buttons, A presses, B goes back
+// menus: D-pad / stick moves between buttons, A presses, B goes back.
+// Only the topmost open popup is navigable; with none open, the active screen is.
 let navT = 0;
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex="0"]';
+const visible = el => el.offsetParent !== null || getComputedStyle(el).position === 'fixed';
+function navRoot() {
+  const modals = [...document.querySelectorAll('.modal:not(.hidden)')].filter(visible);
+  if (modals.length) {
+    // the topmost one: highest z-index, later in the page wins a tie
+    let top = modals[0], tz = -Infinity;
+    for (const m of modals) { const z = parseInt(getComputedStyle(m).zIndex, 10) || 0; if (z >= tz) { tz = z; top = m; } }
+    return top;
+  }
+  return document.querySelector('.screen.active');
+}
+const CLOSE_SEL = '#pk-close, #lock-no, [data-x], [data-a="0"], #resume, #subs-x, #po-done:not(.hidden), #dlg-x, #cd-x, #ban-ok, .close, [aria-label="Close"]';
+const BACK_SEL = '[data-go="back"], [data-go="menu"], #online-back';
 function menuNav(i) {
-  const list = [...document.querySelectorAll('.screen.active button:not([disabled]), .screen.active input, .screen.active select, .modal:not(.hidden) button:not([disabled]), #gameover:not(.hidden) button:not([disabled])')].filter(el => el.offsetParent !== null);
+  const root = navRoot(); if (!root) return;
+  const list = [...root.querySelectorAll(FOCUSABLE)].filter(el => el.offsetParent !== null);
+  const act = document.activeElement;
+  let k = list.indexOf(act);
+  if (i === 1) {
+    const isModal = root.classList.contains('modal');
+    const back = [...root.querySelectorAll(isModal ? CLOSE_SEL : BACK_SEL)].find(el => el.offsetParent !== null && !el.disabled);
+    if (back) back.click();
+    else if (isModal && root.id !== 'gameover' && root.id !== 'pause' && root.id !== 'packopen') root.classList.add('hidden');
+    return;
+  }
   if (!list.length) return;
-  let k = list.indexOf(document.activeElement);
-  if (i === 0) { if (k >= 0) list[k].click(); else list[0].focus(); return; }
-  if (i === 1) { const back = list.find(el => el.dataset.go === 'menu' || el.dataset.go === 'back' || el.id === 'resume'); if (back) back.click(); return; }
+  // sliders: left / right step the value
+  if ((i === 14 || i === 15) && act && act.tagName === 'INPUT' && act.type === 'range' && list.includes(act)) {
+    if (i === 15) act.stepUp(); else act.stepDown();
+    act.dispatchEvent(new Event('input', { bubbles: true })); act.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  if (i === 0) { if (k >= 0) { if (act.tagName === 'INPUT' && act.type !== 'checkbox' && act.type !== 'radio') act.focus(); else act.click(); } else list[0].focus(); return; }
   if (i === 12 || i === 14) k = k <= 0 ? list.length - 1 : k - 1;
   else if (i === 13 || i === 15) k = k < 0 || k >= list.length - 1 ? 0 : k + 1;
   else return;

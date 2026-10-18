@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js';
-import * as Form from './form.js';
-import { watchSim } from './simview.js';
-import { bracketHTML } from './bracket.js';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js';
-import { Renderer } from './render.js';
-import { Sfx } from './audio.js';
-import { Auth } from './auth.js';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js';
-import { getRoster, teamOvr } from './teams.js';
-import * as Season from './season.js';
-import * as Fr from './franchise.js';
-import * as League from './league.js';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js';
-import { initGamepad, pad, glyphs } from './gamepad.js';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js';
-import * as UTm from './ut.js';
-import { initCreator, renderCreator } from './creator.js';
-import { filmCapture, filmSave } from './social.js';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js';
-import { portraitURL } from './faces.js';
-import { logoURL, clearLogoCache } from './logos.js';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792349128';
+import * as Form from './form.js?v=1792349128';
+import { watchSim } from './simview.js?v=1792349128';
+import { bracketHTML } from './bracket.js?v=1792349128';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792349128';
+import { Renderer } from './render.js?v=1792349128';
+import { Sfx } from './audio.js?v=1792349128';
+import { Auth } from './auth.js?v=1792349128';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792349128';
+import { getRoster, teamOvr } from './teams.js?v=1792349128';
+import * as Season from './season.js?v=1792349128';
+import * as Fr from './franchise.js?v=1792349128';
+import * as League from './league.js?v=1792349128';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792349128';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792349128';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792349128';
+import * as UTm from './ut.js?v=1792349128';
+import { initCreator, renderCreator } from './creator.js?v=1792349128';
+import { filmCapture, filmSave } from './social.js?v=1792349128';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792349128';
+import { portraitURL } from './faces.js?v=1792349128';
+import { logoURL, clearLogoCache } from './logos.js?v=1792349128';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -204,13 +204,14 @@ $$('[data-go]').forEach(b => b.addEventListener('click', () => {
   const g = b.dataset.go;
   if (LOCKED.includes(g) && isGuest() && !LOCALNET) { const t = b.querySelector('.tl-k'); lockPrompt(t ? t.textContent : ''); return; }
   if (g === 'back') {
-    if (st.playing) { $$('.screen').forEach(s => s.classList.remove('active')); st.screen = 'game'; $('#pause').classList.remove('hidden'); }
+    if (st.playing) backToPause();
     else show(st.prev || 'menu');
   } else show(g);
 }));
 $$('.logo-slot').forEach(s => s.appendChild($('#tpl-logo').content.cloneNode(true)));
 $('#yr').textContent = new Date().getFullYear();
 
+function backToPause() { $$('.screen').forEach(s => s.classList.remove('active')); st.screen = 'game'; $('#pause').classList.remove('hidden'); }
 function injBanner(t, mine) {
   const el = document.getElementById('inj-top') || Object.assign(document.createElement('div'), { id: 'inj-top', className: 'inj-top', role: 'status' });
   if (!el.parentNode) (document.getElementById('hud') || document.body).appendChild(el);
@@ -238,7 +239,8 @@ function setupAuthUI() {
   $('.email-row').classList.toggle('hidden', !sb);
   $('#su-email').required = sb;
   $('#auth-mode').innerHTML = sb ? '✓ Online accounts are on — your record syncs everywhere.'
-    : 'Offline mode: accounts are saved on this device only. Add your Supabase keys in <code>js/config.js</code> to turn on real accounts + online 1v1.';
+    : 'Online features are unavailable right now. You can still play against the CPU. Accounts made now are saved on this device only.';
+  if (!sb) console.warn('[Endzone Kings] Supabase is not configured: add your keys in js/config.js (see README) to turn on real accounts and online play.');
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => {
   $$('.tab').forEach(x => x.classList.toggle('active', x === t));
@@ -429,7 +431,7 @@ function renderSeason() {
     box.querySelectorAll('[data-sinj]').forEach(el => el.onclick = () => { const r = el.dataset.sinj, p = ros[r] || {}; showInfo((S.inj || {})[r] ? 'Injury report' : 'Player status', injuryCard({ name: p.name || r, pos: `${r} · ${p.ovr || ''} OVR`, inj: (S.inj || {})[r], ling: (S.ling || {})[r], form: (S.form || {})[r] || 0, backWeek: (S.inj || {})[r] ? (S.week || 0) + 1 + S.inj[r].weeks : 0 })); }); }
   $('#stand-h').textContent = S.phase === 'regular' ? 'Standings (division winners + 3 wild cards per conference make the playoffs)' : 'Final standings';
     const seeds = S.playoffs ? S.playoffs.seeds : [...Season.seeds(S, 'AFC'), ...Season.seeds(S, 'NFC')];
-    $('#stand').innerHTML = Season.divisionTables(S).map(D => `<tr class="div-h"><th colspan="7">${D.div}</th></tr>` + D.rows.map(r => {
+    $('#stand').innerHTML = '<tr><th>Seed</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>PF</th><th>PA</th></tr>' + Season.divisionTables(S).map(D => `<tr class="div-h"><th colspan="7">${D.div}</th></tr>` + D.rows.map(r => {
       const sd = seeds.indexOf(r.team), seed = sd < 0 ? '' : (sd % 7) + 1;
       return `<tr class="${r.team === me ? 'me' : ''}"><td>${seed ? `<small class="seed">${seed}</small>` : ''}</td><td><i class="dot" style="background:${TEAMS[r.team].jersey}"></i>${TEAMS[r.team].city}</td><td>${r.w}</td><td>${r.l}</td><td>${r.t}</td><td>${r.pf}</td><td>${r.pa}</td></tr>`;
     }).join('')).join('');
@@ -462,7 +464,7 @@ $('#season-play').addEventListener('click', () => {
   const S = loadSeason(); if (!S) return;
   const g = Season.userGame(S); if (!g) return;
   const opp = g.home === S.team ? g.away : g.home;
-  startCPU({ teams: [S.team, opp], season: true, rosters: [Form.seasonRoster(S), null] });
+  startCPU({ teams: [S.team, opp], season: true, playoff: S.phase !== 'regular', rosters: [Form.seasonRoster(S), null] });
 });
 $('#season-quit').addEventListener('click', async () => {
   const S = loadSeason();
@@ -518,7 +520,7 @@ function renderSettings() {
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
   seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); });
 
-  $('#cel-note').textContent = P ? 'Your scorer does this after a touchdown. Level up to unlock more.' : 'Make a free account to unlock the bow and the moonwalk.';
+  { const n = document.getElementById('cel-note'); if (n) n.textContent = !isGuest() ? 'Your scorer does this after a touchdown. Level up to unlock more.' : 'Make a free account to unlock the bow and the moonwalk.'; }
 }
 $('#set-vol').addEventListener('input', (e) => { SET.vol = +e.target.value; sfx.setVolume(SET.vol); saveSet(); });
 $('#set-music').addEventListener('input', (e) => { SET.music = +e.target.value; sfx.setMusicVolume(SET.music); saveSet(); });
@@ -546,6 +548,7 @@ function startIntro() {
   const tn = st.teamNames || [];
   const card = (t, name, side, k) => `<div class="in-team ${side}" style="--c:${t.jersey === '#121a14' ? '#18c964' : t.jersey};--c2:${t.trim}"><img class="in-logo" alt="" src="${logoURL(teams[k], 160)}"><div><small>${escapeHtml(name || '')}</small><b>${escapeHtml(tn[k] || t.name)}</b><span>${tn[k] ? 'Ultimate Team' : t.abbr}</span></div></div>`;
   $('#intro-teams').innerHTML = card(T[0], st.names[0], 'l', 0) + '<div class="in-vs">VS</div>' + card(T[1], st.names[1], 'r', 1);
+  { const sk = document.getElementById('in-skip'); if (sk) sk.innerHTML = pad.on ? `Press <kbd>${glyphs().A}</kbd> to skip` : touchOn() ? 'Tap to skip' : 'Press <kbd>Space</kbd> to skip'; }
   $('#intro').classList.remove('hidden');
   $('#hud').classList.add('intro');
   st.intro = 4.2; st.introLen = 4.2; st.introOn = true;
@@ -573,7 +576,7 @@ function startCPU(opts = {}) {
   const adapt = adaptiveCpu(opts);
   // the adjustment is silent: no message, the CPU just plays tougher (or easier)
   const wind = opts.practice || opts.drill ? 0 : opts.wind ?? (opts.season || opts.franchise ? [0, 0, 5, 5, 10, 10, 15, 20][(Math.random() * 8) | 0] : (SET.wind || 0));
-  st.game = createGame({ wind, teams, humans: [true, false], adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
+  st.game = createGame({ wind, teams, humans: [true, false], playoff: !!opts.playoff, adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', (st.teamNames && st.teamNames[1]) || TEAMS[teams[1]].city];   // the CPU side goes by its team name
   R.setTeams(st.game.opts.teams);
@@ -616,7 +619,14 @@ window.addEventListener('keydown', (e) => {
   if (['Space', 'Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k) && !e.target.closest('.modal')) e.preventDefault();
   if (e.repeat) { keys.add(k); return; }
   keys.add(k);
+  if (k === 'Escape') {
+    const sd = document.getElementById('subs-dlg');
+    if (sd && !sd.classList.contains('hidden')) { const x = $('#subs-x'); if (x) x.click(); else sd.classList.add('hidden'); return; }
+    // Settings or Controls opened from the pause menu: Esc goes back to the pause menu
+    if (st.screen !== 'game' && (st.screen === 'settings' || st.screen === 'howto')) { backToPause(); return; }
+  }
   if (st.intro > 0) { if (k === 'Space' || k === 'Enter' || k === 'Escape') endIntro(); return; }
+  if (k === 'Escape' && celPickOpen()) { closeCelPick(); return; }
   if (k === 'Escape' && st.hot.open) { toggleHot(false); return; }
   if (k === 'Escape' && st.replay) { stopReplay(); return; }
   if (k === 'Escape') { togglePause(); return; }
@@ -792,6 +802,7 @@ function keyToEvent(k) {
       if (k === 'KeyL') return { t: 'flip' };
       if (k === 'KeyJ') return { t: 'motion' };
       if (k === 'KeyK') return { t: 'spike' };
+      if (k === 'KeyU') return { t: 'play', id: 'kneel' };   // take a knee (then snap)
       if (k === 'KeyN') return { t: 'nohuddle' };
       if (k === 'KeyO') return { t: 'onside' };
     } else if (k === 'KeyQ') return { t: 'switch' };
@@ -822,6 +833,7 @@ function keyToEvent(k) {
 
 canvas.addEventListener('pointerdown', (e) => {
   if (!st.playing || st.paused || !st.snap || st.intro > 0) return;
+  if (st.snap.ph === 'presnap' && st.snap.poss === st.local) return;   // on offense you're always the QB before the snap
   const id = R.pick(e.clientX, e.clientY, st.snap, st.local);
   if (id >= 0) pushEv({ t: 'pick', id });
 });
@@ -896,6 +908,7 @@ function stepReplay(dt) {
 function padContext() {
   if (!st.playing) return 'menu';
   if (st.mode === 'clip') return 'replay';
+  if (st.screen !== 'game') return 'paused';   // Settings / Controls opened from the pause menu
   if (!$('#gameover').classList.contains('hidden')) return 'over';
   if (st.paused || !$('#pause').classList.contains('hidden')) return 'paused';
   if (st.replay) return 'replay';
@@ -1014,7 +1027,7 @@ function subRow(S, role, focus) {
     const f = Math.round((fat[d ? `${role}#${d}` : role] || 0) * 100), on = d === dep;
     const tag = d === 0 ? 'Starter' : d === 1 ? '2nd string' : '3rd string';
     const why = hurt ? `Hurt: ${hurt}` : f > 0 ? `Tired ${f}%` : 'Fresh';
-    return `<button class="sub-chip ${on ? 'on' : ''} ${hurt ? 'hurt' : ''}" data-role="${role}" data-pick="${d}" ${on || hurt || live ? 'disabled' : ''} type="button"><small>${tag}</small><b>${escapeHtml(String(nm))}</b><span>${ovr ? ovr + ' OVR · ' : ''}${why}</span><i class="fat"><i style="width:${f}%;background:${f > 60 ? '#ff5a5a' : f > 35 ? '#f6c445' : '#22c55e'}"></i></i></button>`;
+    return `<button class="sub-chip ${on ? 'on' : ''} ${hurt ? 'hurt' : ''}" data-role="${role}" data-pick="${d}" ${on || hurt || live ? 'disabled' : ''} type="button"><small>${tag}</small><b>${escapeHtml(String(nm))}</b><span>${ovr ? ovr + ' OVR · ' : ''}${why}</span><i class="fat"><i style="width:${f}%;background:${f > 60 ? '#ff5a5a' : f > 35 ? '#ffb020' : '#22c55e'}"></i></i></button>`;
   }).join('');
   return `<div class="sub-row2 ${focus ? 'focus' : ''}"><span class="sub-pos">${role}</span><div class="sub-chips">${chips}</div></div>`;
 }
@@ -1354,13 +1367,16 @@ function switchTab(d) {
 function padHint(items) {
   const g = glyphs(), c = padContext();
   const M = {
-    pass: { '1 2 3 4 5': `${g.A} ${g.B} ${g.X} ${g.Y} ${g.RB}`, 'W A S D': g.LS, Shift: g.RT },
+    presnapOff: { Space: g.A, Backspace: 'D-pad', L: g.LT, J: g.X, N: 'L3', K: g.RT, V: g.View, H: g.Y, 'hold Tab': '' },
+    presnapDef: { Q: g.B, V: g.View, 'hold Tab': '' },
+    dead: { Space: g.A, N: '', O: '', V: g.View, 'hold Tab': g.Y },
+    pass: { '1 2 3 4 5': `${g.A} ${g.B} ${g.X} ${g.Y} ${g.RB}`, 'hold 1-5': `hold ${g.A} ${g.B} ${g.X} ${g.Y} ${g.RB}`, 'W A S D': g.LS, Shift: g.RT, O: '', G: '' },
     carry: { Space: g.RS + ' flick', E: g.B, R: g.A, B: g.RB, F: g.Y, X: g.X, G: g.LB, Shift: g.RT },
     air: { 'W A S D': g.LS, E: g.Y, Q: g.B, Shift: g.RT },
     def: { Space: g.X, Q: g.B, Shift: g.RT, E: g.Y },
   }[c] || {};
-  const G = { Esc: g.Menu, C: g.R3, R: g.X, T: '', 'hold Tab': `hold ${g.Y}` };
-  return items.map(([k, t]) => [M[k] || G[k] || k, t]).filter(([k]) => k);
+  const G = { Esc: g.Menu, C: g.R3, R: g.X, T: '', 'hold Tab': `hold ${g.Y}`, '- +': 'D-pad ↑ ↓' };
+  return items.map(([k, t]) => [k in M ? M[k] : k in G ? G[k] : k, t]).filter(([k]) => k);
 }
 function hint(items) {
   if (pad.on) items = padHint(items);
@@ -1412,7 +1428,8 @@ function renderKickMeter(S) {
     hudCache.km = k.type + k.stage + mine;
     $('#km-title').textContent = k.type === 'punt' ? 'Punt' : k.type === 'xp' ? 'Extra point' : 'Field goal';
     $('#km-dist').textContent = k.type === 'punt' ? `Leg range about ${Math.round(k.maxR)} yds` : `${k.fd} yards, range ${Math.round(k.maxR)}`;
-    const steps = { aim: 'Aim with <kbd>A</kbd> <kbd>D</kbd>, then press <kbd>Space</kbd> to start the kick', power: 'Press <kbd>Space</kbd> to lock your power', acc: 'Press <kbd>Space</kbd> as the needle hits the gold zone' };
+    const kk = pad.on ? glyphs().A : 'Space', aimK = pad.on ? `<kbd>${glyphs().LS}</kbd>` : '<kbd>A</kbd> <kbd>D</kbd>';
+    const steps = { aim: `Aim with ${aimK}, then press <kbd>${kk}</kbd> to start the kick`, power: `Press <kbd>${kk}</kbd> to lock your power`, acc: `Press <kbd>${kk}</kbd> as the needle hits the white zone` };
     $('#km-step').innerHTML = mine ? steps[k.stage] : 'The other team is kicking';
     $('#km-btn').textContent = k.stage === 'aim' ? 'Start kick' : k.stage === 'power' ? 'Lock power' : 'Kick';
     $('#km-btn').classList.toggle('hidden', !mine);
@@ -1508,9 +1525,16 @@ function updateHud(S) {
     const pickedName = col ? (() => { const id = onOff ? S.op : S.dp; for (const t of st.pbTabs || []) { const c = t.cards.find(x => x.id === id); if (c) return c.name; } return ''; })() : '';
     setTxt('#pc-title', col ? `${onOff ? 'Offense' : 'Defense'}: ${pickedName}` : onOff ? (S.pat >= 0 ? 'Kick the extra point or go for 2' : S.dn === 4 ? 'Fourth down, your call' : 'Offense') : 'Defense');
     const waitD = onOff && S.humans[1 - me] && !S.dc;
-    const hintHtml = onOff ? (S.op ? (waitD ? '<span>Waiting for the defense to call a play…</span>' : '') + `<span><kbd>Space</kbd> snap</span>${hotOk(S) ? '<span><kbd>H</kbd> hot route</span>' : ''}<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>` : `<span><kbd>1</kbd>–<kbd>${Math.min(PER_TAB, ((st.pbTabs || [])[st.pbTab] || { cards: [] }).cards.length) || 1}</kbd> pick</span><span><kbd>Z</kbd><kbd>X</kbd> tabs</span>`)
-      : (isCPU ? `<span>${escapeHtml(st.names[1 - me] || 'They')} snap soon</span>` + '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch</span>' : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span><span><kbd>Q</kbd> switch player</span>');
-    const hintFull = col ? hintHtml.replace(/<span><kbd>Z<\/kbd><kbd>X<\/kbd> tabs<\/span>/, '') + '<span><kbd>Backspace</kbd> change play</span>' : hintHtml;
+    const g = glyphs(), kb = (key, pk) => `<kbd>${pad.on ? pk : key}</kbd>`;
+    const tabsH = pad.on ? `<span><kbd>${g.LB}</kbd><kbd>${g.RB}</kbd> tabs</span>` : '<span><kbd>Z</kbd><kbd>X</kbd> tabs</span>';
+    const nCards = Math.min(PER_TAB, ((st.pbTabs || [])[st.pbTab] || { cards: [] }).cards.length) || 1;
+    const pickH = pad.on ? `<span><kbd>◀</kbd><kbd>▶</kbd><kbd>${g.A}</kbd> pick</span>` : `<span><kbd>1</kbd>–<kbd>${nCards}</kbd> pick</span>`;
+    const hintHtml = onOff ? (S.op ? (waitD ? '<span>Waiting for the defense to call a play…</span>' : '') + `<span>${kb('Space', g.A)} snap</span>${hotOk(S) ? `<span>${kb('H', g.Y)} hot route</span>` : ''}${tabsH}` : pickH + tabsH)
+      : (isCPU ? `<span>${escapeHtml(st.names[1 - me] || 'They')} snap soon</span>` + tabsH + `<span>${kb('Q', g.B)} switch</span>` : tabsH + `<span>${kb('Q', g.B)} switch player</span>`);
+    const hintFull = col ? hintHtml.replace(tabsH, '') + `<span>${kb('Backspace', 'D-pad')} change play</span>` : hintHtml;
+    // the scorebug hides while the play call is up, so the situation goes in the header
+    { let sit = document.getElementById('pc-sit'); if (!sit) { sit = document.createElement('small'); sit.id = 'pc-sit'; sit.className = 'pc-sit'; $('#pc-book').insertAdjacentElement('afterend', sit); }
+      setTxt('#pc-sit', `${T[0].abbr} ${S.sc[0]} - ${S.sc[1]} ${T[1].abbr} · ${hudCache['#sb-q'] || ''} ${hudCache['#sb-clk'] || ''} · ${hudCache['#sb-down'] || ''} · ${hudCache['#sb-spot'] || ''}`); }
     if (hudCache.pch !== hintFull) { hudCache.pch = hintFull; $('#pc-hint').innerHTML = hintFull; }
     const clk = $('#pc-clock'), pcv = S.pc;
     if (hudCache.pcv !== pcv) { hudCache.pcv = pcv; $('b', clk).textContent = pcv; clk.classList.toggle('low', pcv <= 5); if (pcv <= 5 && pcv > 0 && S.poss === me) sfx.play('ui'); }
@@ -1527,12 +1551,12 @@ function updateHud(S) {
     const show = !!(j && j.ready) && S.ph !== 'live'; $('#inj-ask').classList.toggle('hidden', !show);
     if (show) setTxt('#inj-ask-t', `${j.name} (${j.kind}) is cleared to go back in.`); }
   // wind arrow, drawn from your point of view
-  { const W = S.wind, on = !!(W && W.mph); $('#wind-ind').classList.toggle('hidden', !on);
+  { const W = S.wind, on = !!(W && W.mph); $('#wind-ind').classList.toggle('hidden', !on || st.hot.open);   // the hot route panel sits in the same corner
     if (on) { const s = st.local === 1 ? -1 : 1, ang = Math.atan2(-Math.sin(W.dir) * s, Math.cos(W.dir) * s) * 180 / Math.PI, key = W.mph + '|' + Math.round(ang);
       if (hudCache.wind !== key) { hudCache.wind = key; $('#wind-arrow').style.transform = `rotate(${ang - 90}deg)`; setTxt('#wind-mph', `${W.mph} mph`); } } }
   // contextual hints
   if (S.ph === 'dead' && st.mode !== 'clip' && st.mode !== 'spec') hint(S.poss === me ? [['hold Tab', 'emote'], ['Space', 'skip'], ['N', 'no huddle'], ['O', (S.osd || [])[me] ? 'cancel onside' : 'onside kick']] : [['hold Tab', 'emote'], ['Space', 'skip']]);
-  else if (S.ph === 'presnap' && S.poss === me && st.mode !== 'clip' && st.mode !== 'spec' && !(S.sp && S.sp.pat) && S.mode !== 'drill') hint([['Space', 'snap'], ['Backspace', 'audible'], ['L', S.flip ? 'unflip' : 'flip play'], ['J', 'motion'], ['N', 'same play'], ['K', 'spike'], ['V', 'timeout'], ['hold Tab', 'emote']]);
+  else if (S.ph === 'presnap' && S.poss === me && st.mode !== 'clip' && st.mode !== 'spec' && !(S.sp && S.sp.pat) && S.mode !== 'drill') hint([['Space', 'snap'], ['Backspace', 'audible'], ['L', S.flip ? 'unflip' : 'flip play'], ['J', 'motion'], ['N', 'same play'], ['K', 'spike'], ['U', 'kneel'], ['V', 'timeout'], ['hold Tab', 'emote']]);
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1;
     const iCarry = carrier >= 0 && carrier === S.ctrl[me];
@@ -1565,7 +1589,7 @@ function renderOnline() {
   const warn = $('#online-warn');
   let w = '';
   if (isBanned()) w = 'Your account is banned, so online play is off.';
-  else if (!Auth.configured() && !LOCALNET) w = 'Online 1v1 needs the free Supabase setup first. Open <b>README.md</b> → Step 2, paste your keys into <code>js/config.js</code>, and push to GitHub.';
+  else if (!Auth.configured() && !LOCALNET) { w = 'Online features are unavailable right now. You can still play against the CPU.'; console.warn('[Endzone Kings] Online 1v1 needs Supabase: add your keys in js/config.js (see README, Step 2).'); }
   else if (Auth.user && Auth.user.kind === 'guest' && !LOCALNET) w = 'Make a free account to play online (Log out → Sign up).';
   warn.innerHTML = w; warn.classList.toggle('hidden', !w);
   $('#host-btn').disabled = !!w; $('#join-btn').disabled = !!w;

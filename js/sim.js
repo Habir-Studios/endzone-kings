@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792382743';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792382891';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792382743';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792382891';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -864,7 +864,7 @@ function launchBall(g, tx, tz, T, h, target, auto) {
   b.target = target; b.auto = auto; b.carrier = -1;
 }
 
-// where a receiver will be T seconds from now if he keeps running his route (cuts included), like Madden's lead
+// where a receiver will be T seconds from now if he keeps running his route (cuts included), so the throw can lead him
 function routeAhead(g, p, T) {
   const P = g.play, d = dirOf(P.off), v = Math.max(hyp(p.vx, p.vz), (p.max || 7) * 0.85);
   let x = p.x, z = p.z, left = v * T, lx = p.ldx ?? Math.sin(p.face || 0), lz = p.ldz ?? Math.cos(p.face || 0);
@@ -1924,7 +1924,7 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
   if (airPass) {
     const since = g.t - P.throwT;
     if (p.id === b.target) {
-      // Madden-style: if the ball is on his route he just keeps running it and catches it in stride
+      // if the ball is on his route he just keeps running it and catches it in stride
       if (p.route && !p.rstop && !p.contacted) {
         const left = Math.max(0, (b.T || 1) - b.t), there = routeAhead(g, p, left);
         if (hyp(there.x - b.tx, there.z - b.tz) < 1.6) { const mv = p.ri < p.route.length ? routeMove(g, p) : { x: p.ldx || 0, z: p.ldz || 1 }; return { ...mv, s: 1 }; }

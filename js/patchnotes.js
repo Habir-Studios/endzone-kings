@@ -7,7 +7,7 @@ export const NOTES = [
     date: "2026-10-19",
     added: [],
     fixed: [
-      "Passing works like Madden now: the QB throws to where your receiver is going on his route, cuts included, so he catches it in stride instead of running to the ball",
+      "Passing feels way better: the QB throws to where your receiver is going on his route, cuts included, so he catches it in stride instead of running to the ball",
       "Off-target throws miss a step ahead or behind on the receiver’s path instead of off to the side"
     ]
   },

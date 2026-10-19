@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792384639';
-import { NOTES } from './patchnotes.js?v=1792384639';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792384639';
-import * as Form from './form.js?v=1792384639';
-import { watchSim } from './simview.js?v=1792384639';
-import { bracketHTML } from './bracket.js?v=1792384639';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792384639';
-import { Renderer } from './render.js?v=1792384639';
-import { Sfx } from './audio.js?v=1792384639';
-import { Auth } from './auth.js?v=1792384639';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792384639';
-import { getRoster, teamOvr } from './teams.js?v=1792384639';
-import * as Season from './season.js?v=1792384639';
-import * as Fr from './franchise.js?v=1792384639';
-import * as League from './league.js?v=1792384639';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792384639';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792384639';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792384639';
-import * as UTm from './ut.js?v=1792384639';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792384639';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792384639';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792384639';
-import { portraitURL } from './faces.js?v=1792384639';
-import { logoURL, clearLogoCache } from './logos.js?v=1792384639';
+import { CONFIG } from './config.js?v=1792384691';
+import { NOTES } from './patchnotes.js?v=1792384691';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792384691';
+import * as Form from './form.js?v=1792384691';
+import { watchSim } from './simview.js?v=1792384691';
+import { bracketHTML } from './bracket.js?v=1792384691';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792384691';
+import { Renderer } from './render.js?v=1792384691';
+import { Sfx } from './audio.js?v=1792384691';
+import { Auth } from './auth.js?v=1792384691';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792384691';
+import { getRoster, teamOvr } from './teams.js?v=1792384691';
+import * as Season from './season.js?v=1792384691';
+import * as Fr from './franchise.js?v=1792384691';
+import * as League from './league.js?v=1792384691';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792384691';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792384691';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792384691';
+import * as UTm from './ut.js?v=1792384691';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792384691';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792384691';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792384691';
+import { portraitURL } from './faces.js?v=1792384691';
+import { logoURL, clearLogoCache } from './logos.js?v=1792384691';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1311,13 +1311,14 @@ const oppName = () => (st.names && st.names[1 - st.local]) || 'Your opponent';
 let npTick = null;
 function showNp(by) {
   $('#np-overlay').classList.remove('hidden'); $('#np-by').textContent = by || 'Both players agreed to pause';
+  $('#np-resume').disabled = false; $('#np-resume').textContent = 'I’m ready'; $('#np-wait').textContent = 'The game resumes when you’re both ready, or when the timer runs out';
   clearInterval(npTick);
   const tick = () => { if (!st.np) return; const s = Math.max(0, Math.ceil((st.np.until - performance.now()) / 1000)); $('#np-left').textContent = `0:${String(s).padStart(2, '0')}`; if (s <= 0 && st.mode === 'guest') hideNp(); };
   tick(); npTick = setInterval(tick, 250);
   sfx.play('whistle');
 }
 function hideNp() { st.np = null; clearInterval(npTick); npTick = null; $('#np-overlay').classList.add('hidden'); }
-function startNetPause(hostAsked) { st.np = { until: performance.now() + NP_SECS * 1000 }; st.peer && st.peer.send({ t: 'np', ms: NP_SECS * 1000, hostAsked }, true); showNp(hostAsked ? `You asked, ${oppName()} agreed` : `${oppName()} asked, you agreed`); }
+function startNetPause(hostAsked) { st.np = { until: performance.now() + NP_SECS * 1000, ready: [false, false] }; st.peer && st.peer.send({ t: 'np', ms: NP_SECS * 1000, hostAsked }, true); showNp(hostAsked ? `You asked, ${oppName()} agreed` : `${oppName()} asked, you agreed`); }
 function endNetPause() { if (!st.np) return; hideNp(); st.peer && st.peer.send({ t: 'npEnd' }, true); toast('Game resumed'); }
 function askPause() {
   if (!isNet() || !st.peer) return;
@@ -1340,11 +1341,23 @@ function netPauseRx(m) {
   if (m.t === 'npAns') { if (!m.yes) toast(`${oppName()} said no to the pause`, 3000); else if (st.mode === 'host') startNetPause(true); return true; }
   if (m.t === 'np' && st.mode === 'guest') { st.np = { until: performance.now() + (+m.ms || NP_SECS * 1000) }; showNp(m.hostAsked ? `${oppName()} asked, you agreed` : `You asked, ${oppName()} agreed`); return true; }
   if (m.t === 'npEnd' && st.mode === 'guest') { hideNp(); toast('Game resumed'); return true; }
-  if (m.t === 'npResume' && st.mode === 'host') { endNetPause(); return true; }
+  if (m.t === 'npReady' && st.mode === 'host' && st.np) { st.np.ready[1] = true; npReadyCheck(); return true; }   // guest is ready
+  if (m.t === 'npOppReady' && st.mode === 'guest') { $('#np-wait').textContent = `${oppName()} is ready. Resume when you are.`; return true; }
   if (m.t === 'forfeit') { st.peer && st.peer.handlers.close && st.peer.handlers.close(`${oppName()} forfeited. You win!`); return true; }
   return false;
 }
-$('#np-resume').addEventListener('click', () => { if (st.mode === 'host') endNetPause(); else if (st.peer) { st.peer.send({ t: 'npResume' }, true); } });
+// resuming needs BOTH players ready (or the timer running out): one player can't force the other back in
+function npReadyCheck() {
+  if (!st.np || st.mode !== 'host') return;
+  if (st.np.ready[0] && st.np.ready[1]) return endNetPause();
+  if (st.np.ready[1] && !st.np.ready[0]) $('#np-wait').textContent = `${oppName()} is ready. Resume when you are.`;
+  if (st.np.ready[0] && !st.np.ready[1]) st.peer && st.peer.send({ t: 'npOppReady' }, true);
+}
+$('#np-resume').addEventListener('click', () => {
+  if (!st.np) return;
+  $('#np-resume').disabled = true; $('#np-resume').textContent = 'Ready ✓'; $('#np-wait').textContent = `Waiting for ${oppName()}…`;
+  if (st.mode === 'host') { st.np.ready[0] = true; npReadyCheck(); } else if (st.peer) st.peer.send({ t: 'npReady' }, true);
+});
 $('#p-askpause').addEventListener('click', askPause);
 $('#p-forfeit').addEventListener('click', async () => {
   if (!(await askYes('Forfeit this game? It counts as a loss and your opponent gets the win.', 'Forfeit', 'Keep playing'))) return;

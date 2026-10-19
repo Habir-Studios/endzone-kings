@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792381171';
-import { NOTES } from './patchnotes.js?v=1792381171';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792381171';
-import * as Form from './form.js?v=1792381171';
-import { watchSim } from './simview.js?v=1792381171';
-import { bracketHTML } from './bracket.js?v=1792381171';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792381171';
-import { Renderer } from './render.js?v=1792381171';
-import { Sfx } from './audio.js?v=1792381171';
-import { Auth } from './auth.js?v=1792381171';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792381171';
-import { getRoster, teamOvr } from './teams.js?v=1792381171';
-import * as Season from './season.js?v=1792381171';
-import * as Fr from './franchise.js?v=1792381171';
-import * as League from './league.js?v=1792381171';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792381171';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792381171';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792381171';
-import * as UTm from './ut.js?v=1792381171';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792381171';
-import { filmCapture, filmSave } from './social.js?v=1792381171';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792381171';
-import { portraitURL } from './faces.js?v=1792381171';
-import { logoURL, clearLogoCache } from './logos.js?v=1792381171';
+import { CONFIG } from './config.js?v=1792381905';
+import { NOTES } from './patchnotes.js?v=1792381905';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792381905';
+import * as Form from './form.js?v=1792381905';
+import { watchSim } from './simview.js?v=1792381905';
+import { bracketHTML } from './bracket.js?v=1792381905';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792381905';
+import { Renderer } from './render.js?v=1792381905';
+import { Sfx } from './audio.js?v=1792381905';
+import { Auth } from './auth.js?v=1792381905';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792381905';
+import { getRoster, teamOvr } from './teams.js?v=1792381905';
+import * as Season from './season.js?v=1792381905';
+import * as Fr from './franchise.js?v=1792381905';
+import * as League from './league.js?v=1792381905';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792381905';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792381905';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792381905';
+import * as UTm from './ut.js?v=1792381905';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792381905';
+import { filmCapture, filmSave } from './social.js?v=1792381905';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792381905';
+import { portraitURL } from './faces.js?v=1792381905';
+import { logoURL, clearLogoCache } from './logos.js?v=1792381905';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -321,6 +321,9 @@ $('#form-code').addEventListener('submit', (e) => {
     catch (err) { authMsg(err.message, true); }
   });
 });
+// the full two-step login guide lives in How to Play
+function openTfaGuide() { show('howto'); setTimeout(() => { const g = document.getElementById('howto-2fa'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120); }
+$('#code-help').addEventListener('click', openTfaGuide);
 $('#code-back').addEventListener('click', async () => { await Auth.signOut(); authMsg(''); showAuthForm('login', true); });
 async function renderTwofa() {
   const row = $('#tf-row'); if (!row) return;
@@ -341,13 +344,14 @@ function codeModal(title, bodyHTML, onCode) {
 }
 $('#tf-btn').addEventListener('click', async () => {
   if ($('#tf-btn').dataset.on) {
-    codeModal('Turn off two-step login', '<p class="note">Type the current code from your authenticator app to turn it off.</p>', async c => { await Auth.disableMfa(c); toast('Two-step login is off.', 3000); });
+    codeModal('Turn off two-step login', '<p class="note">Open your authenticator app, find <b>Endzone Kings</b> and type the 6-digit code to turn two-step login off. Any devices you told to remember you will need a code again if you turn it back on. You can delete the Endzone Kings entry from the app afterwards.</p>', async c => { await Auth.disableMfa(c); toast('Two-step login is off.', 3000); });
     return;
   }
   let en; try { en = await Auth.enrollStart(); } catch (err) { return toast(err.message, 3500); }
-  codeModal('Turn on two-step login', `<ol class="tf-steps"><li>Get an authenticator app on your phone (Google Authenticator, Microsoft Authenticator or Authy, all free)</li><li>In the app, tap + and scan this code</li></ol><canvas class="tf-qr" width="232" height="232" aria-label="QR code for your authenticator app"></canvas><p class="note">Can’t scan? Type this key in the app instead: <code class="tf-secret">${escapeHtml(en.secret || '')}</code></p><p class="note">Then type the 6-digit code the app shows:</p>`,
+  codeModal('Turn on two-step login', `<ol class="tf-steps"><li><b>Get an authenticator app</b> on your phone: Google Authenticator, Microsoft Authenticator or Authy. All free in the App Store and Google Play.</li><li><b>Add Endzone Kings:</b> in the app tap <b>+</b> (or <b>Add account</b>), choose <b>Scan a QR code</b> and point your camera at this code.</li></ol><canvas class="tf-qr" width="232" height="232" aria-label="QR code for your authenticator app"></canvas><p class="note">Can’t scan it? In the app choose <b>Enter a setup key</b>, name it Endzone Kings and type this key: <code class="tf-secret">${escapeHtml(en.secret || '')}</code></p><ol class="tf-steps" start="3"><li><b>Type the 6-digit code</b> the app now shows for Endzone Kings, then press Confirm. Codes change every 30 seconds, so use the newest one.</li></ol><button class="link tf-how" type="button">How does two-step login work?</button>`,
     async c => { await Auth.enrollFinish(en.id, c); toast('Two-step login is on. You’ll need a code from the app every time you log in.', 4000); });
   drawQR(document.querySelector('.tf-card .tf-qr'), en.uri);
+  const how = document.querySelector('.tf-card .tf-how'); if (how) how.onclick = () => { document.querySelector('.tf-card').closest('.modal').remove(); openTfaGuide(); };
 });
 // crisp, square QR drawn from the authenticator link (black squares on white, with the quiet border scanners need)
 async function drawQR(cv, text) {

@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792381171">
-  <link rel="stylesheet" href="css/theme.css?v=1792381171">
+  <link rel="stylesheet" href="css/style.css?v=1792381905">
+  <link rel="stylesheet" href="css/theme.css?v=1792381905">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8994"/><stop offset=".45" stop-color="#ff3347"/><stop offset="1" stop-color="#b3101f"/></linearGradient></defs></svg>
@@ -82,11 +82,11 @@
           <button class="link" type="button" id="fp-back">Back to log in</button>
         </form>
         <form id="form-code" class="form hidden">
-          <p class="note" id="code-note">Two-step login is on. Open your authenticator app and type the 6-digit code for Endzone Kings.</p>
+          <p class="note" id="code-note">Two-step login is on for this account. Open your authenticator app (Google Authenticator, Microsoft Authenticator or Authy), find <b>Endzone Kings</b> and type the 6-digit code it shows. The code changes every 30 seconds, so use the newest one.</p>
           <label>Login code<input id="code-in" inputmode="numeric" autocomplete="one-time-code" required maxlength="10" placeholder="6-digit code"></label>
           <label class="check"><input type="checkbox" id="code-remember"> Remember this device for 10 days</label>
           <button class="btn primary" type="submit">Verify and log in</button>
-          <div class="code-links"><button class="link" type="button" id="code-back">Back to log in</button></div>
+          <div class="code-links"><button class="link" type="button" id="code-help">Help with two-step login</button><button class="link" type="button" id="code-back">Back to log in</button></div>
         </form>
         <form id="form-newpw" class="form hidden">
           <p class="note">Pick a new password for your account.</p>
@@ -451,6 +451,29 @@
             <p class="note">PlayStation: ✕ ○ □ △ in those spots. Switch: B A Y X in those spots. The game shows the right buttons for your controller automatically.</p>
           </div>
         </div>
+        <div class="howto-2fa" id="howto-2fa">
+          <h3>Two-step login (authenticator app)</h3>
+          <p class="note">Two-step login keeps your account safe even if someone gets your password. After your password, the game asks for a 6-digit code that only your phone can make. It’s optional and free.</p>
+          <div class="tfa-guide">
+            <div><b>1. Get an authenticator app</b><span>On your phone, download a free authenticator app: Google Authenticator, Microsoft Authenticator or Authy (App Store or Google Play).</span></div>
+            <div><b>2. Turn it on in the game</b><span>Go to Settings, find <i>Two-step login</i> and press <i>Turn on</i>. A QR code shows up.</span></div>
+            <div><b>3. Scan the QR code</b><span>In the app, tap <i>+</i> (or <i>Add account</i>), choose <i>Scan a QR code</i> and point your camera at the code. “Endzone Kings” shows up in the app with your email. Can’t scan? Choose <i>Enter a setup key</i> and type the key shown under the QR code.</span></div>
+            <div><b>4. Type the code to finish</b><span>The app shows a 6-digit code for Endzone Kings. Type it in the game and press <i>Confirm</i>. You’ll see “Two-step login is on”.</span></div>
+          </div>
+          <h4>Logging in with it on</h4>
+          <ul class="tfa-list">
+            <li>Log in with your email or username and password like normal.</li>
+            <li>The game asks for a code. Open the authenticator app, find <b>Endzone Kings</b> and type the 6 digits.</li>
+            <li>Codes change every 30 seconds. If it says the code is wrong, wait for the next one and type that.</li>
+            <li>Tick <b>Remember this device for 10 days</b> on your own phone or computer and you won’t need a code there for 10 days. Don’t tick it on a shared or school device.</li>
+          </ul>
+          <h4>If something goes wrong</h4>
+          <ul class="tfa-list">
+            <li><b>New phone:</b> before you switch, turn two-step login off in Settings (it asks for a code), then turn it back on with the new phone. Google and Microsoft Authenticator can also move your codes to a new phone.</li>
+            <li><b>Lost your phone:</b> you won’t be able to make codes. Use the <b>Feedback</b> button on the main menu (choose <i>Need help</i>) and the dev team can reset it for you.</li>
+            <li><b>Turning it off:</b> Settings, Two-step login, <i>Turn off</i>, then type a code from the app.</li>
+          </ul>
+        </div>
         <div class="actions"><button class="btn primary" data-go="back">Got it</button></div>
       </div>
     </div>
@@ -741,6 +764,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792381171"></script>
+  <script type="module" src="js/main.js?v=1792381905"></script>
 </body>
 </html>

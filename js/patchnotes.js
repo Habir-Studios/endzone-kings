@@ -3,6 +3,15 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: "1.0.3",
+    date: "2026-10-18",
+    added: [
+      "A full two-step login guide in How to Play: setting it up, logging in, the 10-day remember option, new phones and lost phones",
+      "Clearer step-by-step instructions when you turn two-step login on or off, and on the login code screen, with a link to the guide"
+    ],
+    fixed: []
+  },
+  {
     v: "1.0.2",
     date: "2026-10-18",
     added: [

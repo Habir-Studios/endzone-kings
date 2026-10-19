@@ -374,3 +374,13 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 .fb-tools input { flex: 1 1 220px; }
 .fb-item p { margin: 6px 0 0; white-space: pre-wrap; }
 .fb-item mark { background: rgba(255,51,71,.35); color: inherit; }
+
+/* two-step login guide (How to Play) */
+.howto-2fa { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.1); }
+.tfa-guide { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 10px 0; }
+.tfa-guide div { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.tfa-guide span { font-size: 14px; line-height: 1.45; opacity: .9; }
+.tfa-list { margin: 6px 0 12px; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.45; }
+.howto-2fa h4 { margin: 12px 0 4px; }
+.tf-how { align-self: flex-start; }
+.tf-steps b { font-weight: 800; }

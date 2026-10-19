@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792379820';
+import { CONFIG } from './config.js?v=1792379955';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -151,9 +151,12 @@ export const Auth = {
   async twofaOn() { try { return !!(await this.totpFactor()); } catch (_) { return null; } },   // null = couldn't check
   async enrollStart() {
     try { const { data } = await this.client.auth.mfa.listFactors(); for (const f of ((data && data.all) || []).filter(f => f.status !== 'verified')) await this.client.auth.mfa.unenroll({ factorId: f.id }); } catch (_) {}
-    const { data, error } = await this.client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Endzone Kings ' + Date.now().toString(36) });
+    const { data, error } = await this.client.auth.mfa.enroll({ factorType: 'totp', issuer: 'Endzone Kings', friendlyName: 'Endzone Kings ' + Date.now().toString(36) });
     if (error) throw new Error(error.message);
-    return { id: data.id, uri: data.totp.uri, secret: data.totp.secret };
+    // the app shows "Endzone Kings (you@email.com)" instead of the website address
+    const secret = data.totp.secret, email = (this.user && this.user.email) || '';
+    const uri = `otpauth://totp/${encodeURIComponent('Endzone Kings')}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent('Endzone Kings')}&algorithm=SHA1&digits=6&period=30`;
+    return { id: data.id, uri, secret };
   },
   async enrollFinish(id, code) {
     const { error } = await this.client.auth.mfa.challengeAndVerify({ factorId: id, code: (code || '').replace(/\s/g, '') });

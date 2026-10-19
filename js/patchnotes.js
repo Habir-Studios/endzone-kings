@@ -4,7 +4,7 @@
 export const NOTES = [
   {
     v: '1.0.3', date: '2026-10-18',
-    added: ['Team overall, offense and defense update the second your lineup changes, in Ultimate Team and Franchise'],
+    added: ['Team overall, offense and defense update the second your lineup changes, in Ultimate Team, Franchise and Online Franchise (also shown during the draft and for every team in the league)'],
     fixed: [],
   },
   {

@@ -1,11 +1,11 @@
 // ENDZONE KINGS — Online Franchise. Up to 16 people each run a team. Before the season everyone drafts from one
 // shared player pool (bots fill the empty spots and pick for themselves), trades stay open all season, and a
 // 16-team knockout bracket runs until the last two meet in the Kings Bowl. Server side: supabase/leagues.sql.
-import { TEAMS } from './teams.js?v=1792378575';
-import { getRoster } from './teams.js?v=1792378575';
-import { askYes } from './ui.js?v=1792378575';
-import { rosterStyle } from './playbook.js?v=1792378575';
-import { card, makeId, GROUPS, SLOTS, SLOT_GROUP, SLOT_LABEL } from './ut.js?v=1792378575';
+import { TEAMS } from './teams.js?v=1792378654';
+import { getRoster } from './teams.js?v=1792378654';
+import { askYes } from './ui.js?v=1792378654';
+import { rosterStyle } from './playbook.js?v=1792378654';
+import { card, makeId, GROUPS, SLOTS, SLOT_GROUP, SLOT_LABEL } from './ut.js?v=1792378654';
 
 let C = null, view = { code: null, tab: 'home', filter: 'All', trade: null }, poll = null, busy = false, lastRow = null;
 const GKEYS = Object.keys(GROUPS);
@@ -181,6 +181,7 @@ function draftHTML(s, slot) {
   const recent = s.picks.slice(-6).reverse();
   return `<div class="lg-draft">
     <div class="lg-clock ${mineNow ? 'me' : ''}"><img alt="" src="${logo(s.slots[idx].t, 44)}"><div><small>Round ${Math.floor(s.pick / 16) + 1} of ${s.rounds}, pick ${s.pick + 1}</small><b>${mineNow ? 'You are on the clock' : `${esc(s.slots[idx].n)} is picking`}</b></div><span class="lg-secs">${s.slots[idx].u ? `${left}s` : ''}</span></div>
+    ${slot >= 0 ? (o => `<p class="note lg-myovr">Your team: <b>${o.ovr} OVR</b> (OFF ${o.off} · DEF ${o.def})</p>`)(lgOvr(s, slot)) : ''}
     <div class="lg-recent">${recent.map(p => { const c = card(+p.c); return `<span><img alt="" src="${logo(s.slots[p.s].t, 22)}">${esc(c.first[0])}. ${esc(c.last)} <i>${c.ovr} ${c.group}</i></span>`; }).join('') || '<span class="note">No picks yet</span>'}</div>
     <div class="seg lg-filter">${['All', ...GKEYS].map(g => `<button type="button" data-f="${g}" class="${view.filter === g ? 'on' : ''}">${g}${g !== 'All' && slot >= 0 && need[g] > 0 ? ` <i>${need[g]}</i>` : ''}</button>`).join('')}</div>
     <div class="lg-pool">${pool.map(p => { const c = card(+p.c); return `<div class="lg-pl t-${c.tierKey}"><b class="ovr">${c.ovr}</b><span><b>${esc(c.first)} ${esc(c.last)}</b><small>${c.group} · ${c.tierName}</small></span>${mineNow ? `<button class="btn sm primary" type="button" data-pick="${p.c}">Draft</button>` : ''}</div>`; }).join('')}</div>
@@ -193,12 +194,19 @@ function rosterList(s, sl) {
   const st = starters(s, sl);
   return s.picks.filter(p => p.s === sl).map(p => card(+p.c)).sort((a, b) => b.ovr - a.ovr).map(c => `<div class="lg-pl t-${c.tierKey}"><b class="ovr">${c.ovr}</b><span><b>${esc(c.first)} ${esc(c.last)}</b><small>${st[c.id] ? `Starts at ${SLOT_LABEL[st[c.id]] || st[c.id]}` : 'Bench'} · ${c.group}</small></span></div>`).join('') || '<p class="note">No players yet</p>';
 }
+// team overall from the actual starting lineup (drafted players where they fit, the city's roster everywhere else)
+const OFF_SL = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'LT', 'LG', 'C', 'RG', 'RT'], DEF_SL = ['DL1', 'DL2', 'DL3', 'DL4', 'LB', 'LB2', 'LB3', 'CB1', 'CB2', 'S', 'SS'];
+function lgOvr(s, slot) {
+  const P = leagueRoster(s, slot).players, avg = a => Math.round(a.reduce((x, k) => x + ((P[k] && P[k].ovr) || 60), 0) / a.length);
+  const off = avg(OFF_SL), def = avg(DEF_SL); return { ovr: Math.round((off + def) / 2), off, def };
+}
 function teamsHTML(s, slot) {
-  return `<div class="lg-teams">${s.slots.map((x, i) => `<details class="lg-tm ${i === slot ? 'me' : ''}"><summary><img alt="" src="${logo(x.t, 30)}"><b>${esc(x.n)}</b><span>${teamName(x.t)}</span><small>${s.picks.filter(p => p.s === i).length} players · ${strength(s, i)} total OVR</small></summary>${rosterList(s, i)}</details>`).join('')}</div>`;
+  return `<div class="lg-teams">${s.slots.map((x, i) => `<details class="lg-tm ${i === slot ? 'me' : ''}"><summary><img alt="" src="${logo(x.t, 30)}"><b>${esc(x.n)}</b><span>${teamName(x.t)}</span><small>${(o => `${o.ovr} OVR (OFF ${o.off} · DEF ${o.def})`)(lgOvr(s, i))} · ${s.picks.filter(p => p.s === i).length} drafted</small></summary>${rosterList(s, i)}</details>`).join('')}</div>`;
 }
 function myTeamHTML(s, slot) {
   if (slot < 0) return '<p class="note">You are watching this league.</p>';
-  return `<p class="note">Your drafted players start wherever they fit. Every other spot is filled by your ${teamName(s.slots[slot].t)} roster.</p>${rosterList(s, slot)}`;
+  const o = lgOvr(s, slot);
+  return `<div class="sq-ovr lg-ovr"><div><b>${o.ovr}</b><small>OVR</small></div><div><b>${o.off}</b><small>OFF</small></div><div><b>${o.def}</b><small>DEF</small></div></div><p class="note">Your drafted players start wherever they fit. Every other spot is filled by your ${teamName(s.slots[slot].t)} roster.</p>${rosterList(s, slot)}`;
 }
 
 // ---------- bracket ----------

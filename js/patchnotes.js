@@ -3,6 +3,12 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: "1.0.4",
+    date: "2026-10-19",
+    added: [],
+    fixed: ["The two-step login code screen now tells you exactly what to look for in your authenticator app: Endzone Kings with your email under it"]
+  },
+  {
     v: "1.0.3",
     date: "2026-10-19",
     added: [],

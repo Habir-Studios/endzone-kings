@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792382891';
-import { NOTES } from './patchnotes.js?v=1792382891';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792382891';
-import * as Form from './form.js?v=1792382891';
-import { watchSim } from './simview.js?v=1792382891';
-import { bracketHTML } from './bracket.js?v=1792382891';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792382891';
-import { Renderer } from './render.js?v=1792382891';
-import { Sfx } from './audio.js?v=1792382891';
-import { Auth } from './auth.js?v=1792382891';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792382891';
-import { getRoster, teamOvr } from './teams.js?v=1792382891';
-import * as Season from './season.js?v=1792382891';
-import * as Fr from './franchise.js?v=1792382891';
-import * as League from './league.js?v=1792382891';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792382891';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792382891';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792382891';
-import * as UTm from './ut.js?v=1792382891';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792382891';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792382891';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792382891';
-import { portraitURL } from './faces.js?v=1792382891';
-import { logoURL, clearLogoCache } from './logos.js?v=1792382891';
+import { CONFIG } from './config.js?v=1792383058';
+import { NOTES } from './patchnotes.js?v=1792383058';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792383058';
+import * as Form from './form.js?v=1792383058';
+import { watchSim } from './simview.js?v=1792383058';
+import { bracketHTML } from './bracket.js?v=1792383058';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792383058';
+import { Renderer } from './render.js?v=1792383058';
+import { Sfx } from './audio.js?v=1792383058';
+import { Auth } from './auth.js?v=1792383058';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792383058';
+import { getRoster, teamOvr } from './teams.js?v=1792383058';
+import * as Season from './season.js?v=1792383058';
+import * as Fr from './franchise.js?v=1792383058';
+import * as League from './league.js?v=1792383058';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792383058';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792383058';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792383058';
+import * as UTm from './ut.js?v=1792383058';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792383058';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792383058';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792383058';
+import { portraitURL } from './faces.js?v=1792383058';
+import { logoURL, clearLogoCache } from './logos.js?v=1792383058';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -230,7 +230,7 @@ let splashDone = false;
 const authReady = Auth.init().catch(() => null);
 function endSplash() {
   if (splashDone) return; splashDone = true;
-  authReady.then(user => { setupAuthUI(); if (Auth.recovery) return showAuthForm('newpw'); if (Auth.needMfa) return showAuthForm('code'); show(user ? 'menu' : 'auth'); });
+  authReady.then(user => { setupAuthUI(); if (Auth.recovery) return showAuthForm('newpw'); if (Auth.needMfa) { setCodeNote(); return showAuthForm('code'); } show(user ? 'menu' : 'auth'); });
 }
 $('#splash').addEventListener('click', endSplash);
 setTimeout(endSplash, 2900);
@@ -321,6 +321,11 @@ $('#form-code').addEventListener('submit', (e) => {
     catch (err) { authMsg(err.message, true); }
   });
 });
+// login code screen: tell them exactly which entry to look for in the app ("Endzone Kings" + their email)
+function setCodeNote() {
+  const e = (Auth.user && Auth.user.email) || '', masked = e ? e.replace(/^(.)[^@]*(@.*)$/, '$1•••$2') : 'your email';
+  $('#code-note').innerHTML = `Two-step login is on for this account. Open your authenticator app (Google Authenticator, Microsoft Authenticator or Authy) and find <b>Endzone Kings</b> with <b>${escapeHtml(masked)}</b> under it. Type the 6-digit code it shows. The code changes every 30 seconds, so use the newest one.`;
+}
 // the full two-step login guide lives in How to Play
 function openTfaGuide() { show('howto'); setTimeout(() => { const g = document.getElementById('howto-2fa'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120); }
 $('#code-help').addEventListener('click', openTfaGuide);
@@ -499,7 +504,7 @@ async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally 
 $('#form-login').addEventListener('submit', (e) => {
   e.preventDefault();
   busy(e.submitter || $('#form-login .btn'), async () => {
-    try { const r = await Auth.signIn($('#li-id').value, $('#li-pw').value); $('#li-pw').value = ''; if (r && r.needCode) { $('#code-in').value = ''; authMsg(''); showAuthForm('code', true); setTimeout(() => $('#code-in').focus(), 50); return; } authMsg(''); show('menu'); }
+    try { const r = await Auth.signIn($('#li-id').value, $('#li-pw').value); $('#li-pw').value = ''; if (r && r.needCode) { $('#code-in').value = ''; setCodeNote(); authMsg(''); showAuthForm('code', true); setTimeout(() => $('#code-in').focus(), 50); return; } authMsg(''); show('menu'); }
     catch (err) { authMsg(err.message, true); }
   });
 });

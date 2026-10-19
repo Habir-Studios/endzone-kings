@@ -4,7 +4,7 @@
 export const NOTES = [
   {
     v: '1.0.7', date: '2026-10-18',
-    added: ['New updates show up faster: the game checks every 15 seconds and updates as soon as you’re back on the main menu (never in the middle of a game)'],
+    added: ['New updates show up faster: the game checks every 10 seconds and updates on any screen as soon as you’re out of a game (never in the middle of one)'],
     fixed: [],
   },
   {

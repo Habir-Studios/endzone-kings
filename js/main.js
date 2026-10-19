@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792379652';
-import { NOTES } from './patchnotes.js?v=1792379652';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792379652';
-import * as Form from './form.js?v=1792379652';
-import { watchSim } from './simview.js?v=1792379652';
-import { bracketHTML } from './bracket.js?v=1792379652';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792379652';
-import { Renderer } from './render.js?v=1792379652';
-import { Sfx } from './audio.js?v=1792379652';
-import { Auth } from './auth.js?v=1792379652';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792379652';
-import { getRoster, teamOvr } from './teams.js?v=1792379652';
-import * as Season from './season.js?v=1792379652';
-import * as Fr from './franchise.js?v=1792379652';
-import * as League from './league.js?v=1792379652';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792379652';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792379652';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792379652';
-import * as UTm from './ut.js?v=1792379652';
-import { initCreator, renderCreator } from './creator.js?v=1792379652';
-import { filmCapture, filmSave } from './social.js?v=1792379652';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792379652';
-import { portraitURL } from './faces.js?v=1792379652';
-import { logoURL, clearLogoCache } from './logos.js?v=1792379652';
+import { CONFIG } from './config.js?v=1792379726';
+import { NOTES } from './patchnotes.js?v=1792379726';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792379726';
+import * as Form from './form.js?v=1792379726';
+import { watchSim } from './simview.js?v=1792379726';
+import { bracketHTML } from './bracket.js?v=1792379726';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792379726';
+import { Renderer } from './render.js?v=1792379726';
+import { Sfx } from './audio.js?v=1792379726';
+import { Auth } from './auth.js?v=1792379726';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792379726';
+import { getRoster, teamOvr } from './teams.js?v=1792379726';
+import * as Season from './season.js?v=1792379726';
+import * as Fr from './franchise.js?v=1792379726';
+import * as League from './league.js?v=1792379726';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792379726';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792379726';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792379726';
+import * as UTm from './ut.js?v=1792379726';
+import { initCreator, renderCreator } from './creator.js?v=1792379726';
+import { filmCapture, filmSave } from './social.js?v=1792379726';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792379726';
+import { portraitURL } from './faces.js?v=1792379726';
+import { logoURL, clearLogoCache } from './logos.js?v=1792379726';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -383,8 +383,8 @@ $('#pn-btn').addEventListener('click', () => { sfx.play('ui'); openPatchNotes();
 refreshPn();
 // ---------------- auto update: no refresh needed ----------------
 // bump-version.sh stamps every file with ?v=<time> and writes version.json. The game knows its own stamp (from its
-// own URL); it checks version.json every 15 seconds and when you come back to the tab. Newer one out? It reloads itself
-// right away on the menu, or waits till you're out of a game. Loading with ?u=<v> skips the browser's cached page.
+// own URL); it checks version.json every 10 seconds and when you come back to the tab. Newer one out? It reloads itself
+// right away on any screen, or waits till you're out of a game. Loading with ?u=<v> skips the browser's cached page.
 const MY_V = +(new URL(import.meta.url).searchParams.get('v') || 0);
 let pendingV = 0;
 try { if (new URLSearchParams(location.search).has('u')) history.replaceState(null, '', location.pathname + location.hash); } catch (_) {}
@@ -397,16 +397,16 @@ async function checkUpdate() {
   } catch (_) {}
 }
 function applyUpdate() {
-  if (!pendingV || st.playing || st.game && !st.overShown && st.screen !== 'menu') return;   // never mid-game: only once you're back on the menu
-  if (!/^(menu|auth)$/.test(st.screen || '') || document.querySelector('.modal')) return;   // not with a popup open (daily reward, patch notes...)
-  if (st.screen === 'auth' && [...document.querySelectorAll('#auth input')].some(i => i.value && i.type !== 'checkbox')) return;   // not while you're typing your login
+  if (!pendingV || st.playing || st.screen === 'game' || (st.game && !st.overShown && !st.paused && st.screen === 'game')) return;   // never in a game: any other screen is fine
+  if (st.peer || st.spec) return;   // not while hosting / joining / watching an online game
+  const ae = document.activeElement; if (ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && ae.value && ae.type !== 'checkbox' && ae.type !== 'range') return;   // not mid-typing
   let tried = null; try { tried = sessionStorage.getItem('ek_upd'); } catch (_) {}
   if (tried === String(pendingV)) return;   // already reloaded for this one: don't loop
   try { sessionStorage.setItem('ek_upd', String(pendingV)); } catch (_) {}
   toast('New update! Updating to the newest version…', 4000);
   setTimeout(() => location.replace(location.pathname + '?u=' + pendingV + location.hash), 3200);
 }
-setInterval(checkUpdate, 15000);   // every 15 seconds (a tiny file, no-store)
+setInterval(checkUpdate, 10000);   // every 10 seconds (a tiny file, no-store)
 setInterval(applyUpdate, 5000);   // picks it up once you're back on the menu
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
 setTimeout(checkUpdate, 4000);

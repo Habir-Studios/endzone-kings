@@ -399,3 +399,18 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
   -webkit-box-shadow: 0 0 0 1000px #0b0b0d inset !important; box-shadow: 0 0 0 1000px #0b0b0d inset !important; transition: background-color 9999s ease-out 0s;
 }
 textarea { padding: 10px 12px; line-height: 1.45; }
+
+/* profile header: every line evenly spaced (name, online status, level, records, followers) */
+.pf-head { gap: 20px; padding: 20px; align-items: center; }
+.pf-id { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.pf-id > * { margin: 0 !important; }
+.pf-id h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; line-height: 1.05; }
+.pf-id h3 .admin-badge { margin-left: 0; }
+.pf-id .pf-status { line-height: 1.2; }
+.pf-id > small { display: block; line-height: 1.3; font-size: 14px; }
+.pf-id .pf-recs { gap: 10px; }
+.pf-id .pf-follow { gap: 16px; align-items: center; flex-wrap: wrap; }
+.pf-acts { gap: 8px; align-self: center; }
+#pf-live { margin-top: 14px; }
+.pf-stats { margin-top: 14px; }
+@media (max-width: 760px) { .pf-head { gap: 14px; padding: 16px; } .pf-id { gap: 7px; } }

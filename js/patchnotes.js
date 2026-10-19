@@ -3,35 +3,20 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
-    v: "1.0.5",
-    date: "2026-10-18",
-    added: [],
-    fixed: ["Typing in some text boxes (like Feedback and dropdowns) was hard to see. Every text box now has bright, readable text, even when your browser autofills it"]
-  },
-  {
-    v: "1.0.4",
-    date: "2026-10-18",
-    added: ["The Habir Studios admin now has an ADMIN badge next to their name on profiles, leaderboards, friends lists, crews and messages"],
-    fixed: []
-  },
-  {
-    v: "1.0.3",
-    date: "2026-10-18",
-    added: [
-      "A full two-step login guide in How to Play: setting it up, logging in, the 10-day remember option, new phones and lost phones",
-      "Clearer step-by-step instructions when you turn two-step login on or off, and on the login code screen, with a link to the guide"
-    ],
-    fixed: []
-  },
-  {
     v: "1.0.2",
     date: "2026-10-18",
     added: [
       "Everything follows your account between devices: coins, cards, squad, Franchise, Season, custom plays and your game settings (graphics, sound and touch controls stay per device)",
       "Changes you make on one device show up on your other devices within about a second, no reopening needed (never in the middle of a game)",
-      "Feedback button on the main menu: report a bug, send a suggestion or ask for help, straight to the dev team"
+      "Feedback button on the main menu: report a bug, send a suggestion or ask for help, straight to the dev team",
+      "A full two-step login guide in How to Play: setting it up, logging in, the 10-day remember option, new phones and lost phones",
+      "Clearer step-by-step instructions when you turn two-step login on or off, and on the login code screen, with a link to the guide",
+      "The Habir Studios admin now has an ADMIN badge next to their name on profiles, leaderboards, friends lists, crews and messages"
     ],
-    fixed: []
+    fixed: [
+      "Typing in some text boxes (like Feedback and dropdowns) was hard to see. Every text box now has bright, readable text, even when your browser autofills it",
+      "Profile headers are evenly spaced: name, online status, level, records and followers no longer crowd each other"
+    ]
   },
   {
     v: "1.0.1",

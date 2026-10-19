@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792374458';
-import * as Form from './form.js?v=1792374458';
-import { watchSim } from './simview.js?v=1792374458';
-import { bracketHTML } from './bracket.js?v=1792374458';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792374458';
-import { Renderer } from './render.js?v=1792374458';
-import { Sfx } from './audio.js?v=1792374458';
-import { Auth } from './auth.js?v=1792374458';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792374458';
-import { getRoster, teamOvr } from './teams.js?v=1792374458';
-import * as Season from './season.js?v=1792374458';
-import * as Fr from './franchise.js?v=1792374458';
-import * as League from './league.js?v=1792374458';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792374458';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792374458';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792374458';
-import * as UTm from './ut.js?v=1792374458';
-import { initCreator, renderCreator } from './creator.js?v=1792374458';
-import { filmCapture, filmSave } from './social.js?v=1792374458';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792374458';
-import { portraitURL } from './faces.js?v=1792374458';
-import { logoURL, clearLogoCache } from './logos.js?v=1792374458';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792374910';
+import * as Form from './form.js?v=1792374910';
+import { watchSim } from './simview.js?v=1792374910';
+import { bracketHTML } from './bracket.js?v=1792374910';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792374910';
+import { Renderer } from './render.js?v=1792374910';
+import { Sfx } from './audio.js?v=1792374910';
+import { Auth } from './auth.js?v=1792374910';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792374910';
+import { getRoster, teamOvr } from './teams.js?v=1792374910';
+import * as Season from './season.js?v=1792374910';
+import * as Fr from './franchise.js?v=1792374910';
+import * as League from './league.js?v=1792374910';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792374910';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792374910';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792374910';
+import * as UTm from './ut.js?v=1792374910';
+import { initCreator, renderCreator } from './creator.js?v=1792374910';
+import { filmCapture, filmSave } from './social.js?v=1792374910';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792374910';
+import { portraitURL } from './faces.js?v=1792374910';
+import { logoURL, clearLogoCache } from './logos.js?v=1792374910';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -174,7 +174,7 @@ function show(id) {
   if (id === 'menu') refreshProfile();
   if (id === 'setup') renderSetup();
   if (id === 'online') renderOnline();
-  if (id === 'settings') renderSettings();
+  if (id === 'settings') { renderSettings(); renderTwofa(); }
   if (id === 'locker') renderLocker();
   if (id === 'season') renderSeason();
   if (id === 'rosters') renderRosters();
@@ -250,8 +250,8 @@ $$('.tab').forEach(t => t.addEventListener('click', () => {
 // which auth form shows: login, signup, forgot (send reset email) or newpw (opened from the reset email)
 function showAuthForm(f, fromTab) {
   if (!fromTab) show('auth');
-  for (const k of ['login', 'signup', 'forgot', 'newpw']) $('#form-' + k).classList.toggle('hidden', k !== f);
-  $('.auth-panel .tabs').classList.toggle('hidden', f === 'newpw' || f === 'forgot');
+  for (const k of ['login', 'signup', 'forgot', 'newpw', 'code']) $('#form-' + k).classList.toggle('hidden', k !== f);
+  $('.auth-panel .tabs').classList.toggle('hidden', f === 'newpw' || f === 'forgot' || f === 'code');
   $('#guest-btn').classList.toggle('hidden', f === 'newpw'); $('.auth-panel .divider').classList.toggle('hidden', f === 'newpw');
   if (f === 'newpw') setTimeout(() => $('#np-pw').focus(), 50);
 }
@@ -329,12 +329,44 @@ async function checkDesktopUpdate() {
   } catch (_) {}
 }
 checkDesktopUpdate();
+// ---------------- two-step login (email code) ----------------
+$('#form-code').addEventListener('submit', (e) => {
+  e.preventDefault();
+  busy(e.submitter || $('#form-code .btn'), async () => {
+    try { await Auth.verifyCode(st.codeEmail, $('#code-in').value); authMsg(''); show('menu'); }
+    catch (err) { authMsg(err.message, true); }
+  });
+});
+$('#code-resend').addEventListener('click', async () => { try { await Auth.sendCode(st.codeEmail); authMsg('Sent a new code. Check your email (and spam).'); } catch (err) { authMsg(err.message, true); } });
+$('#code-back').addEventListener('click', () => { authMsg(''); showAuthForm('login', true); });
+async function renderTwofa() {
+  const row = $('#tf-row'); if (!row) return;
+  const ok = Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account';
+  row.classList.toggle('hidden', !ok); if (!ok) return;
+  const on = await Auth.twofaOn();
+  if (on === null) { row.classList.add('hidden'); return; }
+  $('#tf-sub').textContent = on ? 'On: logging in needs a code from your email' : 'Off: anyone with your password can log in';
+  $('#tf-btn').textContent = on ? 'Turn off' : 'Turn on'; $('#tf-btn').dataset.on = on ? '1' : '';
+}
+$('#tf-btn').addEventListener('click', async () => {
+  const want = !$('#tf-btn').dataset.on, email = Auth.user && Auth.user.email; if (!email) return;
+  try { await Auth.sendCode(email); } catch (err) { return toast(err.message, 3500); }
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 64;
+  m.innerHTML = `<form class="panel info-card form"><h3 style="margin:0">${want ? 'Turn on' : 'Turn off'} two-step login</h3><p class="note">We emailed a code to ${email.replace(/^(.)[^@]*(@.*)$/, '$1***$2')}. Type it to confirm.</p><label>Code<input inputmode="numeric" autocomplete="one-time-code" maxlength="10" required></label><p class="msg" role="status"></p><button class="btn primary" type="submit">Confirm</button><button class="btn" type="button" data-x>Cancel</button></form>`;
+  document.body.appendChild(m);
+  const f = m.querySelector('form'), inp = m.querySelector('input'), msg = m.querySelector('.msg'); setTimeout(() => inp.focus(), 50);
+  m.querySelector('[data-x]').onclick = () => m.remove();
+  f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector('.btn.primary'), async () => {
+    try { await Auth.verifyCode(email, inp.value); await Auth.setTwofa(want); m.remove(); toast(want ? 'Two-step login is on. You’ll need an email code to log in.' : 'Two-step login is off.', 3500); renderTwofa(); }
+    catch (err) { msg.textContent = err.message; msg.classList.add('err'); }
+  }); };
+});
 function authMsg(t, err) { const m = $('#auth-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
 async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } }
 $('#form-login').addEventListener('submit', (e) => {
   e.preventDefault();
   busy(e.submitter || $('#form-login .btn'), async () => {
-    try { await Auth.signIn($('#li-id').value, $('#li-pw').value); authMsg(''); $('#li-pw').value = ''; show('menu'); }
+    try { const r = await Auth.signIn($('#li-id').value, $('#li-pw').value); $('#li-pw').value = ''; if (r && r.needCode) { st.codeEmail = r.email; $('#code-note').textContent = `Two-step login is on. We emailed a code to ${r.hint}. Type it below.`; $('#code-in').value = ''; authMsg(''); showAuthForm('code', true); setTimeout(() => $('#code-in').focus(), 50); return; } authMsg(''); show('menu'); }
     catch (err) { authMsg(err.message, true); }
   });
 });

@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792374458';
+import { CONFIG } from './config.js?v=1792374910';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -91,6 +91,16 @@ export const Auth = {
 
   async signIn(id, password) {
     if (this.mode === 'supabase') {
+      // step 1: the server checks the password without making a session, and says if this account wants an email code
+      const { data: chk, error: ce } = await this.client.rpc('ek_login_check', { p_user: (id || '').trim(), p_pw: password });
+      if (!ce) {
+        if (!chk) throw new Error('Wrong email/username or password');
+        if (chk.twofa) { await this.sendCode(chk.email); return { needCode: true, email: chk.email, hint: chk.hint }; }
+        const { data, error } = await this.client.auth.signInWithPassword({ email: chk.email, password });
+        if (error) throw new Error(error.message === 'Email not confirmed' ? 'Confirm your email first (check your inbox)' : error.message);
+        this.user = this.fromSb(data.user);
+        return this.user;
+      }
       let email = (id || '').trim();
       if (!email.includes('@')) {   // a username: the server swaps it for the email only if the password is right
         const { data: e, error: re } = await this.client.rpc('ek_login_email', { p_user: email, p_pw: password });
@@ -124,6 +134,20 @@ export const Auth = {
     if (error) throw new Error(error.message);
     return v;
   },
+
+  // two-step login: Supabase emails a one-time code, verifying it signs you in
+  async sendCode(email) {
+    const { error } = await this.client.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    if (error) throw new Error(/rate|seconds|security/i.test(error.message) ? 'Wait a minute before asking for another code' : error.message);
+  },
+  async verifyCode(email, code) {
+    const { data, error } = await this.client.auth.verifyOtp({ email, token: (code || '').replace(/\s/g, ''), type: 'email' });
+    if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'That code is wrong or expired. Try again or send a new one.' : error.message);
+    this.user = this.fromSb(data.user);
+    return this.user;
+  },
+  async twofaOn() { try { const { data, error } = await this.client.rpc('ek_my_2fa'); return error ? null : !!data; } catch (_) { return null; } },   // null = not set up on the server yet
+  async setTwofa(on) { const { error } = await this.client.rpc('ek_set_2fa', { p_on: !!on }); if (error) throw new Error(error.message); return !!on; },
 
   async setNewPassword(pw) {
     const { data, error } = await this.client.auth.updateUser({ password: pw });

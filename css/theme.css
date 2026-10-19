@@ -309,3 +309,9 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 @keyframes rotTurn { 0%, 30% { transform: none; } 60%, 100% { transform: rotate(90deg); } }
 @media (orientation: portrait) and (max-width: 600px) { #hud.touch-mode .rot-hint.show { display: flex; } }
 @media (prefers-reduced-motion: reduce) { .rot-hint i { animation: none; } }
+
+/* two-step login */
+.tf-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
+.tf-row .tf-k { display: flex; flex-direction: column; font-weight: 700; }
+.tf-row .tf-k small { font-weight: 500; opacity: .7; font-size: 12px; }
+.code-links { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }

@@ -12,6 +12,7 @@ export const NOTES = [
       'Big mobile upgrade: snap, hot routes, motion, flip and timeouts on touch, a thumb-friendly playbook and bigger buttons',
       'Your receiver runs to the ball on his own after you throw it (move the stick to take over)',
       'Patch notes, right here',
+      'The game updates itself now: no more refreshing to get the newest version',
     ],
     fixed: [
       'Coins showing different amounts on different devices',
@@ -20,6 +21,7 @@ export const NOTES = [
       'The daily reward popping up again every time you opened the game',
       'Empty gap in the main menu',
       'Removed the live leaderboard from the main menu',
+      'Removed the nets behind the goal posts',
     ],
   },
   {

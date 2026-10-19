@@ -7,5 +7,8 @@
 // =====================================================================
 export const CONFIG = {
   SUPABASE_URL: 'https://dhtnuisxbnmcnjgsiihn.supabase.co',       // looks like: https://abcdefghijklm.supabase.co
+  // two-step login emails a CODE, which needs the Supabase "Magic link or OTP" email to show {{ .Token }}.
+  // The free built-in email can't be edited (link only), so this stays off until custom SMTP is set up.
+  TWOFA: false,
   SUPABASE_ANON_KEY: 'sb_publishable_hK16PxzdeuCc5l65cE-u-g_qd3oqm5A',  // the "anon public" key (or the "publishable" key, sb_publishable_...)
 };

@@ -1,26 +1,27 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792374910';
-import * as Form from './form.js?v=1792374910';
-import { watchSim } from './simview.js?v=1792374910';
-import { bracketHTML } from './bracket.js?v=1792374910';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792374910';
-import { Renderer } from './render.js?v=1792374910';
-import { Sfx } from './audio.js?v=1792374910';
-import { Auth } from './auth.js?v=1792374910';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792374910';
-import { getRoster, teamOvr } from './teams.js?v=1792374910';
-import * as Season from './season.js?v=1792374910';
-import * as Fr from './franchise.js?v=1792374910';
-import * as League from './league.js?v=1792374910';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792374910';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792374910';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792374910';
-import * as UTm from './ut.js?v=1792374910';
-import { initCreator, renderCreator } from './creator.js?v=1792374910';
-import { filmCapture, filmSave } from './social.js?v=1792374910';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792374910';
-import { portraitURL } from './faces.js?v=1792374910';
-import { logoURL, clearLogoCache } from './logos.js?v=1792374910';
+import { CONFIG } from './config.js?v=1792375041';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792375041';
+import * as Form from './form.js?v=1792375041';
+import { watchSim } from './simview.js?v=1792375041';
+import { bracketHTML } from './bracket.js?v=1792375041';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792375041';
+import { Renderer } from './render.js?v=1792375041';
+import { Sfx } from './audio.js?v=1792375041';
+import { Auth } from './auth.js?v=1792375041';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792375041';
+import { getRoster, teamOvr } from './teams.js?v=1792375041';
+import * as Season from './season.js?v=1792375041';
+import * as Fr from './franchise.js?v=1792375041';
+import * as League from './league.js?v=1792375041';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792375041';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792375041';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792375041';
+import * as UTm from './ut.js?v=1792375041';
+import { initCreator, renderCreator } from './creator.js?v=1792375041';
+import { filmCapture, filmSave } from './social.js?v=1792375041';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792375041';
+import { portraitURL } from './faces.js?v=1792375041';
+import { logoURL, clearLogoCache } from './logos.js?v=1792375041';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -341,7 +342,7 @@ $('#code-resend').addEventListener('click', async () => { try { await Auth.sendC
 $('#code-back').addEventListener('click', () => { authMsg(''); showAuthForm('login', true); });
 async function renderTwofa() {
   const row = $('#tf-row'); if (!row) return;
-  const ok = Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account';
+  const ok = CONFIG.TWOFA && Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account';
   row.classList.toggle('hidden', !ok); if (!ok) return;
   const on = await Auth.twofaOn();
   if (on === null) { row.classList.add('hidden'); return; }

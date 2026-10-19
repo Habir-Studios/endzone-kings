@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792373812';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792373812';
-import { drawLogo } from './logos.js?v=1792373812';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792373812';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792374458';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792374458';
+import { drawLogo } from './logos.js?v=1792374458';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792374458';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1129,6 +1129,7 @@ export class Renderer {
         cm.root.updateMatrixWorld(true);
         const hp = A.glove.getWorldPosition(this._v1 || (this._v1 = new THREE.Vector3())), ep = A.elbow.getWorldPosition(this._v2 || (this._v2 = new THREE.Vector3()));
         this.ball.position.copy(hp).lerp(ep, 0.22);
+        if (this.ball.parent) this.ball.parent.worldToLocal(this.ball.position);   // the world is stretched lengthwise (longer field feel): undo it so the ball stays in his hand instead of floating off
         A.glove.getWorldQuaternion(this.ball.quaternion); this.ball.quaternion.multiply(this._qTuck || (this._qTuck = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)));
       }
     }

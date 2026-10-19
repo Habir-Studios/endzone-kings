@@ -389,3 +389,13 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 .admin-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 6px; font-size: 10px; font-weight: 900; letter-spacing: .06em; line-height: 1.5; color: #fff; background: linear-gradient(180deg, #ff4a5c, #c8121f); border-radius: 3px; vertical-align: middle; white-space: nowrap; }
 .admin-badge::before { content: ''; width: 8px; height: 8px; background: currentColor; clip-path: polygon(50% 0, 100% 35%, 82% 100%, 18% 100%, 0 35%); }
 h3 .admin-badge { font-size: 12px; padding: 2px 8px; }
+
+/* every text box readable: white text on the dark field, visible caret and placeholder, autofill included */
+input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]), select, textarea { color: #f4f4f6 !important; caret-color: #ff3347; font: inherit; font-size: 16px; }
+input::placeholder, textarea::placeholder { color: #8a8a96 !important; opacity: 1; }
+select option { background: #0b0b0d; color: #f4f4f6; }
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, textarea:-webkit-autofill {
+  -webkit-text-fill-color: #f4f4f6 !important; caret-color: #ff3347;
+  -webkit-box-shadow: 0 0 0 1000px #0b0b0d inset !important; box-shadow: 0 0 0 1000px #0b0b0d inset !important; transition: background-color 9999s ease-out 0s;
+}
+textarea { padding: 10px 12px; line-height: 1.45; }

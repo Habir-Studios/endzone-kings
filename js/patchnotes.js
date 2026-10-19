@@ -3,6 +3,11 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: '1.0.3', date: '2026-10-18',
+    added: ['Team overall, offense and defense update the second your lineup changes, in Ultimate Team and Franchise'],
+    fixed: [],
+  },
+  {
     v: '1.0.2', date: '2026-10-18',
     added: [
       'Directional tackles: players fall the way they get hit. Hit from the side and they go the other way, from behind and they fall on their face, head-on and they go straight back. Same for trucks, stiff arms and missed tackles',

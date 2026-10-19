@@ -1,19 +1,21 @@
 // ENDZONE KINGS — Franchise: run one team for as many seasons as you want.
 // Your roster is real: players gain XP from what they do in games, age every offseason, ask for new contracts,
 // and retire. Every offseason you re-sign or cut, draft rookies, then sign free agents under the salary cap.
-import { askYes, askPick, showInfo, injuryCard } from './ui.js?v=1792378286';
-import { grade, nextForm, decay, formed, formTag } from './form.js?v=1792378286';
-import { watchSim } from './simview.js?v=1792378286';
-import { bracketHTML } from './bracket.js?v=1792378286';
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792378286';
-import * as Season from './season.js?v=1792378286';
+import { askYes, askPick, showInfo, injuryCard } from './ui.js?v=1792378575';
+import { grade, nextForm, decay, formed, formTag } from './form.js?v=1792378575';
+import { watchSim } from './simview.js?v=1792378575';
+import { bracketHTML } from './bracket.js?v=1792378575';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792378575';
+import * as Season from './season.js?v=1792378575';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const KEY = () => 'ek_franchise_' + (C.Auth.user ? C.Auth.user.id : 'anon');
 export const load = () => { try { return JSON.parse(localStorage.getItem(KEY())); } catch (_) { return null; } };
-const save = F => { if (F) F.at = Date.now(); try { localStorage.setItem(KEY(), JSON.stringify(F)); } catch (_) {} if (C && C.Auth && C.Auth.saveCloud) C.Auth.saveCloud(null, { fr: F }); };
+// the team overall at the top updates the moment the roster changes (sign, trade, cut, draft)
+function liveFrOvr(F) { try { const el = document.querySelector('#fr-top .fr-ovr'); if (!el || !F || F.team == null) return; const r = teamRating(F), t = `${r.ovr} OVR (offense ${r.off}, defense ${r.def})`; if (el.textContent !== t) el.textContent = t; } catch (_) {} }
+const save = F => { if (F) setTimeout(() => liveFrOvr(F), 0); if (F) F.at = Date.now(); try { localStorage.setItem(KEY(), JSON.stringify(F)); } catch (_) {} if (C && C.Auth && C.Auth.saveCloud) C.Auth.saveCloud(null, { fr: F }); };
 // a newer franchise from another device replaces this one
 export function adoptCloud(fr) { const cur = load(); if (fr && (!cur || (fr.at || 0) > (cur.at || 0))) { try { localStorage.setItem(KEY(), JSON.stringify(fr)); } catch (_) {} return true; } return false; }
 
@@ -393,7 +395,7 @@ export function renderFranchise() {
   }
   C.$$('.fr-tab').forEach(b => b.classList.toggle('on', b.dataset.fr === tab));
   const t = TEAMS[F.team], r = teamRating(F), pay = payroll(F);
-  $('#fr-top').innerHTML = `<img alt="" src="${C.logoURL(F.team, 96)}"><div><h3>${t.city} <small>${F.year} season</small></h3><p class="note">${r.ovr} OVR (offense ${r.off}, defense ${r.def}). ${F.trophies} Kings Bowl title${F.trophies === 1 ? '' : 's'}. ${(() => { const h = F.history || [], w = h.reduce((a, x) => a + x.w, 0), l = h.reduce((a, x) => a + x.l, 0), tt = h.reduce((a, x) => a + (x.t || 0), 0), po = h.filter(x => x.playoffs).length; return h.length ? `All-time ${w}-${l}${tt ? '-' + tt : ''} over ${h.length} season${h.length > 1 ? 's' : ''}, ${po} playoff trip${po === 1 ? '' : 's'}.` : 'First season.'; })()} Payroll $${pay.toFixed(1)}M of $${CAP}M.</p></div>
+  $('#fr-top').innerHTML = `<img alt="" src="${C.logoURL(F.team, 96)}"><div><h3>${t.city} <small>${F.year} season</small></h3><p class="note"><span class="fr-ovr">${r.ovr} OVR (offense ${r.off}, defense ${r.def})</span>. ${F.trophies} Kings Bowl title${F.trophies === 1 ? '' : 's'}. ${(() => { const h = F.history || [], w = h.reduce((a, x) => a + x.w, 0), l = h.reduce((a, x) => a + x.l, 0), tt = h.reduce((a, x) => a + (x.t || 0), 0), po = h.filter(x => x.playoffs).length; return h.length ? `All-time ${w}-${l}${tt ? '-' + tt : ''} over ${h.length} season${h.length > 1 ? 's' : ''}, ${po} playoff trip${po === 1 ? '' : 's'}.` : 'First season.'; })()} Payroll $${pay.toFixed(1)}M of $${CAP}M.</p></div>
     <div class="fr-cap"><div class="bar"><i style="width:${Math.min(100, pay / CAP * 100)}%;${pay > CAP ? 'background:var(--siren)' : ''}"></i></div><small>Cap space $${(CAP - pay).toFixed(1)}M</small></div>`;
   ({ hub: hubTab, roster: rosterTab, trade: tradeTab, league: leagueTab, legacy: legacyTab })[tab](F);
 }

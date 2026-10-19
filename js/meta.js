@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792378286';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792378286';
-import * as UT from './ut.js?v=1792378286';
-import { portraitURL } from './faces.js?v=1792378286';
-import { TEAMS } from './teams.js?v=1792378286';
+import { askYes } from './ui.js?v=1792378575';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792378575';
+import * as UT from './ut.js?v=1792378575';
+import { portraitURL } from './faces.js?v=1792378575';
+import { TEAMS } from './teams.js?v=1792378575';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -19,7 +19,7 @@ export function profile() {
   const u = C.Auth.user; if (!u) return null;
   if (!prof || profUser !== u.id) {
     prof = new Profile(u.id); profUser = u.id;
-    prof.onSave(p => { C.Auth.saveCloud(p); refreshChip(); });
+    prof.onSave(p => { C.Auth.saveCloud(p); refreshChip(); liveOvr(); });
     const cloud = C.Auth.cloudProfile(); if (cloud && prof.adopt(cloud)) refreshChip();
     const me = prof;
     me.cloudReady = C.Auth.refreshCloud().then(cp => {
@@ -55,6 +55,12 @@ export function initMeta(ctx) {
   window.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('#carddlg').classList.contains('hidden')) closeDlg(); } });
 }
 
+// squad overall updates the moment your lineup changes (new card, training, X-Factor, swaps), no screen reload needed
+function liveOvr() {
+  const box = C && C.$ && C.$('#ut-pane .sq-ovr'); if (!box || !prof) return;
+  const o = UT.squadOvr(prof.p.ut), b = box.querySelectorAll('b');
+  [o.ovr, o.off, o.def].forEach((v, i) => { if (b[i] && b[i].textContent !== String(v)) { b[i].textContent = v; b[i].classList.remove('ovr-pop'); void b[i].offsetWidth; b[i].classList.add('ovr-pop'); } });
+}
 export function refreshChip() {
   const P = profile(); if (!P) return;
   const { $ } = C, r = P.rank, col = RANK_COL[r.div];

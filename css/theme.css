@@ -337,3 +337,8 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 @media (max-width: 700px) { #menu .profile-chip { position: relative; } }
 
 .lg-play-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* overall numbers flash when they change */
+.ovr-pop { animation: ovrPop .5s ease-out; }
+@keyframes ovrPop { 0% { color: #fff; transform: scale(1.25); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .ovr-pop { animation: none; } }

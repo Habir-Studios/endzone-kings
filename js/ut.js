@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792377885';
-import { grade, nextForm, decay, formed } from './form.js?v=1792377885';
+import { TEAMS } from './teams.js?v=1792377954';
+import { grade, nextForm, decay, formed } from './form.js?v=1792377954';
 
 export const TIERS = [
   // mv = what the market pays. Kept well under what packs cost, so buying packs to resell always loses coins

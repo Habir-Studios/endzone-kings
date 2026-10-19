@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792382335';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792382743';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792382335';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792382743';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -864,7 +864,27 @@ function launchBall(g, tx, tz, T, h, target, auto) {
   b.target = target; b.auto = auto; b.carrier = -1;
 }
 
-function leadPoint(from, r, speed) {
+// where a receiver will be T seconds from now if he keeps running his route (cuts included), like Madden's lead
+function routeAhead(g, p, T) {
+  const P = g.play, d = dirOf(P.off), v = Math.max(hyp(p.vx, p.vz), (p.max || 7) * 0.85);
+  let x = p.x, z = p.z, left = v * T, lx = p.ldx ?? Math.sin(p.face || 0), lz = p.ldz ?? Math.cos(p.face || 0);
+  if (p.rstop) return { x: p.stopX ?? x, z: p.stopZ ?? z };   // sitting in the window: throw it right to him
+  const r = p.route || [];
+  for (let i = p.ri || 0; i < r.length && left > 0; i++) {
+    const w = r[i], tx = clamp(P.bx - w[0] * d, -HALF_W + 1.2, HALF_W - 1.2), tz = zOf(P.off, Math.min(prog(P.off, P.los + w[1] * d), 108));
+    const dx = tx - x, dz = tz - z, l = hyp(dx, dz); if (l < 0.01) continue;
+    if (l >= left) return { x: x + dx / l * left, z: z + dz / l * left };
+    x = tx; z = tz; left -= l; lx = dx / l; lz = dz / l;
+    if (w[2] === 'stop' && i === r.length - 1) return { x, z };   // route ends in a sit-down: he'll be right there
+  }
+  return { x: x + lx * left, z: z + lz * left };   // past the end of the route: keeps going the same way
+}
+function leadPoint(from, r, speed, g) {
+  if (g && g.play && r.route && r.unit === 'off' && !r.contacted) {   // on a route: lead him along it so he catches it in stride
+    let L = { x: r.x, z: r.z }, T = 0.4;
+    for (let k = 0; k < 5; k++) { T = Math.max(0.35, hyp(L.x - from.x, L.z - from.z) / speed); L = routeAhead(g, r, T); }
+    return { x: L.x, z: L.z, T };
+  }
   let tx = r.x, tz = r.z, T = 0.4;
   let vx = r.vx, vz = r.vz;
   if (r.rstop) { vx = 0; vz = 0; }
@@ -893,12 +913,15 @@ function throwBall(g, qb, r, err, pw) {
   if (!human) pw = need + (g.rng() - 0.5) * 0.1;
   const bullet = clamp(pw, 0.1, 1.4);
   const speed = (16 + Math.min(D0, 40) * 0.17) * (0.86 + qb.rt.arm / 100 * 0.2) * (0.72 + bullet * 0.38);
-  const L = leadPoint(qb, r, speed);
+  const L = leadPoint(qb, r, speed, g);
   // lead him to a spot he can actually catch it: inside the sideline and in front of the end line
   L.x = clamp(L.x, -HALF_W + 1.3, HALF_W - 1.3); L.z = zOf(P.off, Math.min(prog(P.off, L.z), 108.5));
   // longer throws are harder to place
   const a = g.rng() * Math.PI * 2, e = err * (0.6 + Math.min(D0, 45) / 11) * Math.sqrt(g.rng());
-  let tx = L.x + Math.cos(a) * e, tz = L.z + Math.sin(a) * e;
+  const ahead = routeAhead(g, r, 0.25), mdx = ahead.x - L.x, mdz = ahead.z - L.z, ml = hyp(mdx, mdz);
+  const fx = ml > 0.05 ? -mdx / ml : (L.x - qb.x) / (hyp(L.x - qb.x, L.z - qb.z) || 1), fz = ml > 0.05 ? -mdz / ml : (L.z - qb.z) / (hyp(L.x - qb.x, L.z - qb.z) || 1);
+  const along = Math.cos(a) * e, side = Math.sin(a) * e * 0.4;   // mostly a step ahead / behind on his path, only a little off to the side
+  let tx = L.x + fx * along - fz * side, tz = L.z + fz * along + fx * side;
   if (human) {
     const W = throwWindow(qbState(g, qb).pr), off = pw - need, ux = (L.x - qb.x) / (hyp(L.x - qb.x, L.z - qb.z) || 1), uz = (L.z - qb.z) / (hyp(L.x - qb.x, L.z - qb.z) || 1);
     let depth = 0;
@@ -1901,7 +1924,12 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
   if (airPass) {
     const since = g.t - P.throwT;
     if (p.id === b.target) {
-      // he runs to where the ball should be, and only adjusts to a bad throw once he can read it
+      // Madden-style: if the ball is on his route he just keeps running it and catches it in stride
+      if (p.route && !p.rstop && !p.contacted) {
+        const left = Math.max(0, (b.T || 1) - b.t), there = routeAhead(g, p, left);
+        if (hyp(there.x - b.tx, there.z - b.tz) < 1.6) { const mv = p.ri < p.route.length ? routeMove(g, p) : { x: p.ldx || 0, z: p.ldz || 1 }; return { ...mv, s: 1 }; }
+      }
+      // otherwise he runs to where the ball should be, and adjusts to a bad throw once he can read it
       const k = clamp((b.t / (b.T || 1) - 0.35) / 0.4, 0, 1), ix = b.ix ?? b.tx, iz = b.iz ?? b.tz;
       return seek(p, clamp(ix + (b.tx - ix) * k, -HALF_W + 0.6, HALF_W - 0.6), zOf(P.off, Math.min(prog(P.off, iz + (b.tz - iz) * k), 109.4)), 1, 0.4);   // he won't chase it out of bounds
     }

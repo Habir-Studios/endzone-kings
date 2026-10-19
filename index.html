@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792384446">
-  <link rel="stylesheet" href="css/theme.css?v=1792384446">
+  <link rel="stylesheet" href="css/style.css?v=1792384639">
+  <link rel="stylesheet" href="css/theme.css?v=1792384639">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8994"/><stop offset=".45" stop-color="#ff3347"/><stop offset="1" stop-color="#b3101f"/></linearGradient></defs></svg>
@@ -688,6 +688,8 @@
       <button class="btn primary km-btn" id="km-btn" type="button">Kick</button>
     </div>
     <div id="halftime" class="halftime hidden" aria-live="polite"></div>
+    <div class="np-overlay hidden" id="np-overlay" role="dialog" aria-live="polite"><small>GAME PAUSED</small><b id="np-left">0:30</b><span id="np-by">Both players agreed to pause</span><button class="btn primary" type="button" id="np-resume">Resume</button></div>
+    <div class="chat-hint hidden" id="chat-hint"><kbd>T</kbd> chat</div>
     <div id="chat" class="chat hidden">
       <div id="chat-log" class="chat-log" aria-live="polite"></div>
       <form id="chat-form" class="chat-form hidden"><div class="quick-chat" id="quick-chat"></div><input id="chat-in" maxlength="120" placeholder="Say something (Enter to send, Esc to close)" autocomplete="off" aria-label="Chat message"></form>
@@ -723,7 +725,9 @@
       <button class="btn hidden" id="p-replay">Instant replay</button>
       <button class="btn" id="p-clip">Clip last play</button>
       <button class="btn" id="p-cam">Camera: <span id="p-cam-l"></span></button>
+      <button class="btn hidden" id="p-askpause">Ask to pause</button>
       <button class="btn hidden" id="p-chat">Mute chat</button>
+      <button class="btn danger hidden" id="p-forfeit">Forfeit</button>
       <button class="btn danger" id="quit">Quit game</button>
     </div>
   </div>
@@ -765,6 +769,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792384446"></script>
+  <script type="module" src="js/main.js?v=1792384639"></script>
 </body>
 </html>

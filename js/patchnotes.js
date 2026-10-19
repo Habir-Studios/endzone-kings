@@ -12,6 +12,9 @@ export const NOTES = [
       "The two-step login code screen now tells you exactly what to look for in your authenticator app: Endzone Kings with your email under it",
       "In-game timeouts last 8 seconds with a big countdown on screen (pick your play during it), for you and the CPU",
       "Admin time-outs (temporary bans) show a live countdown and lift on their own the second it hits zero",
+      "Online pause: ask to pause in an online game or Online Franchise game, your opponent accepts or declines, and it unpauses on its own after 30 seconds (either player can resume sooner). 3 pause requests per game",
+      "Forfeit button in online games: give up and your opponent gets the win",
+      "A “T chat” reminder is always on screen in online games",
       "Touchdowns follow the real rule: it counts the moment the ball crosses the goal line in your hands, so diving or stretching the ball over now scores even if your body is short"
     ]
   },

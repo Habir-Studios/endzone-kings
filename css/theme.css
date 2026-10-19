@@ -426,3 +426,17 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .to-timer b { font-size: 44px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; }
 .to-timer span { font-size: 12px; opacity: .75; }
 @media (max-width: 700px) { .to-timer { top: 70px; padding: 8px 18px 10px; } .to-timer b { font-size: 34px; } }
+
+/* online pause */
+.np-overlay { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(5,5,7,.72); backdrop-filter: blur(3px); text-align: center; }
+.np-overlay small { font-weight: 900; letter-spacing: .1em; color: var(--red-2, #ff3347); }
+.np-overlay b { font-size: 64px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; }
+.np-overlay span { opacity: .8; font-size: 14px; }
+.np-overlay .btn { margin-top: 8px; min-width: 160px; }
+.np-ask { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 80; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 18px; background: #121215; border: 1px solid rgba(255,51,71,.6); box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+.np-ask span { font-size: 13px; opacity: .75; }
+.np-ask div { display: flex; gap: 8px; }
+/* always-on chat hint in online games */
+.chat-hint { position: absolute; left: 14px; bottom: 14px; z-index: 6; padding: 4px 9px; background: rgba(10,10,12,.75); border: 1px solid rgba(255,255,255,.12); font-size: 12px; font-weight: 700; opacity: .85; pointer-events: none; }
+.chat-hint kbd { display: inline-block; min-width: 18px; padding: 0 5px; margin-right: 4px; background: #fff; color: #000; font-weight: 900; text-align: center; border-radius: 2px; }
+#hud.touch-mode .chat-hint { display: none; }

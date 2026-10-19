@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792441682">
-  <link rel="stylesheet" href="css/theme.css?v=1792441682">
+  <link rel="stylesheet" href="css/style.css?v=1792448272">
+  <link rel="stylesheet" href="css/theme.css?v=1792448272">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8994"/><stop offset=".45" stop-color="#ff3347"/><stop offset="1" stop-color="#b3101f"/></linearGradient></defs></svg>
@@ -138,6 +138,7 @@
         <button class="tile t-creator" data-go="creator"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zm2 2v12h14V6zm2 9.5L9.5 12 12 14l4-5 1.5 1.2L12.3 17 9.6 14.8 8.2 16.6zM7 8h3v2H7z"/></svg></i><span class="tl-k">Play Creator</span><small>Draw your own plays</small></button>
         <button class="tile t-modes" data-go="modes"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 3h2v5.4l3.6 2.1-1 1.7L11 13.6z"/></svg></i><span class="tl-k">Practice</span><small>Offense, defense and special teams practice, plus drills</small></button>
         <button class="tile t-rosters" data-go="rosters"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M9 2h6v2h4v18H5V4h4zm1 2v1.5h4V4zM8 9v2h2V9zm4 0v2h4V9zm-4 4v2h2v-2zm4 0v2h4v-2zm-4 4v2h2v-2zm4 0v2h4v-2z"/></svg></i><span class="tl-k">Rosters</span><small>Every player on all 32 teams</small></button>
+        <button class="tile t-playbooks" data-go="playbooks"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M4 3h13l3 3v15H4zm2 2v14h12V7h-2V5zm2 3h2v2H8zm6 0 4 4-1.4 1.4L14 10.8zm-5.3 6.3 1.4 1.4L8 19l-1.4-1.4zM12 16h2v2h-2z"/></svg></i><span class="tl-k">Playbooks</span><small>Every play in every team’s book</small></button>
         <button class="tile t-howto" data-go="howto"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 6h10a5 5 0 0 1 4.9 6l-1.1 5.2a2.6 2.6 0 0 1-4.5 1.2L14 16h-4l-2.3 2.4a2.6 2.6 0 0 1-4.5-1.2L2.1 12A5 5 0 0 1 7 6zm0 3v1.5H5.5V12H7v1.5h1.5V12H10v-1.5H8.5V9zm9.5.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm-2.2 2.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/></svg></i><span class="tl-k">How to Play</span><small>Controls, moves and tips</small></button>
         <button class="tile t-daily" id="daily-tile" type="button"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 10h18v3H3zm1 3h16v8H4zm7-3h2v11h-2zM12 10S9.5 3 6.8 5.2C4.6 7 8 10 12 10zm0 0s2.5-7 5.2-4.8C19.4 7 16 10 12 10z"/></svg></i><span class="tl-k">Daily Reward</span><small id="daily-sub">Claim your daily coins</small></button>
         <button class="tile wide t-admin hidden" data-go="admin" id="admin-tile"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.6 8 11 4.6-1.4 8-6 8-11V5zm0 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 12c-2 0-3.8-1-4.8-2.6.4-1.6 3-2.4 4.8-2.4s4.4.8 4.8 2.4C15.8 17 14 18 12 18z"/></svg></i><span class="tl-k">Admin <i class="dotn hidden" id="admin-n"></i></span><small>Reports and bans</small></button>
@@ -307,6 +308,24 @@
         <div class="roster-head" id="roster-head"></div>
         <div class="tbl-wrap"><table id="roster-tbl" class="tbl"></table></div>
         <div class="actions"><button class="btn primary" data-go="menu">Back</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="playbooks" class="screen">
+    <div class="center-col xwide">
+      <h2 class="title">Playbooks</h2>
+      <div class="panel">
+        <div class="pb-top">
+          <div class="team-pick inline" id="tp-pb"><small>Team</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
+          <div class="pb-meta" id="pb-meta"></div>
+        </div>
+        <div class="pb-segs"><div class="seg" id="seg-pbsrc"></div><div class="seg" id="seg-pbside"></div></div>
+        <div class="pb-body">
+          <nav class="pb-forms" id="pb-forms" aria-label="Formations"></nav>
+          <div class="pb-main"><div class="pb-cats" id="pb-cats"></div><div class="pb-grid" id="pb-grid"></div></div>
+        </div>
+        <div class="actions"><button class="btn" data-go="menu">Back</button></div>
       </div>
     </div>
   </section>
@@ -782,6 +801,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792441682"></script>
+  <script type="module" src="js/main.js?v=1792448272"></script>
 </body>
 </html>

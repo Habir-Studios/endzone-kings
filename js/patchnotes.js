@@ -15,6 +15,7 @@ export const NOTES = [
       "A redesigned Online H2H screen: you vs your opponent, your H2H record, a squad switch, a big code box for joining and a cleaner host setup",
       "Tutorial: a coach walks you through the controls in a real game, on offense and defense. New players get offered it, and it's always in Practice and How to Play",
       "9 new celebrations in the store: Take a knee, Salute, Heart hands, Wave to the crowd, Jumping jacks, Robot, Sprinkler, Archer and Kings throne",
+      "Playbooks on the main menu: browse every team’s offense by formation (filter by Quick, Deep, Run, Play Action and Screen) and its defense by coverage, see the signature play, your custom plays and your Ultimate Team squad’s playbook, and tap any play to see it big with who runs what",
       "Practice has a Play clock option: keep it running or freeze it (practice only)",
       "Online now: the menu shows how many people have the game open, live, next to the total player count"
     ],

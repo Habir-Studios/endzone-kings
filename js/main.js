@@ -1,28 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792441682';
-import { NOTES } from './patchnotes.js?v=1792441682';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792441682';
-import * as Form from './form.js?v=1792441682';
-import { watchSim } from './simview.js?v=1792441682';
-import { bracketHTML } from './bracket.js?v=1792441682';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792441682';
-import { Renderer } from './render.js?v=1792441682';
-import { Sfx } from './audio.js?v=1792441682';
-import { Auth } from './auth.js?v=1792441682';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792441682';
-import { getRoster, teamOvr } from './teams.js?v=1792441682';
-import * as Season from './season.js?v=1792441682';
-import * as Fr from './franchise.js?v=1792441682';
-import * as League from './league.js?v=1792441682';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792441682';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792441682';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792441682';
-import * as UTm from './ut.js?v=1792441682';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792441682';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792441682';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792441682';
-import { portraitURL } from './faces.js?v=1792441682';
-import { logoURL, clearLogoCache } from './logos.js?v=1792441682';
+import { CONFIG } from './config.js?v=1792448272';
+import { NOTES } from './patchnotes.js?v=1792448272';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792448272';
+import * as Form from './form.js?v=1792448272';
+import { watchSim } from './simview.js?v=1792448272';
+import { bracketHTML } from './bracket.js?v=1792448272';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792448272';
+import { rosterStyle } from './playbook.js?v=1792448272';
+import { Renderer } from './render.js?v=1792448272';
+import { Sfx } from './audio.js?v=1792448272';
+import { Auth } from './auth.js?v=1792448272';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792448272';
+import { getRoster, teamOvr } from './teams.js?v=1792448272';
+import * as Season from './season.js?v=1792448272';
+import * as Fr from './franchise.js?v=1792448272';
+import * as League from './league.js?v=1792448272';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792448272';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792448272';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792448272';
+import * as UTm from './ut.js?v=1792448272';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792448272';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792448272';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792448272';
+import { portraitURL } from './faces.js?v=1792448272';
+import { logoURL, clearLogoCache } from './logos.js?v=1792448272';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -191,6 +192,7 @@ function show(id) {
   if (id === 'locker') renderLocker();
   if (id === 'season') renderSeason();
   if (id === 'rosters') renderRosters();
+  if (id === 'playbooks') renderPlaybooks();
   if (id === 'ut') renderUT();
   if (id === 'progress') renderProgress();
   if (id === 'creator') renderCreator();
@@ -1011,6 +1013,79 @@ function maybeAskTutorial() {
   $('#tut-no').onclick = () => { sfx.play('ui'); SET.tutSeen = 1; saveSet(); closeTutAsk(); };
 }
 function closeTutAsk() { const m = $('#tut-ask'); if (m) m.remove(); }
+
+// ---------------- Playbooks: browse any team's offense and defense outside a game ----------------
+// Offense is organized by formation (then filtered by play type), defense by coverage family.
+// Tap a play to see it big with who runs what.
+let pbTeam = -1, pbSide = 'off', pbGroup = 'all', pbCat = 'all', pbUT = false;
+const ROLE_NAME = { WR1: 'X receiver', WR2: 'Z receiver', WR3: 'Slot receiver', TE: 'Tight end', RB: 'Running back', QB: 'Quarterback' };
+function pbBook() {
+  const P = !isGuest() ? profile() : null, ut = pbUT && P && P.p.ut && P.p.ut.started ? UTm.squadRoster(P.p.ut) : null;
+  const ti = ut ? P.p.ut.club : pbTeam;
+  return { ti, ut, book: teamPlaybook(ti, TEAMS[ti], ut ? rosterStyle(ut) : undefined), name: ut ? P.p.ut.name : TEAMS[ti].city };
+}
+function pbOffPlays(book) {
+  const list = book.off.map(id => OFF_PLAYS.find(p => p.id === id)).filter(Boolean);
+  if (book.sig) list.unshift({ ...book.sig, signature: true });
+  return list;
+}
+function renderPlaybooks() {
+  if (pbTeam < 0) pbTeam = SET.team;
+  const P = !isGuest() ? profile() : null, canUT = !!(P && P.p.ut && P.p.ut.started && UTm.squadRoster(P.p.ut));
+  if (!canUT) pbUT = false;
+  const { ti, book, name } = pbBook();
+  teamCard($('#tp-pb .team-card'), ti);
+  $('#tp-pb').classList.toggle('dim', pbUT);
+  wireTeamPick($('#tp-pb'), () => pbTeam, v => { pbTeam = v; pbUT = false; pbGroup = 'all'; renderPlaybooks(); });
+  $('#seg-pbsrc').classList.toggle('hidden', !canUT);
+  seg($('#seg-pbsrc'), canUT ? [[false, 'Team playbook'], [true, 'My Ultimate Team squad']] : [[false, 'Team playbook']], pbUT, v => { pbUT = v; pbGroup = 'all'; renderPlaybooks(); });
+  seg($('#seg-pbside'), [['off', 'Offense'], ['def', 'Defense']], pbSide, v => { pbSide = v; pbGroup = 'all'; pbCat = 'all'; renderPlaybooks(); });
+  const mine = customPlays().filter(c => c.side === pbSide);
+  const offAll = pbOffPlays(book), defAll = book.def.map(id => DEF_PLAYS.find(p => p.id === id)).filter(Boolean);
+  $('#pb-meta').innerHTML = `<b>${escapeHtml(name)}</b><span>Offense: <em>${escapeHtml(book.offName)}</em></span><span>Defense: <em>${escapeHtml(book.defName)}</em></span><span>${offAll.length} offensive plays, ${defAll.length} defensive calls</span>`;
+  // groups for the left column
+  let groups = [];
+  if (pbSide === 'off') {
+    if (offAll.some(p => p.signature)) groups.push(['sig', 'Signature', offAll.filter(p => p.signature)]);
+    const byForm = {};
+    for (const p of offAll) { if (p.signature || p.cat === 'Special') continue; const f = p.form || 'gun'; (byForm[f] = byForm[f] || []).push(p); }
+    for (const [f, ps] of Object.entries(byForm).sort((a, b) => b[1].length - a[1].length)) groups.push(['f:' + f, (FORMS[f] || FORMS.gun).name, ps]);
+    const sp = offAll.filter(p => p.cat === 'Special'); if (sp.length) groups.push(['special', 'Special Teams', sp]);
+  } else for (const cat of DEF_CATS) { const ps = defAll.filter(p => p.cat === cat); if (ps.length) groups.push(['c:' + cat, cat + ' coverage', ps]); }
+  if (mine.length) groups.push(['mine', 'My Plays', mine.map(c => ({ ...c, mine: true }))]);
+  const all = pbSide === 'off' ? offAll.filter(p => !p.signature || true) : defAll;
+  groups.unshift(['all', 'All plays', all.concat(mine.map(c => ({ ...c, mine: true })))]);
+  if (!groups.some(g => g[0] === pbGroup)) pbGroup = 'all';
+  $('#pb-forms').innerHTML = groups.map(([k, n, ps]) => `<button type="button" class="pb-form ${k === pbGroup ? 'on' : ''}" data-pbg="${escapeHtml(k)}"><span>${escapeHtml(n)}</span><small>${ps.length}</small></button>`).join('');
+  $$('#pb-forms [data-pbg]').forEach(b => b.onclick = () => { sfx.play('ui'); pbGroup = b.dataset.pbg; renderPlaybooks(); });
+  let plays = (groups.find(g => g[0] === pbGroup) || groups[0])[2];
+  // play type filter (offense)
+  const cats = pbSide === 'off' ? ['all', ...OFF_CATS.filter(c => c !== 'Special' && plays.some(p => p.cat === c))] : [];
+  if (!cats.includes(pbCat)) pbCat = 'all';
+  $('#pb-cats').innerHTML = cats.length > 2 ? cats.map(c => `<button type="button" class="pb-cat ${c === pbCat ? 'on' : ''}" data-pbc="${c}">${c === 'all' ? 'All types' : c}</button>`).join('') : '';
+  $$('#pb-cats [data-pbc]').forEach(b => b.onclick = () => { sfx.play('ui'); pbCat = b.dataset.pbc; renderPlaybooks(); });
+  if (pbCat !== 'all') plays = plays.filter(p => p.cat === pbCat);
+  const art = p => pbSide === 'off' ? (p.mine ? routeSvg({ ...p, routes: p.routes || {} }) : routeSvg(p)) : defSvg(p.mine ? (p.preview || {}) : p);
+  const sub = p => pbSide === 'off' ? `${p.mine ? 'Custom' : (FORMS[p.form || 'gun'] || FORMS.gun).name} · ${p.signature ? 'Signature' : p.cat || 'Custom'}` : `${p.mine ? 'Custom' : p.cat} · ${(p.rush || []).length || 4} rushing`;
+  $('#pb-grid').innerHTML = plays.length ? plays.map((p, i) => `<button type="button" class="pb-card ${p.signature ? 'sig' : ''}" data-pbi="${i}">${art(p)}<b>${escapeHtml(p.name)}</b><small>${escapeHtml(sub(p))}</small></button>`).join('') : '<p class="note">No plays here.</p>';
+  $$('#pb-grid [data-pbi]').forEach(b => b.onclick = () => { sfx.play('ui'); openPlayDetail(plays[+b.dataset.pbi], art, sub); });
+}
+function openPlayDetail(p, art, sub) {
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
+  const roles = pbSide === 'off' ? Object.keys({ ...(p.routes || {}), ...(p.qbPath ? { QB: 1 } : {}) }).filter(r => ROLE_NAME[r]) : [];
+  const facts = pbSide === 'off'
+    ? [p.type === 'run' ? 'Run play' : 'Pass play', p.pa ? 'Play action fake' : '', p.qbRun ? 'QB keeps it' : '', p.signature ? 'Team signature play' : ''].filter(Boolean)
+    : [`${(p.rush || []).length || 4} rushers`, Object.keys(p.man || {}).length ? `${Object.keys(p.man).length} in man coverage` : '', Object.keys(p.zone || {}).length ? `${Object.keys(p.zone).length} in zones` : '', (p.deep || []).length ? `${p.deep.length} deep` : '', (p.spy || []).length ? 'QB spy' : ''].filter(Boolean);
+  m.innerHTML = `<div class="panel info-card pb-detail"><small class="pb-dsub">${escapeHtml(sub(p))}</small><h3>${escapeHtml(p.name)}</h3><div class="pb-dart">${art(p)}</div>
+    <p>${escapeHtml(p.tip || '')}</p><div class="pb-facts">${facts.map(f => `<span>${escapeHtml(f)}</span>`).join('')}</div>
+    ${roles.length ? `<div class="pb-legend">${roles.map(r => `<span><i style="background:${RCOLS[r]}"></i>${ROLE_NAME[r]}</span>`).join('')}</div>` : ''}
+    <div class="actions"><button class="btn primary" type="button" data-x>Close</button></div></div>`;
+  document.body.appendChild(m);
+  const close = () => { m.remove(); document.removeEventListener('keydown', key, true); };
+  const key = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', key, true);
+  m.querySelector('[data-x]').onclick = close; m.onclick = e => { if (e.target === m) close(); };
+}
 
 function startCPU(opts = {}) {
   sfx.init();

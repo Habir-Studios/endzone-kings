@@ -3,44 +3,9 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
-    v: "1.0.3",
-    date: "2026-10-19",
-    added: [
-      "Search the patch notes: type a version (like 1.0.2) to jump to it, or a keyword (like passing) to see every change that mentions it"
-    ],
-    fixed: [
-      "Passing feels way better: the QB throws to where your receiver is going on his route, cuts included, so he catches it in stride instead of running to the ball",
-      "Off-target throws miss a step ahead or behind on the receiver’s path instead of off to the side",
-      "The two-step login code screen now tells you exactly what to look for in your authenticator app: Endzone Kings with your email under it",
-      "In-game timeouts last 8 seconds with a big countdown on screen (pick your play during it), for you and the CPU",
-      "Admin time-outs (temporary bans) show a live countdown and lift on their own the second it hits zero",
-      "Online pause: ask to pause in an online game or Online Franchise game, your opponent accepts or declines, and it resumes when both players are ready or after 30 seconds, so nobody gets forced back in. 3 pause requests per game",
-      "Forfeit button in online games: give up and your opponent gets the win",
-      "A “T chat” reminder is always on screen in online games",
-      "Touchdowns follow the real rule: it counts the moment the ball crosses the goal line in your hands, so diving or stretching the ball over now scores even if your body is short",
-      "CPU receivers catch way more reliably and play the ball better on harder difficulties, still based on each player’s hands rating, so sure-handed guys rarely drop it and weak hands still do"
-    ]
-  },
-  {
-    v: "1.0.2",
-    date: "2026-10-18",
-    added: [
-      "Everything follows your account between devices: coins, cards, squad, Franchise, Season, custom plays and your game settings (graphics, sound and touch controls stay per device)",
-      "Changes you make on one device show up on your other devices within about a second, no reopening needed (never in the middle of a game)",
-      "Feedback button on the main menu: report a bug, send a suggestion or ask for help, straight to the dev team",
-      "A full two-step login guide in How to Play: setting it up, logging in, the 10-day remember option, new phones and lost phones",
-      "Clearer step-by-step instructions when you turn two-step login on or off, and on the login code screen, with a link to the guide",
-      "The Habir Studios admin now has an ADMIN badge next to their name on profiles, leaderboards, friends lists, crews and messages"
-    ],
-    fixed: [
-      "Typing in some text boxes (like Feedback and dropdowns) was hard to see. Every text box now has bright, readable text, even when your browser autofills it",
-      "Profile headers are evenly spaced: name, online status, level, records and followers no longer crowd each other"
-    ]
-  },
-  {
-    v: "1.0.1",
-    date: "2026-10-18",
-    added: [
+    "v": "1.0.1",
+    "date": "2026-10-19",
+    "added": [
       "Daily Reward tile on the main menu: claim your coins with a button, then a timer counts down to the next one",
       "Online and offline status on player profiles",
       "Log in with your username or your email",
@@ -59,9 +24,17 @@ export const NOTES = [
       "Two-step login has a “Remember this device for 10 days” option, just for the device you tick it on",
       "Sessions in Settings: see every device logged into your account (device, browser and system) and log any of them out instantly",
       "How to Play now covers other controllers (8BitDo, PowerA, Logitech, PC gamepads), and the game calls them a standard controller instead of Xbox",
-      "The game updates itself: it checks every 10 seconds and grabs the newest version on any screen as soon as you’re out of a game (never in the middle of one)"
+      "The game updates itself: it checks every 10 seconds and grabs the newest version on any screen as soon as you’re out of a game (never in the middle of one)",
+      "Everything follows your account between devices: coins, cards, squad, Franchise, Season, custom plays and your game settings (graphics, sound and touch controls stay per device)",
+      "Changes you make on one device show up on your other devices within about a second, no reopening needed (never in the middle of a game)",
+      "Feedback button on the main menu: report a bug, send a suggestion or ask for help, straight to the dev team",
+      "A full two-step login guide in How to Play: setting it up, logging in, the 10-day remember option, new phones and lost phones",
+      "Clearer step-by-step instructions when you turn two-step login on or off, and on the login code screen, with a link to the guide",
+      "The Habir Studios admin now has an ADMIN badge next to their name on profiles, leaderboards, friends lists, crews and messages",
+      "Search the patch notes: type a version (like 1.0.1) to jump to it, or a keyword (like passing) to see every change that mentions it"
     ],
-    fixed: [
+    "fixed": [
+      "Cleaner phone layout, held upright or sideways: menu buttons sit in a row at the top instead of covering the modes, smaller logo on short screens, less cramped mode tiles, and a slimmer play call menu that the big banners stay out of",
       "Coins showing different amounts on different devices",
       "The ball floating away from the ball carrier instead of sitting in his arms",
       "After a play ends near the sideline or out of bounds, the ball is spotted on the nearest hash mark",
@@ -70,7 +43,19 @@ export const NOTES = [
       "The profile card, bell and patch notes button staying stuck on screen when you scroll the main menu",
       "Removed the nets behind the goal posts",
       "Quick Play now says it doesn’t count toward your record",
-      "Removed Weekend League"
+      "Removed Weekend League",
+      "Typing in some text boxes (like Feedback and dropdowns) was hard to see. Every text box now has bright, readable text, even when your browser autofills it",
+      "Profile headers are evenly spaced: name, online status, level, records and followers no longer crowd each other",
+      "Passing feels way better: the QB throws to where your receiver is going on his route, cuts included, so he catches it in stride instead of running to the ball",
+      "Off-target throws miss a step ahead or behind on the receiver’s path instead of off to the side",
+      "The two-step login code screen now tells you exactly what to look for in your authenticator app: Endzone Kings with your email under it",
+      "In-game timeouts last 8 seconds with a big countdown on screen (pick your play during it), for you and the CPU",
+      "Admin time-outs (temporary bans) show a live countdown and lift on their own the second it hits zero",
+      "Online pause: ask to pause in an online game or Online Franchise game, your opponent accepts or declines, and it resumes when both players are ready or after 30 seconds, so nobody gets forced back in. 3 pause requests per game",
+      "Forfeit button in online games: give up and your opponent gets the win",
+      "A “T chat” reminder is always on screen in online games",
+      "Touchdowns follow the real rule: it counts the moment the ball crosses the goal line in your hands, so diving or stretching the ball over now scores even if your body is short",
+      "CPU receivers catch way more reliably and play the ball better on harder difficulties, still based on each player’s hands rating, so sure-handed guys rarely drop it and weak hands still do"
     ]
   }
 ];

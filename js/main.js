@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792385665';
-import { NOTES } from './patchnotes.js?v=1792385665';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792385665';
-import * as Form from './form.js?v=1792385665';
-import { watchSim } from './simview.js?v=1792385665';
-import { bracketHTML } from './bracket.js?v=1792385665';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792385665';
-import { Renderer } from './render.js?v=1792385665';
-import { Sfx } from './audio.js?v=1792385665';
-import { Auth } from './auth.js?v=1792385665';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792385665';
-import { getRoster, teamOvr } from './teams.js?v=1792385665';
-import * as Season from './season.js?v=1792385665';
-import * as Fr from './franchise.js?v=1792385665';
-import * as League from './league.js?v=1792385665';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792385665';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792385665';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792385665';
-import * as UTm from './ut.js?v=1792385665';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792385665';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792385665';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792385665';
-import { portraitURL } from './faces.js?v=1792385665';
-import { logoURL, clearLogoCache } from './logos.js?v=1792385665';
+import { CONFIG } from './config.js';
+import { NOTES } from './patchnotes.js';
+import { askYes, showInfo, injuryCard } from './ui.js';
+import * as Form from './form.js';
+import { watchSim } from './simview.js';
+import { bracketHTML } from './bracket.js';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js';
+import { Renderer } from './render.js';
+import { Sfx } from './audio.js';
+import { Auth } from './auth.js';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js';
+import { getRoster, teamOvr } from './teams.js';
+import * as Season from './season.js';
+import * as Fr from './franchise.js';
+import * as League from './league.js';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js';
+import { initGamepad, pad, glyphs } from './gamepad.js';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js';
+import * as UTm from './ut.js';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js';
+import { portraitURL } from './faces.js';
+import { logoURL, clearLogoCache } from './logos.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -30,7 +30,7 @@ const params = new URLSearchParams(location.search);
 const LOCALNET = params.has('localnet');
 
 // ---------------- settings ----------------
-const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'player', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true, cel: -1, pside: 'off', pspot: 25 };
+const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'player', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true, cel: -1, pside: 'off', pspot: 25, pfreeze: 0 };
 let SET = { ...DEF_SET };
 try { SET = { ...DEF_SET, ...JSON.parse(localStorage.getItem('ek_settings') || '{}') }; } catch (_) {}
 if (SET.camV !== 2) { SET.cam = 'player'; SET.camV = 2; }   // new over-the-shoulder camera is the default now
@@ -777,13 +777,14 @@ function renderModes() {
   teamCard($('#tp-modes .team-card'), SET.team);
   seg($('#seg-pside'), [['off', 'Offense'], ['def', 'Defense'], ['st', 'Special teams']], SET.pside, v => { SET.pside = v; saveSet(); });
   seg($('#seg-pspot'), [[25, 'Own 25'], [50, 'Midfield'], [80, 'Red zone'], [97, 'Goal line']], SET.pspot, v => { SET.pspot = v; saveSet(); });
+  seg($('#seg-pfreeze'), [[0, 'Running'], [1, 'Frozen']], SET.pfreeze ? 1 : 0, v => { SET.pfreeze = v; saveSet(); });
   seg($('#seg-pdiff'), DIFFICULTIES.map((n, i) => [i, n]), SET.diff, v => { SET.diff = v; saveSet(); renderModes(); });
   seg($('#seg-ddiff'), DIFFICULTIES.map((n, i) => [i, n]), SET.diff, v => { SET.diff = v; saveSet(); renderModes(); });
   renderDrillBoard($('#drill-board'));
 }
 wireTeamPick($('#tp-modes'), () => SET.team, v => { SET.team = v; saveSet(); renderModes(); });
 const randOpp = () => { let o; do { o = (Math.random() * TEAMS.length) | 0; } while (o === SET.team); return o; };
-$('#go-practice').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], practice: SET.pside, pspot: SET.pspot, weather: 'clear', tod: 'day' }));
+$('#go-practice').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], practice: SET.pside, pspot: SET.pspot, freeze: !!SET.pfreeze, weather: 'clear', tod: 'day' }));
 $('#go-drill').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], drill: true }));
 
 function renderSettings() {
@@ -838,8 +839,86 @@ function endIntro() {
   const natural = st.intro < 0.05;
   st.intro = 0; $('#intro').classList.add('hidden'); $('#hud').classList.remove('intro'); rotHint();
   if (natural) { R.camPos.copy(R.cam.position); R._camInit = true; } else R.snapCamera();
+  maybeToss();
 }
 $('#intro').addEventListener('click', endIntro);
+
+// ---------------- opening coin toss ----------------
+// Every real game starts with one. Call heads or tails; win it and pick: receive (get the ball first) or kick (defend first).
+// Against the CPU, if it wins it picks at random. Online, whoever calls it first gets the call, the host flips the coin
+// and both screens show the same result.
+const tossOn = () => st.playing && st.mode !== 'spec' && st.mode !== 'clip' && !st.replay && (st.mode === 'guest' ? !!(st.snap && st.snap.tz) : !!(st.game && st.game.toss));
+function maybeToss() { if (tossOn() && !$('#toss')) openToss(); }
+const tossName = t => t === st.local ? 'You' : (st.mode === 'cpu' ? 'The CPU' : (st.names && st.names[t]) || 'Your opponent');
+function openToss() {
+  if ($('#toss')) return;
+  st.tossS = { call: null };
+  const m = document.createElement('div'); m.id = 'toss'; m.className = 'toss-ov';
+  m.innerHTML = `<div class="toss-card" role="dialog" aria-label="Coin toss">
+    <h3>Coin toss</h3>
+    <div class="toss-stage"><div class="toss-coin" id="toss-coin"><i class="tc-face tc-h">H</i><i class="tc-face tc-t">T</i></div></div>
+    <p class="toss-msg" id="toss-msg">${st.mode === 'cpu' ? 'Call it in the air.' : 'Call it. Whoever calls first gets the call.'}</p>
+    <div class="toss-btns" id="toss-btns"><button class="btn primary" type="button" data-call="h">Heads</button><button class="btn primary" type="button" data-call="t">Tails</button></div>
+  </div>`;
+  document.body.appendChild(m);
+  m.querySelectorAll('[data-call]').forEach(b => b.onclick = () => { sfx.play('ui'); tossCall(b.dataset.call); });
+  setTimeout(() => { const b = m.querySelector('[data-call]'); b && b.focus(); }, 50);
+}
+function tossBtns(html) { const b = $('#toss-btns'); if (b) b.innerHTML = html; }
+function tossMsg(t) { const e = $('#toss-msg'); if (e) e.innerHTML = t; }
+function tossCall(side) {
+  if (!st.tossS || st.tossS.call) return;
+  if (st.mode === 'guest') { st.peer && st.peer.send({ t: 'tossCall', side }, true); tossBtns(''); tossMsg('Calling it…'); return; }
+  hostCall(st.local, side);
+}
+function hostCall(who, side) {
+  if (!st.tossS) openToss();
+  if (st.tossS.call) return;
+  const res = Math.random() < 0.5 ? 'h' : 't', winner = side === res ? who : 1 - who;
+  Object.assign(st.tossS, { call: side, who, res, winner });
+  if (st.mode === 'host' && st.peer) st.peer.send({ t: 'tossRes', who, side, res, winner }, true);
+  showFlip(who, side, res, winner);
+}
+function showFlip(who, side, res, winner) {
+  if (!$('#toss')) { if (st.introOn) endIntro(); openToss(); }
+  Object.assign(st.tossS, { call: side, who, res, winner });
+  const word = x => x === 'h' ? 'heads' : 'tails';
+  tossBtns(''); tossMsg(`${tossName(who)} called <b>${word(side)}</b>…`);
+  const c = $('#toss-coin'); c.style.setProperty('--end', res === 'h' ? '1800deg' : '1980deg'); c.classList.remove('flip'); void c.offsetWidth; c.classList.add('flip');
+  sfx.play('ui');
+  setTimeout(() => {
+    if (!$('#toss')) return;
+    const mine = winner === st.local;
+    tossMsg(`It's <b>${word(res).toUpperCase()}</b>! ${mine ? 'You win the toss.' : `${tossName(winner)} won the toss.`}`);
+    if (mine) {
+      tossBtns('<button class="btn primary" type="button" data-pick="1">Receive</button><button class="btn" type="button" data-pick="0">Kick</button>');
+      $('#toss-btns').querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { sfx.play('ui'); tossPick(b.dataset.pick === '1'); });
+      const f = $('#toss-btns [data-pick]'); f && f.focus();
+    } else if (st.mode === 'cpu') {
+      const recv = Math.random() < 0.5;
+      setTimeout(() => { tossMsg(`The CPU chose to <b>${recv ? 'receive' : 'kick'}</b>.`); setTimeout(() => finishToss(recv ? winner : 1 - winner), 1300); }, 900);
+    } else tossMsg(`It's <b>${word(res).toUpperCase()}</b>. Waiting for ${escapeHtml(tossName(winner))} to choose…`);
+  }, 1700);
+}
+function tossPick(recv) {
+  if (!st.tossS || st.tossS.picked) return; st.tossS.picked = true; tossBtns('');
+  const receiver = recv ? st.local : 1 - st.local;
+  if (st.mode === 'guest') { st.peer && st.peer.send({ t: 'tossPick', recv }, true); tossMsg('Locked in…'); return; }
+  finishToss(receiver);
+}
+function finishToss(receiver) {
+  if (st.game && st.game.toss) tossResult(st.game, receiver);
+  if (st.mode === 'host' && st.peer) st.peer.send({ t: 'tossDone', receiver }, true);
+  closeToss();
+}
+function closeToss() { const m = $('#toss'); if (m) m.remove(); st.tossS = null; }
+function tossRx(m) {
+  if (m.t === 'tossCall' && st.mode === 'host') { if (st.introOn) endIntro(); hostCall(1, m.side === 't' ? 't' : 'h'); return true; }
+  if (m.t === 'tossPick' && st.mode === 'host') { if (st.tossS && st.tossS.winner === 1 && !st.tossS.picked) { st.tossS.picked = true; finishToss(m.recv ? 1 : 0); } return true; }
+  if (m.t === 'tossRes' && st.mode === 'guest') { showFlip(m.who, m.side, m.res, m.winner); return true; }
+  if (m.t === 'tossDone' && st.mode === 'guest') { closeToss(); return true; }
+  return false;
+}
 
 function startCPU(opts = {}) {
   sfx.init();
@@ -852,7 +931,7 @@ function startCPU(opts = {}) {
   const adapt = adaptiveCpu(opts);
   // the adjustment is silent: no message, the CPU just plays tougher (or easier)
   const wind = opts.practice || opts.drill ? 0 : opts.wind ?? (opts.season || opts.franchise ? [0, 0, 5, 5, 10, 10, 15, 20][(Math.random() * 8) | 0] : (SET.wind || 0));
-  st.game = createGame({ wind, teams, humans: [true, false], playoff: !!opts.playoff, adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, styles: opts.styles || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, drill: !!opts.drill, cel: [SET.cel, -1] });
+  st.game = createGame({ wind, teams, humans: [true, false], playoff: !!opts.playoff, adapt, quarterLen: opts.drill ? 120 : SET.qlen, difficulty: opts.diff ?? SET.diff, rosters: opts.rosters || null, styles: opts.styles || null, weather, tod, practice: opts.practice || null, pspot: opts.pspot || 25, freeze: !!(opts.practice && opts.freeze), drill: !!opts.drill, toss: !opts.practice && !opts.drill, cel: [SET.cel, -1] });
   st.wx = weather; st.tod = tod;
   st.names = [Auth.user ? Auth.user.name : 'You', (st.teamNames && st.teamNames[1]) || TEAMS[teams[1]].city];   // the CPU side goes by its team name
   R.setTeams(st.game.opts.teams);
@@ -864,6 +943,7 @@ function startCPU(opts = {}) {
 }
 
 function leaveGame() {
+  closeToss();
   if (st.league && st.playing && !st.overShown && st.snap) League.reportResult(st.snap, true);   // walking out of a league game is a loss
   stopSpec(); stopUserCast();
   if (st.mode === 'spec') st.mode = 'cpu';
@@ -1815,6 +1895,7 @@ function renderKickMeter(S) {
 }
 
 function updateHud(S) {
+  if (S.tz) { if (!st.introOn && st.intro <= 0 && !st.tossS) maybeToss(); } else if (st.tossS && st.mode === 'guest') closeToss();
   if (S.bench) st.bench = S.bench;
   if (S.wx && S.wx !== st.wx) { st.wx = S.wx; R.setWeather(S.wx, S.tod || st.tod || 'night'); }   // the weather turned mid-game
   const me = st.local;
@@ -2165,7 +2246,7 @@ function startHostGame() {
   st.teamNames = [me.squad || null, them.squad ? String(them.squad).replace(/[<>]/g, '').slice(0, 18) : null];
   const w = SET.wx2 === 'random' ? null : SET.wx2;
   const weather = w === 'day' ? 'clear' : w === 'clear' ? 'clear' : pickWx(w || 'random'), tod = w === 'day' ? 'day' : w === 'clear' ? 'night' : pickTod('random');
-  st.game = createGame({ wind: SET.wind || 0, teams: [myTeam, gt], humans: [true, true], quarterLen: SET.qlen, difficulty: 1, rosters: [me.roster || null, them.roster || null], weather, tod, cel: [SET.cel, +them.cel] });
+  st.game = createGame({ wind: SET.wind || 0, teams: [myTeam, gt], humans: [true, true], quarterLen: SET.qlen, difficulty: 1, rosters: [me.roster || null, them.roster || null], weather, tod, toss: true, cel: [SET.cel, +them.cel] });
   st.remote = { mx: 0, mz: 0, sprint: false, ev: [] };
   st.netEv = [];
   R.setTeams(st.game.opts.teams);
@@ -2177,6 +2258,7 @@ function startHostGame() {
   $('#chat').classList.remove('hidden'); chatLine('sys', '', 'Press T to chat.');
 }
 function hostRx(m) {
+  if (tossRx(m)) return;
   if (netPauseRx(m)) return;
   if (m.t === 'i') { st.remote.mx = +m.mx || 0; st.remote.mz = +m.mz || 0; st.remote.sprint = !!m.sp; }
   else if (m.t === 'chat') chatRx(m);
@@ -2186,6 +2268,7 @@ function hostRx(m) {
 }
 function guestRx(m) {
   if (m.t === 'chat') { chatRx(m); return; }
+  if (tossRx(m)) return;
   if (netPauseRx(m)) return;
   if (m.t === 'start') {
     stopLobby();

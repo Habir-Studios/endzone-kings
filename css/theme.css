@@ -523,3 +523,25 @@ textarea { padding: 10px 12px; line-height: 1.45; }
   .pc-card b { font-size: 15px; }
   .pc-card small { display: none; }
 }
+.player-count { display: flex; align-items: center; gap: 6px; }
+.player-count .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #2fe07a; box-shadow: 0 0 8px #2fe07a; }
+.player-count .pc-sep { margin-left: 6px; padding-left: 8px; border-left: 1px solid rgba(255,255,255,.18); opacity: .8; }
+.player-count.hidden { display: none; }
+
+/* ---------- opening coin toss ---------- */
+.toss-ov { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: radial-gradient(60% 60% at 50% 45%, rgba(0,0,0,.35), rgba(0,0,0,.78)); }
+.toss-card { width: min(420px, 100%); padding: 22px 20px 20px; text-align: center; background: linear-gradient(170deg, #1d1d21, #0f0f11); border-top: 3px solid var(--red-2, #ff3347);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+.toss-card h3 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 34px; text-transform: uppercase; letter-spacing: .5px; }
+.toss-stage { height: 170px; display: grid; place-items: center; perspective: 700px; }
+.toss-coin { --end: 1800deg; position: relative; width: 116px; height: 116px; transform-style: preserve-3d; transform: rotateY(0deg); }
+.toss-coin.flip { animation: tossFlip 1.6s cubic-bezier(.25,.7,.3,1) forwards; }
+.tc-face { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 50%; font-style: normal; font-family: var(--display); font-weight: 900; font-size: 54px; color: #4a2c00;
+  background: radial-gradient(circle at 35% 30%, #fff3b8, #f6c445 45%, #b8860b 100%); box-shadow: inset 0 0 0 6px #d9a52a, inset 0 0 0 9px #fff0a8, 0 10px 30px rgba(0,0,0,.5); backface-visibility: hidden; }
+.tc-t { transform: rotateY(180deg); background: radial-gradient(circle at 35% 30%, #ffe4e7, #ff6b7a 45%, #b3001b 100%); color: #3a0007; box-shadow: inset 0 0 0 6px #d81e35, inset 0 0 0 9px #ffc2c9, 0 10px 30px rgba(0,0,0,.5); }
+@keyframes tossFlip { 0% { transform: translateY(0) rotateY(0) } 45% { transform: translateY(-58px) rotateY(calc(var(--end) * .55)) } 100% { transform: translateY(0) rotateY(var(--end)) } }
+.toss-msg { min-height: 44px; margin: 4px 0 14px; font-size: 16px; line-height: 1.4; }
+.toss-msg b { color: var(--red-2, #ff3347); }
+.toss-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.toss-btns .btn { flex: 1 1 140px; }
+@media (prefers-reduced-motion: reduce) { .toss-coin.flip { animation-duration: .01ms; } }

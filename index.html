@@ -114,7 +114,7 @@
   <section id="menu" class="screen">
     <button class="fb-btn" id="fb-btn" type="button" aria-label="Report a bug or contact the dev team"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H8l-4 4zm3 4v2h10V8zm0 3v2h7v-2z"/></svg><span>Feedback</span></button>
     <button class="pn-btn" id="pn-btn" type="button" aria-label="Patch notes"><b id="pn-v">v1</b><span>Patch notes</span><i class="pn-dot hidden" id="pn-dot" aria-hidden="true"></i></button>
-    <div class="player-count hidden" id="player-count" aria-live="off">Player count: <b id="pc-total">0</b></div>
+    <div class="player-count hidden" id="player-count" aria-live="off"><i class="live-dot" aria-hidden="true"></i>Online now: <b id="pc-online">1</b><span class="pc-sep">Players: <b id="pc-total">0</b></span></div>
     <button class="notif-btn" id="notif-btn" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5-6.7V3.5a2 2 0 1 0-4 0v.8A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg><i class="notif-n hidden" id="notif-n">0</i></button>
     <div class="notif-panel hidden" id="notif-panel" role="dialog" aria-label="Notifications"><div class="np-head"><b>Notifications</b><button class="link" id="notif-read" type="button">Mark all read</button></div><div id="notif-list"><p class="note">Nothing new.</p></div></div>
     <div class="profile-chip">
@@ -525,9 +525,10 @@
         <div class="two-col">
           <div class="box">
             <h3>Practice</h3>
-            <p class="note">No clock, no score. Offense: run any play. Defense: stop any play. Special teams: field goals and punts from all over the field with the kick meter.</p>
+            <p class="note">No game clock, no score. The play clock runs unless you freeze it. Offense: run any play. Defense: stop any play. Special teams: field goals and punts from all over the field with the kick meter.</p>
             <label class="mini">Practice<div class="seg" id="seg-pside"></div></label>
             <label class="mini">Start at<div class="seg" id="seg-pspot"></div></label>
+            <label class="mini">Play clock<div class="seg" id="seg-pfreeze"></div></label>
             <label class="mini">Difficulty<div class="seg" id="seg-pdiff"></div></label>
             <button class="btn primary" id="go-practice">Start practice</button>
           </div>

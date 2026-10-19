@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792385665';
-import { TEAMS } from './teams.js?v=1792385665';
+import { askYes } from './ui.js';
+import { TEAMS } from './teams.js';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -48,7 +48,7 @@ async function tick() {
   const scr = C.screen();
   ticking = true;
   try {
-    if (scr === 'menu') { await renderMenuBoard(); if (playerCountT++ % 30 === 0) refreshPlayerCount(); }
+    if (scr === 'menu') { await renderMenuBoard(); if (playerCountT++ % 10 === 0) refreshPlayerCount(); }
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
     if (me() && pingT++ % 60 === 0 && !document.hidden) db().rpc('ek_ping').then(() => {}, () => {});   // online status: one ping a minute while the game is open
     if (me()) { ensureProfile(); listenInvites(); if (++kickPollT % 5 === 0 && C.st.playing) pollKicks(); }
@@ -63,6 +63,17 @@ async function refreshPlayerCount() {
   const { count, error } = await db().from('ek_players').select('id', { count: 'exact', head: true });
   if (error || count == null) return;
   C.$('#pc-total').textContent = count.toLocaleString(); el.classList.remove('hidden');
+  joinLobby();
+}
+// online now: everyone with the game open (guests too) joins one realtime presence channel, so the number moves live
+let lobby = null;
+function joinLobby() {
+  if (lobby || !db()) return;
+  const key = (me() && me().id) || ('g' + Math.random().toString(36).slice(2, 10));
+  lobby = db().channel('ek-lobby', { config: { presence: { key } } });
+  const show = () => { const n = Math.max(1, Object.keys(lobby.presenceState()).length); const b = C.$('#pc-online'); if (b) b.textContent = n.toLocaleString(); };
+  lobby.on('presence', { event: 'sync' }, show).on('presence', { event: 'join' }, show).on('presence', { event: 'leave' }, show)
+    .subscribe(s => { if (s === 'SUBSCRIBED') lobby.track({ at: Date.now() }).then(show, () => {}); });
 }
 
 // ---------------- main menu mini board ----------------

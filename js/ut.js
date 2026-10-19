@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792385665';
-import { grade, nextForm, decay, formed } from './form.js?v=1792385665';
+import { TEAMS } from './teams.js';
+import { grade, nextForm, decay, formed } from './form.js';
 
 export const TIERS = [
   // mv = what the market pays. Kept well under what packs cost, so buying packs to resell always loses coins
@@ -265,7 +265,7 @@ export const SETS = [
   { k: 's2g', n: 'Silver Exchange', d: 'Turn 11 silver players into a Gold Pack. 2 a day', need: [[1, 11]], give: { pack: 'gold' }, daily: SET_DAILY },
   { k: 'g2e', n: 'Gold Upgrade', d: 'Turn 12 gold players into an Elite Pack. 2 a day', need: [[2, 12]], give: { pack: 'elite' }, daily: SET_DAILY },
   { k: 'e2k', n: 'Elite Trade-up', d: 'Turn 7 elite players into a Kings Pack. Once a day', need: [[3, 7]], give: { pack: 'kings' }, daily: 1 },
-  { k: 'mix', n: 'Coin Flip', d: 'Turn 5 silver and 3 gold players into 900 coins. Once a day', need: [[1, 5], [2, 3]], give: { coins: 900 }, daily: 1 },
+  { k: 'mix', n: 'Coin Flip', d: 'Turn 5 silver and 3 gold players into 900 coins. As many times as you want', need: [[1, 5], [2, 3]], give: { coins: 900 } },
   { k: 'master', n: 'Weekly Master', d: 'Turn 2 elite and 5 gold players into this week’s 95 OVR Kings player. Once a week', need: [[3, 2], [2, 5]], give: { master: true }, weekly: true },
 ];
 // this week's master card: a 95 OVR Kings player (fixed per week)

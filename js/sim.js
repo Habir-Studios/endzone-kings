@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792385665';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792385665';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -119,6 +119,8 @@ export function createGame(opts = {}) {
     practice: ['off', 'def', 'st'].includes(opts.practice) ? opts.practice : null,
     pspot: clamp(+opts.pspot || 25, 20, 97),
     drill: !!opts.drill,
+    freeze: !!opts.freeze,   // practice only: play clock frozen
+    toss: !!opts.toss,   // opening coin toss before the first snap
     playoff: !!opts.playoff,   // playoff game: overtime keeps going until somebody wins
     cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 8 ? v : -1; }),
   };
@@ -137,12 +139,13 @@ export function createGame(opts = {}) {
     stats: [mkStats(), mkStats()],
     custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], to: [3, 3], lastRunoff: 0, books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]], opts.styles && opts.styles[k])),
   };
+  if (o.toss && !o.practice && !o.drill) g.toss = 1;   // opening coin toss decides who gets the ball first
   if (o.practice) { g.poss = o.practice === 'def' ? 1 : 0; g.firstReceiver = g.poss; }
   if (o.drill) { g.poss = 0; g.firstReceiver = 0; g.quarter = 4; }
   g.losZ = zOf(g.poss, o.practice && o.practice !== 'st' ? o.pspot : o.practice || o.drill ? 25 : 35);   // opening kickoff: touchback to the 35
   setFirstDown(g);
   if (o.practice === 'st') nextPlay(g); else setupPlay(g);
-  g.msg = o.practice ? { text: 'PRACTICE', sub: o.practice === 'off' ? 'Run any play you want · no clock' : o.practice === 'st' ? 'Field goals and punts from all over the field' : 'Defend any play · no clock', until: 2.4 }
+  g.msg = o.practice ? { text: 'PRACTICE', sub: o.practice === 'off' ? 'Run any play you want · no game clock' : o.practice === 'st' ? 'Field goals and punts from all over the field' : 'Defend any play · no game clock', until: 2.4 }
     : o.drill ? { text: 'TWO-MINUTE DRILL', sub: 'Score as much as you can · every drive starts at the 25', until: 2.6 }
     : { text: 'KICKOFF', sub: TEAMS[o.teams[g.poss]].name + ' ball', until: 2.2 };
   return g;
@@ -582,7 +585,7 @@ function handleEvent(g, team, ev) {
   } else if (ev.t === 'truck') {
     if (iCarry && me.moveCd <= 0) { me.truck = 0.55; me.moveCd = 1.4; g.events.push('juke'); }
   } else if (ev.t === 'hurdle') {
-    if (iCarry && me.moveCd <= 0) { me.hurdle = 0.55; me.moveCd = 1.8; g.events.push('hurdle'); }
+    if (iCarry && me.moveCd <= 0) { me.hurdle = 0.65; me.moveCd = 1.8; g.events.push('hurdle'); }
   } else if (ev.t === 'playball') {
     // defender: jump the route / swat. receiver: aggressive catch
     if (me && b.state === 'air' && !b.auto && me.playBall <= 0 && me.stun <= 0) {
@@ -1228,6 +1231,7 @@ function acFlag(g, why) { if (!g.ac) g.ac = { n: 0, why: '' }; g.ac.n++; if (!g.
 const cleanInput = i => { if (!i) return i; const mx = +i.mx || 0, mz = +i.mz || 0, l = Math.hypot(mx, mz); if (!Number.isFinite(l)) return { ...i, mx: 0, mz: 0 }; if (l > 1.001) return { ...i, mx: mx / l, mz: mz / l }; return i; };
 export function step(g, dt, inputs = [{}, {}]) {
   if (g.phase === 'gameover') return;
+  if (g.toss) return;   // waiting on the opening coin toss
   if (!g.ac) { g.ac = { n: 0, why: '' }; g.acPts = g.score[0] + g.score[1]; g.acSig = rosterSig(g); }
   dt = Math.min(Math.max(+dt || 0, 0), 0.1);
   inputs = [cleanInput(inputs[0]), cleanInput(inputs[1])];
@@ -1305,7 +1309,7 @@ function updatePresnap(g, dt, inputs) {
     if (M.t >= 1 && !M.read) { M.read = true; const dp = getPlay(g, 1 - g.poss, g.defPlay) || DEF_PLAYS[0]; const man = dp.cat === 'Man' || (dp.man && Object.values(dp.man).includes(M.role));
       if (g.opts.humans[g.poss]) g.flash = { text: man ? 'A DEFENDER FOLLOWED HIM: MAN COVERAGE' : 'NOBODY FOLLOWED: LOOKS LIKE ZONE', until: 1.8 }; }
   }
-  if (!g.opts.practice) g.playClock -= dt;
+  if (!(g.opts.practice && g.opts.freeze)) g.playClock -= dt;   // practice can freeze the play clock (practice only)
   // after a play that ended in bounds the game clock keeps running until the snap (up to the usual runoff).
   // Snapping fast saves time; a timeout stops it.
   if (g.runBudget > 0 && g.pat < 0 && !g.opts.practice) {
@@ -1336,6 +1340,7 @@ function updatePresnap(g, dt, inputs) {
   }
   // a human defense that never picks gets a coverage called for it with a few seconds left, so the game never stalls
   if (g.opts.humans[def] && !g.defChosen && g.playClock <= 4) { g.defPlay = cpuCallDefense(g); g.defChosen = true; alignDefense(g); g.flash = { text: 'DEFENSE AUTO-CALLED', until: 1.2 }; }
+  if (g.opts.practice && g.opts.humans[off] && g.playClock <= 0) { g.playClock = 25; g.flash = { text: 'DELAY OF GAME: PLAY CLOCK RESET', until: 1.6 }; }   // practice: no penalty, just a reminder
   if (!g.opts.humans[off]) {
     if (!g.offPlay) cpuCallOffense(g);
     const humanDef = g.opts.humans[def];
@@ -1676,7 +1681,7 @@ function updateLive(g, dt, inputs) {
   // tackles / boundaries / scoring
   if (c2) {
     const ct = c2.team;
-    if (Math.abs(c2.x) > HALF_W - 0.2) return endPlay(g, 'oob', c2);   // stepped out first: no score
+    if (Math.abs(c2.x) > HALF_W) return endPlay(g, 'oob', c2);   // stepped on or over the sideline: out (no score)
     if (ballProg(c2) >= 100 && prog(ct, c2.z) >= 97) return touchdown(g, c2);   // ball broke the plane
     if (prog(ct, c2.z) < -9.5) return endPlay(g, 'oob', c2);
     for (const d of g.players) {
@@ -1720,7 +1725,8 @@ function updateLive(g, dt, inputs) {
             brk = Math.max(brk, shove + 0.12); stiffWin = shove > 0.24;
           }
         }
-        if (c2.hurdle > 0) brk = Math.max(brk, d.dive > 0 ? 0.8 : 0.22);
+        // hurdle: clears a diving or low tackler almost every time; over a guy standing up it's a skill play (agile backs vs sure tacklers)
+        if (c2.hurdle > 0) brk = Math.max(brk, d.dive > 0 || d.fallen > 0 ? 1.05 : 0.36 + c2.rt.elu / 100 * 0.12 + (c2.hurdle > 0.2 ? 0.04 : 0));
         if (c2.role === 'QB' && !P.thrown && !P.crossed) brk *= 0.6;
         if (d.dive > 0 && c2.hurdle <= 0 && !hitting) brk *= 0.75;
         // a landed hit stick is a kill shot unless the runner timed a move into it
@@ -2372,7 +2378,7 @@ function resolveBall(g) {
     else if (outcome === 'catch' && !g.opts.humans[ro.team] && r < 0.02 * FOUL_RATE) { if (throwFlag(g, 'opi', ro, L.z)) outcome = 'inc'; }
   }
   // feet have to be in bounds: a catch made on or past the sideline (or out the back of the end zone) is incomplete
-  if ((outcome === 'catch' || outcome === 'int') && (() => { const q = outcome === 'catch' ? ro : rd; const tm = q && (q.team === offTeam ? offTeam : 1 - offTeam); return q && (Math.abs(q.x) > HALF_W - 0.4 || Math.abs(L.x) > HALF_W - 0.1 || prog(tm, q.z) > 109.6 || prog(tm, L.z) > 109.9); })()) {   // strict: a foot or the ball on/over the line is out
+  if ((outcome === 'catch' || outcome === 'int') && (() => { const q = outcome === 'catch' ? ro : rd; const tm = q && (q.team === offTeam ? offTeam : 1 - offTeam); return q && (Math.abs(q.x) > HALF_W - 0.05 || Math.abs(L.x) > HALF_W + 0.35 || prog(tm, q.z) > 109.6 || prog(tm, L.z) > 109.9); })()) {   // strict: a foot or the ball on/over the line is out
     outcome = 'inc'; g.flash = { text: 'OUT OF BOUNDS', until: 1.2 };
   }
   if (outcome === 'catch' && ro.rdive > 0 && ro.dive > 0) diving = true;   // you laid out for it
@@ -2612,7 +2618,7 @@ export function snapshot(g) {
     ks: g.phase === 'kickset' && g.ks ? { type: g.ks.type, stage: g.ks.stage, m: r2(g.ks.m), aim: r2(g.ks.aim), power: r2(g.ks.power), fd: g.ks.fd, maxR: r2(g.ks.maxR), sweet: KICK_SWEET } : null,
     celBy: g.phase === 'dead' && g.celebrate >= 0 ? (g.celBy ?? -1) : -1, deadLeft: g.phase === 'dead' ? r2(Math.max(0, g.deadDur - g.phaseT)) : 0,
     osd: g.onside ? g.onside.slice() : [false, false], flip: !!g.flip, mot: g.motion ? (g.motion.t >= 1 ? 2 : 1) : 0, lp: g.lastPlay ? g.lastPlay.slice() : [null, null],
-    to: g.to.slice(), toh: g.toHold > 0 ? Math.round(g.toHold * 10) / 10 : 0, tot: g.toTeam ?? -1, pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
+    to: g.to.slice(), tz: g.toss ? 1 : 0, toh: g.toHold > 0 ? Math.round(g.toHold * 10) / 10 : 0, tot: g.toTeam ?? -1, pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
     inj: injuryReport(g), injAsk: g.injAsk.slice(), depth: g.depth, subAsk: g.subAsk.slice(), bv: g.benchV,
     bench: (g.snapN = (g.snapN || 0) + 1) % 45 === 1 || g.benchSent !== g.benchV ? (g.benchSent = g.benchV, benchReport(g)) : undefined, fat: g.fat, msgInj: g.msgInj || null,
     wind: g.opts.wind, wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',
@@ -2642,3 +2648,13 @@ export function recover(g) {
   } catch (_) {}
 }
 export const __test = { alignOffense: (g) => alignOffense(g, true), setup: (g) => setupPlay(g) };
+
+// the coin toss is settled: this team gets the ball first (the other team kicks; the second half flips it)
+export function tossResult(g, receiver) {
+  if (!g.toss) return;
+  receiver = receiver ? 1 : 0;
+  g.toss = 0; g.poss = receiver; g.firstReceiver = receiver; g.ballX = 0;
+  g.losZ = zOf(receiver, 35);
+  setFirstDown(g); setupPlay(g);
+  g.msg = { text: `${cityOf(g, receiver)} BALL`, sub: 'They get the ball first', until: 2.2 };
+}

@@ -3,6 +3,11 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: '1.0.7', date: '2026-10-18',
+    added: ['New updates show up faster: the game checks every 15 seconds and updates as soon as you’re back on the main menu (never in the middle of a game)'],
+    fixed: [],
+  },
+  {
     v: '1.0.6', date: '2026-10-18',
     added: [],
     fixed: ['The two-step login QR code is now a proper square code that scans, with nothing covering it'],

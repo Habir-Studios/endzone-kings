@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792377546';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792377687';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792377546';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792377687';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -564,7 +564,7 @@ function handleEvent(g, team, ev) {
     return;
   } else if (ev.t === 'slide' && iCarry) {
     // give yourself up: down where you are, no hit, clock keeps rolling
-    me.fallen = 2; g.msgNote = me.id === 0 ? 'QB slides' : 'gives himself up';
+    me.fallen = 2; me.fallAng = me.face; g.msgNote = me.id === 0 ? 'QB slides' : 'gives himself up';
     return endPlay(g, 'tackle', me, null);
   } else if (ev.t === 'juke') {
     if (iCarry && me.moveCd <= 0) {
@@ -1139,7 +1139,7 @@ function startReturn(g, k) {
   g.kick = null; g.poss = rec;
   g.play = { off: rec, def: off, los: k.tz, bx: k.tx, type: 'run', snapT: g.t, thrown: false, handed: true, crossed: true, turnover: false, recognized: true,
     target: -1, throwT: 0, readT: 0, qbDecided: true, isPat: false, isReturn: true, playDef: {}, holdT: 99, holdRoll: 0, flag: null, puntYds: k.yds };
-  for (const p of g.players) { p.blockOn = -1; p.engagedBy = -1; p.route = null; p.dmode = null; p.assign = -1; p.stun = 0; p.dive = 0; p.fallen = 0; p.contacted = false; }
+  for (const p of g.players) { p.blockOn = -1; p.engagedBy = -1; p.route = null; p.dmode = null; p.assign = -1; p.stun = 0; p.dive = 0; p.fallen = 0; p.fallAng = null; p.contacted = false; }
   // blockers pick up the nearest cover man
   for (const p of g.players) if (p.team === rec && p !== ret) { let best = null, bd = 1e9; for (const q of g.players) if (q.team === off && !g.players.some(o => o.blockOn === q.id) && dist(p, q) < bd) { bd = dist(p, q); best = q; } if (best && bd < 12) p.blockOn = best.id; }
   const b = g.ball; b.state = 'held'; b.carrier = ret.id; b.x = ret.x; b.z = ret.z; b.y = 1.1;
@@ -1469,7 +1469,7 @@ function updateLive(g, dt, inputs) {
     p.stun = Math.max(0, p.stun - dt); p.juke = Math.max(0, p.juke - dt); p.jukeCd = Math.max(0, p.jukeCd - dt);
     p.tackleCd = Math.max(0, p.tackleCd - dt); p.shedCd = Math.max(0, p.shedCd - dt);
     if (p.rdive > 0) p.rdive -= dt;
-    if (p.dive > 0) { p.dive -= dt; if (p.dive <= 0) { p.stun = p.hit > 0 ? 1.25 : 0.75; p.fallen = p.stun; p.hit = 0; } }   // whiffed hit stick = longer on the ground
+    if (p.dive > 0) { p.dive -= dt; if (p.dive <= 0) { p.stun = p.hit > 0 ? 1.25 : 0.75; p.fallen = p.stun; p.hit = 0; fallDir(p, p.vx, p.vz); } }   // whiffed hit stick = longer on the ground
     if (p.fallen > 0 && p.stun <= 0) p.fallen = 0;
     p.spin = Math.max(0, p.spin - dt); p.stiff = Math.max(0, p.stiff - dt); p.truck = Math.max(0, (p.truck || 0) - dt); p.hurdle = Math.max(0, p.hurdle - dt);
     p.moveCd = Math.max(0, p.moveCd - dt); p.playBall = Math.max(0, p.playBall - dt); if (p.press) p.press = Math.max(0, p.press - dt);
@@ -1555,7 +1555,7 @@ function updateLive(g, dt, inputs) {
   if (diveDone && g.ball.state === 'held' && g.ball.carrier === diveDone.id) {
     const c = diveDone;
     if (prog(c.team, c.z) >= 100) return touchdown(g, c);
-    c.fallen = 2; g.msgNote = 'dives forward';
+    c.fallen = 2; c.fallAng = c.face; g.msgNote = 'dives forward';
     return endPlay(g, 'tackle', c, null);
   }
 
@@ -1679,7 +1679,7 @@ function updateLive(g, dt, inputs) {
             const hold = (d.size - 1) * 2.0 + d.rt.tkl / 100 * 0.5 + (youD ? 0.25 : 0);
             c2.truck = 0;
             if (power - hold + (g.rng() - 0.5) * 0.5 > 0.12) {
-              d.stun = 1.4; d.fallen = 1.4; d.tackleCd = 1.5; d.fallBack = 1; d.vx = ax / al * 5; d.vz = az / al * 5;
+              d.stun = 1.4; d.fallen = 1.4; d.tackleCd = 1.5; d.fallBack = 1; d.vx = ax / al * 5; d.vz = az / al * 5; fallDir(d, d.vx, d.vz);
               c2.vx *= 0.8; c2.vz *= 0.8; d.hitAt = g.t;
               g.events.push('bighit'); mom(g, ct, 7); g.flash = { text: 'TRUCKED!', until: 1.2 }; highlight(g, 'TRUCK STICK', c2.rt.name, ct);
               continue;
@@ -1708,6 +1708,7 @@ function updateLive(g, dt, inputs) {
         if (brk + (g.rng() - 0.5) * 0.24 > 0.36) {
           d.stun = stiffWin ? 1.1 : 0.85; d.fallen = stiffWin ? 1.1 : 0.85; d.tackleCd = 1.2; d.dive = 0;
           if (stiffWin) { const ax = d.x - c2.x, az = d.z - c2.z, al = hyp(ax, az) || 1; d.vx = ax / al * 4; d.vz = az / al * 4; d.fallBack = 1; }   // shoved to the ground
+          fallDir(d, d.vx, d.vz);
           c2.vx *= stiffWin ? 0.85 : 0.6; c2.vz *= stiffWin ? 0.85 : 0.6;
           g.events.push('brokentackle'); mom(g, ct, stiffWin ? 5 : 3);
           g.flash = { text: stiffWin ? 'STIFF ARM!' : 'BROKEN TACKLE', until: 1.0 };
@@ -1734,6 +1735,8 @@ function updateLive(g, dt, inputs) {
           // he falls the way his body is moving: backward if he's knocked back, forward if he's falling forward
           { const sp = hyp(c2.vx, c2.vz); if (sp > 0.4) { const fx = Math.sin(c2.face), fz = Math.cos(c2.face); c2.fallBack = (c2.vx * fx + c2.vz * fz) < -0.3 ? 1 : 0; } else c2.fallBack = ((d.x - c2.x) * Math.sin(c2.face) + (d.z - c2.z) * Math.cos(c2.face)) > 0.2 ? 1 : 0; }
           if (hitting) c2.fallBack = 1;
+          { const sp = hyp(c2.vx, c2.vz); if (sp > 0.4) fallDir(c2, c2.vx, c2.vz); else fallDir(c2, nx, nz); }   // hit from the left = falls right, from behind = on his face, head-on = straight back
+          fallDir(d, d.vx, d.vz);
           g.events.push(hitting || impact > 6.5 ? 'bighit' : 'tackle');
           // fumbles: rare on a normal tackle, real on a big hit or a hit stick. Going down (slide) protects the ball.
           // whoever is closest to the loose ball comes up with it, so it can bounce back to the offense too
@@ -1747,7 +1750,7 @@ function updateLive(g, dt, inputs) {
               const b = g.ball, a = g.rng() * Math.PI * 2, sp = 3 + g.rng() * 4;
               b.state = 'loose'; b.carrier = -1; b.x = c2.x; b.z = c2.z; b.y = 0.9; b.vx = Math.sin(a) * sp + c2.vx * 0.3; b.vz = Math.cos(a) * sp + c2.vz * 0.3; b.vy = 2.6; b.looseT = 0;
               P.fumbler = c2.id; P.fumZ = c2.z; P.recognized = true;
-              c2.fallen = 1.4; c2.stun = 1.1; d.fallen = 1.1; d.stun = 0.8; d.tackleCd = 1.5; d.vx *= 0.3; d.vz *= 0.3; c2.vx *= 0.3; c2.vz *= 0.3;
+              c2.fallen = 1.4; c2.stun = 1.1; d.fallen = 1.1; d.stun = 0.8; d.tackleCd = 1.5; fallDir(c2, c2.vx, c2.vz); fallDir(d, d.vx, d.vz); d.vx *= 0.3; d.vz *= 0.3; c2.vx *= 0.3; c2.vz *= 0.3;
               highlight(g, 'FORCED FUMBLE', d.rt.name, d.team);
               g.flash = { text: 'FUMBLE! BALL IS LOOSE', until: 1.6 }; g.events.push('bighit');
               return;
@@ -2536,6 +2539,8 @@ function checkDowns(g) {
 
 // ---------------- snapshot (what the renderer & network see) ----------------
 const r2 = v => Math.round(v * 100) / 100;
+// which way a body falls (world angle), so tackles and big hits drop players in the direction they were hit
+function fallDir(p, vx, vz) { const l = hyp(vx, vz); p.fallAng = l > 0.3 ? Math.atan2(vx, vz) : null; }
 export function snapshot(g) {
   const P = g.play || {};
   return {
@@ -2556,7 +2561,7 @@ export function snapshot(g) {
         | (g.phase === 'dead' && g.celebrate === p.team ? 64 : 0) | (p.scorer && g.phase === 'dead' ? 128 : 0)
         | (p.spin > 0 ? 256 : 0) | (p.stiff > 0 ? 512 : 0) | (p.hurdle > 0 ? 1024 : 0) | (p.playBall > 0 ? 2048 : 0) | (p.press > 0 ? 4096 : 0)
         | (p.wrapAt !== undefined && g.t - p.wrapAt < 1.2 ? 8192 : 0) | (p.caughtAt !== undefined && g.t - p.caughtAt < 0.5 ? 16384 : 0) | (p.fallBack ? 32768 : 0) | (p.oneHandAt !== undefined && g.t - p.oneHandAt < 0.6 ? 65536 : 0) | (p.truck > 0 ? 131072 : 0),
-      r2(p.stam), r2(p.size), p.rt.name, POS_LABEL[p.role], r2(p.moveCd), p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num)]),
+      r2(p.stam), r2(p.size), p.rt.name, POS_LABEL[p.role], r2(p.moveCd), p.rt.face || faceSeed(p.rt.first + p.rt.last + p.num), p.fallen > 0 && p.fallAng != null ? r2(p.fallAng) : null]),
     b: [r2(g.ball.x), r2(g.ball.y), r2(g.ball.z), g.ball.state === 'air' ? 1 : g.ball.state === 'kick' ? 2 : g.ball.state === 'loose' ? 3 : 0,
       g.ball.state === 'air' && !g.ball.auto ? [r2(g.ball.tx), r2(g.ball.tz)] : null, g.ball.carrier ?? -1],
     st: g.stats,

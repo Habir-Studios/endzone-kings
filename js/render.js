@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792377546';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792377546';
-import { drawLogo } from './logos.js?v=1792377546';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792377546';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792377687';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792377687';
+import { drawLogo } from './logos.js?v=1792377687';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792377687';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1096,6 +1096,7 @@ export class Renderer {
       m.root.visible = true; m.blob.visible = true; m.side = team;
       m.root.position.set(x, 0, z);
       m.root.rotation.y = face;
+      m.fallA = p[15]; m.faceA = face;   // which way he's going down (null = old forward/back fall)
       m.blob.position.set(x, 0.015, z);
       this.animate(m, S, role, spd, flags, i === carrier && S.ph !== 'presnap', dt);
       // eyes on the ball: turn the head toward it (within reason)
@@ -1339,7 +1340,10 @@ export class Renderer {
     }
     const R = fallR || (fallen || diving ? 9 : 16);
     j.lean = damp(j.lean, lean, 10, dt); j.roll = damp(j.roll, roll, 10, dt); j.drop = damp(j.drop, drop, 10, dt);
-    j.fall = damp(j.fall, fall, fall ? (fallR || 8) : 4, dt); j.fdir = damp(j.fdir ?? 1, fallBack ? -1 : 1, 12, dt); j.twist = damp(j.twist, twist, 14, dt); j.jump = damp(j.jump, jump, 20, dt);
+    j.fall = damp(j.fall, fall, fall ? (fallR || 8) : 4, dt); j.fdir = damp(j.fdir ?? 1, fallBack ? -1 : 1, 12, dt);
+    // directional falls: turn the world fall angle into his own frame (z = forward, x = his left)
+    { let tx = 0, tz = fallBack ? -1 : 1; if (m.fallA != null && (fallen || wrapping)) { const a = m.fallA - (m.faceA || 0); tx = Math.sin(a); tz = Math.cos(a); }
+      j.fx = damp(j.fx ?? 0, tx, 12, dt); j.fz = damp(j.fz ?? 1, tz, 12, dt); } j.twist = damp(j.twist, twist, 14, dt); j.jump = damp(j.jump, jump, 20, dt);
     j.hipTwist = damp(j.hipTwist, hipTwist, 14, dt); j.headX = damp(j.headX, headX, 8, dt);
     for (let k = 0; k < 2; k++) {
       j.lh[k] = damp(j.lh[k], lh[k], R, dt); j.lk[k] = damp(j.lk[k], lk[k], R, dt);
@@ -1347,9 +1351,9 @@ export class Renderer {
     }
     const bob = run > 0.05 ? Math.abs(Math.cos(ph)) * (0.05 + 0.04 * run) : 0;
     m.body.position.y = 1.0 - j.drop - j.fall * 0.62 + bob + j.jump;
-    m.body.position.z = -j.fall * 0.15 * j.fdir;
+    m.body.position.z = -j.fall * 0.15 * j.fz; m.body.position.x = -j.fall * 0.15 * j.fx;
     const spinA = m.spinT ? Math.min(1, m.spinT / 0.55) * Math.PI * 2 : 0;
-    m.body.rotation.set(j.fall * 1.42 * j.fdir, spinA + j.hipTwist, j.roll);
+    m.body.rotation.set(j.fall * 1.42 * j.fz, spinA + j.hipTwist, j.roll - j.fall * 1.42 * j.fx);
     m.torso.rotation.set(j.lean * (1 - j.fall * 0.7), j.twist - j.hipTwist, 0);
     for (let k = 0; k < 2; k++) {
       m.legs[k].hip.rotation.x = j.lh[k] - j.lean * 0.55 * (1 - j.fall);

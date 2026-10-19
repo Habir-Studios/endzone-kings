@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792377068';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792377546';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792377068';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792377546';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -52,11 +52,11 @@ const DEF_ALIGN = {
 };
 function offAlign(form) { const f = FORMS[form] || FORMS.gun; return { ...LINE, QB: f.QB, RB: f.RB, WR1: f.WR1, WR2: f.WR2, WR3: f.WR3 || [-8.5, -1.3], TE: f.TE || [5.3, -1.15] }; }
 
-const DIFF = [
-  { name: 'Rookie', ai: 0.85, shed: 0.08, intP: 0.26, qbErr: 1.6, react: 0.45, brk: 0.04 },
-  { name: 'Pro',    ai: 0.91, shed: 0.12, intP: 0.38, qbErr: 1.05, react: 0.32, brk: 0.08 },
-  { name: 'All-Pro', ai: 0.96, shed: 0.16, intP: 0.5, qbErr: 0.65, react: 0.22, brk: 0.12 },
-  { name: 'Legend',  ai: 1.0, shed: 0.2, intP: 0.6, qbErr: 0.45, react: 0.16, brk: 0.15 },
+const DIFF = [   // a notch tougher than before at every level: smarter pursuit, quicker reads, sharper CPU QB
+  { name: 'Rookie', ai: 0.87, shed: 0.10, intP: 0.30, qbErr: 1.4, react: 0.40, brk: 0.05 },
+  { name: 'Pro',    ai: 0.93, shed: 0.14, intP: 0.42, qbErr: 0.9, react: 0.28, brk: 0.10 },
+  { name: 'All-Pro', ai: 0.97, shed: 0.18, intP: 0.54, qbErr: 0.56, react: 0.19, brk: 0.14 },
+  { name: 'Legend',  ai: 1.01, shed: 0.22, intP: 0.64, qbErr: 0.4, react: 0.14, brk: 0.17 },
 ];
 export const DIFFICULTIES = DIFF.map(d => d.name);
 // the CPU adapts: your chosen difficulty is the base, then 'adapt' (from how you've been playing) slides it up or down,

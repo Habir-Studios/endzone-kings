@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792377068">
-  <link rel="stylesheet" href="css/theme.css?v=1792377068">
+  <link rel="stylesheet" href="css/style.css?v=1792377546">
+  <link rel="stylesheet" href="css/theme.css?v=1792377546">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8994"/><stop offset=".45" stop-color="#ff3347"/><stop offset="1" stop-color="#b3101f"/></linearGradient></defs></svg>
@@ -124,7 +124,7 @@
     <div class="menu-wrap">
       <div class="logo-slot"></div>
       <nav class="tiles" aria-label="Game modes">
-        <button class="tile hero" data-go="setup"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></i><span class="tl-k">Play Now</span><small>Quick Play against the CPU, just for fun</small></button>
+        <button class="tile hero" data-go="setup"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></i><span class="tl-k">Play Now</span><small>Quick Play against the CPU, just for fun. Doesn’t count toward your record</small></button>
         <button class="tile wide t-ut" data-go="ut"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M4 3h11l5 5v13H4zm2 2v14h12V9h-4V5zm3 6.5a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0zM7.5 18c.5-2.4 2.3-3.6 4.5-3.6s4 1.2 4.5 3.6z"/></svg></i><span class="tl-k">Ultimate Team</span><small id="tile-ut-sub">Open packs, build a squad, play for coins</small></button>
         <button class="tile t-season" data-go="season"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v3h3.5v2.5A4.5 4.5 0 0 1 16.4 13 5.5 5.5 0 0 1 13 15.8V18h3v3H8v-3h3v-2.2A5.5 5.5 0 0 1 7.6 13 4.5 4.5 0 0 1 3.5 8.5V6H7zm-1.5 5v.5c0 1 .6 1.9 1.5 2.3V8zm12 2.8c.9-.4 1.5-1.3 1.5-2.3V8h-1.5z"/></svg></i><span class="tl-k">Season</span><small id="tile-season-sub">17 games over 18 weeks to the Kings Bowl</small></button>
         <button class="tile t-online" data-go="online" id="online-btn"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M13.5 2 4 13.5h6.5L9 22l11-12.5h-6.8z"/></svg></i><span class="tl-k">Online 1v1</span><small>Play a friend with a game code</small></button>
@@ -149,6 +149,7 @@
   <section id="setup" class="screen">
     <div class="center-col wide">
       <h2 class="title">Play Now</h2>
+      <p class="note qp-note">Quick Play is just for fun: wins and losses don’t count toward your record or rank.</p>
       <div class="panel">
         <div class="matchup">
           <div class="team-pick" id="tp-me"><small>Your team</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
@@ -730,6 +731,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792377068"></script>
+  <script type="module" src="js/main.js?v=1792377546"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792377068';
-import { TEAMS } from './teams.js?v=1792377068';
+import { askYes } from './ui.js?v=1792377546';
+import { TEAMS } from './teams.js?v=1792377546';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -653,12 +653,17 @@ export async function renderAdmin() {
   pane.innerHTML = `<div class="ad-list">${(data || []).map(r => `<div class="ad-row ${r.reason.startsWith('auto') ? 'auto' : ''}">
       <div><b>${esc(names[r.target] || r.target.slice(0, 8))}</b> <span class="ad-tag">${esc(r.reason)}</span> <span class="ad-tag st-${r.status}">${r.status}</span>
       <small>${r.reporter ? `Reported by ${esc(names[r.reporter] || 'player')}` : 'Flagged by anti-cheat'}, ${ago(r.created_at)}</small>${r.details ? `<p>${esc(r.details)}</p>` : ''}</div>
-      <div class="ad-btns"><button class="btn sm" data-view="${r.target}">Profile</button>${r.status === 'open' ? `<button class="btn sm" data-dismiss="${r.id}">Dismiss</button>` : ''}<button class="btn sm" data-reset="${r.target}">Reset stats</button><button class="btn sm" data-kick="${r.target}">Kick from game</button><button class="btn sm danger" data-ban="${r.target}">Ban</button></div></div>`).join('') || '<p class="note">No reports. All quiet.</p>'}</div>`;
+      <div class="ad-btns"><button class="btn sm" data-view="${r.target}">Profile</button>${r.status === 'open' ? `<button class="btn sm" data-dismiss="${r.id}">Dismiss</button>` : ''}<button class="btn sm danger" data-delrep="${r.id}">Delete report</button><button class="btn sm" data-reset="${r.target}">Reset stats</button><button class="btn sm" data-kick="${r.target}">Kick from game</button><button class="btn sm danger" data-ban="${r.target}">Ban</button></div></div>`).join('') || '<p class="note">No reports. All quiet.</p>'}</div>`;
   wireAdmin(pane);
 }
 function wireAdmin(pane) {
   C.$$('[data-view]', pane).forEach(x => x.onclick = () => { C.show('social'); openProfile(x.dataset.view); });
   C.$$('[data-dismiss]', pane).forEach(x => x.onclick = async () => { await db().from('ek_reports').update({ status: 'dismissed' }).eq('id', +x.dataset.dismiss); renderAdmin(); });
+  C.$$('[data-delrep]', pane).forEach(x => x.onclick = async () => {
+    if (!(await askYes('Delete this report for good? This can’t be undone.', 'Delete', 'Cancel'))) return;
+    const { error } = await db().from('ek_reports').delete().eq('id', +x.dataset.delrep);
+    if (error) C.toast('Couldn’t delete it: ' + error.message); else { C.toast('Report deleted'); renderAdmin(); }
+  });
   C.$$('[data-ban]', pane).forEach(x => x.onclick = () => adminAct('ban', x.dataset.ban));
   C.$$('[data-unban]', pane).forEach(x => x.onclick = () => adminAct('unban', x.dataset.unban));
   C.$$('[data-reset]', pane).forEach(x => x.onclick = () => adminAct('reset', x.dataset.reset));

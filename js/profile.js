@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792377068';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792377546';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -207,7 +207,7 @@ export class Profile {
       this.notice = (this.notice || []).concat(`Ranked season over: you peaked at ${rk.name}. +${R.coins.toLocaleString()} coins${R.pack ? ' and a ' + (PACKS.find(k => k.key === R.pack) || {}).name : ''}. RP soft reset for the new season.`);
       P.rp = Math.floor((P.rp || 0) * 0.5); P.rs = { k: mk, peak: P.rp }; paid = true;
     }
-    if (P.wl && P.wl.n > 0 && !P.wl.paid && (P.wl.k !== wk || !isWeekend())) {
+    if (P.wl && P.wl.n > 0 && !P.wl.paid) {   // Weekend League is gone: pay out anyone's last unfinished record
       const R = wlReward(P.wl.w); P.coins += R.coins; if (R.pack) this.addPack(R.pack); P.wl.paid = true;
       this.notice = (this.notice || []).concat(`Weekend League over: ${P.wl.w}W-${P.wl.l}L. +${R.coins.toLocaleString()} coins${R.pack ? ' and a ' + (PACKS.find(k => k.key === R.pack) || {}).name : ''}.`);
       paid = true;
@@ -342,9 +342,6 @@ export class Profile {
     if (P.rs) P.rs.peak = Math.max(P.rs.peak || 0, P.rp);
     let wlLine = null;
     if (r.mode === 'online') {
-      // Weekend League record (first 10 online games Friday-Sunday)
-      const wk = weekKey(); if (!P.wl || P.wl.k !== wk) P.wl = { k: wk, w: 0, l: 0, t: 0, n: 0, paid: false };
-      if (isWeekend() && P.wl.n < WL_MAX && !P.wl.paid) { P.wl.n++; P.wl[r.res === 'W' ? 'w' : r.res === 'L' ? 'l' : 't']++; wlLine = `Weekend League: ${P.wl.w}W-${P.wl.l}L (${WL_MAX - P.wl.n} games left)`; }
       // head-to-head vs this opponent
       if (r.oppName) { const k = String(r.oppName).toLowerCase().slice(0, 24); P.h2h = P.h2h || {}; const h = P.h2h[k] = P.h2h[k] || [0, 0, 0]; h[r.res === 'W' ? 0 : r.res === 'L' ? 1 : 2]++; }
     }

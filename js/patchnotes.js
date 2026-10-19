@@ -21,6 +21,7 @@ export const NOTES = [
       "Training, abilities, X-Factors and packs cost a bit more",
       "Team overall, offense and defense update the second your lineup changes, in Ultimate Team, Franchise and Online Franchise (also shown during the draft and for every team in the league)",
       "Two-step login: turn it on in Settings, scan the QR code with an authenticator app (Google Authenticator, Microsoft Authenticator or Authy), and you’ll need the 6-digit code to log in. Turning it off needs a code too",
+      "Sessions in Settings: see every device logged into your account (device, browser and system) and log any of them out instantly",
       "How to Play now covers other controllers (8BitDo, PowerA, Logitech, PC gamepads), and the game calls them a standard controller instead of Xbox",
       "The game updates itself: it checks every 10 seconds and grabs the newest version on any screen as soon as you’re out of a game (never in the middle of one)"
     ],

@@ -351,3 +351,12 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 .pad-other { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); }
 .pad-map { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0; font-size: 14px; }
 .pad-map i { font-style: normal; opacity: .7; }
+
+.dev-card { width: min(480px, 94vw); max-height: 86vh; display: flex; flex-direction: column; gap: 10px; }
+.dev-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.dev-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.dev-row.me { border-color: var(--red-2, #ff3347); }
+.dev-row div { display: flex; flex-direction: column; gap: 2px; }
+.dev-row div b { display: flex; align-items: center; gap: 8px; }
+.dev-row small { opacity: .7; }
+.dev-meta { font-size: 13px; opacity: .9; }

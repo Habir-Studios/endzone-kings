@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792379955';
+import { CONFIG } from './config.js?v=1792380261';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -167,6 +167,13 @@ export const Auth = {
     const f = await this.totpFactor(); if (!f) return;
     const { error } = await this.client.auth.mfa.unenroll({ factorId: f.id }); if (error) throw new Error(error.message);
   },
+
+  // devices logged into this account
+  async sessions() { const { data, error } = await this.client.rpc('ek_my_sessions'); if (error) throw new Error(error.message); return data || []; },
+  async kickSession(id) { const { error } = await this.client.rpc('ek_kick_session', { p_id: id }); if (error) throw new Error(error.message); },
+  async kickOthers() { const { data, error } = await this.client.rpc('ek_kick_others'); if (error) throw new Error(error.message); return data || 0; },
+  async mySessionId() { try { const { data } = await this.client.auth.getSession(); const t = data && data.session && data.session.access_token; return t ? JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).session_id || null : null; } catch (_) { return null; } },
+  async sessionAlive() { try { const { data, error } = await this.client.rpc('ek_session_alive'); return error ? true : data !== false; } catch (_) { return true; } },
 
   async setNewPassword(pw) {
     const { data, error } = await this.client.auth.updateUser({ password: pw });

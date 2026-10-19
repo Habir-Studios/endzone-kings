@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792379955';
-import { NOTES } from './patchnotes.js?v=1792379955';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792379955';
-import * as Form from './form.js?v=1792379955';
-import { watchSim } from './simview.js?v=1792379955';
-import { bracketHTML } from './bracket.js?v=1792379955';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792379955';
-import { Renderer } from './render.js?v=1792379955';
-import { Sfx } from './audio.js?v=1792379955';
-import { Auth } from './auth.js?v=1792379955';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792379955';
-import { getRoster, teamOvr } from './teams.js?v=1792379955';
-import * as Season from './season.js?v=1792379955';
-import * as Fr from './franchise.js?v=1792379955';
-import * as League from './league.js?v=1792379955';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792379955';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792379955';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792379955';
-import * as UTm from './ut.js?v=1792379955';
-import { initCreator, renderCreator } from './creator.js?v=1792379955';
-import { filmCapture, filmSave } from './social.js?v=1792379955';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792379955';
-import { portraitURL } from './faces.js?v=1792379955';
-import { logoURL, clearLogoCache } from './logos.js?v=1792379955';
+import { CONFIG } from './config.js?v=1792380261';
+import { NOTES } from './patchnotes.js?v=1792380261';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792380261';
+import * as Form from './form.js?v=1792380261';
+import { watchSim } from './simview.js?v=1792380261';
+import { bracketHTML } from './bracket.js?v=1792380261';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792380261';
+import { Renderer } from './render.js?v=1792380261';
+import { Sfx } from './audio.js?v=1792380261';
+import { Auth } from './auth.js?v=1792380261';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792380261';
+import { getRoster, teamOvr } from './teams.js?v=1792380261';
+import * as Season from './season.js?v=1792380261';
+import * as Fr from './franchise.js?v=1792380261';
+import * as League from './league.js?v=1792380261';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792380261';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792380261';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792380261';
+import * as UTm from './ut.js?v=1792380261';
+import { initCreator, renderCreator } from './creator.js?v=1792380261';
+import { filmCapture, filmSave } from './social.js?v=1792380261';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792380261';
+import { portraitURL } from './faces.js?v=1792380261';
+import { logoURL, clearLogoCache } from './logos.js?v=1792380261';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -176,7 +176,7 @@ function show(id) {
   if (id === 'menu') refreshProfile();
   if (id === 'setup') renderSetup();
   if (id === 'online') renderOnline();
-  if (id === 'settings') { renderSettings(); renderTwofa(); }
+  if (id === 'settings') { renderSettings(); renderTwofa(); renderDevicesRow(); }
   if (id === 'locker') renderLocker();
   if (id === 'season') renderSeason();
   if (id === 'rosters') renderRosters();
@@ -410,6 +410,60 @@ setInterval(checkUpdate, 10000);   // every 10 seconds (a tiny file, no-store)
 setInterval(applyUpdate, 5000);   // picks it up once you're back on the menu
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
 setTimeout(checkUpdate, 4000);
+// ---------------- devices logged into your account ----------------
+// "Computer · Chrome 131 · Windows 10/11" from the browser's user agent
+function deviceInfo(ua) {
+  ua = ua || ''; const v = (re) => { const m = ua.match(re); return m ? m[1] : ''; };
+  const browser = /Edg\//.test(ua) ? `Edge ${v(/Edg\/(\d+)/)}` : /OPR\//.test(ua) ? `Opera ${v(/OPR\/(\d+)/)}` : /SamsungBrowser\//.test(ua) ? `Samsung Internet ${v(/SamsungBrowser\/(\d+)/)}`
+    : /CriOS\//.test(ua) ? `Chrome ${v(/CriOS\/(\d+)/)}` : /FxiOS\//.test(ua) ? `Firefox ${v(/FxiOS\/(\d+)/)}` : /Chrome\//.test(ua) ? `Chrome ${v(/Chrome\/(\d+)/)}`
+    : /Firefox\//.test(ua) ? `Firefox ${v(/Firefox\/(\d+)/)}` : /Safari\//.test(ua) ? `Safari ${v(/Version\/(\d+(?:\.\d+)?)/)}` : 'Unknown browser';
+  const sys = /CrOS/.test(ua) ? 'ChromeOS' : /iPhone|iPad|iPod/.test(ua) ? `iOS ${v(/OS (\d+(?:_\d+)?)/).replace('_', '.')}` : /Android/.test(ua) ? `Android ${v(/Android (\d+(?:\.\d+)?)/)}`
+    : /Windows NT 10/.test(ua) ? 'Windows 10/11' : /Windows NT 6\.3/.test(ua) ? 'Windows 8.1' : /Windows NT 6\.1/.test(ua) ? 'Windows 7' : /Windows/.test(ua) ? 'Windows'
+    : /Mac OS X/.test(ua) ? `macOS ${v(/Mac OS X (\d+[_.]\d+)/).replace('_', '.')}` : /Linux/.test(ua) ? 'Linux' : 'Unknown system';
+  const type = /CrOS/.test(ua) ? 'Chromebook' : /iPad|Tablet/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua)) ? 'Tablet' : /iPhone|Mobile|Android/.test(ua) ? 'Phone' : ua ? 'Computer' : 'Unknown device';
+  return { type, browser: browser.trim(), sys: sys.trim() };
+}
+const agoTxt = t => { const s = (Date.now() - new Date(t).getTime()) / 1000; return s < 90 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} hr ago` : `${Math.round(s / 86400)} days ago`; };
+function renderDevicesRow() { const r = $('#dev-row'); if (r) r.classList.toggle('hidden', !(Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account')); }
+async function openDevices() {
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 64;
+  m.innerHTML = '<div class="panel info-card dev-card"><h3 style="margin:0">Sessions</h3><p class="note">Every device logged into your account right now.</p><div class="dev-list"><p class="note">Loading…</p></div><button class="btn danger" type="button" id="dev-all">Log out all other sessions</button><button class="btn" type="button" data-x>Close</button></div>';
+  document.body.appendChild(m); m.querySelector('[data-x]').onclick = () => m.remove(); m.onclick = e => { if (e.target === m) m.remove(); };
+  const list = m.querySelector('.dev-list');
+  const draw = async () => {
+    let rows; try { rows = await Auth.sessions(); } catch (err) { list.innerHTML = `<p class="note">Couldn’t load your devices: ${escapeHtml(err.message)}</p>`; return; }
+    list.innerHTML = rows.map(r => { const d = deviceInfo(r.user_agent); return `<div class="dev-row ${r.current ? 'me' : ''}"><div><b>${escapeHtml(d.type)}${r.current ? ' <span class="pn-new">This device</span>' : ''}</b><span class="dev-meta">${escapeHtml(d.browser)} · ${escapeHtml(d.sys)}</span><small>Active ${agoTxt(r.last_active)} · logged in ${new Date(r.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</small></div>${r.current ? '' : `<button class="btn sm" type="button" data-kick="${r.id}">Log out</button>`}</div>`; }).join('') || '<p class="note">No devices found.</p>';
+    m.querySelector('#dev-all').disabled = rows.filter(r => !r.current).length === 0;
+    list.querySelectorAll('[data-kick]').forEach(b => b.onclick = async () => { b.disabled = true; try { await Auth.kickSession(b.dataset.kick); sendKick({ ids: [b.dataset.kick] }); toast('That device is logged out'); } catch (err) { toast(err.message, 3000); } draw(); });
+  };
+  m.querySelector('#dev-all').onclick = async () => { if (!(await askYes('Log out every other device on your account?', 'Log them out'))) return; try { const n = await Auth.kickOthers(); sendKick({ allBut: await Auth.mySessionId() }); toast(`Logged out ${n} other device${n === 1 ? '' : 's'}`); } catch (err) { toast(err.message, 3000); } draw(); };
+  draw();
+}
+$('#dev-btn').addEventListener('click', () => { sfx.play('ui'); openDevices(); });
+// kicked from another device: instant. Each logged-in game listens on a private-ish channel for its account; a kick
+// message makes it double-check with the server (so nobody can fake one) and log out on the spot, even mid-game.
+let kickCh = null, kickUid = null, kickSid = null;
+async function bootIfDead() {
+  if (Auth.mode !== 'supabase' || !Auth.user || Auth.user.kind !== 'account') return;
+  if (await Auth.sessionAlive()) return;
+  if (st.playing) { try { leaveGame(); } catch (_) {} }
+  await Auth.signOut(); show('auth'); toast('You were logged out from another device.', 5000);
+}
+async function syncKickChannel() {
+  const uid = Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account' ? Auth.user.id : null;
+  if (uid === kickUid && kickCh) return;
+  if (kickCh) { try { Auth.client.removeChannel(kickCh); } catch (_) {} kickCh = null; }
+  kickUid = uid; if (!uid) return;
+  kickSid = await Auth.mySessionId();
+  kickCh = Auth.client.channel('ek-acct-' + uid, { config: { broadcast: { self: false, ack: false } } })
+    .on('broadcast', { event: 'kick' }, ({ payload }) => {
+      const p = payload || {};
+      if ((p.ids && p.ids.includes(kickSid)) || (p.allBut && p.allBut !== kickSid)) bootIfDead();
+    }).subscribe();
+}
+function sendKick(payload) { try { if (kickCh) kickCh.send({ type: 'broadcast', event: 'kick', payload }); } catch (_) {} }
+setInterval(syncKickChannel, 3000);
+setInterval(() => { if (!st.playing) bootIfDead(); }, 20000);   // backup in case a kick message was missed
 function authMsg(t, err) { const m = $('#auth-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
 async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } }
 $('#form-login').addEventListener('submit', (e) => {

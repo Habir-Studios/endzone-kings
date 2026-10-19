@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792381905';
-import { TEAMS } from './teams.js?v=1792381905';
+import { askYes } from './ui.js?v=1792382050';
+import { TEAMS } from './teams.js?v=1792382050';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -122,7 +122,7 @@ async function loadBoard(col, quiet) {
   if (quiet && key === boardRows.key) return;
   boardRows = data || []; boardRows.key = key;
   const mine = me() ? me().id : '';
-  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish an online 1v1, Ultimate Team or Franchise game to get on it.</li>';
+  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}${adminBadge(r.id)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish an online 1v1, Ultimate Team or Franchise game to get on it.</li>';
   C.$$('[data-pid]', el).forEach(li => li.onclick = () => openProfile(li.dataset.pid));
 }
 
@@ -133,7 +133,7 @@ async function doSearch() {
   if (q.length < 2 || !db()) { box.innerHTML = ''; box.classList.add('hidden'); return; }
   const { data } = await db().from('ek_players').select('id,name,team,lvl').ilike('name', `%${q}%`).limit(8);
   box.classList.remove('hidden');
-  box.innerHTML = (data || []).map(r => `<button type="button" data-pid="${esc(r.id)}"><img alt="" src="${C.logoURL(r.team ?? 0, 32)}">${esc(r.name)}<small>Lv ${r.lvl}</small></button>`).join('') || '<p class="note">No players found</p>';
+  box.innerHTML = (data || []).map(r => `<button type="button" data-pid="${esc(r.id)}"><img alt="" src="${C.logoURL(r.team ?? 0, 32)}">${esc(r.name)}${adminBadge(r.id)}<small>Lv ${r.lvl}</small></button>`).join('') || '<p class="note">No players found</p>';
   C.$$('[data-pid]', box).forEach(b => b.onclick = () => { box.classList.add('hidden'); C.$('#so-search').value = ''; openProfile(b.dataset.pid); });
 }
 
@@ -160,7 +160,7 @@ async function openProfile(id) {
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
-      <div class="pf-id"><h3>${esc(p.name)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<small>Level ${p.lvl}, ${t.city} fan</small>
+      <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<small>Level ${p.lvl}, ${t.city} fan</small>
         <div class="pf-recs">${[['Overall', p.wins, p.losses, 0], ['Online 1v1', p.on_w, p.on_l, p.on_t], ['Ultimate Team', p.ut_wins, p.ut_l, p.ut_t]].map(([n, w, l, tt]) => `<span class="rec-card"><small>${n}</small><span class="rec-nums"><i><b>${fmt(w || 0)}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(l || 0)}</b><em>L</em></i>${tt ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(tt)}</b><em>T</em></i>` : ''}</span></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}${(() => { const P = !mine && C.profile && C.profile(); const h = P && P.p.h2h && P.p.h2h[String(p.name).toLowerCase().slice(0, 24)]; return h ? `<span class="h2h">You vs ${esc(p.name)}: <b>${h[0]}W-${h[1]}L${h[2] ? '-' + h[2] + 'T' : ''}</b></span>` : ''; })()}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
@@ -343,7 +343,7 @@ async function renderCrews() {
   const rows = (crews || []).map(c => { const ms = (mems || []).filter(m => m.crew === c.id).map(m => P[m.player]).filter(Boolean); const w = ms.reduce((a, p) => a + (p.on_w || 0) + (p.ut_wins || 0), 0), l = ms.reduce((a, p) => a + (p.on_l || 0) + (p.ut_l || 0), 0); return { c, ms, w, l }; }).sort((a, b) => b.w - a.w || a.l - b.l);
   const myRow = mine && rows.find(r => r.c.id === mine.crew);
   pane.innerHTML = `${myRow ? `<div class="crew-mine"><div><small>Your crew</small><h3>[${esc(myRow.c.tag)}] ${esc(myRow.c.name)}</h3><span>${myRow.w}W-${myRow.l}L combined · ${myRow.ms.length}/20 members · invite code <b>${esc(myRow.c.id)}</b></span></div><button class="btn sm danger" id="crew-leave" type="button">${myRow.c.owner === uid ? 'Disband crew' : 'Leave crew'}</button></div>
-      <div class="crew-members">${myRow.ms.map(p => `<button class="crew-m" data-pid="${esc(p.id)}" type="button"><img alt="" src="${C.logoURL(p.team ?? 0, 32)}">${esc(p.name)}<small>${(p.on_w || 0) + (p.ut_wins || 0)}W-${(p.on_l || 0) + (p.ut_l || 0)}L</small></button>`).join('')}</div>`
+      <div class="crew-members">${myRow.ms.map(p => `<button class="crew-m" data-pid="${esc(p.id)}" type="button"><img alt="" src="${C.logoURL(p.team ?? 0, 32)}">${esc(p.name)}${adminBadge(p.id)}<small>${(p.on_w || 0) + (p.ut_wins || 0)}W-${(p.on_l || 0) + (p.ut_l || 0)}L</small></button>`).join('')}</div>`
     : `<div class="crew-make"><h3>Start or join a crew</h3><div class="crew-form"><input id="crew-name" maxlength="20" placeholder="Crew name"><input id="crew-tag" maxlength="4" placeholder="TAG"><button class="btn primary" id="crew-new" type="button">Create</button></div><div class="crew-form"><input id="crew-code" maxlength="8" placeholder="Invite code"><button class="btn" id="crew-join" type="button">Join</button></div></div>`}
     <h3 class="store-h">Crew leaderboard</h3><div class="tbl-wrap"><table class="tbl"><tr><th>#</th><th>Crew</th><th>Members</th><th>W</th><th>L</th></tr>${rows.map((r, i) => `<tr class="${myRow && r.c.id === myRow.c.id ? 'me' : ''}"><td>${i + 1}</td><td><b>[${esc(r.c.tag)}]</b> ${esc(r.c.name)}</td><td>${r.ms.length}</td><td>${r.w}</td><td>${r.l}</td></tr>`).join('') || '<tr><td colspan="5">No crews yet. Start the first one.</td></tr>'}</table></div>`;
   C.$$('[data-pid]', pane).forEach(b => b.onclick = () => openProfile(b.dataset.pid));
@@ -445,7 +445,7 @@ async function renderInbox() {
   if (convos.size) { const { data: ps } = await db().from('ek_players').select('id,name,team').in('id', [...convos.keys()]); for (const p of ps || []) names[p.id] = p; }
   if (stale()) return;
   pane.innerHTML = `<h3 class="store-h">Messages</h3><div class="inbox">${[...convos.entries()].map(([id, c]) => { const p = names[id] || { name: 'Player', team: 0 };
-    return `<button class="convo ${c.unread ? 'unread' : ''}" type="button" data-id="${esc(id)}" data-name="${esc(p.name)}"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><b>${esc(p.name)}</b><small>${c.last.sender === uid ? 'You: ' : ''}${parseInvite(c.last.body) ? '🏈 1v1 challenge' : esc(c.last.body.slice(0, 70))}</small></div><em>${c.unread ? `<i class="dotn">${c.unread}</i>` : ago(c.last.created_at)}</em></button>`; }).join('') || '<p class="note">No messages yet. Find someone on the leaderboard and hit Message.</p>'}</div>`;
+    return `<button class="convo ${c.unread ? 'unread' : ''}" type="button" data-id="${esc(id)}" data-name="${esc(p.name)}"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><b>${esc(p.name)}${adminBadge(id)}</b><small>${c.last.sender === uid ? 'You: ' : ''}${parseInvite(c.last.body) ? '🏈 1v1 challenge' : esc(c.last.body.slice(0, 70))}</small></div><em>${c.unread ? `<i class="dotn">${c.unread}</i>` : ago(c.last.created_at)}</em></button>`; }).join('') || '<p class="note">No messages yet. Find someone on the leaderboard and hit Message.</p>'}</div>`;
   C.$$('.convo', pane).forEach(b => b.onclick = () => openThread(b.dataset.id, b.dataset.name));
 }
 let threadSub = null;
@@ -580,6 +580,9 @@ export async function postGameStats(r) {
 
 // ---------------- bans ----------------
 const ADMIN_EMAIL = 'hussainzidan16@gmail.com';
+// the Habir Studios admin account gets a badge next to its name everywhere (profile, leaderboards, friends, chat)
+export const ADMIN_ID = 'e752f854-2dce-4a38-ab93-54bcb963dc14';
+export const adminBadge = id => id === ADMIN_ID ? '<span class="admin-badge" title="Habir Studios admin">ADMIN</span>' : '';
 export const isAdmin = () => !!(me() && (me().email || '').toLowerCase() === ADMIN_EMAIL);
 let banInfo = null, banChecked = '';
 export async function checkBan() {
@@ -694,7 +697,7 @@ async function adminFind() {
   const go = async () => {
     const q = (C.$('#ad-q').value || '').trim().replace(/[%_,()]/g, ''); if (q.length < 2) { C.$('#ad-res').innerHTML = ''; return; }
     const { data } = await db().from('ek_players').select('id,name,games,wins,flags,banned').ilike('name', `%${q}%`).limit(20);
-    C.$('#ad-res').innerHTML = (data || []).map(p => `<div class="ad-row"><div><b>${esc(p.name)}</b>${p.banned ? ' <span class="ad-tag st-banned">banned</span>' : ''}<small>${p.games} games, ${p.wins} wins, ${p.flags} anti-cheat flags</small></div>
+    C.$('#ad-res').innerHTML = (data || []).map(p => `<div class="ad-row"><div><b>${esc(p.name)}${adminBadge(p.id)}</b>${p.banned ? ' <span class="ad-tag st-banned">banned</span>' : ''}<small>${p.games} games, ${p.wins} wins, ${p.flags} anti-cheat flags</small></div>
       <div class="ad-btns"><button class="btn sm" data-view="${p.id}">Profile</button><button class="btn sm" data-reset="${p.id}">Reset stats</button><button class="btn sm" data-kick="${p.id}">Kick from game</button>${p.banned ? `<button class="btn sm" data-unban="${p.id}">Unban</button>` : `<button class="btn sm danger" data-ban="${p.id}">Ban</button>`}</div></div>`).join('') || '<p class="note">No players found.</p>';
     wireAdmin(C.$('#ad-res'));
   };
@@ -778,7 +781,7 @@ async function renderFriends() {
   const ids = [...new Set([...friends, ...requests, ...sent])];
   const ps = {}; if (ids.length) { const { data } = await db().from('ek_players').select('id,name,team,lvl').in('id', ids); for (const p of data || []) ps[p.id] = p; }
   if (stale()) return;
-  const row = (id, btns, sub) => { const p = ps[id] || { name: 'Player', team: 0, lvl: 1 }; return `<div class="friend-row"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><button class="link" data-pid="${esc(id)}">${esc(p.name)}</button><small>${sub || 'Level ' + p.lvl}</small></div><div class="ad-btns">${btns}</div></div>`; };
+  const row = (id, btns, sub) => { const p = ps[id] || { name: 'Player', team: 0, lvl: 1 }; return `<div class="friend-row"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}"><div><button class="link" data-pid="${esc(id)}">${esc(p.name)}${adminBadge(id)}</button><small>${sub || 'Level ' + p.lvl}</small></div><div class="ad-btns">${btns}</div></div>`; };
   pane.innerHTML = `<p class="note">Find people with the search box above, open their profile and hit Add friend. When they add you back you're friends, and you can challenge each other to a 1v1 from here.</p>
     ${requests.length ? `<h3 class="store-h">Friend requests (${requests.length})</h3><div class="ad-list">${requests.map(id => row(id, `<button class="btn sm primary" data-accept="${esc(id)}">Accept</button><button class="btn sm ghost" data-ignore="${esc(id)}">Ignore</button>`, 'Wants to be friends')).join('')}</div>` : ''}
     <h3 class="store-h">Friends (${friends.length})</h3><div class="ad-list">${friends.map(id => row(id, `<button class="btn sm primary" data-chal="${esc(id)}">Challenge</button><button class="btn sm" data-dm="${esc(id)}">Message</button>`)).join('') || '<p class="note">No friends yet.</p>'}</div>

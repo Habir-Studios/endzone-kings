@@ -3,6 +3,12 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: "1.0.4",
+    date: "2026-10-18",
+    added: ["The Habir Studios admin now has an ADMIN badge next to their name on profiles, leaderboards, friends lists, crews and messages"],
+    fixed: []
+  },
+  {
     v: "1.0.3",
     date: "2026-10-18",
     added: [

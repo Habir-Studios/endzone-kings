@@ -384,3 +384,8 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 .howto-2fa h4 { margin: 12px 0 4px; }
 .tf-how { align-self: flex-start; }
 .tf-steps b { font-weight: 800; }
+
+/* admin badge next to the Habir Studios admin's name */
+.admin-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 6px; font-size: 10px; font-weight: 900; letter-spacing: .06em; line-height: 1.5; color: #fff; background: linear-gradient(180deg, #ff4a5c, #c8121f); border-radius: 3px; vertical-align: middle; white-space: nowrap; }
+.admin-badge::before { content: ''; width: 8px; height: 8px; background: currentColor; clip-path: polygon(50% 0, 100% 35%, 82% 100%, 18% 100%, 0 35%); }
+h3 .admin-badge { font-size: 12px; padding: 2px 8px; }

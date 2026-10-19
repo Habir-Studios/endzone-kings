@@ -7,7 +7,8 @@ export const NOTES = [
     date: "2026-10-18",
     added: [
       "Everything follows your account between devices: coins, cards, squad, Franchise, Season, custom plays and your game settings (graphics, sound and touch controls stay per device)",
-      "Changes you make on one device show up on your other devices within about 15 seconds, no reopening needed (never in the middle of a game)"
+      "Changes you make on one device show up on your other devices within about a second, no reopening needed (never in the middle of a game)",
+      "Feedback button on the main menu: report a bug, send a suggestion or ask for help, straight to the dev team"
     ],
     fixed: []
   },

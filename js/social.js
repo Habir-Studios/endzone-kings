@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792380810';
-import { TEAMS } from './teams.js?v=1792380810';
+import { askYes } from './ui.js?v=1792381171';
+import { TEAMS } from './teams.js?v=1792381171';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -637,6 +637,7 @@ export async function renderAdmin() {
   pane.innerHTML = '<p class="note">Loading…</p>';
   refreshAdminBadge();
   if (adTab === 'find') return adminFind();
+  if (adTab === 'feedback') return adminFeedback(pane);
   if (adTab === 'bans') {
     await db().rpc('ek_admin_clean_bans');
     const { data } = await db().from('ek_bans').select('id,reason,by_admin,created_at,until').order('created_at', { ascending: false }).limit(200);
@@ -698,6 +699,35 @@ async function adminFind() {
     wireAdmin(C.$('#ad-res'));
   };
   let t; C.$('#ad-q').oninput = () => { clearTimeout(t); t = setTimeout(go, 300); };
+}
+// ---------- feedback inbox: search by keyword, filter by type, see who sent it and when ----------
+let fbQ = '', fbKind = 'all', fbOpen = true;
+async function adminFeedback(pane) {
+  const { data, error } = await db().from('ek_feedback').select('*').order('created_at', { ascending: false }).limit(500);
+  if (error) { pane.innerHTML = `<p class="note">Couldn’t load feedback: ${esc(error.message)}</p>`; return; }
+  const KIND = { bug: 'Bug', idea: 'Suggestion', help: 'Help' };
+  pane.innerHTML = `<div class="fb-tools"><input type="search" id="fb-q" placeholder="Search a word, like graphics or lag" value="${esc(fbQ)}">
+      <div class="seg" id="fb-k">${[['all', 'All'], ['bug', 'Bugs'], ['idea', 'Suggestions'], ['help', 'Help']].map(([k, n]) => `<button type="button" data-k="${k}" class="${fbKind === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="seg" id="fb-s"><button type="button" data-s="1" class="${fbOpen ? 'on' : ''}">Open</button><button type="button" data-s="0" class="${fbOpen ? '' : 'on'}">All</button></div></div>
+    <p class="note" id="fb-count"></p><div class="ad-list" id="fb-list"></div>`;
+  const list = C.$('#fb-list', pane), count = C.$('#fb-count', pane);
+  const mark = (t, q) => { const s = esc(t); if (!q) return s; const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'); return s.replace(re, '<mark>$1</mark>'); };
+  const draw = () => {
+    const q = fbQ.trim().toLowerCase();
+    const rows = (data || []).filter(r => (fbKind === 'all' || r.kind === fbKind) && (!fbOpen || r.status === 'open') && (!q || [r.message, r.username, r.kind, r.device, r.version].join(' ').toLowerCase().includes(q)));
+    count.textContent = q ? `${rows.length} message${rows.length === 1 ? '' : 's'} mention “${fbQ.trim()}” (from ${new Set(rows.map(r => r.user_id || r.username)).size} player${new Set(rows.map(r => r.user_id || r.username)).size === 1 ? '' : 's'})` : `${rows.length} message${rows.length === 1 ? '' : 's'}`;
+    list.innerHTML = rows.map(r => `<div class="ad-row fb-item"><div><b>${esc(r.username)}</b> <span class="ad-tag">${KIND[r.kind] || r.kind}</span> <span class="ad-tag st-${r.status === 'open' ? 'open' : 'dismissed'}">${r.status === 'open' ? 'open' : 'done'}</span>
+        <small>${new Date(r.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} (${ago(r.created_at)})${r.device ? ' · ' + esc(r.device) : ''}${r.version ? ' · v' + esc(r.version) : ''}</small>
+        <p>${mark(r.message, fbQ.trim())}</p></div>
+      <div class="ad-btns">${r.user_id ? `<button class="btn sm" data-view="${r.user_id}">Profile</button>` : ''}<button class="btn sm" data-fbdone="${r.id}" data-to="${r.status === 'open' ? 'done' : 'open'}">${r.status === 'open' ? 'Mark done' : 'Reopen'}</button><button class="btn sm danger" data-fbdel="${r.id}">Delete</button></div></div>`).join('') || '<p class="note">Nothing here.</p>';
+    C.$$('[data-view]', list).forEach(x => x.onclick = () => { C.show('social'); openProfile(x.dataset.view); });
+    C.$$('[data-fbdone]', list).forEach(x => x.onclick = async () => { const { error } = await db().from('ek_feedback').update({ status: x.dataset.to }).eq('id', +x.dataset.fbdone); if (error) C.toast(error.message); else { const r = data.find(d => d.id === +x.dataset.fbdone); if (r) r.status = x.dataset.to; draw(); } });
+    C.$$('[data-fbdel]', list).forEach(x => x.onclick = async () => { if (!(await askYes('Delete this message for good?', 'Delete', 'Cancel'))) return; const { error } = await db().from('ek_feedback').delete().eq('id', +x.dataset.fbdel); if (error) C.toast(error.message); else { data.splice(data.findIndex(d => d.id === +x.dataset.fbdel), 1); draw(); } });
+  };
+  C.$('#fb-q', pane).oninput = e => { fbQ = e.target.value; draw(); };
+  C.$$('#fb-k [data-k]', pane).forEach(b => b.onclick = () => { fbKind = b.dataset.k; C.$$('#fb-k [data-k]', pane).forEach(x => x.classList.toggle('on', x === b)); draw(); });
+  C.$$('#fb-s [data-s]', pane).forEach(b => b.onclick = () => { fbOpen = b.dataset.s === '1'; C.$$('#fb-s [data-s]', pane).forEach(x => x.classList.toggle('on', x === b)); draw(); });
+  draw();
 }
 async function namesFor(ids) {
   const out = {}; if (!ids.length) return out;

@@ -360,3 +360,17 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 .dev-row div b { display: flex; align-items: center; gap: 8px; }
 .dev-row small { opacity: .7; }
 .dev-meta { font-size: 13px; opacity: .9; }
+
+/* feedback button: top left, before patch notes */
+.fb-btn { position: absolute; top: 16px; left: 72px; z-index: 6; height: 46px; display: flex; align-items: center; gap: 8px; padding: 0 14px; background: #121215; border: 1px solid rgba(255,255,255,.12); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+.fb-btn svg { width: 18px; height: 18px; fill: var(--red-2, #ff3347); }
+.fb-btn:hover, .fb-btn:focus-visible { border-color: var(--red-2, #ff3347); }
+#menu .pn-btn { left: 196px; }
+.fb-card { width: min(520px, 94vw); }
+.fb-card textarea { width: 100%; resize: vertical; font: inherit; }
+.fb-kind button { flex: 1; }
+@media (max-width: 700px) { .fb-btn { top: auto; bottom: 16px; left: 72px; } .fb-btn span { display: none; } #menu .pn-btn { left: 130px; } }
+.fb-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.fb-tools input { flex: 1 1 220px; }
+.fb-item p { margin: 6px 0 0; white-space: pre-wrap; }
+.fb-item mark { background: rgba(255,51,71,.35); color: inherit; }

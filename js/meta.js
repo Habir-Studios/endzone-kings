@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792380810';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792380810';
-import * as UT from './ut.js?v=1792380810';
-import { portraitURL } from './faces.js?v=1792380810';
-import { TEAMS } from './teams.js?v=1792380810';
+import { askYes } from './ui.js?v=1792381171';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792381171';
+import * as UT from './ut.js?v=1792381171';
+import { portraitURL } from './faces.js?v=1792381171';
+import { TEAMS } from './teams.js?v=1792381171';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -39,7 +39,7 @@ export function profile() {
 export function initMeta(ctx) {
   C = ctx;
   setInterval(uploadClub, 8000);
-  setInterval(pullCloud, 15000);
+  setInterval(checkSave, 1000);
   setInterval(() => { if (tdb() && tme()) settleTrades().then(n => { if (n && C.screen() === 'ut') renderUT(); }); if (C.screen() === 'ut' && utTab === 'trade') loadTrades(true); }, 15000);
   const { $, $$ } = C;
   $$('#ut .ut-tab[data-ut]').forEach(b => b.addEventListener('click', () => { C.sfx.play('ui'); utTab = b.dataset.ut; renderUT(); }));
@@ -75,6 +75,18 @@ export async function pullCloud() {
     if (C.syncExtras) C.syncExtras();
     if (changed) { refreshChip(); liveOvr(); if (C.screen() === 'ut') renderUT(); if (C.screen() === 'progress') renderProgress(); }
   } catch (_) {} finally { pulling = false; }
+}
+let lastStamp = null, owed = false, checking = false;
+async function checkSave() {
+  const A = C.Auth; if (checking || A.mode !== 'supabase' || !A.user || A.user.kind !== 'account' || !prof) return;
+  if (C.st.playing || C.screen() === 'game') return;   // never touch a device that's mid-game: it catches up after
+  if (owed) { owed = false; return pullCloud(); }
+  checking = true;
+  try {
+    const { data } = await A.client.from('ek_saves').select('updated_at').eq('id', A.user.id).maybeSingle();
+    const st = data && data.updated_at;
+    if (st && st !== lastStamp) { const first = lastStamp === null; lastStamp = st; if (!first) await pullCloud(); }
+  } catch (_) {} finally { checking = false; }
 }
 export function refreshChip() {
   const P = profile(); if (!P) return;

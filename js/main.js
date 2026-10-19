@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792380810';
-import { NOTES } from './patchnotes.js?v=1792380810';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792380810';
-import * as Form from './form.js?v=1792380810';
-import { watchSim } from './simview.js?v=1792380810';
-import { bracketHTML } from './bracket.js?v=1792380810';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792380810';
-import { Renderer } from './render.js?v=1792380810';
-import { Sfx } from './audio.js?v=1792380810';
-import { Auth } from './auth.js?v=1792380810';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792380810';
-import { getRoster, teamOvr } from './teams.js?v=1792380810';
-import * as Season from './season.js?v=1792380810';
-import * as Fr from './franchise.js?v=1792380810';
-import * as League from './league.js?v=1792380810';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792380810';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792380810';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792380810';
-import * as UTm from './ut.js?v=1792380810';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792380810';
-import { filmCapture, filmSave } from './social.js?v=1792380810';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792380810';
-import { portraitURL } from './faces.js?v=1792380810';
-import { logoURL, clearLogoCache } from './logos.js?v=1792380810';
+import { CONFIG } from './config.js?v=1792381171';
+import { NOTES } from './patchnotes.js?v=1792381171';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792381171';
+import * as Form from './form.js?v=1792381171';
+import { watchSim } from './simview.js?v=1792381171';
+import { bracketHTML } from './bracket.js?v=1792381171';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792381171';
+import { Renderer } from './render.js?v=1792381171';
+import { Sfx } from './audio.js?v=1792381171';
+import { Auth } from './auth.js?v=1792381171';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792381171';
+import { getRoster, teamOvr } from './teams.js?v=1792381171';
+import * as Season from './season.js?v=1792381171';
+import * as Fr from './franchise.js?v=1792381171';
+import * as League from './league.js?v=1792381171';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792381171';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792381171';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792381171';
+import * as UTm from './ut.js?v=1792381171';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792381171';
+import { filmCapture, filmSave } from './social.js?v=1792381171';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792381171';
+import { portraitURL } from './faces.js?v=1792381171';
+import { logoURL, clearLogoCache } from './logos.js?v=1792381171';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -466,6 +466,30 @@ async function syncKickChannel() {
 function sendKick(payload) { try { if (kickCh) kickCh.send({ type: 'broadcast', event: 'kick', payload }); } catch (_) {} }
 setInterval(syncKickChannel, 3000);
 setInterval(() => { if (!st.playing) bootIfDead(); }, 20000);   // backup in case a kick message was missed
+// ---------------- feedback: bug reports, ideas and help requests go straight to the admin panel ----------------
+function openFeedback() {
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
+  m.innerHTML = `<form class="panel info-card form fb-card"><h3 style="margin:0">Contact the dev team</h3><p class="note">Found a bug, got an idea, or need help? This goes straight to Habir Studios.</p>
+    <div class="seg fb-kind"><button type="button" data-k="bug" class="on">Report a bug</button><button type="button" data-k="idea">Suggestion</button><button type="button" data-k="help">Need help</button></div>
+    <label>Message<textarea maxlength="1500" rows="6" required placeholder="What happened? What were you doing? The more detail the better."></textarea></label>
+    <p class="note fb-meta"></p><p class="msg" role="status"></p><button class="btn primary" type="submit">Send</button><button class="btn" type="button" data-x>Cancel</button></form>`;
+  document.body.appendChild(m);
+  const f = m.querySelector('form'), ta = m.querySelector('textarea'), msg = m.querySelector('.msg'); let kind = 'bug';
+  const d = deviceInfo(navigator.userAgent);
+  m.querySelector('.fb-meta').textContent = `Sent as ${Auth.user ? Auth.user.name : 'a guest'} · ${d.type}, ${d.browser}, ${d.sys} · v${NOTES[0].v}`;
+  m.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { kind = b.dataset.k; m.querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === b)); });
+  m.querySelector('[data-x]').onclick = () => m.remove();
+  setTimeout(() => ta.focus(), 50);
+  f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector('.btn.primary'), async () => {
+    const text = ta.value.replace(/[<>]/g, '').trim(); if (text.length < 3) { msg.textContent = 'Write a little more first'; msg.classList.add('err'); return; }
+    if (Auth.mode !== 'supabase') { msg.textContent = 'Can’t reach the server right now. Try again later.'; msg.classList.add('err'); return; }
+    const acct = Auth.user && Auth.user.kind === 'account';
+    const { error } = await Auth.client.from('ek_feedback').insert({ user_id: acct ? Auth.user.id : null, username: (Auth.user ? Auth.user.name : 'Guest').slice(0, 24), kind, message: text.slice(0, 1500), device: `${d.type} · ${d.browser} · ${d.sys}`.slice(0, 200), version: NOTES[0].v });
+    if (error) { msg.textContent = /lot of messages/i.test(error.message) ? 'You sent a lot of messages. Try again in a bit.' : 'Couldn’t send it: ' + error.message; msg.classList.add('err'); return; }
+    m.remove(); toast(kind === 'bug' ? 'Bug report sent. Thanks for helping fix the game!' : kind === 'idea' ? 'Suggestion sent. Thanks!' : 'Sent. The dev team will take a look.', 3500);
+  }); };
+}
+$('#fb-btn').addEventListener('click', () => { sfx.play('ui'); openFeedback(); });
 function authMsg(t, err) { const m = $('#auth-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
 async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } }
 $('#form-login').addEventListener('submit', (e) => {

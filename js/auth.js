@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792379283';
+import { CONFIG } from './config.js?v=1792379549';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -153,7 +153,7 @@ export const Auth = {
     try { const { data } = await this.client.auth.mfa.listFactors(); for (const f of ((data && data.all) || []).filter(f => f.status !== 'verified')) await this.client.auth.mfa.unenroll({ factorId: f.id }); } catch (_) {}
     const { data, error } = await this.client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Endzone Kings ' + Date.now().toString(36) });
     if (error) throw new Error(error.message);
-    return { id: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+    return { id: data.id, uri: data.totp.uri, secret: data.totp.secret };
   },
   async enrollFinish(id, code) {
     const { error } = await this.client.auth.mfa.challengeAndVerify({ factorId: id, code: (code || '').replace(/\s/g, '') });

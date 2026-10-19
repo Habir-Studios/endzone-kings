@@ -3,6 +3,11 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: '1.0.6', date: '2026-10-18',
+    added: [],
+    fixed: ['The two-step login QR code is now a proper square code that scans, with nothing covering it'],
+  },
+  {
     v: '1.0.5', date: '2026-10-18',
     added: ['How to Play now covers other controllers (8BitDo, PowerA, Logitech, PC gamepads), and the game calls them a standard controller instead of Xbox'],
     fixed: [],

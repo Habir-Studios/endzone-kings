@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792379283';
-import { NOTES } from './patchnotes.js?v=1792379283';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792379283';
-import * as Form from './form.js?v=1792379283';
-import { watchSim } from './simview.js?v=1792379283';
-import { bracketHTML } from './bracket.js?v=1792379283';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792379283';
-import { Renderer } from './render.js?v=1792379283';
-import { Sfx } from './audio.js?v=1792379283';
-import { Auth } from './auth.js?v=1792379283';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792379283';
-import { getRoster, teamOvr } from './teams.js?v=1792379283';
-import * as Season from './season.js?v=1792379283';
-import * as Fr from './franchise.js?v=1792379283';
-import * as League from './league.js?v=1792379283';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792379283';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792379283';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792379283';
-import * as UTm from './ut.js?v=1792379283';
-import { initCreator, renderCreator } from './creator.js?v=1792379283';
-import { filmCapture, filmSave } from './social.js?v=1792379283';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792379283';
-import { portraitURL } from './faces.js?v=1792379283';
-import { logoURL, clearLogoCache } from './logos.js?v=1792379283';
+import { CONFIG } from './config.js?v=1792379549';
+import { NOTES } from './patchnotes.js?v=1792379549';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792379549';
+import * as Form from './form.js?v=1792379549';
+import { watchSim } from './simview.js?v=1792379549';
+import { bracketHTML } from './bracket.js?v=1792379549';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792379549';
+import { Renderer } from './render.js?v=1792379549';
+import { Sfx } from './audio.js?v=1792379549';
+import { Auth } from './auth.js?v=1792379549';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792379549';
+import { getRoster, teamOvr } from './teams.js?v=1792379549';
+import * as Season from './season.js?v=1792379549';
+import * as Fr from './franchise.js?v=1792379549';
+import * as League from './league.js?v=1792379549';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792379549';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792379549';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792379549';
+import * as UTm from './ut.js?v=1792379549';
+import { initCreator, renderCreator } from './creator.js?v=1792379549';
+import { filmCapture, filmSave } from './social.js?v=1792379549';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792379549';
+import { portraitURL } from './faces.js?v=1792379549';
+import { logoURL, clearLogoCache } from './logos.js?v=1792379549';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -343,10 +343,22 @@ $('#tf-btn').addEventListener('click', async () => {
     return;
   }
   let en; try { en = await Auth.enrollStart(); } catch (err) { return toast(err.message, 3500); }
-  const qr = String(en.qr || ''), src = qr.startsWith('data:') ? qr : 'data:image/svg+xml;utf8,' + encodeURIComponent(qr);
-  codeModal('Turn on two-step login', `<ol class="tf-steps"><li>Get an authenticator app on your phone (Google Authenticator, Microsoft Authenticator or Authy, all free)</li><li>In the app, tap + and scan this code</li></ol><img class="tf-qr" alt="QR code for your authenticator app" src="${src}"><p class="note">Can’t scan? Type this key in the app instead: <code class="tf-secret">${escapeHtml(en.secret || '')}</code></p><p class="note">Then type the 6-digit code the app shows:</p>`,
+  codeModal('Turn on two-step login', `<ol class="tf-steps"><li>Get an authenticator app on your phone (Google Authenticator, Microsoft Authenticator or Authy, all free)</li><li>In the app, tap + and scan this code</li></ol><canvas class="tf-qr" width="232" height="232" aria-label="QR code for your authenticator app"></canvas><p class="note">Can’t scan? Type this key in the app instead: <code class="tf-secret">${escapeHtml(en.secret || '')}</code></p><p class="note">Then type the 6-digit code the app shows:</p>`,
     async c => { await Auth.enrollFinish(en.id, c); toast('Two-step login is on. You’ll need a code from the app every time you log in.', 4000); });
+  drawQR(document.querySelector('.tf-card .tf-qr'), en.uri);
 });
+// crisp, square QR drawn from the authenticator link (black squares on white, with the quiet border scanners need)
+async function drawQR(cv, text) {
+  if (!cv || !text) return;
+  try {
+    const qrcode = (await import('../vendor/qrcode.js')).default;
+    const q = qrcode(0, 'M'); q.addData(text); q.make();
+    const n = q.getModuleCount(), quiet = 4, cells = n + quiet * 2, px = Math.floor(cv.width / cells), size = px * cells;
+    cv.width = cv.height = size;
+    const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, size, size); x.fillStyle = '#000';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) x.fillRect((c + quiet) * px, (r + quiet) * px, px, px);
+  } catch (e) { cv.replaceWith(Object.assign(document.createElement('p'), { className: 'note', textContent: 'Couldn’t draw the QR code. Type the key below into the app instead.' })); }
+}
 // ---------------- patch notes (top left of the main menu) ----------------
 const PN_KEY = 'ek_pn_seen';
 function fmtDate(d) { try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }); } catch (_) { return d; } }

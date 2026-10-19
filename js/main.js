@@ -133,7 +133,7 @@ function celPickOpen() { return !$('#cel-pick').classList.contains('hidden'); }
 function openCelPick() {
   const P = !isGuest() ? profile() : null, own = celOwned(P);
   const list = CELS.filter(c => own.has(c[0]));
-  const n = list.length, R0 = n > 8 ? 128 : 112;
+  const n = list.length, R0 = n > 14 ? 156 : n > 8 ? 132 : 112;
   $('#cel-opts').innerHTML = `<div class="cw-ring"></div><div class="cw-center"><b id="cw-name">Pick one</b><small>let go of Tab</small></div>` + list.map(([id, nm], i) => {
     const a = i / n * Math.PI * 2 - Math.PI / 2, x = Math.cos(a) * R0, y = Math.sin(a) * R0;
     return `<button type="button" class="cw-slot ${SET.cel === id ? 'on' : ''}" data-cp="${id}" data-nm="${escapeHtml(nm)}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px"><span class="cw-ic">${CEL_IC[id] || CEL_IC[-1]}</span><small>${escapeHtml(nm)}</small><kbd>${i + 1}</kbd></button>`;
@@ -154,6 +154,15 @@ const CEL_IC = {
   6: celSvg('<path d="M8.4 2.6a4 4 0 1 0 4.4 5.2 3.2 3.2 0 0 1-4.4-5.2Z" fill="currentColor" stroke="none"/><circle cx="15.4" cy="7.4" r="1.9" fill="currentColor" stroke="none"/><path d="M15 10.2l-1 5.6M14.8 11.4l-3.2 2M14.8 11.4l3.4 1.6M14 15.8l-2.8 2.4.4 2.8M14 15.8l3.4 1.4 1.6 3.4"/><path d="M3.6 21.5h3M8 21.5h2" stroke-width="1.6" opacity=".6"/>'),
   7: celSvg('<circle cx="10.4" cy="6.6" r="2.1" fill="currentColor" stroke="none"/><path d="M12 9.6v5.4M12 10 7.2 7.8M7.2 7.8l1.6 2.2M12 10l7.4-5.6M12 15l-2.8 6M12 15l2.8 6"/>'),
   8: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v6.4M12 8.6 8.4 11M12 8.6l3.6 2.4M12 13.6l-4.4 3.4-1.4 3.6M12 13.6l4.4 3.4 1.4 3.6"/><path d="M3 15.4h2.4M2.6 18.6h2.6M18.6 15.4H21M18.8 18.6h2.6" stroke-width="1.5" opacity=".7"/>'),
+  9: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v7M12 8.6 9 12M12 8.6l2.4-2.2 1.4-2.6M12 14.2l-2.4 6.6M12 14.2l2.4 6.6"/>'),
+  10: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v7M12 8.6 8.8 5.4 10.4 2.6M12 8.6l3.2-3.2-1.6-2.8M12 14.2l-2.4 6.6M12 14.2l2.4 6.6"/>'),
+  11: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v7M12 8.6H8v-3.4M12 8.6h4v3.6M12 14.2l-2.6 2v4.6M12 14.2l2.6 2v4.6"/>'),
+  12: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v7M12 8.6 9.2 6.2 10.6 3.6M12 8.6h6.4M12 14.2l-3 6.6M12 14.2l2.2 6.6"/><path d="M20 6.4l1.4-1M20 10.8l1.4 1" stroke-width="1.4"/>'),
+  13: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v7M12 9.2H5.6M12 9.2l4.6-.2M12 14.2l-3 6.6M12 14.2l3 6.6"/><path d="M5.6 5.4a5 5 0 0 1 0 7.6" stroke-width="1.5"/>'),
+  14: celSvg('<circle cx="11" cy="6.2" r="2.1" fill="currentColor" stroke="none"/><path d="M11.6 9l1 5.6M12 10.4l-3 2.6M12 10.4l2.6 2.8M12.6 14.6H8.4v5.6M12.6 14.6l3 2.2v3.4"/><path d="M4 21.5h16" stroke-width="1.5"/>'),
+  15: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v7M12 8.6 7.4 3.8M12 8.6l4.6-4.8M12 14.2 7.6 20.8M12 14.2l4.4 6.6"/>'),
+  16: celSvg('<circle cx="12" cy="4.2" r="2.1" fill="currentColor" stroke="none"/><path d="M12 7.2v7M12 8.6 9 11.6M12 8.6l3.4-3.6v-2.4M12 14.2l-2.4 6.6M12 14.2l2.4 6.6"/><path d="M18 2.6l1.6 1.4M18.4 6.4l1.8.4" stroke-width="1.4"/>'),
+  17: celSvg('<path d="M5 4l2.6 3L12 3l4.4 4L19 4v5H5Z" fill="currentColor" stroke="none"/><circle cx="12" cy="11.4" r="1.9" fill="currentColor" stroke="none"/><path d="M12 13.6v3.4M12 14.6 8 16.4M12 14.6l4 1.8M12 17H8.6v4M12 17h3.4v4M6 21.5h12" stroke-width="1.7"/>'),
 };
 function celHighlight(i) {
   const btns = $$('#cel-opts [data-cp]'); if (!btns.length) return;

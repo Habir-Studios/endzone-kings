@@ -527,7 +527,7 @@ export function renderProgress() {
 
 // ---------------- celebrations, achievements, drill ----------------
 // celebrations: [id, name, coin price (0 = free)]
-export const CELS = [[-1, 'Random', 0], [0, 'Jump', 0], [1, 'Dance', 0], [2, 'Flex', 0], [3, 'Point up', 1800], [4, 'Spin', 2500], [5, 'Take a bow', 4000], [7, 'Dab', 5000], [6, 'Moonwalk', 7000], [8, 'Shuffle', 9000]];
+export const CELS = [[-1, 'Random', 0], [0, 'Jump', 0], [1, 'Dance', 0], [2, 'Flex', 0], [3, 'Point up', 1800], [4, 'Spin', 2500], [5, 'Take a bow', 4000], [7, 'Dab', 5000], [6, 'Moonwalk', 7000], [8, 'Shuffle', 9000], [14, 'Take a knee', 2000], [9, 'Salute', 2500], [10, 'Heart hands', 3500], [16, 'Wave to the crowd', 4500], [15, 'Jumping jacks', 5500], [11, 'Robot', 6000], [12, 'Sprinkler', 6500], [13, 'Archer', 8000], [17, 'Kings throne', 12000]];
 export const celOwned = P => { const own = new Set([-1, 0, 1, 2, ...((P && P.p.cels) || [])]); if (P && P.p.lvl >= 5) own.add(5); if (P && P.p.lvl >= 15) own.add(6); return own; };   // old level unlocks still count
 export const celUnlocked = (lvlOrP) => [...celOwned(typeof lvlOrP === 'object' ? lvlOrP : null)];
 export function buyCel(P, id) {

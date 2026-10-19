@@ -575,3 +575,6 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .sb-next b { display: block; font-size: 18px; }
 .sb-next span { font-size: 13px; opacity: .8; }
 @media (max-width: 640px) { .utp-pick, .utp-pick.four { grid-template-columns: 1fr; } .utp-mode { min-height: 0; } .utp-mode b { font-size: 24px; } }
+/* bigger emote wheel when you own lots of emotes */
+.cel-pick #cel-opts:has(.cw-slot:nth-child(17)) { width: 390px; height: 390px; }
+@media (max-width: 480px), (max-height: 480px) { .cel-pick #cel-opts:has(.cw-slot:nth-child(17)) { transform: scale(.82); } }

@@ -122,7 +122,7 @@ export function createGame(opts = {}) {
     freeze: !!opts.freeze,   // practice only: play clock frozen
     toss: !!opts.toss,   // opening coin toss before the first snap
     playoff: !!opts.playoff,   // playoff game: overtime keeps going until somebody wins
-    cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 8 ? v : -1; }),
+    cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 17 ? v : -1; }),
   };
   const rng = mulberry(o.seed);
   const first = rng() < 0.5 ? 0 : 1;
@@ -466,7 +466,7 @@ function handleEvent(g, team, ev) {
     return;
   }
   // pick a touchdown celebration while you're celebrating
-  if (ev.t === 'cel') { const v = +ev.id; if (Number.isFinite(v) && v >= -1 && v <= 8) { g.opts.cel[team] = v; if (g.phase === 'dead' && g.celebrate !== team && g.phaseT < g.deadDur - 0.8) startCel(g, team); else if (g.phase === 'dead' && g.celebrate === team) { for (const p of g.players) if (p.team === team) p.celReset = 1; g.events.push('cel' + (v < 0 ? 0 : v)); } } return; }
+  if (ev.t === 'cel') { const v = +ev.id; if (Number.isFinite(v) && v >= -1 && v <= 17) { g.opts.cel[team] = v; if (g.phase === 'dead' && g.celebrate !== team && g.phaseT < g.deadDur - 0.8) startCel(g, team); else if (g.phase === 'dead' && g.celebrate === team) { for (const p of g.players) if (p.team === team) p.celReset = 1; g.events.push('cel' + (v < 0 ? 0 : v)); } } return; }
   // done watching: both humans hit snap and the next play comes up
   if (ev.t === 'skip') { if (g.phase === 'dead' && g.phaseT > 1.5) { g.deadSkip[team] = true; if ([0, 1].every(t => !g.opts.humans[t] || g.deadSkip[t])) g.deadDur = Math.min(g.deadDur, g.phaseT + 0.2); } return; }
   // onside kick: call it any time you have the ball; it happens on your next kickoff

@@ -1333,6 +1333,25 @@ export class Renderer {
         const s1 = Math.sin(c * 11), s2 = Math.sin(c * 5.5);
         lk[0] = 0.3 + Math.max(0, s1) * 0.7; lk[1] = 0.3 + Math.max(0, -s1) * 0.7; lh[0] = -Math.max(0, s1) * 0.4; lh[1] = -Math.max(0, -s1) * 0.4;
         as[0] = -0.9 + s2 * 0.9; as[1] = -0.9 - s2 * 0.9; ae[0] = ae[1] = 1.6; twist = s2 * 0.3; roll = s1 * 0.06; jump = Math.abs(s1) * 0.06; lean = 0.1;
+      } else if (kind === 9) { // salute the crowd
+        const b = Math.min(1, c / 0.3); as[1] = -2.2 * b; az[1] = -0.5 * b; ae[1] = 2.5 * b; headX = 0.1; lean = -0.08; lk[0] = lk[1] = 0.05; as[0] = 0.1; ae[0] = 0.2;
+      } else if (kind === 10) { // heart hands over the head
+        const s1 = Math.sin(c * 4); as[0] = as[1] = -2.7; az[0] = -0.35; az[1] = 0.35; ae[0] = ae[1] = 1.5; lean = -0.1; roll = s1 * 0.08; jump = Math.abs(s1) * 0.05; headX = 0.3;
+      } else if (kind === 11) { // robot: stiff, snapping arm moves
+        const st = Math.floor(c * 3) % 4; as[0] = [-1.57, -1.57, 0, -3][st]; as[1] = [0, -1.57, -1.57, -3][(st + 1) % 4]; ae[0] = ae[1] = [1.57, 0, 1.57, 0][st]; twist = [0.4, 0, -0.4, 0][st]; lk[0] = lk[1] = 0.2; headX = [0, 0.2, 0, -0.2][st];
+      } else if (kind === 12) { // sprinkler: one hand behind the head, the other arm ticks across
+        const tk = (c * 2.5) % 2, sw = tk < 1.6 ? -0.9 + Math.floor(tk * 5) * 0.28 : 0.9 - (tk - 1.6) * 4.5;
+        as[0] = -2.6; az[0] = 0.9; ae[0] = 2.4; as[1] = -1.57; ae[1] = 0.1; twist = sw * 0.6; az[1] = sw * 0.2; lk[0] = 0.5; lk[1] = 0.15; lean = 0.15;
+      } else if (kind === 13) { // archer: draw the bow and fire into the stands
+        const t = c % 2.2, d2 = Math.min(1, t / 0.9), rel = t > 1.2; as[0] = -1.57; ae[0] = 0; as[1] = -1.57; az[1] = rel ? 0.6 : 0.2; ae[1] = rel ? 0.2 : 2.4 * d2; twist = -0.7; headX = -0.15; lean = -0.05; lk[0] = 0.35; lk[1] = 0.1; lh[0] = -0.25;
+      } else if (kind === 14) { // take a knee, head down
+        drop = 0.42; lk[0] = 1.6; lh[0] = -1.4; lk[1] = 1.55; lh[1] = 0.1; lean = 0.25; headX = -0.45; as[0] = as[1] = -0.6; ae[0] = ae[1] = 1.2; az[0] = 0.3; az[1] = -0.3;
+      } else if (kind === 15) { // jumping jacks
+        const b = Math.abs(Math.sin(c * 5)); jump = b * 0.25; as[0] = as[1] = -3.0 * b; az[0] = -0.4 * b; az[1] = 0.4 * b; ae[0] = ae[1] = 0.2; roll = 0; lh[0] = -0.35 * b; lh[1] = -0.35 * b;
+      } else if (kind === 16) { // wave to the crowd
+        const s1 = Math.sin(c * 8); as[1] = -2.8; az[1] = -0.3 + s1 * 0.35; ae[1] = 0.4; as[0] = -0.2; ae[0] = 0.6; twist = Math.sin(c * 1.2) * 0.5; lean = -0.05; headX = 0.25;
+      } else if (kind === 17) { // kings throne: sit back like it's yours, arms out on the armrests
+        drop = 0.48; lh[0] = lh[1] = -1.45; lk[0] = lk[1] = 1.45; lean = -0.32; as[0] = as[1] = -0.75; az[0] = -0.5; az[1] = 0.5; ae[0] = ae[1] = 0.9; headX = 0.15 + Math.sin(c * 1.5) * 0.08;
       } else { // moonwalk-style heel slide
         const s1 = Math.sin(c * 6); lk[0] = 0.25 + Math.max(0, s1) * 0.9; lk[1] = 0.25 + Math.max(0, -s1) * 0.9; lh[0] = 0.15 - Math.max(0, s1) * 0.2; lh[1] = 0.15 - Math.max(0, -s1) * 0.2;
         lean = -0.12; as[0] = -0.3 + s1 * 0.3; as[1] = -0.3 - s1 * 0.3; ae[0] = ae[1] = 1.3; roll = s1 * 0.05; twist = s1 * 0.12;

@@ -1,9 +1,9 @@
 // ENDZONE KINGS — stadium dressing: sidelines (benches, players, coaches, coolers), chain gang, camera crews,
 // skycam, railings, roof trusses, speakers, flags and facade boards.
 import * as THREE from 'three';
-import { TEAMS, HALF_W } from './sim.js?v=1792376627';
-import { drawLogo } from './logos.js?v=1792376627';
-import { drawFaceTextureLite, faceParams } from './faces.js?v=1792376627';
+import { TEAMS, HALF_W } from './sim.js?v=1792376734';
+import { drawLogo } from './logos.js?v=1792376734';
+import { drawFaceTextureLite, faceParams } from './faces.js?v=1792376734';
 
 const vis = (t, k) => (t[k] === '#121a14' ? '#18c964' : t[k]);
 function tex(w, h, draw) {
@@ -398,18 +398,10 @@ export function waveFlags(R) {
   }
 }
 
-// ---------------- extra stadium detail: kick nets, hanging banners, tunnels, exit lights, cheer squads ----------------
+// ---------------- extra stadium detail: hanging banners, tunnels, exit lights, cheer squads ----------------
 export function buildStadiumDetail(R) {
   const s = R.scene, lite = R.quality === 'potato', o = new THREE.Object3D();
-  // kick nets behind both sets of uprights
-  const netTex = tex(128, 128, (c, w, h) => { c.clearRect(0, 0, w, h); c.strokeStyle = 'rgba(235,240,255,0.85)'; c.lineWidth = 2; for (let i = 0; i <= w; i += 16) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, h); c.stroke(); c.beginPath(); c.moveTo(0, i); c.lineTo(w, i); c.stroke(); } });
-  netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping; netTex.repeat.set(14, 10);
-  const netMat = new THREE.MeshBasicMaterial({ map: netTex, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
   const poleMat = M(0x2a2f3c, { metalness: 0.6, roughness: 0.4 });
-  for (const z of [-12.6, 112.6]) {
-    const net = new THREE.Mesh(new THREE.PlaneGeometry(13, 9), netMat); net.position.set(0, 9, z); s.add(net);
-    for (const x of [-6.6, 6.6]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 13.6, 6), poleMat); p.position.set(x, 6.8, z); s.add(p); }
-  }
   // championship and division banners hanging from the roof at both ends
   const banner = (top, mid, low, col) => tex(128, 320, (c, w, h) => {
     const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, col[0]); g.addColorStop(1, col[1]); c.fillStyle = g; c.fillRect(0, 0, w, h);

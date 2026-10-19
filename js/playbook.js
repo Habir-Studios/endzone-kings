@@ -295,8 +295,18 @@ export function signaturePlay(ti, abbr, city) {
   return fillOffense({ ...base, filled: false, id: 'sig_' + abbr, name: `${city} ${st.sig}`, tip: `${abbr} signature play`, signature: true, routes });
 }
 
-export function teamPlaybook(ti, team) {
-  const st = teamStyle(ti);
+// a game plan from the players' ratings: who's good decides how the team plays (used for league bots)
+export function rosterStyle(roster) {
+  const P = (roster && roster.players) || {}, r = (role, k) => (P[role] && +P[role][k]) || 70, avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const pass = avg([r('QB', 'acc'), r('QB', 'arm'), r('WR1', 'hands'), r('WR2', 'hands'), r('WR1', 'spd'), r('WR2', 'spd'), r('TE', 'hands')]);
+  const run = avg([r('RB', 'spd'), r('RB', 'elu'), r('LT', 'blk'), r('LG', 'blk'), r('C', 'blk'), r('RG', 'blk'), r('RT', 'blk')]);
+  const off = pass - run > 4 ? (r('QB', 'arm') >= r('QB', 'acc') ? 'air' : 'west') : run - pass > 4 ? 'ground' : 'balanced';
+  const cov = avg([r('CB1', 'cov'), r('CB2', 'cov'), r('S', 'cov'), r('SS', 'cov')]), rush = avg([r('DL1', 'rush'), r('DL2', 'rush'), r('DL3', 'rush'), r('DL4', 'rush'), r('LB', 'rush')]);
+  const def = cov - rush > 4 ? 'lockdown' : rush - cov > 4 ? 'pressure' : 'zone';
+  return { off, def };
+}
+export function teamPlaybook(ti, team, style) {
+  const st = style ? { ...teamStyle(ti), ...style } : teamStyle(ti);
   const off = OFF_STYLES[st.off].plays.slice();
   // every team also carries the newer plays and the full set of fakes
   for (const id of ['snag', 'levels', 'texas', 'shallowx', 'bunchflat', 'deepcross', 'scissors', 'divide', 'trailpost', 'gcounter', 'izone', 'leadtoss', 'gldive', 'pabootl', 'paslant', 'wrscreen', 'fakepunt', 'fakefg', 'fakepuntpass', 'fakefgrun']) if (!off.includes(id)) off.push(id);

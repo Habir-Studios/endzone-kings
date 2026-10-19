@@ -3,6 +3,19 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: '1.1.0', date: '2026-10-18',
+    added: [
+      'Directional tackles: players fall the way they get hit. Hit from the side and they go the other way, from behind and they fall on their face, head-on and they go straight back. Same for trucks, stiff arms and missed tackles',
+      'Online Franchise: if your opponent is offline, play their bot instead. It uses their exact roster and a game plan built from their players',
+      'A tougher CPU at every difficulty',
+      'Admins can delete reports',
+    ],
+    fixed: [
+      'Quick Play now says it doesn’t count toward your record',
+      'Removed Weekend League',
+    ],
+  },
+  {
     v: '1.0.1', date: '2026-10-18',
     added: [
       'Daily Reward tile on the main menu: claim your coins with a button, then a timer counts down to the next one',

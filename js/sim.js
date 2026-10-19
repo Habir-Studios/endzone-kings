@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792377687';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792377785';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792377687';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792377785';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -135,7 +135,7 @@ export function createGame(opts = {}) {
     ctrl: [-1, -1], play: null, playId: 0, runoff: 0, inj: [{}, {}], injLog: [], fat: [{}, {}], injAsk: [null, null], lastPlay: [null, null], onside: [false, false], depth: [{}, {}], bench: [{}, {}], subAsk: [null, null], subAskT: [0, 0], benchV: 0,
     msg: null, flash: null, events: [], kick: null, winner: -1,
     stats: [mkStats(), mkStats()],
-    custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], to: [3, 3], lastRunoff: 0, books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]])),
+    custom: [{}, {}], pat: -1, ps: {}, halfReady: [false, false], mom: 0, hot: {}, hl: [], to: [3, 3], lastRunoff: 0, books: [0, 1].map(k => teamPlaybook((opts.teams || [3, 15])[k], TEAMS[(opts.teams || [3, 15])[k]], opts.styles && opts.styles[k])),
   };
   if (o.practice) { g.poss = o.practice === 'def' ? 1 : 0; g.firstReceiver = g.poss; }
   if (o.drill) { g.poss = 0; g.firstReceiver = 0; g.quarter = 4; }

@@ -1,10 +1,11 @@
 // ENDZONE KINGS — Online Franchise. Up to 16 people each run a team. Before the season everyone drafts from one
 // shared player pool (bots fill the empty spots and pick for themselves), trades stay open all season, and a
 // 16-team knockout bracket runs until the last two meet in the Kings Bowl. Server side: supabase/leagues.sql.
-import { TEAMS } from './teams.js?v=1792377687';
-import { getRoster } from './teams.js?v=1792377687';
-import { askYes } from './ui.js?v=1792377687';
-import { card, makeId, GROUPS, SLOTS, SLOT_GROUP, SLOT_LABEL } from './ut.js?v=1792377687';
+import { TEAMS } from './teams.js?v=1792377785';
+import { getRoster } from './teams.js?v=1792377785';
+import { askYes } from './ui.js?v=1792377785';
+import { rosterStyle } from './playbook.js?v=1792377785';
+import { card, makeId, GROUPS, SLOTS, SLOT_GROUP, SLOT_LABEL } from './ut.js?v=1792377785';
 
 let C = null, view = { code: null, tab: 'home', filter: 'All', trade: null }, poll = null, busy = false, lastRow = null;
 const GKEYS = Object.keys(GROUPS);
@@ -212,7 +213,7 @@ function bracketHTML(s, slot, owner) {
   else if (mg) {
     const opp = mg.g.h === slot ? mg.g.a : mg.g.h, bot = !s.slots[opp].u, home = mg.g.h === slot;
     top = `<div class="lg-next"><div><small>${ROUND_NAMES[s.r]}: your game</small><b>vs ${esc(s.slots[opp].n)}</b><span>${bot ? 'They are a bot. Play it whenever.' : home ? 'You are home: you host. Tell them to hit Join.' : 'They are home: they host. Hit Join once they are waiting.'}</span></div>
-      <button class="btn primary" id="lg-play" type="button">${bot ? 'Play game' : home ? 'Host game' : 'Join game'}</button></div>`;
+      <div class="lg-play-btns"><button class="btn primary" id="lg-play" type="button">${bot ? 'Play game' : home ? 'Host game' : 'Join game'}</button>${bot ? '' : `<button class="btn hidden" id="lg-standin" type="button" data-opp="${esc(s.slots[opp].u)}">They’re offline: play their bot</button>`}</div></div>`;
   } else if (slot >= 0 && s.phase === 'bracket') {
     const out = (s.br || []).some(gs => gs.some(g => (g.h === slot || g.a === slot) && winnerOf(g) >= 0 && winnerOf(g) !== slot));
     top = `<p class="note center">${out ? 'You got knocked out. You can still make trades and watch the rest of the bracket.' : 'Waiting on the rest of this round.'}</p>`;
@@ -261,17 +262,24 @@ function wire(L, s, slot, owner) {
   q('[data-get]').forEach(x => x.onchange = () => { tog(T.get, x.dataset.get, x.checked); draw(lastRow); });
   if (b('lg-send')) b('lg-send').onclick = () => act(() => rpc('ek_lg_trade', { code: L.id, tslot: T.to, give: T.give, gett: T.get }), r => { C.toast(r === 'accepted' ? 'They took it. Trade done.' : r === 'declined' ? 'They said no. Offer them a little more.' : 'Offer sent'); if (r !== 'declined') view.trade = null; });
   if (b('lg-play')) b('lg-play').onclick = () => playGame(L, s, slot);
+  // opponent not around? their team still plays: a bot with their exact roster and a game plan built from it
+  const si = b('lg-standin');
+  if (si && db()) db().from('ek_players').select('last_seen').eq('id', si.dataset.opp).maybeSingle().then(({ data }) => {
+    const off = !data || !data.last_seen || Date.now() - new Date(data.last_seen).getTime() > 150000;
+    if (off && document.body.contains(si)) { si.classList.remove('hidden'); si.onclick = () => playGame(L, s, slot, true); }
+  }, () => {});
 }
 
 // ---------- playing a bracket game ----------
 function roomFor(code, r, gi) { let h = 2166136261; for (const ch of `${code}:${r}:${gi}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return ('L' + h.toString(36).toUpperCase() + 'XXXXXXX').slice(0, 8); }
-function playGame(L, s, slot) {
+function playGame(L, s, slot, standIn) {
   const mg = myGame(s, slot); if (!mg) return;
   const opp = mg.g.h === slot ? mg.g.a : mg.g.h, home = mg.g.h === slot;
   const info = { code: L.id, r: s.r, gi: mg.gi, slot, home, opp, oppName: s.slots[opp].n, team: s.slots[slot].t, roster: leagueRoster(s, slot), sent: false };
   C.st.league = info;
   stopPoll();
   if (!s.slots[opp].u) C.startCPU({ teams: [s.slots[slot].t, s.slots[opp].t], rosters: [info.roster, leagueRoster(s, opp)], league: info });
+  else if (standIn) { const r2 = leagueRoster(s, opp); C.startCPU({ teams: [s.slots[slot].t, s.slots[opp].t], rosters: [info.roster, r2], styles: [null, rosterStyle(r2)], diff: 2, teamNames: [null, `${s.slots[opp].n} (bot)`], league: info }); }   // stand-in: All-Pro bot, their roster, their game plan
   else if (home) C.hostGame(roomFor(L.id, s.r, mg.gi));
   else C.joinGame(roomFor(L.id, s.r, mg.gi));
 }

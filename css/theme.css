@@ -335,3 +335,5 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 /* main menu corner buttons scroll away with the menu instead of floating over it (the .screen is the scroller) */
 #menu .profile-chip, #menu .notif-btn, #menu .pn-btn, #menu .player-count, #menu .notif-panel { position: absolute; }
 @media (max-width: 700px) { #menu .profile-chip { position: relative; } }
+
+.lg-play-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }

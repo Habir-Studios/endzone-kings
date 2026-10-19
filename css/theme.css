@@ -315,3 +315,19 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 .tf-row .tf-k { display: flex; flex-direction: column; font-weight: 700; }
 .tf-row .tf-k small { font-weight: 500; opacity: .7; font-size: 12px; }
 .code-links { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+/* patch notes: top left of the main menu, next to the bell */
+.pn-btn { position: fixed; top: 16px; left: 72px; z-index: 6; height: 46px; display: flex; align-items: center; gap: 8px; padding: 0 14px; background: #121215; border: 1px solid rgba(255,255,255,.12); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+.pn-btn b { color: var(--red-2, #ff3347); font-variant-numeric: tabular-nums; }
+.pn-btn:hover, .pn-btn:focus-visible { border-color: var(--red-2, #ff3347); }
+.pn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red-2, #ff3347); }
+.player-count { top: 72px; left: 16px; }
+.pn-card { width: min(560px, 94vw); max-height: 86vh; display: flex; flex-direction: column; gap: 12px; }
+.pn-list { overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding-right: 4px; }
+.pn-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 6px; }
+.pn-head b { font-size: 18px; }
+.pn-head small { margin-left: auto; opacity: .65; }
+.pn-new { font-size: 11px; font-weight: 800; padding: 2px 8px; background: var(--red-2, #ff3347); color: #fff; }
+.pn-entry h4 { margin: 10px 0 4px; font-size: 13px; opacity: .8; }
+.pn-entry ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 700px) { .pn-btn { top: auto; bottom: 16px; left: 72px; } .player-count { top: auto; bottom: 72px; left: 16px; } }

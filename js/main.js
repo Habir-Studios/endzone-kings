@@ -1,27 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792376329';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792376329';
-import * as Form from './form.js?v=1792376329';
-import { watchSim } from './simview.js?v=1792376329';
-import { bracketHTML } from './bracket.js?v=1792376329';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792376329';
-import { Renderer } from './render.js?v=1792376329';
-import { Sfx } from './audio.js?v=1792376329';
-import { Auth } from './auth.js?v=1792376329';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792376329';
-import { getRoster, teamOvr } from './teams.js?v=1792376329';
-import * as Season from './season.js?v=1792376329';
-import * as Fr from './franchise.js?v=1792376329';
-import * as League from './league.js?v=1792376329';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792376329';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792376329';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792376329';
-import * as UTm from './ut.js?v=1792376329';
-import { initCreator, renderCreator } from './creator.js?v=1792376329';
-import { filmCapture, filmSave } from './social.js?v=1792376329';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792376329';
-import { portraitURL } from './faces.js?v=1792376329';
-import { logoURL, clearLogoCache } from './logos.js?v=1792376329';
+import { CONFIG } from './config.js?v=1792376627';
+import { NOTES } from './patchnotes.js?v=1792376627';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792376627';
+import * as Form from './form.js?v=1792376627';
+import { watchSim } from './simview.js?v=1792376627';
+import { bracketHTML } from './bracket.js?v=1792376627';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792376627';
+import { Renderer } from './render.js?v=1792376627';
+import { Sfx } from './audio.js?v=1792376627';
+import { Auth } from './auth.js?v=1792376627';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792376627';
+import { getRoster, teamOvr } from './teams.js?v=1792376627';
+import * as Season from './season.js?v=1792376627';
+import * as Fr from './franchise.js?v=1792376627';
+import * as League from './league.js?v=1792376627';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792376627';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792376627';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792376627';
+import * as UTm from './ut.js?v=1792376627';
+import { initCreator, renderCreator } from './creator.js?v=1792376627';
+import { filmCapture, filmSave } from './social.js?v=1792376627';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792376627';
+import { portraitURL } from './faces.js?v=1792376627';
+import { logoURL, clearLogoCache } from './logos.js?v=1792376627';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -310,26 +311,6 @@ function openDaily() {
   document.addEventListener('keydown', key, true);
 }
 $('#daily-tile').addEventListener('click', () => { sfx.play('ui'); if (isGuest() || !Auth.user) return toast('Daily rewards need an account. Guests can’t claim them.'); openDaily(); });
-// ---------------- desktop app: tell the player when a newer version is on itch ----------------
-const ITCH_URL = 'https://habir-studios.itch.io/endzone-kings';
-async function checkDesktopUpdate() {
-  if (location.protocol !== 'app:') return;   // only the downloaded app; the website is always current
-  try {
-    const mine = await (await fetch('build.json', { cache: 'no-store' })).json();
-    const latest = await (await fetch('https://habir-studios.github.io/endzone-kings/desktop-latest.json?t=' + Date.now(), { cache: 'no-store' })).json();
-    if (!(latest && mine && latest.v > mine.v)) return;
-    const show = () => {
-      if (st.playing) return setTimeout(show, 15000);   // never interrupt a game
-      const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 70;
-      m.innerHTML = `<div class="panel info-card"><h3 style="margin:0">Update available</h3><p>A new version of Endzone Kings is out. Delete this version, then download the new one from itch and open that instead.</p><p class="note">Your coins, cards and progress are saved to your account, so you won’t lose anything.</p><button class="btn primary" type="button" data-get>Get the update</button><button class="btn" type="button" data-x>Later</button></div>`;
-      document.body.appendChild(m);
-      m.querySelector('[data-get]').onclick = () => { m.remove(); location.href = ITCH_URL; };
-      m.querySelector('[data-x]').onclick = () => m.remove();
-    };
-    setTimeout(show, 3500);
-  } catch (_) {}
-}
-checkDesktopUpdate();
 // ---------------- two-step login (email code) ----------------
 $('#form-code').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -362,6 +343,28 @@ $('#tf-btn').addEventListener('click', async () => {
     catch (err) { msg.textContent = err.message; msg.classList.add('err'); }
   }); };
 });
+// ---------------- patch notes (top left of the main menu) ----------------
+const PN_KEY = 'ek_pn_seen';
+function fmtDate(d) { try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }); } catch (_) { return d; } }
+function refreshPn() {
+  $('#pn-v').textContent = 'v' + NOTES[0].v;
+  let seen = null; try { seen = localStorage.getItem(PN_KEY); } catch (_) {}
+  $('#pn-dot').classList.toggle('hidden', seen === NOTES[0].v);
+}
+function openPatchNotes() {
+  try { localStorage.setItem(PN_KEY, NOTES[0].v); } catch (_) {}
+  refreshPn();
+  const li = a => a.map(x => `<li>${escapeHtml(x)}</li>`).join('');
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
+  m.innerHTML = `<div class="panel info-card pn-card"><h3 style="margin:0">Patch notes</h3><div class="pn-list">${NOTES.map((n, i) => `<section class="pn-entry"><div class="pn-head"><b>Version ${escapeHtml(n.v)}</b>${i === 0 ? '<span class="pn-new">Latest</span>' : ''}<small>${fmtDate(n.date)}</small></div>${n.added && n.added.length ? `<h4>New</h4><ul>${li(n.added)}</ul>` : ''}${n.fixed && n.fixed.length ? `<h4>Fixed</h4><ul>${li(n.fixed)}</ul>` : ''}</section>`).join('')}</div><button class="btn primary" type="button" data-x>Close</button></div>`;
+  document.body.appendChild(m);
+  const close = () => { m.remove(); document.removeEventListener('keydown', key, true); };
+  const key = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', key, true);
+  m.querySelector('[data-x]').onclick = close; m.onclick = e => { if (e.target === m) close(); };
+}
+$('#pn-btn').addEventListener('click', () => { sfx.play('ui'); openPatchNotes(); });
+refreshPn();
 function authMsg(t, err) { const m = $('#auth-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
 async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } }
 $('#form-login').addEventListener('submit', (e) => {

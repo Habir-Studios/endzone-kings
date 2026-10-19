@@ -414,3 +414,8 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 #pf-live { margin-top: 14px; }
 .pf-stats { margin-top: 14px; }
 @media (max-width: 760px) { .pf-head { gap: 14px; padding: 16px; } .pf-id { gap: 7px; } }
+
+/* timeout countdown */
+.ban-timer { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 10px 0 12px; padding: 12px; background: rgba(255,51,71,.1); border: 1px solid rgba(255,51,71,.35); }
+.ban-timer small { opacity: .75; font-weight: 700; }
+.ban-timer b { font-size: 34px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: .02em; }

@@ -1,6 +1,6 @@
 // ENDZONE KINGS — watch a simulated game. The real game engine plays it out CPU vs CPU in the background
 // while a call-by-call feed tells you what happened and a field strip shows the ball moving, Retro Bowl style.
-import { createGame, step, TEAMS } from './sim.js?v=1792383111';
+import { createGame, step, TEAMS } from './sim.js?v=1792384031';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const DT = 1 / 60;
 const pctOf = z => Math.max(0, Math.min(100, (z + 10) / 120 * 100));

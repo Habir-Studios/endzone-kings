@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792383111';
-import { TEAMS } from './teams.js?v=1792383111';
+import { askYes } from './ui.js?v=1792384031';
+import { TEAMS } from './teams.js?v=1792384031';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -585,6 +585,23 @@ export const ADMIN_ID = 'e752f854-2dce-4a38-ab93-54bcb963dc14';
 export const adminBadge = id => id === ADMIN_ID ? '<span class="admin-badge" title="Habir Studios admin">ADMIN</span>' : '';
 export const isAdmin = () => !!(me() && (me().email || '').toLowerCase() === ADMIN_EMAIL);
 let banInfo = null, banChecked = '';
+// live countdown on a timeout; at zero the timeout lifts right away (no refresh)
+let banTick = null;
+function startBanTimer(until) {
+  clearInterval(banTick);
+  const end = new Date(until).getTime();
+  const tick = () => {
+    const ms = end - Date.now();
+    if (ms <= 0) {
+      clearInterval(banTick); banTick = null; banInfo = null; banChecked = null;
+      C.$('#banned').classList.add('hidden'); C.toast('Your timeout is over. Welcome back!', 4000);
+      return;
+    }
+    const s = Math.ceil(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60, sec = s % 60, p2 = n => String(n).padStart(2, '0');
+    C.$('#ban-left').textContent = d ? `${d}d ${h}h ${p2(m)}m ${p2(sec)}s` : `${h}:${p2(m)}:${p2(sec)}`;
+  };
+  tick(); banTick = setInterval(tick, 1000);
+}
 export async function checkBan() {
   if (!db() || !me()) { banInfo = null; return null; }
   if (banChecked === me().id) return banInfo;
@@ -595,8 +612,12 @@ export async function checkBan() {
   else { const q = await db().from('ek_bans').select('reason,until').eq('id', me().id).maybeSingle(); data = q.data || null; if (data && data.until && new Date(data.until) <= new Date()) data = null; }
   banInfo = data || null;
   if (banInfo) {
-    const len = banInfo.until ? `Banned until ${new Date(banInfo.until).toLocaleString()} (${banLeft(banInfo.until)}).` : 'This ban is permanent.';
+    const temp = !!banInfo.until;
+    const len = temp ? `Your timeout ends ${new Date(banInfo.until).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : 'This ban is permanent.';
+    C.$('#ban-h').textContent = temp ? 'Timed out' : 'Account banned';
     C.$('#ban-why').textContent = `${banInfo.reason ? `Reason: ${banInfo.reason}. ` : 'You broke the Terms of Service. '}${len}`;
+    C.$('#ban-timer').classList.toggle('hidden', !temp);
+    if (temp) startBanTimer(banInfo.until);
     C.$('#banned').classList.remove('hidden');
     if (C.st.playing) C.leaveGame && C.leaveGame();
   }

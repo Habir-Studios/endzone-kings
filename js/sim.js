@@ -3,8 +3,9 @@
 // x is sideline-to-sideline, |x| <= 26.65 is in bounds.
 
 export const HALF_W = 26.65;
+export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792375041';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792376329';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -16,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792375041';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792376329';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -735,7 +736,7 @@ function enforceFlag(g, endP, turnover, td) {
   else if (pen.from === 'end' && endP != null && !turnover) { to = penaltyMove(g, off, Math.max(1, endP), pen.yds); yds = pen.yds; }
   else { to = penaltyMove(g, off, losP, pen.off ? -pen.yds : pen.yds); yds = Math.round(Math.abs(to - losP)); }
   g.stats[F.on].penYds += Math.abs(yds);
-  g.ballX = clamp(g.ballX, -7, 7);
+  g.ballX = clamp(g.ballX, -HASH, HASH);
   if (pen.auto1 || prog(off, g.fdZ) <= to) setFirstDown(g);
   else g.togo = Math.max(1, Math.round(prog(off, g.fdZ) - to));
   g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.6; g.runoff = 0;
@@ -1385,7 +1386,7 @@ function nextPlay(g) {
       // special teams: a fresh kick every rep, field goals from 20 to 55 yards or a punt from deep
       g.stkN = (g.stkN || 0) + 1;
       const punt = g.stkN % 3 === 0, spot = punt ? 15 + g.rng() * 30 : 100 - (3 + g.rng() * 35);
-      g.poss = 0; g.losZ = zOf(0, spot); g.ballX = Math.round((g.rng() - 0.5) * 14); setFirstDown(g); g.down = 4;
+      g.poss = 0; g.losZ = zOf(0, spot); g.ballX = [-HASH, 0, HASH][(g.rng() * 3) | 0]; setFirstDown(g); g.down = 4;
       g.phase = 'presnap'; g.phaseT = 0; setupPlay(g);
       g.offPlay = punt ? 'punt' : 'fg'; alignOffense(g, true);
       return;
@@ -1543,7 +1544,8 @@ function updateLive(g, dt, inputs) {
         if (dz > 8.5 && want.z * (p.z > 50 ? 1 : -1) > 0) want = { ...want, z: 0 };
       }
     }
-    if (human && idle && p.id === 0 && pocket && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) want = qbPocketMove(g, p);   // the QB's scripted drop-back at the snap; touch the stick and it's all you
+    if (human && idle && p.id === 0 && pocket && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) want = qbPocketMove(g, p);
+    if (human && idle && airPass && p.id === P.target && p.team === P.off) want = aiMove(g, p, carrier, pocket, airPass, tl);   // ball's in the air to your guy: he runs to it on his own; touch the stick and you take over   // the QB's scripted drop-back at the snap; touch the stick and it's all you
     applyMove(g, p, want, dt);
     if (!(carrier && carrier.id === p.id) && !p.dive && !p.fallen) { const lim = HALF_W + 0.4; if (p.x > lim) p.x = lim; else if (p.x < -lim) p.x = -lim; if (p.z > 109.5) p.z = 109.5; else if (p.z < -9.5) p.z = -9.5; }
   }
@@ -2449,7 +2451,7 @@ function endPlay(g, kind, c, tackler, note) {
     if (p <= 0 && prog(t, P.los) >= 1) { safetyOn(g, t); return; }   // caught it in the field of play and got taken down in his own end zone
     if (p <= 0) { g.poss = t; g.losZ = zOf(t, 20); g.msg = { text: 'TOUCHBACK', sub: '', until: 2 }; }
     else { g.poss = t; g.losZ = zOf(t, clamp(p, 1, 99)); g.msg = { text: kind === 'oob' ? 'RETURN, OUT OF BOUNDS' : 'PUNT RETURN', sub: `${yds} yard return · ${c.rt.name}`, until: 2.2 }; if (yds >= 20) highlight(g, `${yds}-YARD RETURN`, c.rt.name, t); }
-    g.ballX = clamp(c.x * 0.5, -9, 9); setFirstDown(g);
+    g.ballX = clamp(c.x, -HASH, HASH); setFirstDown(g);
     return;
   }
   if (P.flag && !P.isPat) {
@@ -2479,7 +2481,7 @@ function endPlay(g, kind, c, tackler, note) {
     return;
   }
   const spot = clamp(p, 1, 99);
-  g.ballX = clamp(c.x, -7, 7);
+  g.ballX = clamp(c.x, -HASH, HASH);   // inside the hashes it's spotted where he went down; outside them / out of bounds it comes in to the nearest hash
   if (kind === 'tackle') g.runoff = 12;
   if (P.turnover) {
     g.poss = ct; g.losZ = zOf(ct, spot); setFirstDown(g);
@@ -2523,7 +2525,7 @@ function throwFlag2(g, type, who, z) { const P = g.play; P.flag = { type, on: wh
 
 function checkDowns(g) {
   if (g.down > 4) {
-    g.poss = 1 - g.poss; g.ballX = clamp(g.ballX, -7, 7); setFirstDown(g);
+    g.poss = 1 - g.poss; g.ballX = clamp(g.ballX, -HASH, HASH); setFirstDown(g);
     g.msg = { text: 'TURNOVER ON DOWNS', sub: '', until: 2.2 }; mom(g, g.poss, 14);
     g.runoff = 0;
   } else {

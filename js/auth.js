@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792380261';
+import { CONFIG } from './config.js?v=1792380599';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -44,7 +44,7 @@ export const Auth = {
         if (/type=recovery/.test(location.hash + location.search)) this.recovery = true;
         this.client.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') { this.recovery = true; if (this.onRecovery) this.onRecovery(); } });
         const { data } = await this.client.auth.getSession();
-        if (data && data.session) { this.user = this.fromSb(data.session.user); if (await this.mfaNeeded()) this.needMfa = true; }   // came back mid-login: still owes the authenticator code
+        if (data && data.session) { this.user = this.fromSb(data.session.user); if (await this.mfaNeeded() && !(await this.tryTrust())) this.needMfa = true; }   // came back mid-login: still owes the authenticator code
         return this.user;
       } catch (e) {
         console.warn('Supabase init failed, using local mode', e);
@@ -98,7 +98,7 @@ export const Auth = {
         const { data, error } = await this.client.auth.signInWithPassword({ email: chk.email, password });
         if (error) throw new Error(error.message === 'Email not confirmed' ? 'Confirm your email first (check your inbox)' : error.message);
         this.user = this.fromSb(data.user);
-        if (await this.mfaNeeded()) return { needCode: true };   // two-step login is on: the authenticator code comes next
+        if (await this.mfaNeeded() && !(await this.tryTrust())) return { needCode: true };   // two-step login is on: the authenticator code comes next
         return this.user;
       }
       let email = (id || '').trim();
@@ -111,7 +111,7 @@ export const Auth = {
       const { data, error } = await this.client.auth.signInWithPassword({ email, password });
       if (error) throw new Error(error.message === 'Email not confirmed' ? 'Confirm your email first (check your inbox)' : error.message);
       this.user = this.fromSb(data.user);
-      if (await this.mfaNeeded()) return { needCode: true };
+      if (await this.mfaNeeded() && !(await this.tryTrust())) return { needCode: true };
       return this.user;
     }
     const acc = loadAcc();
@@ -140,12 +140,23 @@ export const Auth = {
   // and stats only go through after the 6-digit code (see supabase/twofa_app.sql)
   async mfaNeeded() { try { const { data } = await this.client.auth.mfa.getAuthenticatorAssuranceLevel(); return !!data && data.nextLevel === 'aal2' && data.currentLevel !== 'aal2'; } catch (_) { return false; } },
   async totpFactor() { const { data, error } = await this.client.auth.mfa.listFactors(); if (error) throw new Error(error.message); return ((data && data.totp) || []).find(f => f.status === 'verified') || null; },
-  async verifyMfa(code) {
+  // "remember this device for 10 days": a secret pass saved on THIS device only; the server checks it on login
+  trustKey() { return 'ek_trust_' + (this.user && this.user.id); },
+  async tryTrust() {
+    let tok = null; try { tok = localStorage.getItem(this.trustKey()); } catch (_) {} if (!tok) return false;
+    try { const { data, error } = await this.client.rpc('ek_use_trust', { p_token: tok }); if (!error && data === true) { this.needMfa = false; return true; } } catch (_) {}
+    try { localStorage.removeItem(this.trustKey()); } catch (_) {} return false;   // expired or revoked
+  },
+  async rememberDevice() {
+    try { const { data, error } = await this.client.rpc('ek_trust_device'); if (!error && data) localStorage.setItem(this.trustKey(), data); } catch (_) {}
+  },
+  async verifyMfa(code, remember) {
     const f = await this.totpFactor(); if (!f) throw new Error('Two-step login isn’t set up on this account');
     const { error } = await this.client.auth.mfa.challengeAndVerify({ factorId: f.id, code: (code || '').replace(/\s/g, '') });
     if (error) throw new Error(/invalid|expired/i.test(error.message) ? 'That code is wrong or expired. Codes change every 30 seconds.' : error.message);
     this.needMfa = false;
     const { data } = await this.client.auth.getUser(); if (data && data.user) this.user = this.fromSb(data.user);
+    if (remember) await this.rememberDevice();
     return this.user;
   },
   async twofaOn() { try { return !!(await this.totpFactor()); } catch (_) { return null; } },   // null = couldn't check
@@ -166,6 +177,7 @@ export const Auth = {
     await this.verifyMfa(code);
     const f = await this.totpFactor(); if (!f) return;
     const { error } = await this.client.auth.mfa.unenroll({ factorId: f.id }); if (error) throw new Error(error.message);
+    try { await this.client.rpc('ek_forget_devices'); localStorage.removeItem(this.trustKey()); } catch (_) {}   // forget every remembered device
   },
 
   // devices logged into this account

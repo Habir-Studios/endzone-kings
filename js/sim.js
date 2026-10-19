@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792384691';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792384939';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792384691';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792384939';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -2327,14 +2327,17 @@ function resolveBall(g) {
   const timing = q => {
     if (!q) return 0;
     if (human(q)) { if (q.playBall <= 0) return 0; const el = 0.75 - q.playBall; return clamp(1 - Math.abs(el - 0.32) / 0.38, 0, 1); }
-    return clamp(((q.team === offTeam ? q.rt.hands : q.rt.cov) - 55) / 60, 0.1, 0.75) * (q.playBall > 0 || q.team === offTeam ? 1 : 0.6);   // CPU players time it by rating
+    if (q.team === offTeam) return clamp((q.rt.hands - 48) / 48 + cpuSk * 0.6, 0.2, 0.92);   // CPU receivers high-point it by hands rating, sharper on harder levels
+    return clamp((q.rt.cov - 55) / 60, 0.1, 0.75) * (q.playBall > 0 ? 1 : 0.6);   // CPU defenders time it by rating
   };
   const noise = () => (g.rng() + g.rng() - 1) * 0.12;
+  const cpuSk = Math.max(0, ((g.cfg && g.cfg.ai) || 0.93) - 0.87);   // 0 on Rookie up to ~0.14 on Legend
+  const cpuHands = q => human(q) ? 0 : 0.05 + cpuSk * 0.45 + Math.max(0, q.rt.hands - 70) / 100 * 0.25;   // sure-handed CPU catchers secure the easy ones
   const wx = wxHands(g);
   if (outOfBounds) outcome = 'inc';
   else if (cO && cD) {
     // contested: separation first, then timing, then hands vs coverage
-    const edge = (dD - dO) * 1.25 + (timing(ro) - timing(rd)) * 0.7 + (ro.rt.hands * wx - rd.rt.cov) / 100 * 0.9 + (rd.dive > 0 ? 0.15 : 0) + noise();
+    const edge = (dD - dO) * 1.25 + (timing(ro) - timing(rd)) * 0.7 + (ro.rt.hands * wx - rd.rt.cov) / 100 * 0.9 + cpuHands(ro) * 0.5 + (rd.dive > 0 ? 0.15 : 0) + noise();
     if (edge > 0.05) outcome = 'catch';
     else if ((dD < 0.5 && dD < dO - 0.6) || (edge < -0.6 && dD < 1.1 && (defPlay || timing(rd) > 0.45))
       || (myD && dD < 1.0 && dD < dO - 0.15) || (myD && defPlay && edge < -0.3 && dD < 1.5)
@@ -2345,11 +2348,11 @@ function resolveBall(g) {
     const near = rd ? dD : 9, spdK = hyp(ro.vx, ro.vz) / (ro.max || 8);
     const hot = Math.max(0, (b.pw || 0.6) - 0.9) * 0.45 + Math.max(0, (b.pwOff || 0) - 0.1) * 0.5;   // a fastball he wasn't ready for
     const need = Math.max(0, dO - 0.55) * 0.55 + (near < 3.1 ? (3.1 - near) * 0.21 : 0) + (spdK > 0.85 ? 0.07 : 0) + hot + 0.02;
-    outcome = (ro.rt.hands * wx) / 100 * 0.9 - 0.27 + timing(ro) * 0.25 + noise() > need ? 'catch' : 'inc';
+    outcome = (ro.rt.hands * wx) / 100 * 0.9 - 0.27 + timing(ro) * 0.25 + cpuHands(ro) + noise() > need ? 'catch' : 'inc';
     if (outcome === 'inc' && !g.flash) g.flash = { text: near < 2.6 ? 'BROKEN UP' : 'DROPPED', until: 1.0 };
   } else if (ro && !outOfBounds && dO < 3.0 && (!rd || dD > dO + 0.4)) {
     // just out of reach: he lays out for it if he's fast and sure-handed enough
-    const reachOk = (ro.rt.hands * wx) / 100 * 1.2 + timing(ro) * 0.4 + (ro.playBall > 0 ? 0.15 : 0) - (dO - 1.7) * 0.45 + noise();
+    const reachOk = (ro.rt.hands * wx) / 100 * 1.2 + timing(ro) * 0.4 + (ro.playBall > 0 ? 0.15 : 0) + cpuHands(ro) * 0.6 - (dO - 1.7) * 0.45 + noise();
     if (reachOk > 0.78) { outcome = 'catch'; diving = true; }
   } else if (cD) {
     // only a defender there: a pick if he's in front of it and timed it, otherwise he knocks it down

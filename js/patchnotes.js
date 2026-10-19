@@ -15,7 +15,8 @@ export const NOTES = [
       "Online pause: ask to pause in an online game or Online Franchise game, your opponent accepts or declines, and it resumes when both players are ready or after 30 seconds, so nobody gets forced back in. 3 pause requests per game",
       "Forfeit button in online games: give up and your opponent gets the win",
       "A “T chat” reminder is always on screen in online games",
-      "Touchdowns follow the real rule: it counts the moment the ball crosses the goal line in your hands, so diving or stretching the ball over now scores even if your body is short"
+      "Touchdowns follow the real rule: it counts the moment the ball crosses the goal line in your hands, so diving or stretching the ball over now scores even if your body is short",
+      "CPU receivers catch way more reliably and play the ball better on harder difficulties, still based on each player’s hands rating, so sure-handed guys rarely drop it and weak hands still do"
     ]
   },
   {

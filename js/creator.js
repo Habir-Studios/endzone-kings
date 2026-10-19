@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Play Creator: draw your own offense, defense and special teams plays.
 // Plays save on this device (localStorage 'ek_custom_plays') and show up under "My Plays" in every game, online too.
-import { askYes } from './ui.js?v=1792380599';
-import { FORMS, cleanCustom } from './playbook.js?v=1792380599';
+import { askYes } from './ui.js?v=1792380810';
+import { FORMS, cleanCustom } from './playbook.js?v=1792380810';
 
 let C = null;
 const KEY = 'ek_custom_plays', MAX = 24;
@@ -18,7 +18,10 @@ let ed = null;      // the play being edited
 let selRole = 'WR1';
 
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (_) { return []; } };
-const store = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (_) {} };
+const store = (list, fromCloud) => { try { localStorage.setItem(KEY, JSON.stringify(list)); localStorage.setItem(KEY + '_at', String(fromCloud || Date.now())); } catch (_) {} if (!fromCloud && C && C.Auth) C.Auth.saveCloud(null, { cp: { at: Date.now(), list } }); };
+// cloud copy from another device: take it if it's newer than what this device has
+export function adoptCloudPlays(cp) { if (!cp || !Array.isArray(cp.list)) return false; let at = 0; try { at = +localStorage.getItem(KEY + '_at') || 0; } catch (_) {} if ((cp.at || 0) <= at) return false; store(cp.list, cp.at); return true; }
+export function localPlays() { let at = 0; try { at = +localStorage.getItem(KEY + '_at') || 0; } catch (_) {} return { at, list: load() }; }
 function fresh(s) {
   if (s === 'def') return { side: 'def', name: '', assign: { DL1: { t: 'rush' }, DL4: { t: 'rush' }, DL2: { t: 'rush' }, DL3: { t: 'rush' }, LB: { t: 'man', who: 'RB' }, LB2: { t: 'man', who: 'TE' }, LB3: { t: 'zone', x: 5, z: 6 }, CB1: { t: 'man', who: 'WR1' }, CB2: { t: 'man', who: 'WR2' }, S: { t: 'deep' }, SS: { t: 'man', who: 'WR3' } } };
   return { side: 'off', special: s === 'st', name: '', form: s === 'st' ? 'punt' : 'gun', type: 'pass', carrier: 'RB', pa: false, routes: {} };

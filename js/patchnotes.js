@@ -3,6 +3,15 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: "1.0.2",
+    date: "2026-10-18",
+    added: [
+      "Everything follows your account between devices: coins, cards, squad, Franchise, Season, custom plays and your game settings (graphics, sound and touch controls stay per device)",
+      "Changes you make on one device show up on your other devices within about 15 seconds, no reopening needed (never in the middle of a game)"
+    ],
+    fixed: []
+  },
+  {
     v: "1.0.1",
     date: "2026-10-18",
     added: [

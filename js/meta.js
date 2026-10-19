@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792380599';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792380599';
-import * as UT from './ut.js?v=1792380599';
-import { portraitURL } from './faces.js?v=1792380599';
-import { TEAMS } from './teams.js?v=1792380599';
+import { askYes } from './ui.js?v=1792380810';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792380810';
+import * as UT from './ut.js?v=1792380810';
+import { portraitURL } from './faces.js?v=1792380810';
+import { TEAMS } from './teams.js?v=1792380810';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -39,6 +39,7 @@ export function profile() {
 export function initMeta(ctx) {
   C = ctx;
   setInterval(uploadClub, 8000);
+  setInterval(pullCloud, 15000);
   setInterval(() => { if (tdb() && tme()) settleTrades().then(n => { if (n && C.screen() === 'ut') renderUT(); }); if (C.screen() === 'ut' && utTab === 'trade') loadTrades(true); }, 15000);
   const { $, $$ } = C;
   $$('#ut .ut-tab[data-ut]').forEach(b => b.addEventListener('click', () => { C.sfx.play('ui'); utTab = b.dataset.ut; renderUT(); }));
@@ -60,6 +61,20 @@ function liveOvr() {
   const box = C && C.$ && C.$('#ut-pane .sq-ovr'); if (!box || !prof) return;
   const o = UT.squadOvr(prof.p.ut), b = box.querySelectorAll('b');
   [o.ovr, o.off, o.def].forEach((v, i) => { if (b[i] && b[i].textContent !== String(v)) { b[i].textContent = v; b[i].classList.remove('ovr-pop'); void b[i].offsetWidth; b[i].classList.add('ovr-pop'); } });
+}
+// pull your account from the cloud every ~15s so a change on another device (coins, cards, squad, Franchise, Season,
+// settings, custom plays) shows up here without reopening the game. Never mid-game.
+let pulling = false;
+export async function pullCloud() {
+  if (pulling || !prof || !C.Auth.user || C.Auth.user.kind !== 'account' || C.st.playing || C.screen() === 'game') return;
+  pulling = true;
+  try {
+    const cp = await C.Auth.refreshCloud();
+    let changed = false;
+    if (cp && prof.adopt(cp)) { changed = true; if (C.Auth._pendP) C.Auth._pendP = prof.p; }
+    if (C.syncExtras) C.syncExtras();
+    if (changed) { refreshChip(); liveOvr(); if (C.screen() === 'ut') renderUT(); if (C.screen() === 'progress') renderProgress(); }
+  } catch (_) {} finally { pulling = false; }
 }
 export function refreshChip() {
   const P = profile(); if (!P) return;

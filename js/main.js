@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792380599';
-import { NOTES } from './patchnotes.js?v=1792380599';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792380599';
-import * as Form from './form.js?v=1792380599';
-import { watchSim } from './simview.js?v=1792380599';
-import { bracketHTML } from './bracket.js?v=1792380599';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792380599';
-import { Renderer } from './render.js?v=1792380599';
-import { Sfx } from './audio.js?v=1792380599';
-import { Auth } from './auth.js?v=1792380599';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792380599';
-import { getRoster, teamOvr } from './teams.js?v=1792380599';
-import * as Season from './season.js?v=1792380599';
-import * as Fr from './franchise.js?v=1792380599';
-import * as League from './league.js?v=1792380599';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792380599';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792380599';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792380599';
-import * as UTm from './ut.js?v=1792380599';
-import { initCreator, renderCreator } from './creator.js?v=1792380599';
-import { filmCapture, filmSave } from './social.js?v=1792380599';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792380599';
-import { portraitURL } from './faces.js?v=1792380599';
-import { logoURL, clearLogoCache } from './logos.js?v=1792380599';
+import { CONFIG } from './config.js?v=1792380810';
+import { NOTES } from './patchnotes.js?v=1792380810';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792380810';
+import * as Form from './form.js?v=1792380810';
+import { watchSim } from './simview.js?v=1792380810';
+import { bracketHTML } from './bracket.js?v=1792380810';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792380810';
+import { Renderer } from './render.js?v=1792380810';
+import { Sfx } from './audio.js?v=1792380810';
+import { Auth } from './auth.js?v=1792380810';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792380810';
+import { getRoster, teamOvr } from './teams.js?v=1792380810';
+import * as Season from './season.js?v=1792380810';
+import * as Fr from './franchise.js?v=1792380810';
+import * as League from './league.js?v=1792380810';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792380810';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792380810';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792380810';
+import * as UTm from './ut.js?v=1792380810';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792380810';
+import { filmCapture, filmSave } from './social.js?v=1792380810';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792380810';
+import { portraitURL } from './faces.js?v=1792380810';
+import { logoURL, clearLogoCache } from './logos.js?v=1792380810';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -34,7 +34,9 @@ const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'player',
 let SET = { ...DEF_SET };
 try { SET = { ...DEF_SET, ...JSON.parse(localStorage.getItem('ek_settings') || '{}') }; } catch (_) {}
 if (SET.camV !== 2) { SET.cam = 'player'; SET.camV = 2; }   // new over-the-shoulder camera is the default now
-const saveSet = () => { try { localStorage.setItem('ek_settings', JSON.stringify(SET)); } catch (_) {} };
+const DEVICE_SET = ['touch', 'vol', 'music', 'gfx'];   // these stay per device (a Chromebook and a gaming PC want different graphics)
+const syncedSet = () => Object.fromEntries(Object.entries(SET).filter(([k]) => !DEVICE_SET.includes(k) && k !== '_at'));
+const saveSet = (fromCloud) => { if (!fromCloud) SET._at = Date.now(); try { localStorage.setItem('ek_settings', JSON.stringify(SET)); } catch (_) {} if (!fromCloud && typeof Auth !== 'undefined' && Auth.saveCloud) Auth.saveCloud(null, { sp: { at: SET._at, v: syncedSet() } }); };
 // graphics: unless the player picked a setting themselves, start low on weak machines (Chromebooks, 4 cores or less,
 // little memory) and keep stepping down while the frame rate is bad
 if (SET.gfxAuto === undefined) SET.gfxAuto = true;
@@ -578,12 +580,16 @@ function loadSeason() { try { return JSON.parse(localStorage.getItem(seasonKey()
 function saveSeason(S) { if (S) S.at = Date.now(); try { localStorage.setItem(seasonKey(), JSON.stringify(S)); } catch (_) {} Auth.saveCloud(null, { se: S }); }
 // keep franchise and season in step with the cloud save (newest wins), and upload this device's copies if they're newer
 function syncExtras() {
-  const fr = Auth.cloudExtra('fr'), se = Auth.cloudExtra('se');
+  const fr = Auth.cloudExtra('fr'), se = Auth.cloudExtra('se'), sp = Auth.cloudExtra('sp'), cp = Auth.cloudExtra('cp');
   Fr.adoptCloud(fr);
+  if (sp && sp.v && (sp.at || 0) > (SET._at || 0)) { Object.assign(SET, sp.v); SET._at = sp.at; saveSet(true); try { sfx.setVolume(SET.vol); sfx.announcer = SET.ann; } catch (_) {} }   // settings from your other device
+  adoptCloudPlays(cp);
   const cur = loadSeason(); if (se && (!cur || (se.at || 0) > (cur.at || 0))) { try { localStorage.setItem(seasonKey(), JSON.stringify(se)); } catch (_) {} }
   const lf = Fr.load(), ls = loadSeason(), x = {};
   if (lf && (!fr || (lf.at || 0) > (fr.at || 0))) x.fr = lf;
   if (ls && (!se || (ls.at || 0) > (se.at || 0))) x.se = ls;
+  if (SET._at && (!sp || SET._at > (sp.at || 0))) x.sp = { at: SET._at, v: syncedSet() };
+  { const lp = localPlays(); if (lp.at && (!cp || lp.at > (cp.at || 0))) x.cp = lp; }
   return x;
 }
 let seasonPick = -1;

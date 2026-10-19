@@ -1,14 +1,15 @@
 // ENDZONE KINGS — patch notes, newest first. Add a new entry at the top with every update:
-// bump the version (major.minor.patch: 1.0.2 for fixes, 1.1.0 for new features), set the date,
+// bump the version by one every update, big or small (1.0.2, 1.0.3, 1.0.4...), set the date,
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
-    v: '1.1.0', date: '2026-10-18',
+    v: '1.0.2', date: '2026-10-18',
     added: [
       'Directional tackles: players fall the way they get hit. Hit from the side and they go the other way, from behind and they fall on their face, head-on and they go straight back. Same for trucks, stiff arms and missed tackles',
       'Online Franchise: if your opponent is offline, play their bot instead. It uses their exact roster and a game plan built from their players',
       'A tougher CPU at every difficulty',
       'Admins can delete reports',
+      'Training, abilities, X-Factors and packs cost a bit more',
     ],
     fixed: [
       'Quick Play now says it doesn’t count toward your record',

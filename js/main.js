@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792367732';
-import * as Form from './form.js?v=1792367732';
-import { watchSim } from './simview.js?v=1792367732';
-import { bracketHTML } from './bracket.js?v=1792367732';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792367732';
-import { Renderer } from './render.js?v=1792367732';
-import { Sfx } from './audio.js?v=1792367732';
-import { Auth } from './auth.js?v=1792367732';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792367732';
-import { getRoster, teamOvr } from './teams.js?v=1792367732';
-import * as Season from './season.js?v=1792367732';
-import * as Fr from './franchise.js?v=1792367732';
-import * as League from './league.js?v=1792367732';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792367732';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792367732';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792367732';
-import * as UTm from './ut.js?v=1792367732';
-import { initCreator, renderCreator } from './creator.js?v=1792367732';
-import { filmCapture, filmSave } from './social.js?v=1792367732';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792367732';
-import { portraitURL } from './faces.js?v=1792367732';
-import { logoURL, clearLogoCache } from './logos.js?v=1792367732';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792369259';
+import * as Form from './form.js?v=1792369259';
+import { watchSim } from './simview.js?v=1792369259';
+import { bracketHTML } from './bracket.js?v=1792369259';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792369259';
+import { Renderer } from './render.js?v=1792369259';
+import { Sfx } from './audio.js?v=1792369259';
+import { Auth } from './auth.js?v=1792369259';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792369259';
+import { getRoster, teamOvr } from './teams.js?v=1792369259';
+import * as Season from './season.js?v=1792369259';
+import * as Fr from './franchise.js?v=1792369259';
+import * as League from './league.js?v=1792369259';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792369259';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792369259';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792369259';
+import * as UTm from './ut.js?v=1792369259';
+import { initCreator, renderCreator } from './creator.js?v=1792369259';
+import { filmCapture, filmSave } from './social.js?v=1792369259';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792369259';
+import { portraitURL } from './faces.js?v=1792369259';
+import { logoURL, clearLogoCache } from './logos.js?v=1792369259';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -309,6 +309,26 @@ function openDaily() {
   document.addEventListener('keydown', key, true);
 }
 $('#daily-tile').addEventListener('click', () => { sfx.play('ui'); if (isGuest() || !Auth.user) return toast('Daily rewards need an account. Guests can’t claim them.'); openDaily(); });
+// ---------------- desktop app: tell the player when a newer version is on itch ----------------
+const ITCH_URL = 'https://habir-studios.itch.io/endzone-kings';
+async function checkDesktopUpdate() {
+  if (location.protocol !== 'app:') return;   // only the downloaded app; the website is always current
+  try {
+    const mine = await (await fetch('build.json', { cache: 'no-store' })).json();
+    const latest = await (await fetch('https://habir-studios.github.io/endzone-kings/desktop-latest.json?t=' + Date.now(), { cache: 'no-store' })).json();
+    if (!(latest && mine && latest.v > mine.v)) return;
+    const show = () => {
+      if (st.playing) return setTimeout(show, 15000);   // never interrupt a game
+      const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 70;
+      m.innerHTML = `<div class="panel info-card"><h3 style="margin:0">Update available</h3><p>A new version of Endzone Kings is out. Download it from itch, unzip it and replace this one.</p><p class="note">Your coins, cards and progress are saved to your account, so you won’t lose anything.</p><button class="btn primary" type="button" data-get>Get the update</button><button class="btn" type="button" data-x>Later</button></div>`;
+      document.body.appendChild(m);
+      m.querySelector('[data-get]').onclick = () => { m.remove(); location.href = ITCH_URL; };
+      m.querySelector('[data-x]').onclick = () => m.remove();
+    };
+    setTimeout(show, 3500);
+  } catch (_) {}
+}
+checkDesktopUpdate();
 function authMsg(t, err) { const m = $('#auth-msg'); m.textContent = t; m.classList.toggle('err', !!err); }
 async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } }
 $('#form-login').addEventListener('submit', (e) => {

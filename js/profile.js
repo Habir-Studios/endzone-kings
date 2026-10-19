@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
@@ -223,6 +223,12 @@ export class Profile {
     const U = P.ut; if (!U.mk) U.mk = { slot: 0, bought: [], list: [], sold: 0 };
     if (!U.sets || U.sets.w !== wk) U.sets = { w: wk, done: [] };
     if (!U.solos || U.solos.w !== wk) U.solos = { w: wk, done: [] };
+    // solo battles: last week's points pay out when the new week starts
+    if (!U.sb || U.sb.w !== wk) {
+      if (U.sb && U.sb.g > 0 && !U.sb.paid) { const T = sbTier(U.sb.pts); this.giveUT(T.give, U.sb.w + 'sb'); this.notice = (this.notice || []).concat(`Solo Battles week over: ${U.sb.pts.toLocaleString()} points, ${T.n} tier. Rewards added to your club.`); }
+      U.sb = { w: wk, pts: 0, g: 0, wins: 0, l: 0 };
+    }
+    const pk = progKey(); if (!U.prog || U.prog.k !== pk) U.prog = { k: pk, xp: 0, got: [], done: [] };
     const fs = fpSeason(); if (!P.fp || P.fp.s !== fs) P.fp = { s: fs, xp: 0, got: [] };
   }
   // count an out-of-game event (like opening a pack) toward challenges
@@ -253,6 +259,20 @@ export class Profile {
     this.save();
   }
   addPack(k, n = 1) { this.p.packs[k] = (this.p.packs[k] || 0) + n; }
+  // add program XP; returns the program rewards it just unlocked
+  progXp(n) {
+    const G = this.p.ut.prog, out = []; if (!G || !n) return out;
+    G.xp += n;
+    PROG_STEPS.forEach((st, i) => { if (G.xp >= st.xp && !G.got.includes(i)) { G.got.push(i); this.giveUT(st.give, G.k + 'prog' + i); out.push(st.label); } });
+    return out;
+  }
+  // pay an Ultimate Team reward: coins, Training Points, a pack and/or a special player item (tier 3 Elite, 4 Kings)
+  giveUT(g, seedKey) {
+    const P = this.p; let got = null;
+    if (g.coins) P.coins += g.coins; if (g.tp) P.tp = (P.tp || 0) + g.tp; if (g.pack) this.addPack(g.pack);
+    if (g.player) { const ids = this.addCards([programPlayer(g.player, hashStr(this.key + seedKey))]); got = ids && ids[0]; }
+    return got;
+  }
   addXp(x) {
     const P = this.p, ups = [];
     P.xp += x;
@@ -370,12 +390,33 @@ export class Profile {
         if (ok) { P.ut.solos.done.push(sd.k); P.coins += sd.give.coins || 0; coins += sd.give.coins || 0; P.tp = (P.tp || 0) + (sd.give.tp || 75); if (sd.give.pack) this.addPack(sd.give.pack); fp += sd.give.fp || 0; }
       }
     }
+    // solo battles: weekly ranked games against the AI
+    let sb = null;
+    if (r.ut && r.battle != null && P.ut.sb && P.ut.sb.g < SB_GAMES) {
+      const B = P.ut.sb, win = r.res === 'W', pts = sbPoints(Math.max(0, Math.min(3, r.battle | 0)), win, r.sc[0] - r.sc[1]);
+      const before = sbTier(B.pts).n; B.pts += pts; B.g++; if (win) B.wins++; else B.l++;
+      sb = { pts, total: B.pts, g: B.g, tier: sbTier(B.pts).n, up: sbTier(B.pts).n !== before };
+      sb.px = win ? 120 : 30; sb.unlocked = this.progXp(sb.px);   // battles feed this month's program too
+    }
+    // theme challenges: coins, Training Points and program XP; program XP unlocks special player items
+    let th = null;
+    if (r.ut && r.theme && P.ut.prog) {
+      const T = theme(), ch = T.ch.find(x => x.k === r.theme), G = P.ut.prog;
+      if (ch && !G.done.includes(ch.k)) {
+        let ok = false; try { ok = !!ch.f(r); } catch (_) {}
+        th = { n: ch.n, d: ch.d, ok, give: ch.give, unlocked: [] };
+        if (ok) {
+          G.done.push(ch.k); this.giveUT({ coins: ch.give.coins, tp: ch.give.tp, pack: ch.give.pack }, '');
+          coins += ch.give.coins || 0; th.unlocked.push(...this.progXp(ch.give.px || 0));
+        }
+      }
+    }
     const fpBefore = this.fpTier; P.fp.xp += fp;
     const levels = this.addXp(xp);
     const ach = this.checkAch(r);
     P.log.unshift({ at: Date.now(), res: r.res, sc: r.sc, mode: r.mode, ut: !!r.ut, coins, xp }); P.log.length = Math.min(P.log.length, 20);
     this.save();
-    return { wl: wlLine, tp: tpS, tpLines, lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo };
+    return { wl: wlLine, tp: tpS, tpLines, lines, coins, xp, levels, drp: P.rp - rp0, rank: after, rankBefore: before, promos, done, ach, fp, fpTiers: this.fpTier - fpBefore, solo, sb, th };
   }
 
   // ---------------- Ultimate Team ----------------

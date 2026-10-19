@@ -12,7 +12,7 @@ const ago = t => { const s = (Date.now() - new Date(t)) / 1000; return s < 60 ? 
 
 // ---------------- leaderboard categories ----------------
 export const BOARDS = {
-  Overall: [['wins', 'Wins'], ['rp', 'Rank points'], ['lvl', 'Level'], ['games', 'Games played']],
+  Overall: [['on_w', 'Online H2H wins'], ['rp', 'Rank points'], ['lvl', 'Level'], ['games', 'Games played']],
   Offense: [['pass_yds', 'Passing yards'], ['pass_td', 'Passing TDs'], ['rush_yds', 'Rushing yards'], ['rush_td', 'Rushing TDs'], ['rec_yds', 'Receiving yards'], ['rec', 'Receptions'], ['rec_td', 'Receiving TDs']],
   Defense: [['tackles', 'Tackles'], ['sacks', 'Sacks'], ['ints', 'Interceptions']],
   'Special teams': [['fgm', 'Field goals made'], ['fg_long', 'Longest field goal'], ['xpm', 'Extra points'], ['punt_yds', 'Punting yards']],
@@ -42,7 +42,7 @@ function seenTag(ts) {
   const t = ago < 3600 ? `${Math.max(1, Math.round(ago / 60))}m` : ago < 86400 ? `${Math.round(ago / 3600)}h` : `${Math.round(ago / 86400)}d`;
   return `<span class="pf-status off"><i></i>Offline · last on ${t} ago</span>`;
 }
-let boardCat = 'wins', menuCat = 0, menuSpin = 0, boardRows = [], ticking = false;
+let boardCat = 'on_w', menuCat = 0, menuSpin = 0, boardRows = [], ticking = false;
 async function tick() {
   if (ticking || !db()) return;
   const scr = C.screen();
@@ -77,7 +77,7 @@ function joinLobby() {
 }
 
 // ---------------- main menu mini board ----------------
-const MENU_CATS = ['wins', 'pass_yds', 'rush_yds', 'rec_yds', 'tackles', 'sacks', 'ints', 'fgm'];
+const MENU_CATS = ['on_w', 'pass_yds', 'rush_yds', 'rec_yds', 'tackles', 'sacks', 'ints', 'fgm'];
 export async function renderMenuBoard() {
   const el = C.$('#menu-board'); if (!el) return;
   if (!db()) { el.classList.add('hidden'); return; }
@@ -172,7 +172,7 @@ async function openProfile(id) {
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
       <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<small>Level ${p.lvl}, ${t.city} fan</small>
-        <div class="pf-recs">${[['Overall', p.wins, p.losses, 0], ['Online 1v1', p.on_w, p.on_l, p.on_t], ['Ultimate Team', p.ut_wins, p.ut_l, p.ut_t]].map(([n, w, l, tt]) => `<span class="rec-card"><small>${n}</small><span class="rec-nums"><i><b>${fmt(w || 0)}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(l || 0)}</b><em>L</em></i>${tt ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(tt)}</b><em>T</em></i>` : ''}</span></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
+        <div class="pf-recs">${[['Online H2H record', p.on_w, p.on_l, p.on_t]].map(([n, w, l, tt]) => `<span class="rec-card"><small>${n}</small><span class="rec-nums"><i><b>${fmt(w || 0)}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(l || 0)}</b><em>L</em></i>${tt ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(tt)}</b><em>T</em></i>` : ''}</span></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}${(() => { const P = !mine && C.profile && C.profile(); const h = P && P.p.h2h && P.p.h2h[String(p.name).toLowerCase().slice(0, 24)]; return h ? `<span class="h2h">You vs ${esc(p.name)}: <b>${h[0]}W-${h[1]}L${h[2] ? '-' + h[2] + 'T' : ''}</b></span>` : ''; })()}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
     </div>
@@ -351,10 +351,10 @@ async function renderCrews() {
   const { data: ps } = ids.length ? await D.from('ek_players').select('id,name,on_w,on_l,ut_wins,ut_l,team').in('id', ids) : { data: [] };
   if (stale()) return;
   const P = Object.fromEntries((ps || []).map(p => [p.id, p])), mine = (mems || []).find(m => m.player === uid);
-  const rows = (crews || []).map(c => { const ms = (mems || []).filter(m => m.crew === c.id).map(m => P[m.player]).filter(Boolean); const w = ms.reduce((a, p) => a + (p.on_w || 0) + (p.ut_wins || 0), 0), l = ms.reduce((a, p) => a + (p.on_l || 0) + (p.ut_l || 0), 0); return { c, ms, w, l }; }).sort((a, b) => b.w - a.w || a.l - b.l);
+  const rows = (crews || []).map(c => { const ms = (mems || []).filter(m => m.crew === c.id).map(m => P[m.player]).filter(Boolean); const w = ms.reduce((a, p) => a + (p.on_w || 0), 0), l = ms.reduce((a, p) => a + (p.on_l || 0), 0); return { c, ms, w, l }; }).sort((a, b) => b.w - a.w || a.l - b.l);
   const myRow = mine && rows.find(r => r.c.id === mine.crew);
   pane.innerHTML = `${myRow ? `<div class="crew-mine"><div><small>Your crew</small><h3>[${esc(myRow.c.tag)}] ${esc(myRow.c.name)}</h3><span>${myRow.w}W-${myRow.l}L combined · ${myRow.ms.length}/20 members · invite code <b>${esc(myRow.c.id)}</b></span></div><button class="btn sm danger" id="crew-leave" type="button">${myRow.c.owner === uid ? 'Disband crew' : 'Leave crew'}</button></div>
-      <div class="crew-members">${myRow.ms.map(p => `<button class="crew-m" data-pid="${esc(p.id)}" type="button"><img alt="" src="${C.logoURL(p.team ?? 0, 32)}">${esc(p.name)}${adminBadge(p.id)}<small>${(p.on_w || 0) + (p.ut_wins || 0)}W-${(p.on_l || 0) + (p.ut_l || 0)}L</small></button>`).join('')}</div>`
+      <div class="crew-members">${myRow.ms.map(p => `<button class="crew-m" data-pid="${esc(p.id)}" type="button"><img alt="" src="${C.logoURL(p.team ?? 0, 32)}">${esc(p.name)}${adminBadge(p.id)}<small>${p.on_w || 0}W-${p.on_l || 0}L</small></button>`).join('')}</div>`
     : `<div class="crew-make"><h3>Start or join a crew</h3><div class="crew-form"><input id="crew-name" maxlength="20" placeholder="Crew name"><input id="crew-tag" maxlength="4" placeholder="TAG"><button class="btn primary" id="crew-new" type="button">Create</button></div><div class="crew-form"><input id="crew-code" maxlength="8" placeholder="Invite code"><button class="btn" id="crew-join" type="button">Join</button></div></div>`}
     <h3 class="store-h">Crew leaderboard</h3><div class="tbl-wrap"><table class="tbl"><tr><th>#</th><th>Crew</th><th>Members</th><th>W</th><th>L</th></tr>${rows.map((r, i) => `<tr class="${myRow && r.c.id === myRow.c.id ? 'me' : ''}"><td>${i + 1}</td><td><b>[${esc(r.c.tag)}]</b> ${esc(r.c.name)}</td><td>${r.ms.length}</td><td>${r.w}</td><td>${r.l}</td></tr>`).join('') || '<tr><td colspan="5">No crews yet. Start the first one.</td></tr>'}</table></div>`;
   C.$$('[data-pid]', pane).forEach(b => b.onclick = () => openProfile(b.dataset.pid));

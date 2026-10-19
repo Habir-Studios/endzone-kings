@@ -264,10 +264,81 @@ function openPack(k) {
   setTimeout(packAchToast, 1500);
 }
 
+let utMode = 'pick';
 function renderPlay(P) {
+  const V = { pick: renderPlayPick, solo: renderPlaySolo, cpu: renderPlayCpu, battles: renderBattles, theme: renderTheme };
+  (V[utMode] || renderPlayPick)(P);
+  C.$$('[data-utm]', C.$('#ut-pane')).forEach(b => b.onclick = () => { C.sfx.play('ui'); if (b.dataset.utm === 'solos') { utTab = 'solos'; utMode = 'solo'; } else utMode = b.dataset.utm; renderUT(); });
+}
+// first choice: against the CPU or against real people
+function renderPlayPick(P) {
+  const U = P.p.ut, o = UT.squadOvr(U);
+  C.$('#ut-pane').innerHTML = `<div class="squad-head"><div><h3>Play</h3><p class="note">${C.escapeHtml(U.name)}, ${o.ovr} OVR. Pick how you want to play.</p></div></div>
+    <div class="utp-pick">
+      <button class="utp-mode" type="button" data-utm="solo"><b>Single Player</b><span>Play your squad against AI teams. Solo Battles, theme challenges and solo challenges pay coins, Training Points, player items and program XP. Field Pass and daily challenges count too.</span><em>No pressure, no record on the line</em></button>
+      <button class="utp-mode utp-h2h" type="button" id="utp-h2h"><b>Online H2H</b><span>Play your squad against a real person: host a game, join with a code or pick one from the public lobby.</span><em>Counts toward your Online H2H record</em></button>
+    </div>`;
+  C.$('#utp-h2h').onclick = () => {
+    C.sfx.play('ui'); if (!o.full) return C.toast('Fill every lineup spot first');
+    C.show('online'); const cb = document.getElementById('use-ut'); if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+    C.toast(`${U.name} is loaded. Host, join or pick a game from the lobby.`, 3500);
+  };
+}
+function renderPlaySolo(P) {
+  const U = P.p.ut, B = U.sb || { pts: 0, g: 0 }, T = UT.theme(), G = U.prog || { done: [], xp: 0 };
+  const soloLeft = UT.SOLOS.filter(x => !P.soloDone(x.k)).length;
+  C.$('#ut-pane').innerHTML = `<div class="squad-head"><div><button class="link utp-back" type="button" data-utm="pick">◀ Play</button><h3>Single Player</h3><p class="note">Every game here pays Ultimate Team coins and Training Points, and counts for the Field Pass and daily challenges.</p></div></div>
+    <div class="utp-pick four">
+      <button class="utp-mode" type="button" data-utm="battles"><b>Solo Battles</b><span>Weekly ranked games against AI squads. Harder difficulty, more points. Weekly rewards by tier.</span><em>${fmt(B.pts)} pts · ${UT.sbTier(B.pts).n} · ${UT.SB_GAMES - B.g} games left</em></button>
+      <button class="utp-mode" type="button" data-utm="theme"><b>${C.escapeHtml(T.name)}</b><span>This month’s theme challenges: ${C.escapeHtml(T.blurb.toLowerCase())}. Theme challenges and Solo Battles earn program XP for special player items.</span><em>${G.done.length}/${T.ch.length} beaten · ${fmt(G.xp)} program XP</em></button>
+      <button class="utp-mode" type="button" data-utm="solos"><b>Solo Challenges</b><span>One-game goals that reset every Monday.</span><em>${soloLeft} left this week</em></button>
+      <button class="utp-mode" type="button" data-utm="cpu"><b>Quick CPU Game</b><span>Pick any opponent, difficulty, weather and quarter length.</span><em>Coins and Training Points every game</em></button>
+    </div>`;
+}
+let sbDiff = 1;
+function renderBattles(P) {
+  const U = P.p.ut, B = U.sb, o = UT.squadOvr(U), tier = UT.sbTier(B.pts), next = UT.SB_TIERS.find(t => t.pts > B.pts);
+  const opp = (hashS(B.w + ':' + B.g) % TEAMS.length) === U.club ? (U.club + 3) % TEAMS.length : hashS(B.w + ':' + B.g) % TEAMS.length;
+  const lvl = Math.max(58, Math.min(98, UT.rivalLevel(U) + UT.SB_LEVEL[sbDiff])), left = UT.SB_GAMES - B.g;
+  const pct = next ? Math.round((B.pts - tier.pts) / (next.pts - tier.pts) * 100) : 100;
+  const giveTxt = g => [g.coins ? `${fmt(g.coins)} coins` : '', g.tp ? `${g.tp} TP` : '', g.pack ? UT.packByKey(g.pack).name : '', g.player ? 'a Kings player item' : ''].filter(Boolean).join(', ');
+  C.$('#ut-pane').innerHTML = `<div class="squad-head"><div><button class="link utp-back" type="button" data-utm="solo">◀ Single Player</button><h3>Solo Battles</h3><p class="note">${UT.SB_GAMES} ranked games a week against AI squads. A win is worth ${UT.SB_WIN.map((v, i) => `${v} on ${C.DIFFICULTIES[i]}`).join(', ')} (plus a bonus for the margin); a loss is still ${UT.SB_LOSS}. Rewards for your tier land when the week ends on Monday.</p></div></div>
+    <div class="sb-box">
+      <div class="sb-top"><div><small>This week</small><b>${fmt(B.pts)} pts</b></div><div><small>Record</small><b>${B.wins}-${B.l}</b></div><div><small>Tier</small><b>${tier.n}</b></div><div><small>Games left</small><b>${left}</b></div></div>
+      <div class="sb-bar"><i style="width:${pct}%"></i></div><p class="note">${next ? `${fmt(next.pts - B.pts)} points to ${next.n}` : 'Top tier reached. Keep stacking points.'}</p>
+      <div class="sb-tiers">${UT.SB_TIERS.map(t => `<div class="${t === tier ? 'on' : ''}"><b>${t.n}</b><small>${fmt(t.pts)}+ pts</small><span>${giveTxt(t.give)}</span></div>`).join('')}</div>
+    </div>
+    <div class="sb-next"><img src="${C.logoURL ? C.logoURL(opp, 64) : ''}" alt=""><div><small>Next opponent</small><b>${TEAMS[opp].city} AI squad</b><span>${lvl} OVR</span></div></div>
+    <label class="mini">Difficulty<div class="seg" id="sb-diff"></div></label>
+    <div class="actions"><button class="btn primary big" id="sb-go" ${o.full && left > 0 ? '' : 'disabled'}>${left <= 0 ? 'All games played this week' : o.full ? 'Play battle' : 'Fill every lineup spot first'}</button></div>`;
+  C.seg(C.$('#sb-diff'), C.DIFFICULTIES.map((n, i) => [i, n]), sbDiff, v => { sbDiff = v; renderBattles(P); });
+  C.$('#sb-go').onclick = () => {
+    const roster = UT.squadRoster(U); if (!roster) return C.toast('Fill every lineup spot first');
+    C.startCPU({ teams: [U.club, opp], rosters: [roster, UT.rivalRoster(lvl, hashS(B.w + 'sb' + B.g))], ut: true, battle: sbDiff, diff: sbDiff, teamNames: [U.name, `${TEAMS[opp].city} AI`] });
+  };
+}
+function renderTheme(P) {
+  const U = P.p.ut, T = UT.theme(), G = U.prog, o = UT.squadOvr(U), base = UT.rivalLevel(U);
+  const end = new Date(); end.setMonth(end.getMonth() + 1, 1); end.setHours(0, 0, 0, 0); const days = Math.max(1, Math.ceil((end - Date.now()) / 864e5));
+  const max = UT.PROG_STEPS[UT.PROG_STEPS.length - 1].xp;
+  C.$('#ut-pane').innerHTML = `<div class="squad-head"><div><button class="link utp-back" type="button" data-utm="solo">◀ Single Player</button><h3>${C.escapeHtml(T.name)}</h3><p class="note">${C.escapeHtml(T.blurb)}. Beat each challenge once for coins, Training Points and program XP. Every Solo Battle adds program XP too. The program ends in ${days} day${days > 1 ? 's' : ''}.</p></div></div>
+    <div class="sb-box"><div class="sb-top"><div><small>Program XP</small><b>${fmt(G.xp)}</b></div><div><small>Beaten</small><b>${G.done.length}/${T.ch.length}</b></div></div>
+      <div class="sb-bar"><i style="width:${Math.min(100, G.xp / max * 100)}%"></i></div>
+      <div class="sb-tiers">${UT.PROG_STEPS.map((st, i) => `<div class="${G.got.includes(i) ? 'on' : ''}"><b>${fmt(st.xp)} XP</b><span>${st.label}${G.got.includes(i) ? ' ✓' : ''}</span></div>`).join('')}</div></div>
+    <div class="solo-list">${T.ch.map(x => { const fin = G.done.includes(x.k), t = TEAMS[x.opp === U.club ? (x.opp + 1) % TEAMS.length : x.opp];
+      return `<div class="solo ${fin ? 'done' : ''}"><img src="${C.logoURL ? C.logoURL(TEAMS.indexOf(t), 64) : ''}" alt=""><div class="solo-txt"><b>${C.escapeHtml(x.n)}</b><small>${x.d}. vs ${t.city} (${Math.min(99, base + x.lv)} OVR, ${C.DIFFICULTIES[x.diff]})</small><small class="rw">${rewardText(x.give)}, ${x.give.tp} TP, ${fmt(x.give.px)} program XP</small></div>
+      <button class="btn ${fin ? '' : 'primary'}" data-th="${x.k}" ${fin || !o.full ? 'disabled' : ''}>${fin ? 'Done' : o.full ? 'Play' : 'Fill your lineup'}</button></div>`; }).join('')}</div>`;
+  C.$$('[data-th]', C.$('#ut-pane')).forEach(b => b.onclick = () => {
+    const x = T.ch.find(c => c.k === b.dataset.th), roster = UT.squadRoster(U); if (!roster) return C.toast('Fill every lineup spot first');
+    const opp = x.opp === U.club ? (x.opp + 1) % TEAMS.length : x.opp;
+    C.startCPU({ teams: [U.club, opp], rosters: [roster, UT.rivalRoster(Math.min(99, base + x.lv), hashS(T.key + x.k))], ut: true, theme: x.k, diff: x.diff, teamNames: [U.name, `${x.n}`] });
+  });
+}
+const hashS = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+function renderPlayCpu(P) {
   const U = P.p.ut, pane = C.$('#ut-pane'), o = UT.squadOvr(U);
   if (utOpp === U.club) utOpp = (U.club + 1) % TEAMS.length;
-  pane.innerHTML = `<div class="squad-head"><div><h3>Play a game</h3><p class="note">Take ${C.escapeHtml(U.name)} (${o.ovr} OVR) against a CPU team. Ultimate Team games pay 20% more coins, and harder difficulties pay more still.</p></div></div>
+  pane.innerHTML = `<div class="squad-head"><div><button class="link utp-back" type="button" data-utm="solo">◀ Single Player</button><h3>Play a CPU game</h3><p class="note">Take ${C.escapeHtml(U.name)} (${o.ovr} OVR) against a CPU team. Ultimate Team games pay 20% more coins, and harder difficulties pay more still.</p></div></div>
     <div class="play-ut">
       <div class="team-pick" id="utp-opp"><small>Opponent</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
       <div class="form">
@@ -446,7 +517,7 @@ export function renderProgress() {
   $('#prog-track').innerHTML = `<h3 class="h3">Level rewards</h3><div class="track">${tk}</div>`;
   const U = p.ut;
   $('#prog-career').innerHTML = `<h3 class="h3">Career</h3><div class="career">
-    <div><b>${fmt(p.games)}</b><small>Games</small></div><div><b>${fmt(p.wins)}</b><small>Wins</small></div><div><b>${p.games ? Math.round(p.wins / p.games * 100) : 0}%</b><small>Win rate</small></div>
+    ${(() => { const u = C.Auth && C.Auth.user, R = u && u.recs, r = R ? [R.on_w || 0, R.on_l || 0, R.on_t || 0] : ((p.recs && p.recs.on) || [0, 0, 0]), gp = r[0] + r[1] + r[2]; return `<div><b>${r[0]}-${r[1]}${r[2] ? '-' + r[2] : ''}</b><small>Online H2H record</small></div><div><b>${gp ? Math.round(r[0] / gp * 100) : 0}%</b><small>H2H win rate</small></div><div><b>${fmt(p.games)}</b><small>Games played</small></div>`; })()}
     <div><b>${fmt(p.tds)}</b><small>Touchdowns</small></div><div><b>${p.bestStreak}</b><small>Best win streak</small></div><div><b>${rankInfo(p.rpBest).name}</b><small>Best rank</small></div>
     <div><b>${U.cards.length}</b><small>UT players</small></div><div><b>${U.opened}</b><small>Packs opened</small></div><div><b>${p.drill.best || 0}</b><small>Drill best</small></div></div>`;
   const got = ACH.filter(a => p.ach[a.k]).length;
@@ -666,6 +737,8 @@ export function awardGame(r) {
   for (const pr of out.promos) extra.push(`<span class="up">Promoted to ${pr.div}! +${fmt(pr.coins)} coins and a ${UT.packByKey(pr.pack).name}</span>`);
   for (const d of out.done) extra.push(`<span class="up">Challenge done: ${d.d}. Claim it in Progress.</span>`);
   if (out.solo) extra.push(out.solo.ok ? `<span class="up">Solo beaten: ${out.solo.n}! +${rewardText(out.solo.give)}</span>` : `<span class="down">Solo not beaten: ${out.solo.d}. Try it again from Solos.</span>`);
+  if (out.sb) extra.push(`<span class="up">Solo Battles: +${fmt(out.sb.pts)} points (${fmt(out.sb.total)} this week, ${out.sb.tier} tier${out.sb.up ? ', tier up!' : ''}). Game ${out.sb.g} of ${UT.SB_GAMES}, +${out.sb.px} program XP</span>`); for (const u of out.sb.unlocked || []) extra.push(`<span class="up">Program reward unlocked: ${u}!</span>`);
+  if (out.th) { extra.push(out.th.ok ? `<span class="up">Theme challenge beaten: ${out.th.n}! +${rewardText(out.th.give)}, +${fmt(out.th.give.tp)} TP, +${fmt(out.th.give.px)} program XP</span>` : `<span class="down">Theme challenge not beaten: ${out.th.d}. Try it again.</span>`); for (const u of out.th.unlocked) extra.push(`<span class="up">Program reward unlocked: ${u}!</span>`); }
   if (out.wl) extra.push(`<span class="up">${out.wl}</span>`);
   if (out.fp) extra.push(`<span class="up">+${fmt(out.fp)} Field Pass XP${out.fpTiers ? `, ${out.fpTiers} new tier${out.fpTiers > 1 ? 's' : ''} to claim` : ''}</span>`);
   for (const a of out.ach || []) extra.push(`<span class="up">Achievement unlocked: ${a.n}! +${fmt(a.c)} coins</span>`);

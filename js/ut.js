@@ -305,3 +305,62 @@ export function missingForLineup(cards) {
   for (const [g, ss] of Object.entries(GROUPS)) for (let i = have[g] || 0; i < ss.length; i++) out.push(makeId(1, GROUP_KEYS.indexOf(g), (Date.now() + n++ * 7919) % 1e7));
   return out;
 }
+
+// ---------------- solo battles ----------------
+// Weekly ranked games against AI squads. Pick a difficulty: harder wins are worth more battle points.
+// 10 games a week; your points decide the weekly reward, paid when the next week starts.
+export const SB_GAMES = 10;
+export const SB_WIN = [100, 200, 300, 450];     // points for a win on Rookie / Pro / All-Pro / Legend
+export const SB_LOSS = 25;                       // showing up still counts a little
+export const SB_LEVEL = [-5, 0, 3, 6];           // AI squad strength vs your rival level
+export const SB_TIERS = [
+  { n: 'Bronze', pts: 0, give: { coins: 500, tp: 20 } },
+  { n: 'Silver', pts: 700, give: { coins: 1200, tp: 40, pack: 'silver' } },
+  { n: 'Gold', pts: 1500, give: { coins: 2200, tp: 70, pack: 'gold' } },
+  { n: 'Elite', pts: 2400, give: { coins: 3500, tp: 110, pack: 'elite' } },
+  { n: 'Champion', pts: 3400, give: { coins: 6000, tp: 160, pack: 'elite', player: 4 } },
+];
+export const sbTier = pts => { let t = SB_TIERS[0]; for (const x of SB_TIERS) if (pts >= x.pts) t = x; return t; };
+export const sbPoints = (diff, win, margin) => win ? SB_WIN[diff] + Math.min(60, Math.max(0, margin) * 3) : SB_LOSS;
+
+// ---------------- theme challenges (a new program every month) ----------------
+// Themed games against souped-up CPU squads. Beat them for coins, Training Points and program XP;
+// program XP unlocks special player items. Everything resets when the month (and the program) changes.
+const THEME_LIST = [
+  { n: 'New Year Grind', b: 'Start the year strong', ch: ['First Snap', 'Resolution', 'Fresh Legs', 'Clean Slate', 'Ball Drop', 'New Era'] },
+  { n: 'Frozen Tundra', b: 'Cold weather football', ch: ['Ice Box', 'Frostbite', 'Snow Globe', 'Blizzard', 'Whiteout', 'Permafrost'] },
+  { n: 'March Mayhem', b: 'Upsets everywhere', ch: ['Bracket Buster', 'Bubble Team', 'Cinderella', 'Buzzer Beater', 'Bracket Breaker', 'One Shining Moment'] },
+  { n: 'Spring Camp', b: 'Rookies proving themselves', ch: ['Two-a-Days', 'Depth Chart', 'Walk-On', 'Rookie Wall', 'Camp Battle', 'Final Cuts'] },
+  { n: 'Gridiron Futures', b: 'Tomorrow’s stars', ch: ['Prospect', 'Upside', 'Sleeper', 'Riser', 'Day One Starter', 'Franchise Tag'] },
+  { n: 'Summer Heat', b: 'Football in the heat', ch: ['Heat Wave', 'Sun Burn', 'Dog Days', 'Scorcher', 'Heat Index', 'Inferno'] },
+  { n: 'Fireworks', b: 'Big plays only', ch: ['Sparkler', 'Roman Candle', 'Bottle Rocket', 'Grand Finale', 'Big Bang', 'Sky Show'] },
+  { n: 'Training Camp', b: 'Back to basics', ch: ['Fundamentals', 'Tackle Drill', 'Route Tree', 'Pass Pro', 'Goal Line', 'Full Pads'] },
+  { n: 'Kickoff Week', b: 'The season is here', ch: ['Opener', 'Home Debut', 'Road Trip', 'Prime Time', 'Rivalry', 'Week One Statement'] },
+  { n: 'Haunted Gridiron', b: 'The scariest players in the league', ch: ['Graveyard Shift', 'Nightmare Drive', 'Haunted House', 'Creature Feature', 'Fright Night', 'The Last Haunt'] },
+  { n: 'Harvest Bowl', b: 'Grinding through November', ch: ['Leftovers', 'Feast', 'Full Plate', 'Turkey Bowl', 'Gravy Train', 'Main Course'] },
+  { n: 'Winter Kings', b: 'Holiday heavyweights', ch: ['Snowfall', 'Gift Wrap', 'Cold Front', 'Stocking Stuffer', 'Sleigh Ride', 'Kings of Winter'] },
+];
+// the six goals every theme uses (the names change with the theme): harder ones pay more and the last ones are on Legend
+const THEME_GOALS = [
+  { d: 'Win the game', diff: 1, lv: 0, f: r => r.res === 'W', give: { coins: 700, tp: 30, px: 250 } },
+  { d: 'Score 3 touchdowns', diff: 1, lv: 1, f: r => (r.me.tds || 0) >= 3, give: { coins: 800, tp: 35, px: 300 } },
+  { d: 'Win and hold them under 14', diff: 2, lv: 2, f: r => r.res === 'W' && r.sc[1] < 14, give: { coins: 1100, tp: 45, px: 400 } },
+  { d: 'Get 3 sacks and win', diff: 2, lv: 3, f: r => r.res === 'W' && (r.me.sacks || 0) >= 3, give: { coins: 1200, tp: 50, px: 450 } },
+  { d: 'Win by 14 or more', diff: 3, lv: 4, f: r => r.res === 'W' && r.sc[0] - r.sc[1] >= 14, give: { coins: 1800, tp: 70, px: 600, pack: 'gold' } },
+  { d: 'Beat the boss squad', diff: 3, lv: 7, f: r => r.res === 'W', give: { coins: 2600, tp: 100, px: 800, pack: 'elite' } },
+];
+// program XP milestones: the last two are special player items
+export const PROG_STEPS = [
+  { xp: 500, give: { coins: 1000 }, label: '1,000 coins' },
+  { xp: 1200, give: { pack: 'gold' }, label: 'Gold Pack' },
+  { xp: 2000, give: { player: 3 }, label: 'Elite program player' },
+  { xp: 3000, give: { pack: 'elite', tp: 100 }, label: 'Elite Pack + 100 TP' },
+  { xp: 4000, give: { player: 4 }, label: 'Kings program player' },
+];
+export const progKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}`;
+export function theme(d = new Date()) {
+  const t = THEME_LIST[d.getMonth()], seed = d.getFullYear() * 13 + d.getMonth();
+  return { key: progKey(d), name: t.n, blurb: t.b, ch: THEME_GOALS.map((g, i) => ({ k: 'th' + i, n: t.ch[i], ...g, opp: (seed * 7 + i * 5) % TEAMS.length })) };
+}
+// a special player item from a program: a random position, seeded so it's a real card the club can keep
+export function programPlayer(tier, seed) { const r = rng(seed); return makeId(tier, (r() * GROUP_KEYS.length) | 0, (r() * 1e7) | 0); }

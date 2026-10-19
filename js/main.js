@@ -552,7 +552,7 @@ function refreshProfile() {
   $('#pc-avatar').textContent = u.name[0].toUpperCase();
   { const R2 = u.recs, f = (w, l, t) => `${w || 0}W-${l || 0}L${t ? '-' + t + 'T' : ''}`;
     const box = (n, w, l, t) => `<span class="rec-mini"><small>${n}</small><span class="rec-nums"><i><b>${w || 0}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${l || 0}</b><em>L</em></i>${t ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${t}</b><em>T</em></i>` : ''}</span></span>`;
-    $('#pc-rec').innerHTML = u.kind === 'guest' ? 'Guest' : R2 ? box('Overall', u.wins, u.losses) + box('Online', R2.on_w, R2.on_l, R2.on_t) + box('UT', R2.ut_wins, R2.ut_l, R2.ut_t) : box('Record', u.wins, u.losses, u.ties); void f; }
+    $('#pc-rec').innerHTML = u.kind === 'guest' ? 'Guest' : R2 ? box('Online H2H', R2.on_w, R2.on_l, R2.on_t) : (() => { const P = profile(), r = (P && P.p.recs && P.p.recs.on) || [0, 0, 0]; return box('Online H2H', r[0], r[1], r[2]); })(); void f; }
   $('#logout').textContent = u.kind === 'guest' ? 'Sign in' : 'Log out';
   const guest = isGuest() && !LOCALNET;
   $('.pc-meta').classList.toggle('hidden', guest);
@@ -926,7 +926,7 @@ function startCPU(opts = {}) {
   st.seasonGame = !!opts.season; st.franchiseGame = !!opts.franchise; st.league = opts.league || null;
   st.lastCpu = opts;
   const teams = opts.teams || [SET.team, SET.cpuTeam];
-  st.learned = false; st.ut = !!opts.ut; st.solo = opts.solo || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
+  st.learned = false; st.ut = !!opts.ut; st.solo = opts.solo || null; st.battle = opts.battle ?? null; st.theme = opts.theme || null; st.teamNames = opts.teamNames || null; st.practice = opts.practice || null; st.drill = !!opts.drill; st.rec = []; st.replay = null;
   const weather = opts.weather || (opts.season || opts.franchise ? pickWx('random') : pickWx(SET.wx)), tod = opts.tod || (opts.season || opts.franchise ? pickTod('random') : pickTod(SET.tod));
   const adapt = adaptiveCpu(opts);
   // the adjustment is silent: no message, the CPU just plays tougher (or easier)
@@ -1640,29 +1640,29 @@ function showGameOver(S) {
     st.rewarded = true;
     const mine = S.st[me], theirs = S.st[other];
     try {
-      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.franchiseGame ? 'franchise' : st.ut ? 'ut' : 'cpu') : 'online', ut: st.mode === 'cpu' ? !!st.ut : !!st.myUT, solo: st.solo, res, diff: st.mode === 'cpu' ? (st.game && st.game.opts && st.game.opts.difficulty != null ? st.game.opts.difficulty : SET.diff) : 1, qlen: S.ql, oppName: st.names && st.names[other], sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
+      $('#go-rewards').innerHTML = awardGame({ mode: st.mode === 'cpu' ? (st.franchiseGame ? 'franchise' : st.ut ? 'ut' : 'cpu') : 'online', ut: st.mode === 'cpu' ? !!st.ut : !!st.myUT, solo: st.solo, battle: st.mode === 'cpu' ? st.battle : null, theme: st.mode === 'cpu' ? st.theme : null, res, diff: st.mode === 'cpu' ? (st.game && st.game.opts && st.game.opts.difficulty != null ? st.game.opts.difficulty : SET.diff) : 1, qlen: S.ql, oppName: st.names && st.names[other], sc: [S.sc[me], S.sc[other]], me: mine, opp: theirs });
       if (st.ut && S.mode === 'game') { try { const P = profile(); if (P && P.p.ut) { const fl = UTm.updateForm(P.p.ut, S.ps || [], me, res === 'W', S.sc[me] - S.sc[other]); P.save(); if (fl.length) $('#go-rewards').insertAdjacentHTML('beforeend', `<div class="gr-extra">${fl.map(t => `<span class="up">${escapeHtml(t)}</span>`).join('')}</div>`); } } catch (e) { console.warn(e); } }
     } catch (e) { console.warn(e); $('#go-rewards').innerHTML = ''; }
   }
   $('#gameover').classList.remove('hidden');
   if (!st.resultSaved && Auth.user) {
     st.resultSaved = true;
-    const counted = S.mode === 'game' && (st.mode === 'host' || st.mode === 'guest' || st.ut || st.franchiseGame);
+    const counted = S.mode === 'game' && (st.mode === 'host' || st.mode === 'guest');   // the record is Online H2H only: games against real people
     (counted && Auth.user.kind !== 'account' ? Auth.recordResult(res) : Promise.resolve()).then(() => {
       const u = Auth.user;
       // the record for the mode you just played; CPU quick play and seasons don't count toward any record
-      const online = st.mode === 'host' || st.mode === 'guest', kinds = [online && 'on', st.ut && 'ut', st.franchiseGame && 'fr'].filter(Boolean);
+      const online = st.mode === 'host' || st.mode === 'guest', kinds = [online && 'on'].filter(Boolean);
       const P = profile();
       if (P && kinds.length && S.mode === 'game') {
         P.p.recs = P.p.recs || {};
         for (const k of kinds) { const r = P.p.recs[k] = P.p.recs[k] || [0, 0, 0]; r[res === 'W' ? 0 : res === 'L' ? 1 : 2]++; }
         P.save();
       }
-      const NAME = { on: 'Online 1v1', ut: 'Ultimate Team', fr: 'Franchise' };
+      const NAME = { on: 'Online H2H', ut: 'Ultimate Team', fr: 'Franchise' };
       const SV = { on: ['on_w', 'on_l', 'on_t'], ut: ['ut_wins', 'ut_l', 'ut_t'], fr: ['fr_w', 'fr_l', 'fr_t'] };
       const draw = () => {
         const line = kinds.map(k => { const r = u.recs ? SV[k].map(f => u.recs[f] || 0) : ((P && P.p.recs && P.p.recs[k]) || [0, 0, 0]); return `${NAME[k]} record: ${r[0]}W-${r[1]}L${r[2] ? '-' + r[2] + 'T' : ''}`; }).join(' · ');
-        $('#go-rec').textContent = u.kind === 'guest' ? 'Make an account to save your record.' : line || 'CPU games don\'t count toward your record. Play online 1v1, Ultimate Team or Franchise.';
+        $('#go-rec').textContent = u.kind === 'guest' ? 'Make an account to save your record.' : line || 'Only online head-to-head games against real players count toward your record.';
       };
       draw(); setTimeout(draw, 3000);   // the leaderboard copy lands a moment later
     });

@@ -11,7 +11,8 @@ export const NOTES = [
       "Off-target throws miss a step ahead or behind on the receiver’s path instead of off to the side",
       "The two-step login code screen now tells you exactly what to look for in your authenticator app: Endzone Kings with your email under it",
       "In-game timeouts last 8 seconds with a big countdown on screen (pick your play during it), for you and the CPU",
-      "Admin time-outs (temporary bans) show a live countdown and lift on their own the second it hits zero"
+      "Admin time-outs (temporary bans) show a live countdown and lift on their own the second it hits zero",
+      "Touchdowns follow the real rule: it counts the moment the ball crosses the goal line in your hands, so diving or stretching the ball over now scores even if your body is short"
     ]
   },
   {

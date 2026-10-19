@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792384198';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792384446';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792384198';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792384446';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1578,7 +1578,7 @@ function updateLive(g, dt, inputs) {
   separate(g);
   if (diveDone && g.ball.state === 'held' && g.ball.carrier === diveDone.id) {
     const c = diveDone;
-    if (prog(c.team, c.z) >= 100) return touchdown(g, c);
+    if (ballProg(c) >= 100) return touchdown(g, c);   // stretched it over on the dive
     c.fallen = 2; c.fallAng = c.face; g.msgNote = 'dives forward';
     return endPlay(g, 'tackle', c, null);
   }
@@ -1677,7 +1677,7 @@ function updateLive(g, dt, inputs) {
   if (c2) {
     const ct = c2.team;
     if (Math.abs(c2.x) > HALF_W - 0.2) return endPlay(g, 'oob', c2);   // stepped out first: no score
-    if (prog(ct, c2.z) >= 100) return touchdown(g, c2);
+    if (ballProg(c2) >= 100 && prog(ct, c2.z) >= 97) return touchdown(g, c2);   // ball broke the plane
     if (prog(ct, c2.z) < -9.5) return endPlay(g, 'oob', c2);
     for (const d of g.players) {
       if (d.team === ct || d.stun > 0 || d.tackleCd > 0 || d.fallen > 0) continue;
@@ -2439,6 +2439,12 @@ function startCel(g, team, id) {
   if (id !== undefined) g.opts.cel[team] = id;
   g.events.push('cel' + (g.opts.cel[team] >= 0 ? g.opts.cel[team] : 0));
   g.deadDur = Math.max(g.deadDur, g.phaseT + 4);
+}
+// NFL rule: it's a touchdown the moment the BALL breaks the goal line in his hands, wherever his body is.
+// The ball rides a little in front of him, and about an arm's length out when he dives or lunges for it.
+function ballProg(c) {
+  const reach = (c.cdive > 0 || c.dive > 0) ? 1.25 : (c.fallen > 0 ? 0.9 : 0.4);
+  return prog(c.team, c.z + Math.cos(c.face || 0) * reach);
 }
 function touchdown(g, c) {
   const t = c.team, P = g.play;

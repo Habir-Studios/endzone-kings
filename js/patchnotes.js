@@ -3,6 +3,11 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    v: '1.0.4', date: '2026-10-18',
+    added: ['Two-step login: turn it on in Settings, scan the QR code with an authenticator app (Google Authenticator, Microsoft Authenticator or Authy), and you’ll need the 6-digit code to log in. Turning it off needs a code too'],
+    fixed: [],
+  },
+  {
     v: '1.0.3', date: '2026-10-18',
     added: ['Team overall, offense and defense update the second your lineup changes, in Ultimate Team, Franchise and Online Franchise (also shown during the draft and for every team in the league)'],
     fixed: [],

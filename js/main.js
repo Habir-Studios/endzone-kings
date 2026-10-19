@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792378654';
-import { NOTES } from './patchnotes.js?v=1792378654';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792378654';
-import * as Form from './form.js?v=1792378654';
-import { watchSim } from './simview.js?v=1792378654';
-import { bracketHTML } from './bracket.js?v=1792378654';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792378654';
-import { Renderer } from './render.js?v=1792378654';
-import { Sfx } from './audio.js?v=1792378654';
-import { Auth } from './auth.js?v=1792378654';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792378654';
-import { getRoster, teamOvr } from './teams.js?v=1792378654';
-import * as Season from './season.js?v=1792378654';
-import * as Fr from './franchise.js?v=1792378654';
-import * as League from './league.js?v=1792378654';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792378654';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792378654';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792378654';
-import * as UTm from './ut.js?v=1792378654';
-import { initCreator, renderCreator } from './creator.js?v=1792378654';
-import { filmCapture, filmSave } from './social.js?v=1792378654';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792378654';
-import { portraitURL } from './faces.js?v=1792378654';
-import { logoURL, clearLogoCache } from './logos.js?v=1792378654';
+import { CONFIG } from './config.js?v=1792379189';
+import { NOTES } from './patchnotes.js?v=1792379189';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792379189';
+import * as Form from './form.js?v=1792379189';
+import { watchSim } from './simview.js?v=1792379189';
+import { bracketHTML } from './bracket.js?v=1792379189';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792379189';
+import { Renderer } from './render.js?v=1792379189';
+import { Sfx } from './audio.js?v=1792379189';
+import { Auth } from './auth.js?v=1792379189';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792379189';
+import { getRoster, teamOvr } from './teams.js?v=1792379189';
+import * as Season from './season.js?v=1792379189';
+import * as Fr from './franchise.js?v=1792379189';
+import * as League from './league.js?v=1792379189';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792379189';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792379189';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792379189';
+import * as UTm from './ut.js?v=1792379189';
+import { initCreator, renderCreator } from './creator.js?v=1792379189';
+import { filmCapture, filmSave } from './social.js?v=1792379189';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792379189';
+import { portraitURL } from './faces.js?v=1792379189';
+import { logoURL, clearLogoCache } from './logos.js?v=1792379189';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -228,7 +228,7 @@ let splashDone = false;
 const authReady = Auth.init().catch(() => null);
 function endSplash() {
   if (splashDone) return; splashDone = true;
-  authReady.then(user => { setupAuthUI(); if (Auth.recovery) return showAuthForm('newpw'); show(user ? 'menu' : 'auth'); });
+  authReady.then(user => { setupAuthUI(); if (Auth.recovery) return showAuthForm('newpw'); if (Auth.needMfa) return showAuthForm('code'); show(user ? 'menu' : 'auth'); });
 }
 $('#splash').addEventListener('click', endSplash);
 setTimeout(endSplash, 2900);
@@ -311,37 +311,41 @@ function openDaily() {
   document.addEventListener('keydown', key, true);
 }
 $('#daily-tile').addEventListener('click', () => { sfx.play('ui'); if (isGuest() || !Auth.user) return toast('Daily rewards need an account. Guests can’t claim them.'); openDaily(); });
-// ---------------- two-step login (email code) ----------------
+// ---------------- two-step login (authenticator app) ----------------
 $('#form-code').addEventListener('submit', (e) => {
   e.preventDefault();
   busy(e.submitter || $('#form-code .btn'), async () => {
-    try { await Auth.verifyCode(st.codeEmail, $('#code-in').value); authMsg(''); show('menu'); }
+    try { await Auth.verifyMfa($('#code-in').value); $('#code-in').value = ''; authMsg(''); show('menu'); }
     catch (err) { authMsg(err.message, true); }
   });
 });
-$('#code-resend').addEventListener('click', async () => { try { await Auth.sendCode(st.codeEmail); authMsg('Sent a new code. Check your email (and spam).'); } catch (err) { authMsg(err.message, true); } });
-$('#code-back').addEventListener('click', () => { authMsg(''); showAuthForm('login', true); });
+$('#code-back').addEventListener('click', async () => { await Auth.signOut(); authMsg(''); showAuthForm('login', true); });
 async function renderTwofa() {
   const row = $('#tf-row'); if (!row) return;
-  const ok = CONFIG.TWOFA && Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account';
+  const ok = Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account';
   row.classList.toggle('hidden', !ok); if (!ok) return;
   const on = await Auth.twofaOn();
   if (on === null) { row.classList.add('hidden'); return; }
-  $('#tf-sub').textContent = on ? 'On: logging in needs a code from your email' : 'Off: anyone with your password can log in';
+  $('#tf-sub').textContent = on ? 'On: logging in needs the code from your authenticator app' : 'Off: anyone with your password can log in';
   $('#tf-btn').textContent = on ? 'Turn off' : 'Turn on'; $('#tf-btn').dataset.on = on ? '1' : '';
 }
-$('#tf-btn').addEventListener('click', async () => {
-  const want = !$('#tf-btn').dataset.on, email = Auth.user && Auth.user.email; if (!email) return;
-  try { await Auth.sendCode(email); } catch (err) { return toast(err.message, 3500); }
+function codeModal(title, bodyHTML, onCode) {
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 64;
-  m.innerHTML = `<form class="panel info-card form"><h3 style="margin:0">${want ? 'Turn on' : 'Turn off'} two-step login</h3><p class="note">We emailed a code to ${email.replace(/^(.)[^@]*(@.*)$/, '$1***$2')}. Type it to confirm.</p><label>Code<input inputmode="numeric" autocomplete="one-time-code" maxlength="10" required></label><p class="msg" role="status"></p><button class="btn primary" type="submit">Confirm</button><button class="btn" type="button" data-x>Cancel</button></form>`;
+  m.innerHTML = `<form class="panel info-card form tf-card"><h3 style="margin:0">${title}</h3>${bodyHTML}<label>6-digit code<input inputmode="numeric" autocomplete="one-time-code" maxlength="8" required placeholder="123456"></label><p class="msg" role="status"></p><button class="btn primary" type="submit">Confirm</button><button class="btn" type="button" data-x>Cancel</button></form>`;
   document.body.appendChild(m);
   const f = m.querySelector('form'), inp = m.querySelector('input'), msg = m.querySelector('.msg'); setTimeout(() => inp.focus(), 50);
   m.querySelector('[data-x]').onclick = () => m.remove();
-  f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector('.btn.primary'), async () => {
-    try { await Auth.verifyCode(email, inp.value); await Auth.setTwofa(want); m.remove(); toast(want ? 'Two-step login is on. You’ll need an email code to log in.' : 'Two-step login is off.', 3500); renderTwofa(); }
-    catch (err) { msg.textContent = err.message; msg.classList.add('err'); }
-  }); };
+  f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector('.btn.primary'), async () => { try { await onCode(inp.value); m.remove(); renderTwofa(); } catch (err) { msg.textContent = err.message; msg.classList.add('err'); } }); };
+}
+$('#tf-btn').addEventListener('click', async () => {
+  if ($('#tf-btn').dataset.on) {
+    codeModal('Turn off two-step login', '<p class="note">Type the current code from your authenticator app to turn it off.</p>', async c => { await Auth.disableMfa(c); toast('Two-step login is off.', 3000); });
+    return;
+  }
+  let en; try { en = await Auth.enrollStart(); } catch (err) { return toast(err.message, 3500); }
+  const qr = String(en.qr || ''), src = qr.startsWith('data:') ? qr : 'data:image/svg+xml;utf8,' + encodeURIComponent(qr);
+  codeModal('Turn on two-step login', `<ol class="tf-steps"><li>Get an authenticator app on your phone (Google Authenticator, Microsoft Authenticator or Authy, all free)</li><li>In the app, tap + and scan this code</li></ol><img class="tf-qr" alt="QR code for your authenticator app" src="${src}"><p class="note">Can’t scan? Type this key in the app instead: <code class="tf-secret">${escapeHtml(en.secret || '')}</code></p><p class="note">Then type the 6-digit code the app shows:</p>`,
+    async c => { await Auth.enrollFinish(en.id, c); toast('Two-step login is on. You’ll need a code from the app every time you log in.', 4000); });
 });
 // ---------------- patch notes (top left of the main menu) ----------------
 const PN_KEY = 'ek_pn_seen';
@@ -399,7 +403,7 @@ async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally 
 $('#form-login').addEventListener('submit', (e) => {
   e.preventDefault();
   busy(e.submitter || $('#form-login .btn'), async () => {
-    try { const r = await Auth.signIn($('#li-id').value, $('#li-pw').value); $('#li-pw').value = ''; if (r && r.needCode) { st.codeEmail = r.email; $('#code-note').textContent = `Two-step login is on. We emailed a code to ${r.hint}. Type it below.`; $('#code-in').value = ''; authMsg(''); showAuthForm('code', true); setTimeout(() => $('#code-in').focus(), 50); return; } authMsg(''); show('menu'); }
+    try { const r = await Auth.signIn($('#li-id').value, $('#li-pw').value); $('#li-pw').value = ''; if (r && r.needCode) { $('#code-in').value = ''; authMsg(''); showAuthForm('code', true); setTimeout(() => $('#code-in').focus(), 50); return; } authMsg(''); show('menu'); }
     catch (err) { authMsg(err.message, true); }
   });
 });

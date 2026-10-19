@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792378654';
+import { CONFIG } from './config.js?v=1792379189';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -44,7 +44,7 @@ export const Auth = {
         if (/type=recovery/.test(location.hash + location.search)) this.recovery = true;
         this.client.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') { this.recovery = true; if (this.onRecovery) this.onRecovery(); } });
         const { data } = await this.client.auth.getSession();
-        if (data && data.session) this.user = this.fromSb(data.session.user);
+        if (data && data.session) { this.user = this.fromSb(data.session.user); if (await this.mfaNeeded()) this.needMfa = true; }   // came back mid-login: still owes the authenticator code
         return this.user;
       } catch (e) {
         console.warn('Supabase init failed, using local mode', e);
@@ -95,10 +95,10 @@ export const Auth = {
       const { data: chk, error: ce } = await this.client.rpc('ek_login_check', { p_user: (id || '').trim(), p_pw: password });
       if (!ce) {
         if (!chk) throw new Error('Wrong email/username or password');
-        if (chk.twofa) { await this.sendCode(chk.email); return { needCode: true, email: chk.email, hint: chk.hint }; }
         const { data, error } = await this.client.auth.signInWithPassword({ email: chk.email, password });
         if (error) throw new Error(error.message === 'Email not confirmed' ? 'Confirm your email first (check your inbox)' : error.message);
         this.user = this.fromSb(data.user);
+        if (await this.mfaNeeded()) return { needCode: true };   // two-step login is on: the authenticator code comes next
         return this.user;
       }
       let email = (id || '').trim();
@@ -111,6 +111,7 @@ export const Auth = {
       const { data, error } = await this.client.auth.signInWithPassword({ email, password });
       if (error) throw new Error(error.message === 'Email not confirmed' ? 'Confirm your email first (check your inbox)' : error.message);
       this.user = this.fromSb(data.user);
+      if (await this.mfaNeeded()) return { needCode: true };
       return this.user;
     }
     const acc = loadAcc();
@@ -135,19 +136,34 @@ export const Auth = {
     return v;
   },
 
-  // two-step login: Supabase emails a one-time code, verifying it signs you in
-  async sendCode(email) {
-    const { error } = await this.client.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-    if (error) throw new Error(/rate|seconds|security/i.test(error.message) ? 'Wait a minute before asking for another code' : error.message);
-  },
-  async verifyCode(email, code) {
-    const { data, error } = await this.client.auth.verifyOtp({ email, token: (code || '').replace(/\s/g, ''), type: 'email' });
-    if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'That code is wrong or expired. Try again or send a new one.' : error.message);
-    this.user = this.fromSb(data.user);
+  // two-step login with an authenticator app (Supabase MFA / TOTP). The server enforces it: with it on, your saves
+  // and stats only go through after the 6-digit code (see supabase/twofa_app.sql)
+  async mfaNeeded() { try { const { data } = await this.client.auth.mfa.getAuthenticatorAssuranceLevel(); return !!data && data.nextLevel === 'aal2' && data.currentLevel !== 'aal2'; } catch (_) { return false; } },
+  async totpFactor() { const { data, error } = await this.client.auth.mfa.listFactors(); if (error) throw new Error(error.message); return ((data && data.totp) || []).find(f => f.status === 'verified') || null; },
+  async verifyMfa(code) {
+    const f = await this.totpFactor(); if (!f) throw new Error('Two-step login isn’t set up on this account');
+    const { error } = await this.client.auth.mfa.challengeAndVerify({ factorId: f.id, code: (code || '').replace(/\s/g, '') });
+    if (error) throw new Error(/invalid|expired/i.test(error.message) ? 'That code is wrong or expired. Codes change every 30 seconds.' : error.message);
+    this.needMfa = false;
+    const { data } = await this.client.auth.getUser(); if (data && data.user) this.user = this.fromSb(data.user);
     return this.user;
   },
-  async twofaOn() { try { const { data, error } = await this.client.rpc('ek_my_2fa'); return error ? null : !!data; } catch (_) { return null; } },   // null = not set up on the server yet
-  async setTwofa(on) { const { error } = await this.client.rpc('ek_set_2fa', { p_on: !!on }); if (error) throw new Error(error.message); return !!on; },
+  async twofaOn() { try { return !!(await this.totpFactor()); } catch (_) { return null; } },   // null = couldn't check
+  async enrollStart() {
+    try { const { data } = await this.client.auth.mfa.listFactors(); for (const f of ((data && data.all) || []).filter(f => f.status !== 'verified')) await this.client.auth.mfa.unenroll({ factorId: f.id }); } catch (_) {}
+    const { data, error } = await this.client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Endzone Kings ' + Date.now().toString(36) });
+    if (error) throw new Error(error.message);
+    return { id: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+  },
+  async enrollFinish(id, code) {
+    const { error } = await this.client.auth.mfa.challengeAndVerify({ factorId: id, code: (code || '').replace(/\s/g, '') });
+    if (error) throw new Error(/invalid|expired/i.test(error.message) ? 'That code didn’t match. Type the newest code from the app.' : error.message);
+  },
+  async disableMfa(code) {
+    await this.verifyMfa(code);
+    const f = await this.totpFactor(); if (!f) return;
+    const { error } = await this.client.auth.mfa.unenroll({ factorId: f.id }); if (error) throw new Error(error.message);
+  },
 
   async setNewPassword(pw) {
     const { data, error } = await this.client.auth.updateUser({ password: pw });

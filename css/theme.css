@@ -342,3 +342,8 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 .ovr-pop { animation: ovrPop .5s ease-out; }
 @keyframes ovrPop { 0% { color: #fff; transform: scale(1.25); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .ovr-pop { animation: none; } }
+
+.tf-card { width: min(440px, 94vw); max-height: 90vh; overflow-y: auto; }
+.tf-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.tf-qr { width: 190px; height: 190px; background: #fff; padding: 8px; align-self: center; border-radius: 6px; }
+.tf-secret { font-size: 12px; word-break: break-all; background: rgba(255,255,255,.08); padding: 2px 6px; user-select: all; }

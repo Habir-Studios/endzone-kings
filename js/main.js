@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js';
-import { NOTES } from './patchnotes.js';
-import { askYes, showInfo, injuryCard } from './ui.js';
-import * as Form from './form.js';
-import { watchSim } from './simview.js';
-import { bracketHTML } from './bracket.js';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js';
-import { Renderer } from './render.js';
-import { Sfx } from './audio.js';
-import { Auth } from './auth.js';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js';
-import { getRoster, teamOvr } from './teams.js';
-import * as Season from './season.js';
-import * as Fr from './franchise.js';
-import * as League from './league.js';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js';
-import { initGamepad, pad, glyphs } from './gamepad.js';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js';
-import * as UTm from './ut.js';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js';
-import { portraitURL } from './faces.js';
-import { logoURL, clearLogoCache } from './logos.js';
+import { CONFIG } from './config.js?v=1792441682';
+import { NOTES } from './patchnotes.js?v=1792441682';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792441682';
+import * as Form from './form.js?v=1792441682';
+import { watchSim } from './simview.js?v=1792441682';
+import { bracketHTML } from './bracket.js?v=1792441682';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792441682';
+import { Renderer } from './render.js?v=1792441682';
+import { Sfx } from './audio.js?v=1792441682';
+import { Auth } from './auth.js?v=1792441682';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792441682';
+import { getRoster, teamOvr } from './teams.js?v=1792441682';
+import * as Season from './season.js?v=1792441682';
+import * as Fr from './franchise.js?v=1792441682';
+import * as League from './league.js?v=1792441682';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792441682';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792441682';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792441682';
+import * as UTm from './ut.js?v=1792441682';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792441682';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792441682';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792441682';
+import { portraitURL } from './faces.js?v=1792441682';
+import { logoURL, clearLogoCache } from './logos.js?v=1792441682';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -184,7 +184,7 @@ function show(id) {
   if (st.screen !== id && !['howto', 'settings'].includes(st.screen)) st.prev = st.screen;
   $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
   st.screen = id;
-  if (id === 'menu') refreshProfile();
+  if (id === 'menu') { refreshProfile(); setTimeout(maybeAskTutorial, 900); }
   if (id === 'setup') renderSetup();
   if (id === 'online') renderOnline();
   if (id === 'settings') { renderSettings(); renderTwofa(); renderDevicesRow(); }
@@ -793,6 +793,9 @@ function renderModes() {
 }
 wireTeamPick($('#tp-modes'), () => SET.team, v => { SET.team = v; saveSet(); renderModes(); });
 const randOpp = () => { let o; do { o = (Math.random() * TEAMS.length) | 0; } while (o === SET.team); return o; };
+$('#use-ut').addEventListener('change', () => { const P = !isGuest() && profile(), useUT = $('#use-ut').checked && P && P.p.ut && P.p.ut.started; $('#wait-logo').src = logoURL(useUT ? P.p.ut.club : onlineTeam, 64); });
+$('#go-tutorial').addEventListener('click', () => { sfx.play('ui'); startTutorial(); });
+$('#howto-tutorial').addEventListener('click', () => { sfx.play('ui'); startTutorial(); });
 $('#go-practice').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], practice: SET.pside, pspot: SET.pspot, freeze: !!SET.pfreeze, weather: 'clear', tod: 'day' }));
 $('#go-drill').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], drill: true }));
 
@@ -929,8 +932,89 @@ function tossRx(m) {
   return false;
 }
 
+// ---------------- tutorial: a guided mini-game that teaches the controls and the basics ----------------
+// Two short practice sessions with a coach card on top: offense (pick a play, snap, throw, catch, run moves,
+// move the chains), then defense (pick a coverage, switch players, make a stop). Each step ticks off by itself
+// when you actually do it. New players get offered it the first time they reach the main menu.
+const TUT = { on: false, i: 0, sw: false, snapCtrl: -1, scored: false };
+const tutDev = () => (pad && pad.on) || (navigator.getGamepads && [...navigator.getGamepads()].some(Boolean)) ? 'p' : document.body.classList.contains('touch') ? 't' : 'k';
+const TUT_STEPS = [
+  { ph: 'off', h: 'Pick a play', k: 'Press 1 to 6, or click a play card. Z and X flip through the tabs.', t: 'Tap any play card at the bottom.', p: 'Use the D-pad to pick a play and press A.', tick: S => S.ph === 'presnap' && !!S.op },
+  { ph: 'off', h: 'Snap the ball', k: 'Press Space to snap it.', t: 'Tap SNAP.', p: 'Press A to snap it.', ev: ['snap'] },
+  { ph: 'off', h: 'Throw it', k: 'Each receiver has a number over his head. Press that number (1 to 5) to throw to him. Hold it longer for a harder throw.', t: 'Tap a receiver’s number button to throw to him.', p: 'Each receiver has a button over his head. Press it to throw to him.', ev: ['throw'] },
+  { ph: 'off', h: 'Complete a pass', k: 'Throw to the open man. If it falls incomplete, call another play and try again.', t: 'Throw to the open man. Missed? Pick another play and try again.', p: 'Throw to the open man. Missed? Pick another play and try again.', ev: ['catch'] },
+  { ph: 'off', h: 'Make a move', k: 'With the ball in your hands: Shift sprints, Space jukes, E spins, R stiff arms, F hurdles a diving tackler. Try a run play.', t: 'With the ball: tap JUKE, SPIN, STIFF or HURDLE. Run plays are a good spot to try.', p: 'With the ball: flick the right stick to juke, B spins, A stiff arms, Y hurdles. Run plays are a good spot to try.', ev: ['juke', 'spin', 'stiff', 'hurdle', 'brokentackle'] },
+  { ph: 'off', h: 'Move the chains', k: 'Gain enough yards for a first down (or score). Ten yards resets your downs.', t: 'Gain enough yards for a first down (or score).', p: 'Gain enough yards for a first down (or score).', ev: ['firstdown', 'score'] },
+  { ph: 'def', h: 'Call a coverage', k: 'You’re on defense now. Press 1 to 6 to pick a coverage before the snap.', t: 'You’re on defense now. Tap a coverage card.', p: 'You’re on defense now. Pick a coverage with the D-pad and A.', tick: S => S.ph === 'presnap' && !!S.dc },
+  { ph: 'def', h: 'Switch players', k: 'After the snap, press Q to take over the defender nearest the ball. You can also click any defender.', t: 'After the snap, tap SWITCH to take over the defender nearest the ball.', p: 'After the snap, press B to take over the defender nearest the ball.', tick: S => S.ph === 'live' && TUT.snapCtrl >= 0 && S.ctrl && S.ctrl[st.local] !== TUT.snapCtrl },
+  { ph: 'def', h: 'Make a stop', k: 'Run at the ball carrier to tackle him. Space dives, E jumps a pass. Keep him out of the end zone.', t: 'Run at the ball carrier to tackle him. TACKLE dives at him. Keep him out of the end zone.', p: 'Run at the ball carrier to tackle him. A dives at him. Keep him out of the end zone.', ev: ['whistle'], ok: () => !TUT.scored },
+];
+function startTutorial() {
+  try { SET.tutSeen = 1; saveSet(); } catch (_) {}
+  closeTutAsk();
+  TUT.on = true; TUT.i = 0; TUT.scored = false; TUT.snapCtrl = -1;
+  tutGame('off');
+}
+function tutGame(side) {
+  TUT.sw = true;
+  if (st.playing) leaveGame();
+  TUT.sw = false;
+  startCPU({ teams: [SET.team, randOpp()], practice: side, pspot: side === 'off' ? 30 : 60, freeze: true, diff: 0, weather: 'clear', tod: 'day', tutorial: true });
+  drawCoach();
+}
+function drawCoach() {
+  let c = $('#tut-coach');
+  if (!TUT.on) { if (c) c.remove(); return; }
+  if (!c) { c = document.createElement('div'); c.id = 'tut-coach'; c.className = 'tut-coach'; $('#hud').appendChild(c); }
+  const S = TUT_STEPS[TUT.i]; if (!S) return;
+  c.innerHTML = `<div class="tut-top"><span>Tutorial · ${S.ph === 'off' ? 'Offense' : 'Defense'}</span><span>Step ${TUT.i + 1} of ${TUT_STEPS.length}</span></div>
+    <b>${S.h}</b><p>${S[tutDev()]}</p><div class="tut-dots">${TUT_STEPS.map((_, i) => `<i class="${i < TUT.i ? 'done' : i === TUT.i ? 'on' : ''}"></i>`).join('')}</div>
+    <button class="link" type="button" id="tut-skip">Skip tutorial</button>`;
+  c.querySelector('#tut-skip').onclick = () => { sfx.play('ui'); endTutorial(false); };
+}
+function tutNext() {
+  sfx.play('firstdown'); TUT.i++;
+  const S = TUT_STEPS[TUT.i];
+  if (!S) return endTutorial(true);
+  if (S.ph !== TUT_STEPS[TUT.i - 1].ph) { toast('Nice work. Now let’s play some defense.', 2200); setTimeout(() => { if (TUT.on) tutGame(S.ph); }, 1600); return; }
+  drawCoach();
+}
+function tutEv(e) {
+  if (!TUT.on) return;
+  if (e === 'snap') { TUT.scored = false; TUT.snapCtrl = st.snap && st.snap.ctrl ? st.snap.ctrl[st.local] : -1; }
+  if (e === 'score') TUT.scored = true;
+  const S = TUT_STEPS[TUT.i];
+  if (S && S.ev && S.ev.includes(e) && (!S.ok || S.ok())) tutNext();
+}
+function tutTick(S) { if (!TUT.on) return; const T = TUT_STEPS[TUT.i]; if (T && T.tick && T.tick(S)) tutNext(); }
+function endTutorial(done) {
+  TUT.on = false; drawCoach();
+  if (!done) { leaveGame(); return; }
+  const P = !isGuest() ? profile() : null;
+  let reward = '';
+  if (P && !P.p.tutDone) { P.p.tutDone = 1; P.p.coins += 500; P.save(); reward = '<p class="note">First time bonus: +500 coins.</p>'; }
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 64;
+  m.innerHTML = `<div class="panel info-card tut-done"><h3 style="margin:0">You’re ready</h3><p>You know how to call plays, throw, run, and play defense. Everything else is in How to Play.</p>${reward}
+    <div class="actions"><button class="btn primary" type="button" data-t="play">Play Quick Play</button><button class="btn" type="button" data-t="menu">Main menu</button></div></div>`;
+  document.body.appendChild(m);
+  m.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { m.remove(); leaveGame(); if (b.dataset.t === 'play') show('setup'); });
+}
+// the first time someone reaches the main menu, offer the tutorial
+function maybeAskTutorial() {
+  if (SET.tutSeen || $('#tut-ask') || st.playing || st.screen !== 'menu') return;
+  { const P = profile(); if (P && (P.p.games > 0 || P.p.lvl > 1)) { SET.tutSeen = 1; saveSet(); return; } }   // not new: don't nag
+  const m = document.createElement('div'); m.className = 'modal'; m.id = 'tut-ask'; m.style.zIndex = 63;
+  m.innerHTML = `<div class="panel info-card tut-done"><h3 style="margin:0">New to Endzone Kings?</h3><p>Play a quick tutorial: a few minutes of offense and defense with a coach walking you through the controls.</p>
+    <div class="actions"><button class="btn primary" type="button" id="tut-yes">Play the tutorial</button><button class="btn" type="button" id="tut-no">Skip</button></div><p class="note">You can always find it later in Practice and in How to Play.</p></div>`;
+  document.body.appendChild(m);
+  $('#tut-yes').onclick = () => { sfx.play('ui'); startTutorial(); };
+  $('#tut-no').onclick = () => { sfx.play('ui'); SET.tutSeen = 1; saveSet(); closeTutAsk(); };
+}
+function closeTutAsk() { const m = $('#tut-ask'); if (m) m.remove(); }
+
 function startCPU(opts = {}) {
   sfx.init();
+  if (!opts.tutorial && TUT.on) { TUT.on = false; drawCoach(); }
   st.mode = 'cpu'; st.local = 0;
   st.seasonGame = !!opts.season; st.franchiseGame = !!opts.franchise; st.league = opts.league || null;
   st.lastCpu = opts;
@@ -953,6 +1037,7 @@ function startCPU(opts = {}) {
 
 function leaveGame() {
   closeToss();
+  if (TUT.on && !TUT.sw) { TUT.on = false; drawCoach(); }
   if (st.league && st.playing && !st.overShown && st.snap) League.reportResult(st.snap, true);   // walking out of a league game is a loss
   stopSpec(); stopUserCast();
   if (st.mode === 'spec') st.mode = 'cpu';
@@ -1904,6 +1989,7 @@ function renderKickMeter(S) {
 }
 
 function updateHud(S) {
+  if (TUT.on) tutTick(S);
   if (S.tz) { if (!st.introOn && st.intro <= 0 && !st.tossS) maybeToss(); } else if (st.tossS && st.mode === 'guest') closeToss();
   if (S.bench) st.bench = S.bench;
   if (S.wx && S.wx !== st.wx) { st.wx = S.wx; R.setWeather(S.wx, S.tod || st.tod || 'night'); }   // the weather turned mid-game
@@ -2042,6 +2128,9 @@ function updateHud(S) {
 let onlineTeam = SET.team;
 function renderOnline() {
   teamCard($('#tp-online .team-card'), onlineTeam);
+  { const u = Auth.user, P = !isGuest() && profile(), R = u && u.recs, r = R ? [R.on_w || 0, R.on_l || 0, R.on_t || 0] : ((P && P.p.recs && P.p.recs.on) || [0, 0, 0]);
+    $('#h2h-name').textContent = u ? u.name : 'Player'; $('#h2h-rec').textContent = `${r[0]}-${r[1]}${r[2] ? '-' + r[2] : ''}`;
+    $('#wait-me').textContent = u ? u.name : 'You'; const useUT = $('#use-ut').checked && P && P.p.ut && P.p.ut.started; $('#wait-logo').src = logoURL(useUT ? P.p.ut.club : onlineTeam, 64); }
   // ranked season
   { const P = !isGuest() && profile(); let box = $('#comp-box'); if (!box) { box = document.createElement('div'); box.id = 'comp-box'; box.className = 'comp-box'; $('#online-main').prepend(box); }
     if (!P) box.innerHTML = ''; else {
@@ -2394,7 +2483,7 @@ function frameBody(now) {
         if (st.mode === 'host') { inputs[1] = { mx: st.remote.mx, mz: st.remote.mz, sprint: st.remote.sprint, ev: n === 0 ? st.remote.ev : [] }; }
         step(st.game, DT, inputs);
         if (n === 0) { evq = []; st.remote.ev = []; }
-        for (const e of drainEvents(st.game)) { sfx.play(e); R.event(e); if (st.mode === 'host') st.netEv.push(e); ucastEv.push(e); }
+        for (const e of drainEvents(st.game)) { sfx.play(e); R.event(e); if (TUT.on) tutEv(e); if (st.mode === 'host') st.netEv.push(e); ucastEv.push(e); }
         st.acc -= DT; n++;
       }
       if (n >= 6) st.acc = 0;
@@ -2471,4 +2560,4 @@ $('#ban-ok').addEventListener('click', () => $('#banned').classList.add('hidden'
 $('#ban-out').addEventListener('click', async () => { $('#banned').classList.add('hidden'); await Auth.signOut(); show('auth'); });
 
 // test hooks (used by automated tests; harmless in production)
-window.__ek = { st, startCPU, keys, pushEv, Auth, R, sfx, cam: null, keyToEvent, pickCard, playClip };
+window.__ek = { st, startCPU, keys, pushEv, Auth, R, sfx, cam: null, keyToEvent, pickCard, playClip, show };

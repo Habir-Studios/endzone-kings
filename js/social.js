@@ -1,7 +1,7 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js';
-import { TEAMS } from './teams.js';
+import { askYes } from './ui.js?v=1792441682';
+import { TEAMS } from './teams.js?v=1792441682';
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -869,7 +869,7 @@ function showInvite(code, from) {
   if (C.SET && C.SET.notifs === 'off') return;   // notifications blocked in Settings: it stays in the bell and messages
   const el = C.$('#invite-pop'); if (!el) return;
   C.$('#inv-title').textContent = `${from} challenged you`;
-  C.$('#inv-sub').textContent = C.st.playing ? 'Finish your game first, it’s in your messages' : 'Online 1v1, ready when you are';
+  C.$('#inv-sub').textContent = C.st.playing ? 'Finish your game first, it’s in your messages' : 'Online H2H, ready when you are';
   C.$('#inv-yes').disabled = !!C.st.playing;
   el.classList.remove('hidden'); C.sfx.play('whistle');
   C.$('#inv-yes').onclick = () => { el.classList.add('hidden'); C.joinGame(code); };

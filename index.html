@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792385665">
-  <link rel="stylesheet" href="css/theme.css?v=1792385665">
+  <link rel="stylesheet" href="css/style.css?v=1792441682">
+  <link rel="stylesheet" href="css/theme.css?v=1792441682">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false"><defs><linearGradient id="ek-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8994"/><stop offset=".45" stop-color="#ff3347"/><stop offset="1" stop-color="#b3101f"/></linearGradient></defs></svg>
@@ -129,7 +129,7 @@
         <button class="tile hero" data-go="setup"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></i><span class="tl-k">Play Now</span><small>Quick Play against the CPU, just for fun. Doesn’t count toward your record</small></button>
         <button class="tile wide t-ut" data-go="ut"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M4 3h11l5 5v13H4zm2 2v14h12V9h-4V5zm3 6.5a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0zM7.5 18c.5-2.4 2.3-3.6 4.5-3.6s4 1.2 4.5 3.6z"/></svg></i><span class="tl-k">Ultimate Team</span><small id="tile-ut-sub">Open packs, build a squad, play for coins</small></button>
         <button class="tile t-season" data-go="season"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v3h3.5v2.5A4.5 4.5 0 0 1 16.4 13 5.5 5.5 0 0 1 13 15.8V18h3v3H8v-3h3v-2.2A5.5 5.5 0 0 1 7.6 13 4.5 4.5 0 0 1 3.5 8.5V6H7zm-1.5 5v.5c0 1 .6 1.9 1.5 2.3V8zm12 2.8c.9-.4 1.5-1.3 1.5-2.3V8h-1.5z"/></svg></i><span class="tl-k">Season</span><small id="tile-season-sub">17 games over 18 weeks to the Kings Bowl</small></button>
-        <button class="tile t-online" data-go="online" id="online-btn"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M13.5 2 4 13.5h6.5L9 22l11-12.5h-6.8z"/></svg></i><span class="tl-k">Online 1v1</span><small>Play a friend with a game code</small></button>
+        <button class="tile t-online" data-go="online" id="online-btn"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M13.5 2 4 13.5h6.5L9 22l11-12.5h-6.8z"/></svg></i><span class="tl-k">Online H2H</span><small>Play a friend with a game code</small></button>
         <button class="tile t-franchise" data-go="franchise"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M3 21V9l9-6 9 6v12h-6v-7H9v7zm8-12h2V7h-2z"/></svg></i><span class="tl-k">Franchise</span><small id="tile-fr-sub">Run a team for years: draft, contracts, progression</small></button>
         <button class="tile t-league" data-go="league"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M5 3h14v3a5 5 0 0 1-4 4.9V13h2v2H7v-2h2v-2.1A5 5 0 0 1 5 6zm-3 15h20v3H2zm3-2h14v1H5z"/></svg></i><span class="tl-k">Online Franchise</span><small>16 teams: draft, trade, win the Kings Bowl</small></button>
         <button class="tile t-social" data-go="social"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm8.5 1a3 3 0 1 1 0-6 3 3 0 0 1 0 6zM1 20c.4-4 3.2-6.5 7-6.5s6.6 2.5 7 6.5zm15.2 0c-.2-2.3-1-4.2-2.4-5.6.8-.3 1.7-.4 2.7-.4 3.2 0 5.3 2 5.5 6z"/></svg></i><span class="tl-k">Community <i class="dotn hidden so-unread"></i></span><small>Live leaderboards, clips, friends and messages</small></button>
@@ -321,37 +321,47 @@
 
   <!-- ===================== ONLINE ===================== -->
   <section id="online" class="screen">
-    <div class="center-col wide">
-      <h2 class="title">Online 1v1</h2>
-      <div class="panel">
+    <div class="center-col xwide">
+      <h2 class="title">Online H2H</h2>
+      <div class="panel h2h-panel">
         <p id="online-warn" class="warn hidden"></p>
         <div id="online-main">
-          <div class="team-pick inline" id="tp-online"><small>Your team</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
-          <label class="check ut-online"><input type="checkbox" id="use-ut"> Play with my Ultimate Team squad (works for hosting, joining and challenges)</label>
-          <div class="two-col">
-            <div class="box">
+          <div class="h2h-hero">
+            <div class="h2h-side me">
+              <small>You</small><b id="h2h-name">Player</b>
+              <div class="team-pick inline" id="tp-online"><small>Your team</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
+              <label class="check ut-online h2h-switch"><input type="checkbox" id="use-ut"><span class="sw" aria-hidden="true"></span> Bring my Ultimate Team squad</label>
+            </div>
+            <div class="h2h-vs"><span>VS</span><div class="h2h-rec"><small>Your Online H2H record</small><b id="h2h-rec">0-0</b></div><small class="note">Every game here counts</small></div>
+            <div class="h2h-side them"><small>Opponent</small><b>A real player</b><div class="h2h-q" aria-hidden="true">?</div><small class="note">Host and send your code, join with theirs, or grab a game from the lobby</small></div>
+          </div>
+          <div class="h2h-grid">
+            <div class="box h2h-box">
               <h3>Host a game</h3>
               <p class="note">You get a 6 to 8 letter code. Send it to whoever you want to play. Anyone with the code can also watch.</p>
               <label class="mini">Custom code (optional)<input id="host-code" maxlength="8" placeholder="6 to 8 letters" autocomplete="off" spellcheck="false"></label>
-              <label class="mini">Quarter length<div class="seg" id="seg-qlen2"></div></label>
               <label class="mini">Who can join<div class="seg" id="seg-vis"></div></label>
-              <label class="mini">Weather and time<div class="seg" id="seg-wx2"></div></label>
-              <label class="mini">Wind<div class="seg" id="seg-wind2"></div><small class="note wind-note">Windy games change how you play: long passes and kicks drift with the wind, a tailwind adds distance and a headwind takes it away.</small></label>
-              <button class="btn primary" id="host-btn">Host game</button>
+              <details class="h2h-more"><summary>Game settings</summary>
+                <label class="mini">Quarter length<div class="seg" id="seg-qlen2"></div></label>
+                <label class="mini">Weather and time<div class="seg" id="seg-wx2"></div></label>
+                <label class="mini">Wind<div class="seg" id="seg-wind2"></div><small class="note wind-note">Windy games change how you play: long passes and kicks drift with the wind, a tailwind adds distance and a headwind takes it away.</small></label>
+              </details>
+              <button class="btn primary big" id="host-btn">Host game</button>
             </div>
-            <div class="box">
+            <div class="box h2h-box">
               <h3>Join a game</h3>
               <p class="note">Type the code your friend sent you. Watch a game that already started with the same code.</p>
-              <input id="join-code" maxlength="8" placeholder="Code" autocomplete="off" spellcheck="false" aria-label="Game code">
-              <div class="cr-btns"><button class="btn primary" id="join-btn">Join game</button><button class="btn" id="watch-btn">Watch</button></div>
+              <input id="join-code" class="h2h-code-in" maxlength="8" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Game code">
+              <div class="cr-btns"><button class="btn primary big" id="join-btn">Join game</button><button class="btn" id="watch-btn">Watch</button></div>
             </div>
           </div>
-          <div class="lobby">
+          <div class="lobby h2h-lobby">
             <div class="lobby-head"><h3>Public lobby</h3><span class="note">Open games to join, live games to watch</span><span id="lobby-count" class="note"></span></div>
             <div id="lobby-list" class="lobby-list"></div>
           </div>
         </div>
-        <div id="online-wait" class="hidden wait">
+        <div id="online-wait" class="hidden wait h2h-wait">
+          <div class="h2h-wait-vs"><div class="h2h-chip me"><img id="wait-logo" alt=""><b id="wait-me">You</b></div><span>VS</span><div class="h2h-chip them"><i class="h2h-q sm">?</i><b>Waiting…</b></div></div>
           <p class="note" id="wait-label">Your game code</p>
           <div class="code" id="room-code">------</div>
           <p id="wait-status" class="status"><span class="spinner"></span>Waiting for an opponent</p>
@@ -367,6 +377,7 @@
   <section id="howto" class="screen">
     <div class="center-col wide">
       <h2 class="title">How to Play</h2>
+      <div class="tut-row"><div><b>Learn by playing</b><span class="note">The tutorial teaches the controls in a real game, step by step.</span></div><button class="btn primary" id="howto-tutorial" type="button">Play the tutorial</button></div>
       <div class="panel howto">
         <div class="two-col">
           <div>
@@ -421,7 +432,7 @@
           <p>On a phone or tablet you get a joystick and buttons automatically.</p>
           <p>Refs throw flags for holding, pass interference, false starts, offsides, roughing and facemasks. Let the clock run out on offense and it's delay of game.</p>
           <p>Rain makes the ball slippery and snow slows everyone down.</p>
-          <p>Coins, XP, rank and leaderboard stats come from Online 1v1, Ultimate Team and Franchise games (with an account). Quick Play, Season and practice against the CPU are just for fun. Spend coins on Ultimate Team packs, and claim challenge rewards in Progress.</p>
+          <p>Coins, XP, rank and leaderboard stats come from Online H2H, Ultimate Team and Franchise games (with an account). Quick Play, Season and practice against the CPU are just for fun. Spend coins on Ultimate Team packs, and claim challenge rewards in Progress.</p>
           <p>Kicks use a meter: aim with A and D, press Space to start the swing, Space again to lock power, then Space when the needle hits the white zone. Press V before the snap to call a timeout. Penalties only happen when somebody actually commits one.</p>
         </div>
         <div class="howto-touch">
@@ -496,7 +507,7 @@
           <li><b>Play Now:</b> pick any two teams and a difficulty and take on the CPU.</li>
           <li><b>Season:</b> take one team through a 17-game, 18-week schedule with live division standings, a 14-team playoff (division winners plus three wild cards per conference) and the Kings Bowl.</li>
           <li><b>Ultimate Team:</b> open packs of player cards, build your own squad, train your players and take them into games, online too.</li>
-          <li><b>Online 1v1:</b> host a game in the public lobby or send a friend a code. Chat with <kbd>T</kbd>.</li>
+          <li><b>Online H2H:</b> host a game in the public lobby or send a friend a code. Chat with <kbd>T</kbd>.</li>
           <li><b>Play Creator:</b> draw your own offense, defense and special teams plays and call them in any game.</li>
           <li><b>Practice &amp; Drills:</b> practice offense or defense with no clock, or see how many points you can put up in the two-minute drill and chase the leaderboard.</li>
           <li><b>Rosters:</b> look up every player's ratings on all 32 teams.</li>
@@ -521,6 +532,7 @@
     <div class="center-col xwide">
       <h2 class="title sm">Practice &amp; Drills</h2>
       <div class="panel">
+        <div class="tut-row"><div><b>Tutorial</b><span class="note">New here? A coach walks you through the controls on offense and defense. Takes a few minutes.</span></div><button class="btn primary" id="go-tutorial" type="button">Play the tutorial</button></div>
         <div class="team-pick inline" id="tp-modes"><small>Your team</small><div class="team-card" tabindex="0"></div><div class="arrows"><button class="btn sm" data-d="-1" aria-label="Previous team">◀</button><button class="btn sm" data-d="1" aria-label="Next team">▶</button></div></div>
         <div class="two-col">
           <div class="box">
@@ -770,6 +782,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792385665"></script>
+  <script type="module" src="js/main.js?v=1792441682"></script>
 </body>
 </html>

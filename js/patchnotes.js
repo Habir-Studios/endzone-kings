@@ -3,6 +3,30 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    "v": "1.0.2",
+    "date": "2026-10-19",
+    "added": [
+      "Coin toss before every game: call heads or tails, and the winner picks to receive or kick. Online, whoever calls it first gets the call. If the CPU wins, it picks on its own",
+      "Ultimate Team Play tab: choose Single Player (against AI squads) or Online H2H (against real people with your squad)",
+      "Solo Battles: 10 ranked games a week against AI squads. Harder difficulties and bigger wins earn more points, and your weekly tier (Bronze to Champion) pays coins, Training Points, packs and a Kings player item at the top",
+      "Theme challenges: a new program every month (this month: Haunted Gridiron) with six games against souped-up AI squads. Beat them for coins, Training Points and program XP",
+      "Program XP from theme challenges and Solo Battles unlocks rewards, including Elite and Kings program players",
+      "Online H2H record: your record now only counts online head-to-head games against real players (Online H2H and Ultimate Team online). Leaderboards and profiles show it",
+      "A redesigned Online H2H screen: you vs your opponent, your H2H record, a squad switch, a big code box for joining and a cleaner host setup",
+      "Tutorial: a coach walks you through the controls in a real game, on offense and defense. New players get offered it, and it's always in Practice and How to Play",
+      "9 new celebrations in the store: Take a knee, Salute, Heart hands, Wave to the crowd, Jumping jacks, Robot, Sprinkler, Archer and Kings throne",
+      "Practice has a Play clock option: keep it running or freeze it (practice only)",
+      "Online now: the menu shows how many people have the game open, live, next to the total player count"
+    ],
+    "fixed": [
+      "The play clock runs in practice now instead of being stuck",
+      "Out of bounds calls match the sideline: you're out when you touch the white, not a step before it, and toe-tap catches right on the sideline count",
+      "Hurdling works: you clear diving tackles almost every time, and hurdling a guy standing up is hard but possible for agile players",
+      "The Coin Flip set in Ultimate Team can be done as many times as you want instead of once a day",
+      "The player count on the menu updates live"
+    ]
+  },
+  {
     "v": "1.0.1",
     "date": "2026-10-19",
     "added": [

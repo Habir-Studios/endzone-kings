@@ -1,11 +1,11 @@
 // ENDZONE KINGS — Online Franchise. Up to 16 people each run a team. Before the season everyone drafts from one
 // shared player pool (bots fill the empty spots and pick for themselves), trades stay open all season, and a
 // 16-team knockout bracket runs until the last two meet in the Kings Bowl. Server side: supabase/leagues.sql.
-import { TEAMS } from './teams.js';
-import { getRoster } from './teams.js';
-import { askYes } from './ui.js';
-import { rosterStyle } from './playbook.js';
-import { card, makeId, GROUPS, SLOTS, SLOT_GROUP, SLOT_LABEL } from './ut.js';
+import { TEAMS } from './teams.js?v=1792441682';
+import { getRoster } from './teams.js?v=1792441682';
+import { askYes } from './ui.js?v=1792441682';
+import { rosterStyle } from './playbook.js?v=1792441682';
+import { card, makeId, GROUPS, SLOTS, SLOT_GROUP, SLOT_LABEL } from './ut.js?v=1792441682';
 
 let C = null, view = { code: null, tab: 'home', filter: 'All', trade: null }, poll = null, busy = false, lastRow = null;
 const GKEYS = Object.keys(GROUPS);

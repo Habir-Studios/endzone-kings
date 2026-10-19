@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792369439';
-import * as Form from './form.js?v=1792369439';
-import { watchSim } from './simview.js?v=1792369439';
-import { bracketHTML } from './bracket.js?v=1792369439';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792369439';
-import { Renderer } from './render.js?v=1792369439';
-import { Sfx } from './audio.js?v=1792369439';
-import { Auth } from './auth.js?v=1792369439';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792369439';
-import { getRoster, teamOvr } from './teams.js?v=1792369439';
-import * as Season from './season.js?v=1792369439';
-import * as Fr from './franchise.js?v=1792369439';
-import * as League from './league.js?v=1792369439';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792369439';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792369439';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792369439';
-import * as UTm from './ut.js?v=1792369439';
-import { initCreator, renderCreator } from './creator.js?v=1792369439';
-import { filmCapture, filmSave } from './social.js?v=1792369439';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792369439';
-import { portraitURL } from './faces.js?v=1792369439';
-import { logoURL, clearLogoCache } from './logos.js?v=1792369439';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792371812';
+import * as Form from './form.js?v=1792371812';
+import { watchSim } from './simview.js?v=1792371812';
+import { bracketHTML } from './bracket.js?v=1792371812';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792371812';
+import { Renderer } from './render.js?v=1792371812';
+import { Sfx } from './audio.js?v=1792371812';
+import { Auth } from './auth.js?v=1792371812';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792371812';
+import { getRoster, teamOvr } from './teams.js?v=1792371812';
+import * as Season from './season.js?v=1792371812';
+import * as Fr from './franchise.js?v=1792371812';
+import * as League from './league.js?v=1792371812';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792371812';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792371812';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792371812';
+import * as UTm from './ut.js?v=1792371812';
+import { initCreator, renderCreator } from './creator.js?v=1792371812';
+import { filmCapture, filmSave } from './social.js?v=1792371812';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792371812';
+import { portraitURL } from './faces.js?v=1792371812';
+import { logoURL, clearLogoCache } from './logos.js?v=1792371812';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -599,7 +599,7 @@ function renderSettings() {
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('annOn', {}, true); } else sfx.stopVoice(); });
   seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
-  seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); });
+  seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); syncTouchClass(); });
 
   { const n = document.getElementById('cel-note'); if (n) n.textContent = !isGuest() ? 'Your scorer does this after a touchdown. Level up to unlock more.' : 'Make a free account to unlock the bow and the moonwalk.'; }
 }
@@ -641,7 +641,7 @@ function endIntro() {
   if (!st.introOn) return;
   st.introOn = false; clearTimeout(st.introFail);
   const natural = st.intro < 0.05;
-  st.intro = 0; $('#intro').classList.add('hidden'); $('#hud').classList.remove('intro');
+  st.intro = 0; $('#intro').classList.add('hidden'); $('#hud').classList.remove('intro'); rotHint();
   if (natural) { R.camPos.copy(R.cam.position); R._camInit = true; } else R.snapCamera();
 }
 $('#intro').addEventListener('click', endIntro);
@@ -809,6 +809,21 @@ const sprinting = () => keys.has('ShiftLeft') || keys.has('ShiftRight') || (pad.
 const touch = { jx: 0, jy: 0, sprint: false, id: null, key: '' };
 const isTouchDevice = () => ('ontouchstart' in window) || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
 const touchOn = () => SET.touch === 'on' || (SET.touch === 'auto' && isTouchDevice());
+// body.touch scopes the phone/tablet styles so the desktop layout never changes
+function syncTouchClass() { document.body.classList.toggle('touch', touchOn()); }
+syncTouchClass();
+// long-press on the field or the touch pad shouldn't pop the browser menu mid-play
+canvas.addEventListener('contextmenu', (e) => { if (touchOn()) e.preventDefault(); });
+$('#touch').addEventListener('contextmenu', (e) => e.preventDefault());
+// portrait phones: a one-time, non-blocking nudge to turn sideways
+let rotTimer = 0;
+function rotHint() {
+  const el = document.getElementById('rot-hint'); if (!el) return;
+  let seen = false; try { seen = sessionStorage.getItem('ek_rot') === '1'; } catch (_) {}
+  if (seen || !touchOn() || !matchMedia('(orientation: portrait) and (max-width: 600px)').matches) return;
+  el.classList.add('show'); clearTimeout(rotTimer); rotTimer = setTimeout(() => el.classList.remove('show'), 7000);
+}
+$('#rot-hint').addEventListener('click', () => { $('#rot-hint').classList.remove('show'); try { sessionStorage.setItem('ek_rot', '1'); } catch (_) {} });
 (() => {
   const joy = $('#joy'), knob = $('.joy-knob', joy);
   const move = (e) => {
@@ -824,31 +839,47 @@ const touchOn = () => SET.touch === 'on' || (SET.touch === 'auto' && isTouchDevi
   joy.addEventListener('pointerup', end); joy.addEventListener('pointercancel', end);
 })();
 function touchButtons(S) {
-  const me = st.local;
+  const me = st.local, watch = st.mode === 'spec' || st.mode === 'clip';
   let btns = [];
-  if (S.ph === 'presnap') btns = S.poss === me ? [['snap', 'SNAP', 'big'], ['timeout', 'T/O']] : [['switch', 'SWITCH'], ['timeout', 'T/O']];
+  // lists are in reading order (top-left to bottom-right); the pad is laid out from the bottom-right corner up, so the last ones land under the thumb
+  if (S.ph === 'presnap') {
+    if (S.poss === me) {
+      const col = pcCollapsed(S), pat = !!(S.sp && S.sp.pat);
+      btns = col ? [['snap', 'SNAP', 'big'], ['plays', 'PLAYS'], ...(hotOk(S) ? [['hot', st.hot.open ? 'DONE' : 'HOT ROUTE', 'sm']] : []), ...(pat ? [] : [['flip', S.flip ? 'UNFLIP' : 'FLIP', 'sm'], ['motion', 'MOTION', 'sm']]), ['timeout', 'T/O']]
+        : [['snap', 'SNAP', 'big']];   // while the playbook is open its own Timeout button is showing
+    } else btns = pcCollapsed(S) ? [['switch', 'SWITCH'], ['timeout', 'T/O']] : [['switch', 'SWITCH']];
+  }
+  else if (S.ph === 'dead' && !watch) btns = S.poss === me ? [['skip', 'NEXT', 'big'], ['nohuddle', 'NO HUDDLE', 'sm']] : [['skip', 'NEXT', 'big']];
   else if (S.ph === 'kickset' && S.poss === me) btns = [['kick', 'KICK', 'big']];
   else if (S.ph === 'live') {
     const carrier = S.b[3] === 0 ? S.b[5] : -1, iCarry = carrier >= 0 && carrier === S.ctrl[me];
     if (S.canThrow && S.off === me) btns = [['t1', '1', 'r1'], ['t2', '2', 'r2'], ['t3', '3', 'r3'], ['t4', '4', 'r4'], ['t5', '5', 'r5'], ['sprint', 'SPRINT', 'hold']];
-    else if (iCarry) btns = [['juke', 'JUKE'], ['spin', 'SPIN'], ['stiff', 'STIFF'], ['truck', 'TRUCK'], ['hurdle', 'HURDLE'], ['cdive', 'DIVE'], ['slide', 'DOWN'], ['sprint', 'SPRINT', 'hold']];
-    else if (S.b[3] === 1 && S.b[4]) btns = [['playball', S.off === me ? 'CATCH' : 'PLAY BALL', 'big'], ...(S.off === me ? [['rdive', 'DIVE']] : []), ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
-    else btns = [['dive', 'DIVE', 'big'], ...(carrier >= 0 && S.off !== me ? [['hitstick', 'HIT STICK']] : []), ['switch', 'SWITCH'], ['sprint', 'SPRINT', 'hold']];
+    else if (iCarry) btns = [['hurdle', 'HURDLE'], ['slide', 'DOWN'], ['truck', 'TRUCK'], ['stiff', 'STIFF'], ['cdive', 'DIVE'], ['spin', 'SPIN'], ['juke', 'JUKE'], ['sprint', 'SPRINT', 'hold']];
+    else if (S.b[3] === 1 && S.b[4]) btns = [['playball', S.off === me ? 'CATCH' : 'PLAY BALL', 'big'], ['switch', 'SWITCH'], ...(S.off === me ? [['rdive', 'DIVE']] : []), ['sprint', 'SPRINT', 'hold']];
+    else btns = [['dive', 'DIVE', 'big'], ['switch', 'SWITCH'], ...(carrier >= 0 && S.off !== me ? [['hitstick', 'HIT STICK', 'sm']] : []), ['sprint', 'SPRINT', 'hold']];
   }
-  const key = btns.map(b => b[0]).join();
+  const key = btns.map(b => b[0] + b[1]).join();
   if (touch.key === key) return;
   touch.key = key;
-  const box = $('#tbtns'); box.innerHTML = '';
-  for (const [id, label, cls] of btns) {
-    const b = document.createElement('button'); b.className = 'tbtn ' + (cls || ''); b.textContent = label;
+  const isBig = b => (b[2] || '') === 'big', small = btns.filter(b => !isBig(b));
+  const box = $('#tbtns'); box.innerHTML = ''; box.dataset.n = small.length;
+  for (const [id, label, cls] of [...btns.filter(isBig), ...small.reverse()]) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'tbtn ' + (cls || ''); b.textContent = label;
+    if (id[0] === 't' && id.length === 2) b.setAttribute('aria-label', 'Throw to receiver ' + id[1]);
+    const up = () => b.classList.remove('down');
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+    b.addEventListener('contextmenu', (e) => e.preventDefault());
     if (cls === 'hold') {
       b.addEventListener('pointerdown', (e) => { e.preventDefault(); touch.sprint = true; b.classList.add('down'); });
-      const up = () => { touch.sprint = false; b.classList.remove('down'); };
-      b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+      const off = () => { touch.sprint = false; };
+      b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
     } else b.addEventListener('pointerdown', (e) => {
-      e.preventDefault(); sfx.init();
+      e.preventDefault(); sfx.init(); b.classList.add('down');
       const v = moveVec();
       if (id[0] === 't' && id.length === 2) { startCharge(+id[1], 'touch' + id[1]); const rel = () => { if (st.charge && st.charge.code === 'touch' + id[1]) releaseCharge(); }; b.addEventListener('pointerup', rel, { once: true }); b.addEventListener('pointerleave', rel, { once: true }); b.addEventListener('pointercancel', rel, { once: true }); return; }
+      if (id === 'plays') { reopenPlaybook(); return; }
+      if (id === 'hot') { toggleHot(); return; }
+      if (id === 'timeout') { const ev = keyToEvent('KeyV'); if (ev) pushEv(ev); return; }
       const ev = id === 'snap' ? { t: 'snap' } : id === 'juke' ? { t: 'juke', x: v.mx, z: v.mz } : { t: id };
       pushEv(ev);
     });
@@ -947,9 +978,10 @@ function renderHot(S) {
   if (hudCache.hot === key) return; hudCache.hot = key;
   const g = st.hot.role === 'RB' ? 'RB' : st.hot.role === 'TE' ? 'TE' : 'WR', arrows = HOT_KEYS;
   el.innerHTML = `<h4>Hot route</h4><div class="who">${HOT_ROLES.map((r, i) => `<button data-r="${r}" class="${r === st.hot.role ? 'on' : ''}" style="--rc:${RCOLS[r]}">${document.body.classList.contains('pad-mode') ? '' : `<kbd>${i + 1}</kbd>`}${HOT_NAME(r)}</button>`).join('')}</div>
-    <div class="kinds">${HOT_LABELS[g].map((h, i) => `<button data-k="${i}">${document.body.classList.contains('pad-mode') ? '' : `<kbd>${arrows[i]}</kbd>`}${h[1]}</button>`).join('')}</div><small>Changed: ${(S.opDef.hot || []).map(HOT_NAME).join(', ') || 'nothing yet'}. ${document.body.classList.contains('pad-mode') ? `Press ${glyphs().B || 'B'} when you're done.` : 'Press H or Esc when you\'re done.'}</small>`;   // controller players see their button
+    <div class="kinds">${HOT_LABELS[g].map((h, i) => `<button data-k="${i}">${document.body.classList.contains('pad-mode') ? '' : `<kbd>${arrows[i]}</kbd>`}${h[1]}</button>`).join('')}</div><small>Changed: ${(S.opDef.hot || []).map(HOT_NAME).join(', ') || 'nothing yet'}. ${document.body.classList.contains('pad-mode') ? `Press ${glyphs().B || 'B'} when you're done.` : touchOn() ? '' : 'Press H or Esc when you\'re done.'}</small>${touchOn() ? '<button class="hot-done" data-done type="button">Done</button>' : ''}`;   // controller players see their button
   $$('[data-r]', el).forEach(b => b.onclick = () => { st.hot.role = b.dataset.r; hudCache.hot = null; sfx.play('ui'); });
   $$('[data-k]', el).forEach(b => b.onclick = () => setHot(+b.dataset.k));
+  const dn = $('[data-done]', el); if (dn) dn.onclick = () => toggleHot(false);
 }
 
 // ---------------- instant replay (CPU games: press R between plays) ----------------
@@ -1594,7 +1626,7 @@ function updateHud(S) {
   const pc = $('#playcall');
   const showPc = S.ph === 'presnap' && st.mode !== 'spec' && st.mode !== 'clip';   // spectators never see anyone's playbook or play call
   pc.classList.toggle('hidden', !showPc);
-  const col = showPc && pcCollapsed(S); pc.classList.toggle('collapsed', col);
+  const col = showPc && pcCollapsed(S); pc.classList.toggle('collapsed', col); $('#hud').classList.toggle('pc-col', col);
   $('#hud').classList.toggle('pc-open', showPc);
   if (showPc) {
     buildPlaycall(S);
@@ -1648,6 +1680,7 @@ function updateHud(S) {
     else hint([['Space', 'dive tackle'], ['H', 'hit stick'], ['Q', 'switch'], ['Shift', 'sprint']]);
   } else hint(st.mode === 'spec' || st.mode === 'clip' ? [['Esc', 'leave'], ['C', 'camera'], ['- +', 'zoom']] : st.mode === 'cpu' ? [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['R', 'instant replay'], ['hold Tab', 'emote']] : [['Esc', 'pause'], ['C', 'camera'], ['- +', 'zoom'], ['T', 'chat'], ['hold Tab', 'emote']]);
   const tOn = touchOn();
+  if (hudCache.tOn !== tOn) { hudCache.tOn = tOn; syncTouchClass(); }
   $('#touch').classList.toggle('hidden', !tOn || S.ph === 'gameover');
   $('#hud').classList.toggle('touch-mode', tOn);
   if (tOn) touchButtons(S);

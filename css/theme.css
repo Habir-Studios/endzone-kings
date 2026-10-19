@@ -185,3 +185,127 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus, select:foc
 .pf-status i { width: 9px; height: 9px; border-radius: 50%; background: #5d5d66; }
 .pf-status.on { color: #3ddc84; }
 .pf-status.on i { background: #3ddc84; box-shadow: 0 0 0 3px rgba(61,220,132,.2); }
+
+/* =====================================================================
+   Phones + tablets. Everything here is scoped to touch play (#hud.touch-mode / body.touch)
+   or coarse pointers, so the desktop layout doesn't change.
+   ===================================================================== */
+html, body { overscroll-behavior: none; }   /* no pull-to-refresh or rubber-band page bounce */
+@media (pointer: coarse) {
+  html { -webkit-tap-highlight-color: transparent; }
+  button, a, input, select, label { touch-action: manipulation; }   /* no double-tap zoom delay on taps */
+  .btn.sm, .seg button, .pc-tab, #pc-timeout { min-height: 44px; }
+  .link#logout { min-height: 44px; padding: 8px 6px; }
+  input[type=range] { min-height: 32px; }
+}
+/* in a game: no pinch zoom, page scroll, text selection or long-press callouts (scrolling lists inside the HUD still pan) */
+body.touch #hud, body.touch #gl { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body.touch #hud .pc-cards, body.touch #hud .pc-tabs, body.touch #hud .halftime, body.touch #hud .chat-log { touch-action: pan-x pan-y; overscroll-behavior: contain; }
+body.touch #hud input { -webkit-user-select: text; user-select: text; }
+body.touch .howto-touch { display: block; }
+.howto-touch { display: none; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* the touch pad: buttons fill from the bottom-right corner (the thumb) outward, big action button along the bottom */
+#hud.touch-mode { --tb: 76px; --tg: 10px; --cols: 2; --sb: max(22px, calc(env(safe-area-inset-bottom) + 12px)); }
+#hud.touch-mode .joy { bottom: var(--sb); left: max(18px, calc(env(safe-area-inset-left) + 10px)); }
+#hud.touch-mode .tbtns { display: flex; flex-direction: row-reverse; flex-wrap: wrap-reverse; align-content: flex-start; gap: var(--tg);
+  width: calc(var(--cols) * var(--tb) + (var(--cols) - 1) * var(--tg)); bottom: var(--sb); right: max(18px, calc(env(safe-area-inset-right) + 10px)); }
+#hud.touch-mode .tbtn { flex: 0 0 auto; width: var(--tb); height: var(--tb); padding: 0; line-height: 1.05; -webkit-touch-callout: none; transition: transform .06s, filter .06s; }
+#hud.touch-mode .tbtn.sm { font-size: calc(var(--tb) * .19); }
+#hud.touch-mode .tbtn.big { flex: 0 0 100%; height: calc(var(--tb) * .82); }
+#hud.touch-mode .tbtns .tbtn.r1, #hud.touch-mode .tbtns .tbtn.r2, #hud.touch-mode .tbtns .tbtn.r3, #hud.touch-mode .tbtns .tbtn.r4, #hud.touch-mode .tbtns .tbtn.r5 { font-size: calc(var(--tb) * .46); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.6); }
+#hud.touch-mode.pc-open .tbtn.big { width: 100%; }
+#hud.touch-mode .tbtn.down { transform: scale(.9); filter: brightness(1.45); box-shadow: 0 0 0 3px rgba(255,255,255,.75), 0 0 18px rgba(255,255,255,.35); }
+#hud.touch-mode .tbtn.big.down { box-shadow: none; }
+#hud.touch-mode .tbtn[class*=" r"].down { background-blend-mode: normal; filter: brightness(1.7) saturate(1.3); }
+/* picking a play: the pad sits up top, out of the way of the cards; once the play is called it drops back to the corner */
+#hud.touch-mode.pc-open .tbtns { top: calc(env(safe-area-inset-top) + 70px); bottom: auto; }
+#hud.touch-mode.pc-open.pc-col .tbtns { top: auto; bottom: var(--sb); }
+#hud.touch-mode .pause-btn { top: max(10px, env(safe-area-inset-top)); right: max(10px, calc(env(safe-area-inset-right) + 6px)); width: 46px; height: 46px; }
+#hud.touch-mode .scorebug { top: max(8px, env(safe-area-inset-top)); }
+#hud.touch-mode .mom { top: calc(env(safe-area-inset-top) + 104px); bottom: auto; font-size: 11px; }
+#hud.touch-mode .mom-bar { width: 130px; }
+#hud.touch-mode .hot kbd { display: none; }
+#hud.touch-mode .hot button { min-height: 44px; font-size: 15px; }
+.hot-done { display: block; width: 100%; margin-top: 8px; font-family: var(--display); font-weight: 900; font-size: 18px !important; text-transform: uppercase; text-align: center; background: linear-gradient(180deg, #ff4a5c, var(--red-2)) !important; border: 0 !important; }
+body.touch #throw-meter { bottom: auto; top: 30%; height: 22px; width: min(360px, 78vw); }
+body.touch #throw-meter span { top: -24px; font-size: 14px; }
+
+/* play call on touch: big thumb-friendly cards, the timeout lives on the pad once the play is called */
+#hud.touch-mode .pc-tab { min-height: 44px; }
+#hud.touch-mode .pc-cards { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#hud.touch-mode .pc-card:hover { transform: none; }
+#hud.touch-mode .pc-card:active { transform: scale(.97); }
+#hud.touch-mode .playcall.collapsed { left: max(10px, calc(env(safe-area-inset-left) + 6px)); bottom: var(--sb); transform: none; animation: none; width: auto;
+  max-width: calc(100vw - var(--cols) * var(--tb) - var(--tg) - 60px); padding: 8px 12px 10px; }
+#hud.touch-mode .playcall.collapsed .pc-head { flex-wrap: nowrap; align-items: center; gap: 10px; padding: 0; }
+#hud.touch-mode .playcall.collapsed .pc-head b { font-size: 19px; white-space: normal; overflow-wrap: anywhere; }
+#hud.touch-mode .playcall.collapsed .pc-head > div:first-child { flex: 1 1 auto; min-width: 0; }
+#hud.touch-mode .playcall.collapsed .pc-head > .pc-right { flex: 0 0 auto; flex-direction: row; }
+#hud.touch-mode .playcall.collapsed .pc-head small { font-size: 12px; }
+#hud.touch-mode .playcall.collapsed #pc-book { display: none; }
+#hud.touch-mode .playcall.collapsed #pc-timeout { display: none; }
+#hud.touch-mode .playcall.collapsed .pc-clock { min-width: 46px; padding: 2px 6px; }
+#hud.touch-mode .playcall.collapsed .pc-clock b { font-size: 24px !important; }
+#hud.touch-mode .playcall.collapsed .pc-clock small { display: none; }
+#hud.touch-mode .playcall.collapsed .pc-head > div:first-child::after { content: 'Tap to change play'; margin-top: 3px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gold-hi); }
+
+/* portrait-ish phones */
+@media (max-width: 720px) {
+  #hud.touch-mode { --tb: 64px; }
+  #hud.touch-mode .joy { width: 128px; height: 128px; }
+}
+@media (max-width: 480px) {
+  #hud.touch-mode .scorebug { left: calc(50% - 24px); transform: translateX(-50%) scale(.52); }
+  #hud.touch-mode .me-label { top: 50px; font-size: 16px; }
+  #hud.touch-mode .stam { top: 80px; }
+  #hud.touch-mode .mom { top: calc(env(safe-area-inset-top) + 92px); }
+  #hud.touch-mode .chat { top: 120px; }
+  #hud.touch-mode .playcall.collapsed { max-width: calc(100vw - var(--cols) * var(--tb) - var(--tg) - 38px); padding: 7px 10px 8px; }
+  #hud.touch-mode .playcall.collapsed .pc-head { gap: 6px; }
+  #hud.touch-mode .playcall.collapsed .pc-head b { font-size: 16px; overflow-wrap: break-word; }
+  #hud.touch-mode .playcall.collapsed .pc-head > div:first-child::after { font-size: 10px; }
+  /* play call: two columns of tall cards that scroll up and down */
+  #hud.touch-mode .playcall:not(.collapsed) { bottom: var(--sb); padding: 10px 10px 8px; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-head { align-items: center; padding-bottom: 6px; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-head b { font-size: 24px; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-head > .pc-right { flex-direction: row; margin-left: 0; width: 100%; justify-content: space-between; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-clock { flex-direction: row; gap: 6px; padding: 4px 10px; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-clock b { font-size: 26px !important; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-cards { display: grid; grid-template-columns: 1fr 1fr; max-height: 46vh; overflow-x: hidden; overflow-y: auto; scroll-snap-type: none; }
+  #hud.touch-mode .pc-card { min-height: 0; }
+  #hud.touch-mode .pc-card svg { height: 64px; }
+  #hud.touch-mode .pc-card b { font-size: 17px; }
+}
+/* landscape phones: short screen, so a wider, flatter pad */
+@media (max-height: 500px) {
+  #hud.touch-mode { --tb: 58px; --tg: 8px; }
+  #hud.touch-mode .tbtns[data-n="5"], #hud.touch-mode .tbtns[data-n="6"] { --cols: 3; }
+  #hud.touch-mode .tbtns[data-n="7"], #hud.touch-mode .tbtns[data-n="8"] { --cols: 4; }
+  #hud.touch-mode .joy { width: 118px; height: 118px; }
+  #hud.touch-mode .tbtn { font-size: 14px; }
+  #hud.touch-mode .tbtn.big { font-size: 22px; }
+  #hud.touch-mode.pc-open:not(.pc-col) .tbtns { top: max(10px, env(safe-area-inset-top)); right: max(66px, calc(env(safe-area-inset-right) + 62px)); width: 150px; }
+  #hud.touch-mode .playcall.collapsed { max-width: 50vw; }
+  #hud.touch-mode .me-label { top: 46px; font-size: 15px; }
+  #hud.touch-mode .stam { top: 72px; }
+  #hud.touch-mode .mom { top: 82px; }
+  body.touch #throw-meter { top: 26%; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-head { padding-bottom: 4px; }
+  #hud.touch-mode .playcall:not(.collapsed) #pc-book { display: none; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-head { flex-wrap: nowrap; align-items: center; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-head > .pc-right { flex-direction: row; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-clock { flex-direction: row; gap: 6px; padding: 4px 10px; }
+  #hud.touch-mode .playcall:not(.collapsed) .pc-clock b { font-size: 26px !important; }
+  .pause-panel { gap: 6px; }
+  .pause-panel .btn { padding-top: 9px; padding-bottom: 9px; }
+}
+
+/* rotate nudge: portrait phones only, fades by itself, tap to dismiss for this session */
+.rot-hint { display: none; position: absolute; left: max(12px, env(safe-area-inset-left)); top: max(12px, env(safe-area-inset-top)); align-items: center; gap: 10px; max-width: calc(100vw - 90px); padding: 10px 14px;
+  font: 700 14px/1.25 var(--body); color: #fff; text-align: left; background: rgba(10,10,12,.88); border: 1px solid rgba(255,255,255,.18); border-left: 3px solid var(--red); border-radius: 2px; }
+.rot-hint i { flex: 0 0 auto; width: 14px; height: 22px; border: 2px solid #fff; border-radius: 3px; animation: rotTurn 1.6s ease-in-out infinite; }
+.rot-hint b { flex: 0 0 auto; font-size: 20px; line-height: 1; color: var(--steel); }
+@keyframes rotTurn { 0%, 30% { transform: none; } 60%, 100% { transform: rotate(90deg); } }
+@media (orientation: portrait) and (max-width: 600px) { #hud.touch-mode .rot-hint.show { display: flex; } }
+@media (prefers-reduced-motion: reduce) { .rot-hint i { animation: none; } }

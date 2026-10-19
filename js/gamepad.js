@@ -16,7 +16,7 @@ export function glyphs() {
   if (pad.kind === 'switch') return { A: 'B', B: 'A', X: 'Y', Y: 'X', LB: 'L', RB: 'R', LT: 'ZL', RT: 'ZR', View: '−', Menu: '+', LS: 'L', RS: 'R', R3: 'R3' };
   return { A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', LT: 'LT', RT: 'RT', View: 'View', Menu: 'Menu', LS: 'LS', RS: 'RS', R3: 'R3' };
 }
-function kindOf(id) { const s = id.toLowerCase(); if (/054c|playstation|dualsense|dualshock|wireless controller/.test(s)) return 'ps'; if (/057e|nintendo|switch|pro controller|joy-con/.test(s)) return 'switch'; return 'xbox'; }
+function kindOf(id) { const s = id.toLowerCase(); if (/054c|playstation|dualsense|dualshock|wireless controller/.test(s)) return 'ps'; if (/057e|nintendo|switch|pro controller|joy-con/.test(s)) return 'switch'; if (/045e|xbox|xinput/.test(s)) return 'xbox'; return 'other'; }   // other: 8BitDo, PowerA, Logitech, PC pads (buttons by position, like Xbox)
 
 function setMode(on) {
   if (pad.on === on) return;
@@ -24,7 +24,7 @@ function setMode(on) {
   document.body.classList.toggle('pad-mode', on);
   if (!on) { pad.jx = pad.jy = 0; pad.sprint = false; }
   C.onModeChange && C.onModeChange(on);
-  C.toast(on ? `Controller connected: ${pad.kind === 'ps' ? 'PlayStation' : pad.kind === 'switch' ? 'Switch' : 'Xbox'} controls` : 'Keyboard and mouse controls', 1800);
+  C.toast(on ? `Controller connected: ${pad.kind === 'ps' ? 'PlayStation' : pad.kind === 'switch' ? 'Switch' : pad.kind === 'other' ? 'standard' : 'Xbox'} controls` : 'Keyboard and mouse controls', 1800);
 }
 
 // fake a key press so every control works the same as the keyboard version

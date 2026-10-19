@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792377954';
-import { NOTES } from './patchnotes.js?v=1792377954';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792377954';
-import * as Form from './form.js?v=1792377954';
-import { watchSim } from './simview.js?v=1792377954';
-import { bracketHTML } from './bracket.js?v=1792377954';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792377954';
-import { Renderer } from './render.js?v=1792377954';
-import { Sfx } from './audio.js?v=1792377954';
-import { Auth } from './auth.js?v=1792377954';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792377954';
-import { getRoster, teamOvr } from './teams.js?v=1792377954';
-import * as Season from './season.js?v=1792377954';
-import * as Fr from './franchise.js?v=1792377954';
-import * as League from './league.js?v=1792377954';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792377954';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792377954';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792377954';
-import * as UTm from './ut.js?v=1792377954';
-import { initCreator, renderCreator } from './creator.js?v=1792377954';
-import { filmCapture, filmSave } from './social.js?v=1792377954';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792377954';
-import { portraitURL } from './faces.js?v=1792377954';
-import { logoURL, clearLogoCache } from './logos.js?v=1792377954';
+import { CONFIG } from './config.js?v=1792378125';
+import { NOTES } from './patchnotes.js?v=1792378125';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792378125';
+import * as Form from './form.js?v=1792378125';
+import { watchSim } from './simview.js?v=1792378125';
+import { bracketHTML } from './bracket.js?v=1792378125';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792378125';
+import { Renderer } from './render.js?v=1792378125';
+import { Sfx } from './audio.js?v=1792378125';
+import { Auth } from './auth.js?v=1792378125';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792378125';
+import { getRoster, teamOvr } from './teams.js?v=1792378125';
+import * as Season from './season.js?v=1792378125';
+import * as Fr from './franchise.js?v=1792378125';
+import * as League from './league.js?v=1792378125';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792378125';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792378125';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792378125';
+import * as UTm from './ut.js?v=1792378125';
+import { initCreator, renderCreator } from './creator.js?v=1792378125';
+import { filmCapture, filmSave } from './social.js?v=1792378125';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792378125';
+import { portraitURL } from './faces.js?v=1792378125';
+import { logoURL, clearLogoCache } from './logos.js?v=1792378125';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -387,8 +387,8 @@ function applyUpdate() {
   let tried = null; try { tried = sessionStorage.getItem('ek_upd'); } catch (_) {}
   if (tried === String(pendingV)) return;   // already reloaded for this one: don't loop
   try { sessionStorage.setItem('ek_upd', String(pendingV)); } catch (_) {}
-  toast('Updating to the newest version…', 1500);
-  setTimeout(() => location.replace(location.pathname + '?u=' + pendingV + location.hash), 900);
+  toast('New update! Updating to the newest version…', 4000);
+  setTimeout(() => location.replace(location.pathname + '?u=' + pendingV + location.hash), 3200);
 }
 setInterval(checkUpdate, 60000);
 setInterval(applyUpdate, 5000);   // picks it up once you're back on the menu

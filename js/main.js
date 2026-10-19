@@ -1,26 +1,26 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792371812';
-import * as Form from './form.js?v=1792371812';
-import { watchSim } from './simview.js?v=1792371812';
-import { bracketHTML } from './bracket.js?v=1792371812';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792371812';
-import { Renderer } from './render.js?v=1792371812';
-import { Sfx } from './audio.js?v=1792371812';
-import { Auth } from './auth.js?v=1792371812';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792371812';
-import { getRoster, teamOvr } from './teams.js?v=1792371812';
-import * as Season from './season.js?v=1792371812';
-import * as Fr from './franchise.js?v=1792371812';
-import * as League from './league.js?v=1792371812';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792371812';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792371812';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792371812';
-import * as UTm from './ut.js?v=1792371812';
-import { initCreator, renderCreator } from './creator.js?v=1792371812';
-import { filmCapture, filmSave } from './social.js?v=1792371812';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792371812';
-import { portraitURL } from './faces.js?v=1792371812';
-import { logoURL, clearLogoCache } from './logos.js?v=1792371812';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792373611';
+import * as Form from './form.js?v=1792373611';
+import { watchSim } from './simview.js?v=1792373611';
+import { bracketHTML } from './bracket.js?v=1792373611';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792373611';
+import { Renderer } from './render.js?v=1792373611';
+import { Sfx } from './audio.js?v=1792373611';
+import { Auth } from './auth.js?v=1792373611';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792373611';
+import { getRoster, teamOvr } from './teams.js?v=1792373611';
+import * as Season from './season.js?v=1792373611';
+import * as Fr from './franchise.js?v=1792373611';
+import * as League from './league.js?v=1792373611';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792373611';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792373611';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792373611';
+import * as UTm from './ut.js?v=1792373611';
+import { initCreator, renderCreator } from './creator.js?v=1792373611';
+import { filmCapture, filmSave } from './social.js?v=1792373611';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792373611';
+import { portraitURL } from './faces.js?v=1792373611';
+import { logoURL, clearLogoCache } from './logos.js?v=1792373611';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -282,7 +282,7 @@ function updateDailyTile() {
   const P = !isGuest() && Auth.user ? profile() : null, el = $('#daily-sub'), tile = $('#daily-tile'); if (!el || !tile) return;
   if (!P) { tile.classList.remove('ready'); el.textContent = 'Log in to an account to claim'; return; }
   const L = P.loginState(); tile.classList.toggle('ready', L.claimable);
-  el.textContent = L.claimable ? `Day ${L.streak} ready: ${L.R.coins} coins${L.R.pack ? ' + pack' : ''}` : `Next reward in ${hms(L.next)}`;
+  el.textContent = L.claimable ? `Day ${L.streak} ready: ${L.R.coins} coins${L.R.pack ? ' + 1 pack' : ''}` : `Next reward in ${hms(L.next)}`;
 }
 setInterval(() => { if (st.screen === 'menu') updateDailyTile(); }, 1000);
 function openDaily() {
@@ -294,10 +294,10 @@ function openDaily() {
   const key = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   const draw = (justGot) => {
     const L = P.loginState();
-    const days = LOGIN_REWARDS_.map((r, i) => `<div class="lg-day ${i + 1 < L.streak || (i + 1 === L.streak && !L.claimable) ? 'got' : i + 1 === L.streak ? 'now' : ''}"><small>Day ${i + 1}</small><b>${r.coins}</b><span>coins${r.tp ? ` +${r.tp} TP` : ''}${r.pack ? ' + pack' : ''}</span></div>`).join('');
+    const days = LOGIN_REWARDS_.map((r, i) => `<div class="lg-day ${i + 1 < L.streak || (i + 1 === L.streak && !L.claimable) ? 'got' : i + 1 === L.streak ? 'now' : ''}"><small>Day ${i + 1}</small><b>${r.coins}</b><span>coins${r.tp ? ` +${r.tp} TP` : ''}${r.pack ? ' + 1 pack' : ''}</span></div>`).join('');
     const foot = L.claimable
-      ? `<button class="btn primary" type="button" data-claim>Claim ${L.R.coins} coins${L.R.pack ? ` + ${L.R.pack} pack` : ''}</button>`
-      : `<p class="daily-done">${justGot ? `Claimed! +${justGot.coins} coins${justGot.pack ? ` and a ${justGot.pack} pack` : ''}` : 'Already claimed today'}</p><p class="note">Next reward in <b class="daily-left">${hms(L.next)}</b>. Miss a day and the streak starts over.</p><button class="btn" type="button" data-x>Close</button>`;
+      ? `<button class="btn primary" type="button" data-claim>Claim ${L.R.coins} coins${L.R.pack ? ` + 1 ${L.R.pack} pack` : ''}</button>`
+      : `<p class="daily-done">${justGot ? `Claimed! +${justGot.coins} coins${justGot.pack ? ` + 1 ${justGot.pack} pack` : ''}` : 'Already claimed today'}</p><p class="note">Next reward in <b class="daily-left">${hms(L.next)}</b>. Miss a day and the streak starts over.</p><button class="btn" type="button" data-x>Close</button>`;
     m.innerHTML = `<div class="panel info-card daily-card"><h3 style="margin:0">Daily reward · Day ${L.streak}</h3><div class="login-row">${days}</div>${foot}</div>`;
     const c = m.querySelector('[data-claim]');
     if (c) c.onclick = () => { const got = P.claimLogin(); sfx.play('ui'); refreshChip(); updateDailyTile(); draw(got || null); };
@@ -1695,8 +1695,8 @@ function renderOnline() {
     if (!P) box.innerHTML = ''; else {
       P.settleSeasons(); const rk = P.rank, peak = rankInfoOf((P.p.rs && P.p.rs.peak) || P.p.rp), wl = P.p.wl && P.p.wl.k === weekKeyOf() ? P.p.wl : { w: 0, l: 0, n: 0 };
       const we = isWeekendNow(), nextR = wlRewardOf(wl.w), RR = RANK_REWARDS_[Math.min(5, peak.idx)];
-      box.innerHTML = `<div class="comp-card rk"><small>Ranked Season · ends in ${seasonDaysLeftOf()} day${seasonDaysLeftOf() === 1 ? '' : 's'}</small><b>${rk.name}</b><span>Peak this season: ${peak.name} · pays ${RR.coins.toLocaleString()} coins${RR.pack ? ' + pack' : ''}</span><i class="comp-bar"><i style="width:${rk.span ? rk.into : 100}%"></i></i></div>
-        <div class="comp-card wl ${we ? 'live' : ''}"><small>Weekend League · ${we ? 'LIVE now, Fri to Sun' : 'opens Friday'}</small><b>${wl.w}W-${wl.l}L</b><span>${we ? `${WL_MAX_ - wl.n} of ${WL_MAX_} games left · ` : ''}At this record: ${nextR.coins.toLocaleString()} coins${nextR.pack ? ' + pack' : ''}</span><i class="comp-bar"><i style="width:${wl.n / WL_MAX_ * 100}%"></i></i></div>`;
+      box.innerHTML = `<div class="comp-card rk"><small>Ranked Season · ends in ${seasonDaysLeftOf()} day${seasonDaysLeftOf() === 1 ? '' : 's'}</small><b>${rk.name}</b><span>Peak this season: ${peak.name} · pays ${RR.coins.toLocaleString()} coins${RR.pack ? ' + 1 pack' : ''}</span><i class="comp-bar"><i style="width:${rk.span ? rk.into : 100}%"></i></i></div>
+        <div class="comp-card wl ${we ? 'live' : ''}"><small>Weekend League · ${we ? 'LIVE now, Fri to Sun' : 'opens Friday'}</small><b>${wl.w}W-${wl.l}L</b><span>${we ? `${WL_MAX_ - wl.n} of ${WL_MAX_} games left · ` : ''}At this record: ${nextR.coins.toLocaleString()} coins${nextR.pack ? ' + 1 pack' : ''}</span><i class="comp-bar"><i style="width:${wl.n / WL_MAX_ * 100}%"></i></i></div>`;
     } }
   seg($('#seg-qlen2'), QLENS, SET.qlen, v => { SET.qlen = v; saveSet(); });
   const warn = $('#online-warn');

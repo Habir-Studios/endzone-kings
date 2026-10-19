@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792371812';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792371812';
-import * as UT from './ut.js?v=1792371812';
-import { portraitURL } from './faces.js?v=1792371812';
-import { TEAMS } from './teams.js?v=1792371812';
+import { askYes } from './ui.js?v=1792373611';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792373611';
+import * as UT from './ut.js?v=1792373611';
+import { portraitURL } from './faces.js?v=1792373611';
+import { TEAMS } from './teams.js?v=1792373611';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -269,7 +269,7 @@ function renderPlay(P) {
 }
 
 // ---------------- solos ----------------
-const rewardText = g => [g.coins ? `${fmt(g.coins)} coins` : '', g.pack ? UT.packByKey(g.pack).name : '', g.fp ? `${fmt(g.fp)} pass XP` : ''].filter(Boolean).join(', ');
+const rewardText = g => [g.coins ? `${fmt(g.coins)} coins` : '', g.pack ? `1 ${UT.packByKey(g.pack).name}` : '', g.fp ? `${fmt(g.fp)} pass XP` : ''].filter(Boolean).join(', ');
 function renderSolos(P) {
   const U = P.p.ut, pane = C.$('#ut-pane'), o = UT.squadOvr(U);
   const done = UT.SOLOS.filter(x => P.soloDone(x.k)).length;
@@ -301,7 +301,7 @@ function renderPass(P) {
     <button class="btn primary" id="fp-all" ${ready.length ? '' : 'disabled'}>Claim all (${ready.length})</button></div>
     <div class="fp-prog"><b>Tier ${tier} of ${UT.FP_TIERS}</b><div class="bar"><i style="width:${tier >= UT.FP_TIERS ? 100 : into / UT.FP_XP * 100}%"></i></div><small>${tier >= UT.FP_TIERS ? 'Pass complete' : `${fmt(into)} / ${fmt(UT.FP_XP)} XP to tier ${tier + 1}`}</small></div>
     <div class="fp-track">${cells}</div>`;
-  C.$$('[data-fp]', pane).forEach(b => b.onclick = () => { const rw = P.fpClaim(+b.dataset.fp); if (rw) { C.sfx.play('firstdown'); C.toast(`+${fmt(rw.coins)} coins${rw.pack ? ` and a ${UT.packByKey(rw.pack).name}` : ''}`); renderUT(); } });
+  C.$$('[data-fp]', pane).forEach(b => b.onclick = () => { const rw = P.fpClaim(+b.dataset.fp); if (rw) { C.sfx.play('firstdown'); C.toast(`+${fmt(rw.coins)} coins${rw.pack ? ` + 1 ${UT.packByKey(rw.pack).name}` : ''}`); renderUT(); } });
   C.$('#fp-all').onclick = () => { const o = P.fpClaimAll(); C.sfx.play('firstdown'); C.toast(`+${fmt(o.coins)} coins${o.packs.length ? ` and ${o.packs.length} pack${o.packs.length > 1 ? 's' : ''}` : ''}`, 3500); renderUT(); };
 }
 
@@ -387,16 +387,16 @@ export function renderProgress() {
   const { $ } = C, p = P.p, r = P.rank, col = RANK_COL[r.div];
   const need = xpFor(p.lvl);
   $('#prog-level').innerHTML = `<div class="lv-row"><div class="lv-big">${p.lvl}</div><div style="flex:1"><h3>Level ${p.lvl}</h3><p class="note">${fmt(p.xp)} of ${fmt(need)} XP to level ${p.lvl + 1}</p><div class="bar"><i style="width:${(p.xp / need) * 100}%"></i></div>
-    <p class="note">Next: ${fmt(levelReward(p.lvl + 1).coins)} coins${levelReward(p.lvl + 1).pack ? ` and a ${UT.packByKey(levelReward(p.lvl + 1).pack).name}` : ''}</p></div></div>`;
+    <p class="note">Next: ${fmt(levelReward(p.lvl + 1).coins)} coins${levelReward(p.lvl + 1).pack ? ` + 1 ${UT.packByKey(levelReward(p.lvl + 1).pack).name}` : ''}</p></div></div>`;
   const nextDiv = r.idx < 5 ? ['Silver', 'Gold', 'Platinum', 'Diamond', 'Kings'][r.idx] : null;
   $('#prog-rank').innerHTML = `<div class="rk-row" style="--rk:${col[0]};--rk2:${col[1]}"><div class="rk-emblem">${r.div === 'Kings' ? '♛' : 'I'.repeat(r.sub)}</div><div style="flex:1"><h3>${r.name}</h3>
     <p class="note">${r.span ? `${r.into} of 100 RP to the next tier` : `${fmt(p.rp)} RP. You're at the top.`}</p>${r.span ? `<div class="bar rk"><i style="width:${r.into}%"></i></div>` : ''}
-    <p class="note">Online wins +40 RP, losses -20. CPU wins earn 6 to 18 RP depending on difficulty. You can't drop out of a division once you reach it.${nextDiv && RANK_REWARD[nextDiv] ? ` Reach ${nextDiv} for ${fmt(RANK_REWARD[nextDiv].coins)} coins and a ${UT.packByKey(RANK_REWARD[nextDiv].pack).name}.` : ''}</p></div></div>`;
+    <p class="note">Online wins +40 RP, losses -20. CPU wins earn 6 to 18 RP depending on difficulty. You can't drop out of a division once you reach it.${nextDiv && RANK_REWARD[nextDiv] ? ` Reach ${nextDiv} for ${fmt(RANK_REWARD[nextDiv].coins)} coins + 1 ${UT.packByKey(RANK_REWARD[nextDiv].pack).name}.` : ''}</p></div></div>`;
   const chList = (list, kind) => {
     const left = Math.max(0, nextReset(kind) - Date.now()), h = Math.floor(left / 36e5), d = Math.floor(h / 24);
     return `<div class="ch-head"><h3 class="h3">${kind === 'daily' ? 'Daily' : 'Weekly'} challenges</h3><p class="note">New ones in ${d ? `${d}d ${h % 24}h` : `${h}h ${Math.floor(left / 6e4) % 60}m`}</p></div><div class="ch-list">${list.map(ch => {
       const d0 = challengeDef(ch.k); if (!d0) return '';
-      return `<div class="ch ${ch.done ? 'done' : ''} ${ch.claimed ? 'claimed' : ''}"><b>${d0.d}</b><small>${fmt(d0.c)} coins, ${fmt(d0.x)} XP${d0.pack ? `, ${UT.packByKey(d0.pack).name}` : ''}</small><div class="bar"><i style="width:${(ch.p / d0.t) * 100}%"></i></div>
+      return `<div class="ch ${ch.done ? 'done' : ''} ${ch.claimed ? 'claimed' : ''}"><b>${d0.d}</b><small>${fmt(d0.c)} coins, ${fmt(d0.x)} XP${d0.pack ? `, 1 ${UT.packByKey(d0.pack).name}` : ''}</small><div class="bar"><i style="width:${(ch.p / d0.t) * 100}%"></i></div>
         ${ch.claimed ? '<button class="btn sm" disabled>Claimed</button>' : ch.done ? `<button class="btn primary sm" data-claim="${ch.k}">Claim</button>` : `<span class="note">${fmt(ch.p)}/${fmt(d0.t)}</span>`}</div>`;
     }).join('')}</div>`;
   };
@@ -405,11 +405,11 @@ export function renderProgress() {
   C.$$('[data-claim]').forEach(b => b.onclick = () => {
     const out = P.claim(b.dataset.claim); if (!out) return;
     C.sfx.play('firstdown');
-    C.toast(`+${fmt(out.coins)} coins, +${fmt(out.xp)} XP${out.pack ? `, ${UT.packByKey(out.pack).name}` : ''}${out.levels.length ? `. Level ${out.levels[out.levels.length - 1].lvl}!` : ''}`, 3500);
+    C.toast(`+${fmt(out.coins)} coins, +${fmt(out.xp)} XP${out.pack ? `, 1 ${UT.packByKey(out.pack).name}` : ''}${out.levels.length ? `. Level ${out.levels[out.levels.length - 1].lvl}!` : ''}`, 3500);
     renderProgress();
   });
   let tk = '';
-  for (let l = Math.max(2, p.lvl - 1); l <= p.lvl + 12; l++) { const rw = levelReward(l); tk += `<div class="tk ${l <= p.lvl ? 'got' : l === p.lvl + 1 ? 'next' : ''}"><b>Lv ${l}</b><small>${fmt(rw.coins)} coins</small>${rw.pack ? `<small class="pk">${UT.packByKey(rw.pack).name}</small>` : ''}</div>`; }
+  for (let l = Math.max(2, p.lvl - 1); l <= p.lvl + 12; l++) { const rw = levelReward(l); tk += `<div class="tk ${l <= p.lvl ? 'got' : l === p.lvl + 1 ? 'next' : ''}"><b>Lv ${l}</b><small>${fmt(rw.coins)} coins</small>${rw.pack ? `<small class="pk">+ 1 ${UT.packByKey(rw.pack).name}</small>` : ''}</div>`; }
   $('#prog-track').innerHTML = `<h3 class="h3">Level rewards</h3><div class="track">${tk}</div>`;
   const U = p.ut;
   $('#prog-career').innerHTML = `<h3 class="h3">Career</h3><div class="career">
@@ -630,7 +630,7 @@ export function awardGame(r) {
   const extra = [];
   for (const lv of out.levels) extra.push(`<span class="up">Level up! You're level ${lv.lvl}: +${fmt(lv.coins)} coins${lv.pack ? `, ${UT.packByKey(lv.pack).name}` : ''}</span>`);
   if (out.drp) extra.push(`<span class="${out.drp > 0 ? 'up' : 'down'}">${out.drp > 0 ? '+' : ''}${out.drp} RP, ${out.rank.name}${out.rank.span ? ` (${out.rank.into}/100)` : ''}</span>`);
-  for (const pr of out.promos) extra.push(`<span class="up">Promoted to ${pr.div}! +${fmt(pr.coins)} coins and a ${UT.packByKey(pr.pack).name}</span>`);
+  for (const pr of out.promos) extra.push(`<span class="up">Promoted to ${pr.div}! +${fmt(pr.coins)} coins + 1 ${UT.packByKey(pr.pack).name}</span>`);
   for (const d of out.done) extra.push(`<span class="up">Challenge done: ${d.d}. Claim it in Progress.</span>`);
   if (out.solo) extra.push(out.solo.ok ? `<span class="up">Solo beaten: ${out.solo.n}! +${rewardText(out.solo.give)}</span>` : `<span class="down">Solo not beaten: ${out.solo.d}. Try it again from Solos.</span>`);
   if (out.wl) extra.push(`<span class="up">${out.wl}</span>`);

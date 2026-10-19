@@ -5,7 +5,9 @@ export const NOTES = [
   {
     v: "1.0.3",
     date: "2026-10-19",
-    added: [],
+    added: [
+      "Search the patch notes: type a version (like 1.0.2) to jump to it, or a keyword (like passing) to see every change that mentions it"
+    ],
     fixed: [
       "Passing feels way better: the QB throws to where your receiver is going on his route, cuts included, so he catches it in stride instead of running to the ball",
       "Off-target throws miss a step ahead or behind on the receiver’s path instead of off to the side",

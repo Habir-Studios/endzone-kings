@@ -441,3 +441,8 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .chat-hint kbd { display: inline-block; min-width: 18px; padding: 0 5px; margin-right: 4px; background: #fff; color: #000; font-weight: 900; text-align: center; border-radius: 2px; }
 #hud.touch-mode .chat-hint { display: none; }
 .np-overlay .np-wait { font-size: 13px; opacity: .75; min-height: 1em; }
+/* patch notes search */
+.pn-search{width:100%;box-sizing:border-box;margin:10px 0 4px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.35);color:#fff;font-size:15px}
+.pn-search:focus{outline:2px solid #ffd54a;outline-offset:1px}
+.pn-card mark{background:#ffd54a;color:#111;border-radius:3px;padding:0 2px}
+.pn-none{opacity:.75;text-align:center;padding:18px 6px}

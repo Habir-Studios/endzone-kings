@@ -1,28 +1,28 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792384939';
-import { NOTES } from './patchnotes.js?v=1792384939';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792384939';
-import * as Form from './form.js?v=1792384939';
-import { watchSim } from './simview.js?v=1792384939';
-import { bracketHTML } from './bracket.js?v=1792384939';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792384939';
-import { Renderer } from './render.js?v=1792384939';
-import { Sfx } from './audio.js?v=1792384939';
-import { Auth } from './auth.js?v=1792384939';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792384939';
-import { getRoster, teamOvr } from './teams.js?v=1792384939';
-import * as Season from './season.js?v=1792384939';
-import * as Fr from './franchise.js?v=1792384939';
-import * as League from './league.js?v=1792384939';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792384939';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792384939';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792384939';
-import * as UTm from './ut.js?v=1792384939';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792384939';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792384939';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792384939';
-import { portraitURL } from './faces.js?v=1792384939';
-import { logoURL, clearLogoCache } from './logos.js?v=1792384939';
+import { CONFIG } from './config.js?v=1792385155';
+import { NOTES } from './patchnotes.js?v=1792385155';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792385155';
+import * as Form from './form.js?v=1792385155';
+import { watchSim } from './simview.js?v=1792385155';
+import { bracketHTML } from './bracket.js?v=1792385155';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed } from './sim.js?v=1792385155';
+import { Renderer } from './render.js?v=1792385155';
+import { Sfx } from './audio.js?v=1792385155';
+import { Auth } from './auth.js?v=1792385155';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792385155';
+import { getRoster, teamOvr } from './teams.js?v=1792385155';
+import * as Season from './season.js?v=1792385155';
+import * as Fr from './franchise.js?v=1792385155';
+import * as League from './league.js?v=1792385155';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792385155';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792385155';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792385155';
+import * as UTm from './ut.js?v=1792385155';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792385155';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792385155';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792385155';
+import { portraitURL } from './faces.js?v=1792385155';
+import { logoURL, clearLogoCache } from './logos.js?v=1792385155';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -381,9 +381,28 @@ function refreshPn() {
 function openPatchNotes() {
   try { localStorage.setItem(PN_KEY, NOTES[0].v); } catch (_) {}
   refreshPn();
-  const li = a => a.map(x => `<li>${escapeHtml(x)}</li>`).join('');
+  const esc = t => escapeHtml(t), rx = q => new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  const mark = (t, q) => q ? esc(t).replace(rx(esc(q)), x => `<mark>${x}</mark>`) : esc(t);
+  const li = (a, q) => a.map(x => `<li>${mark(x, q)}</li>`).join('');
+  // search: a version number ("1.0.2", "1.0") shows those versions whole; any other word shows just the lines that mention it
+  const render = raw => {
+    const q = raw.trim(), lq = q.toLowerCase();
+    const out = NOTES.map((n, i) => {
+      const verHit = !q || n.v.toLowerCase().includes(lq.replace(/^v(ersion)?\s*/, ''));
+      const isVer = /^v?(ersion)?\s*\d+(\.\d*)*$/i.test(q);
+      if (isVer && !verHit) return '';   // a version search only shows that version
+      const pick = arr => !arr ? [] : (verHit && (isVer || !q)) ? arr : arr.filter(x => x.toLowerCase().includes(lq));
+      const ad = pick(n.added), fx = pick(n.fixed), mq = isVer ? '' : q;
+      if (!ad.length && !fx.length && !(verHit && isVer)) return '';
+      return `<section class="pn-entry"><div class="pn-head"><b>Version ${esc(n.v)}</b>${i === 0 ? '<span class="pn-new">Latest</span>' : ''}<small>${fmtDate(n.date)}</small></div>${ad.length ? `<h4>New</h4><ul>${li(ad, mq)}</ul>` : ''}${fx.length ? `<h4>Fixed</h4><ul>${li(fx, mq)}</ul>` : ''}</section>`;
+    }).join('');
+    return out || `<p class="pn-none">Nothing matches “${esc(q)}”. Try a version like 1.0.2 or a word like passing.</p>`;
+  };
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
-  m.innerHTML = `<div class="panel info-card pn-card"><h3 style="margin:0">Patch notes</h3><div class="pn-list">${NOTES.map((n, i) => `<section class="pn-entry"><div class="pn-head"><b>Version ${escapeHtml(n.v)}</b>${i === 0 ? '<span class="pn-new">Latest</span>' : ''}<small>${fmtDate(n.date)}</small></div>${n.added && n.added.length ? `<h4>New</h4><ul>${li(n.added)}</ul>` : ''}${n.fixed && n.fixed.length ? `<h4>Fixed</h4><ul>${li(n.fixed)}</ul>` : ''}</section>`).join('')}</div><button class="btn primary" type="button" data-x>Close</button></div>`;
+  m.innerHTML = `<div class="panel info-card pn-card"><h3 style="margin:0">Patch notes</h3><input class="pn-search" type="search" placeholder="Search a version or keyword" aria-label="Search patch notes" autocomplete="off"><div class="pn-list">${render('')}</div><button class="btn primary" type="button" data-x>Close</button></div>`;
+  const sIn = m.querySelector('.pn-search'), list = m.querySelector('.pn-list');
+  sIn.addEventListener('input', () => { list.innerHTML = render(sIn.value); list.scrollTop = 0; });
+  sIn.addEventListener('keydown', e => { if (e.key !== 'Escape') e.stopPropagation(); });
   document.body.appendChild(m);
   const close = () => { m.remove(); document.removeEventListener('keydown', key, true); };
   const key = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };

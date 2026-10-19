@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792384031';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792384198';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792384031';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792384198';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1352,6 +1352,7 @@ function updatePresnap(g, dt, inputs) {
 
 // timeout: the game clock freezes, the play clock resets, both sides get a breather and the team that
 // called it can pick a different play
+const TO_SECS = 8;   // how long a timeout stoppage lasts (shown as a countdown)
 function callTimeout(g, team) {
   if (g.to[team] <= 0) return;
   g.toSnap = g.toSnap || [-1, -1];
@@ -1364,7 +1365,7 @@ function callTimeout(g, team) {
     if (g.opts.humans[team] && team === g.poss) { g.offPlay = null; g.hot = {}; }
     if (g.opts.humans[team] && team !== g.poss) g.defChosen = false;
   }
-  g.toHold = 2.5;   // nobody snaps during the stoppage
+  g.toHold = TO_SECS; g.toTeam = team;   // nobody snaps during the stoppage (both sides can still pick plays)
   g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[team]].name} · ${g.to[team]} left · clock stopped`, until: 2.5 };
   g.events.push('whistle');
 }
@@ -1373,11 +1374,11 @@ function cpuTimeout(g) {
     if (g.opts.humans[t] || g.to[t] <= 0 || g.opts.practice || g.opts.drill) continue;
     const late = (g.quarter === 2 || g.quarter >= 4) && g.clock < 50 && g.clock > 3 && (g.runoff > 0 || g.runBudget > 0);
     g.toSnap = g.toSnap || [-1, -1];
-    if (late && g.poss === t && g.score[t] <= g.score[1 - t] && g.toSnap[t] !== (g.snaps || 0)) { g.toSnap[t] = g.snaps || 0; g.to[t]--; g.runoff = 0; g.runBudget = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
+    if (late && g.poss === t && g.score[t] <= g.score[1 - t] && g.toSnap[t] !== (g.snaps || 0)) { g.toSnap[t] = g.snaps || 0; g.to[t]--; g.runoff = 0; g.runBudget = 0; g.toHold = TO_SECS; g.toTeam = t; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
     // on defense, trailing by one score late in the 4th: stop the clock to save time for a last drive
     const down = g.score[1 - t] - g.score[t];
     const lateD = g.quarter === 4 && g.clock < Math.min(100, g.opts.quarterLen * 0.5) && g.clock > 3 && (g.runoff > 0 || g.runBudget > 0) && g.pat < 0;
-    if (lateD && g.poss !== t && down >= 1 && down <= 8 && g.toSnap[t] !== (g.snaps || 0)) { g.toSnap[t] = g.snaps || 0; g.to[t]--; g.runoff = 0; g.runBudget = 0; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
+    if (lateD && g.poss !== t && down >= 1 && down <= 8 && g.toSnap[t] !== (g.snaps || 0)) { g.toSnap[t] = g.snaps || 0; g.to[t]--; g.runoff = 0; g.runBudget = 0; g.toHold = TO_SECS; g.toTeam = t; g.msg = { text: 'TIMEOUT', sub: `${TEAMS[g.opts.teams[t]].name} · ${g.to[t]} left`, until: 2 }; return; }
   }
 }
 function wearAndTear(g) {
@@ -2602,7 +2603,7 @@ export function snapshot(g) {
     ks: g.phase === 'kickset' && g.ks ? { type: g.ks.type, stage: g.ks.stage, m: r2(g.ks.m), aim: r2(g.ks.aim), power: r2(g.ks.power), fd: g.ks.fd, maxR: r2(g.ks.maxR), sweet: KICK_SWEET } : null,
     celBy: g.phase === 'dead' && g.celebrate >= 0 ? (g.celBy ?? -1) : -1, deadLeft: g.phase === 'dead' ? r2(Math.max(0, g.deadDur - g.phaseT)) : 0,
     osd: g.onside ? g.onside.slice() : [false, false], flip: !!g.flip, mot: g.motion ? (g.motion.t >= 1 ? 2 : 1) : 0, lp: g.lastPlay ? g.lastPlay.slice() : [null, null],
-    to: g.to.slice(), pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
+    to: g.to.slice(), toh: g.toHold > 0 ? Math.round(g.toHold * 10) / 10 : 0, tot: g.toTeam ?? -1, pcMax: 25, ac: g.ac ? { n: g.ac.n, why: g.ac.why } : null,
     inj: injuryReport(g), injAsk: g.injAsk.slice(), depth: g.depth, subAsk: g.subAsk.slice(), bv: g.benchV,
     bench: (g.snapN = (g.snapN || 0) + 1) % 45 === 1 || g.benchSent !== g.benchV ? (g.benchSent = g.benchV, benchReport(g)) : undefined, fat: g.fat, msgInj: g.msgInj || null,
     wind: g.opts.wind, wx: g.opts.weather, tod: g.opts.tod, mom: Math.round(g.mom), cel: g.opts.cel, mode: g.opts.practice ? 'practice' : g.opts.drill ? 'drill' : 'game',

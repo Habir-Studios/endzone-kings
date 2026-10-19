@@ -10,7 +10,8 @@ export const NOTES = [
       "Passing feels way better: the QB throws to where your receiver is going on his route, cuts included, so he catches it in stride instead of running to the ball",
       "Off-target throws miss a step ahead or behind on the receiver’s path instead of off to the side",
       "The two-step login code screen now tells you exactly what to look for in your authenticator app: Endzone Kings with your email under it",
-      "Timeouts show a live countdown of how long is left, and lift on their own the second the timer hits zero"
+      "In-game timeouts last 8 seconds with a big countdown on screen (pick your play during it), for you and the CPU",
+      "Admin time-outs (temporary bans) show a live countdown and lift on their own the second it hits zero"
     ]
   },
   {

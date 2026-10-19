@@ -1,8 +1,13 @@
 // ENDZONE KINGS — patch notes, newest first. Add a new entry at the top with every update:
-// bump the version, set the date, list what's new and what got fixed. The menu button shows NOTES[0].v.
+// bump the version (major.minor.patch: 1.3.1 for fixes, 1.4.0 for new features), set the date, list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
-    v: '1.3', date: '2026-10-18',
+    v: '1.3.1', date: '2026-10-18',
+    added: ['Version numbers now go 1.3.1, 1.3.2 and so on, so you can tell small fixes from big updates'],
+    fixed: ['The profile card, bell and patch notes button no longer stay stuck on screen when you scroll the main menu'],
+  },
+  {
+    v: '1.3.0', date: '2026-10-18',
     added: [
       'Daily Reward tile on the main menu: claim your coins with a button, then a timer counts down to the next one',
       'Online and offline status on player profiles',
@@ -25,7 +30,7 @@ export const NOTES = [
     ],
   },
   {
-    v: '1.2', date: '2026-10-17',
+    v: '1.2.0', date: '2026-10-17',
     added: [
       'New Redline look across every menu',
       'More detailed stadiums: cheerleaders, faces on the sideline crew, banners, tunnels and kick nets',

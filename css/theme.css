@@ -331,3 +331,6 @@ body.touch #throw-meter span { top: -24px; font-size: 14px; }
 .pn-entry h4 { margin: 10px 0 4px; font-size: 13px; opacity: .8; }
 .pn-entry ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 @media (max-width: 700px) { .pn-btn { top: auto; bottom: 16px; left: 72px; } .player-count { top: auto; bottom: 72px; left: 16px; } }
+
+/* main menu corner buttons scroll away with the menu instead of floating over it (the .screen is the scroller) */
+#menu .profile-chip, #menu .notif-btn, #menu .pn-btn, #menu .player-count, #menu .notif-panel { position: absolute; }

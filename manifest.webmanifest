@@ -1,7 +1,7 @@
 {
   "name": "Endzone Kings",
   "short_name": "Endzone Kings",
-  "description": "3D arcade football by Habir Studios",
+  "description": "Free 3D arcade football in your browser by Habir Studios: Ultimate Team, Online H2H, Online Franchise and more",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

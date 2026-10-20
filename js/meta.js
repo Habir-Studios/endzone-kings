@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792455820';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792455820';
-import * as UT from './ut.js?v=1792455820';
-import { portraitURL } from './faces.js?v=1792455820';
-import { TEAMS } from './teams.js?v=1792455820';
+import { askYes } from './ui.js?v=1792456382';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792456382';
+import * as UT from './ut.js?v=1792456382';
+import { portraitURL } from './faces.js?v=1792456382';
+import { TEAMS } from './teams.js?v=1792456382';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -190,7 +190,7 @@ function cardDetail(u) {
     <div class="cd-acts">
       ${slots.map(s => `<button class="btn${U.lineup[s] === u ? ' primary' : ''}" data-slot="${s}" ${U.lineup[s] === u ? 'disabled' : ''}>${U.lineup[s] === u ? 'Starting at' : 'Start at'} ${UT.SLOT_LABEL[s]}${slots.length > 1 ? ' ' + (slots.indexOf(s) + 1) : ''}</button>`).join('')}
       <button class="btn" id="cd-train" ${tc ? '' : 'disabled'}>${tc ? `Train +1 OVR (${fmt(tc)} TP, you have ${fmt(P.p.tp || 0)})` : 'Fully trained'}</button>
-      <button class="btn danger" id="cd-sell" ${inLu ? 'disabled title="Take him out of your lineup first"' : ''}>Quicksell for ${fmt(qs)} coins + ${qtp} TP</button>
+      <button class="btn danger" id="cd-sell" ${inLu ? 'disabled' : ''}>${inLu ? 'Can’t quicksell a starter' : `Quicksell for ${fmt(qs)} coins + ${qtp} TP`}</button>${inLu ? '<small class="cd-why">He’s in your starting lineup. Swap him out of your squad first, then you can quicksell him.</small>' : ''}
       <button class="btn ghost" id="cd-x">Close</button>
     </div></div>`);
   C.$$('[data-slot]', el).forEach(b => b.onclick = () => { P.setSlot(b.dataset.slot, u); C.toast(`${c.last} is starting at ${UT.SLOT_LABEL[b.dataset.slot]}`); cardDetail(u); renderUT(); });

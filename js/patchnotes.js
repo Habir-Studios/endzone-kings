@@ -51,6 +51,8 @@ export const NOTES = [
       "Daily Reward tile on the main menu: claim your coins with a button, then a timer counts down to the next one"
     ],
     "fixed": [
+      "The Close button on the Ultimate Team “Pick your player” window works again",
+      "Clicking a starter in your club now says “Can’t quicksell a starter” and tells you to swap him out of your squad first, instead of a greyed-out button with no reason",
       "Bigger W and L on the main menu record card, the same size as the numbers",
       "The player count on the menu updates live",
       "The Coin Flip set in Ultimate Team can be done as many times as you want instead of once a day",

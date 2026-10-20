@@ -734,3 +734,5 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .lg-lock { text-align: center; padding: 30px 16px; }
 .lg-lock b { display: block; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 26px; text-transform: uppercase; margin-bottom: 6px; }
 @media (max-width: 560px) { .lg-pubrow { grid-template-columns: 1fr auto; } .lg-pubrow .lg-bar { grid-column: 1 / -1; } }
+.panel::before, .panel::after, .cd-panel::before, .cd-panel::after, .modal > .panel::before, .modal > .panel::after { pointer-events: none; }
+.cd-why { display: block; width: 100%; font-size: 12.5px; opacity: .75; margin-top: -2px; }

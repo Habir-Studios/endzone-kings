@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792521306';
-import { NOTES, SEASON } from './patchnotes.js?v=1792521306';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792521306';
-import * as Form from './form.js?v=1792521306';
-import { watchSim } from './simview.js?v=1792521306';
-import { bracketHTML } from './bracket.js?v=1792521306';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792521306';
-import { rosterStyle } from './playbook.js?v=1792521306';
-import { Renderer } from './render.js?v=1792521306';
-import { Sfx } from './audio.js?v=1792521306';
-import { Auth } from './auth.js?v=1792521306';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792521306';
-import { getRoster, teamOvr } from './teams.js?v=1792521306';
-import * as Season from './season.js?v=1792521306';
-import * as Fr from './franchise.js?v=1792521306';
-import * as League from './league.js?v=1792521306';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792521306';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792521306';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792521306';
-import * as UTm from './ut.js?v=1792521306';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792521306';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792521306';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792521306';
-import { portraitURL } from './faces.js?v=1792521306';
-import { logoURL, clearLogoCache } from './logos.js?v=1792521306';
+import { CONFIG } from './config.js?v=1792521693';
+import { NOTES, SEASON } from './patchnotes.js?v=1792521693';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792521693';
+import * as Form from './form.js?v=1792521693';
+import { watchSim } from './simview.js?v=1792521693';
+import { bracketHTML } from './bracket.js?v=1792521693';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792521693';
+import { rosterStyle } from './playbook.js?v=1792521693';
+import { Renderer } from './render.js?v=1792521693';
+import { Sfx } from './audio.js?v=1792521693';
+import { Auth } from './auth.js?v=1792521693';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792521693';
+import { getRoster, teamOvr } from './teams.js?v=1792521693';
+import * as Season from './season.js?v=1792521693';
+import * as Fr from './franchise.js?v=1792521693';
+import * as League from './league.js?v=1792521693';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792521693';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792521693';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792521693';
+import * as UTm from './ut.js?v=1792521693';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792521693';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792521693';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792521693';
+import { portraitURL } from './faces.js?v=1792521693';
+import { logoURL, clearLogoCache } from './logos.js?v=1792521693';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -31,7 +31,7 @@ const params = new URLSearchParams(location.search);
 const LOCALNET = params.has('localnet');
 
 // ---------------- settings ----------------
-const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'player', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true, cel: -1, pside: 'off', pspot: 25, pfreeze: 0 };
+const DEF_SET = { touch: 'auto', vol: 0.7, music: 0.5, ann: true, cam: 'carrier', gfx: 'high', diff: 1, qlen: 120, team: 3, cpuTeam: 15, wx: 'clear', tod: 'night', vis: 'public', wx2: 'random', chat: true, cel: -1, pside: 'off', pspot: 25, pfreeze: 0 };
 let SET = { ...DEF_SET };
 try { SET = { ...DEF_SET, ...JSON.parse(localStorage.getItem('ek_settings') || '{}') }; } catch (_) {}
 if (SET.camV !== 2) { SET.cam = 'player'; SET.camV = 2; }   // new over-the-shoulder camera is the default now
@@ -51,6 +51,7 @@ try { R = new Renderer(canvas, SET.gfx); } catch (e) {
   document.body.innerHTML = '<div style="color:#fff;font-family:sans-serif;text-align:center;margin-top:30vh;padding:20px">Your browser could not start 3D graphics (WebGL).<br>Try Chrome, Edge or Firefox with hardware acceleration on.</div>';
   throw e;
 }
+if (SET.cam === 'player') SET.cam = 'carrier';   // "Follow you" is gone: it becomes Follow ball carrier
 R.camMode = SET.cam;
 R.userZoom = Math.max(0.75, Math.min(2.6, +SET.zoom || 1));
 function zoomCam(d) { R.userZoom = Math.max(0.75, Math.min(2.6, R.userZoom * (d > 0 ? 1.12 : 1 / 1.12))); SET.zoom = +R.userZoom.toFixed(2); saveSet(); }
@@ -858,7 +859,7 @@ function renderSettings() {
 
   seg($('#seg-notif'), [['on', 'On'], ['off', 'Mute']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications muted: no pop-ups or badges, they still show in the bell' : 'Notifications on'); });
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('annOn', {}, true); } else sfx.stopVoice(); });
-  seg($('#seg-cam'), [['behind', 'Follow ball'], ['carrier', 'Follow ball carrier'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
+  seg($('#seg-cam'), [['behind', 'Follow ball'], ['carrier', 'Follow ball carrier'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
   seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); syncTouchClass(); });
 
@@ -876,7 +877,7 @@ function enterGame() {
   $('#hud').classList.remove('hidden');
   $('#gameover').classList.add('hidden'); $('#pause').classList.add('hidden');
   hideNp(); st.npLeft = NP_PER_GAME;
-  st.playing = true; st.paused = false; st.acc = 0; st.overShown = false; st.resultSaved = false; st.seasonSaved = false; st.rewarded = false; st.statsPosted = false; st.halfSaid = false; st.startedAt = performance.now(); crash.resets = 0;
+  st.playing = true; st.paused = false; st.acc = 0; st.overShown = false; st.resultSaved = false; st.logged = false; st.seasonSaved = false; st.rewarded = false; st.statsPosted = false; st.halfSaid = false; st.startedAt = performance.now(); crash.resets = 0;
   R.snapCamera(); hudCache = {};
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   canvas.focus();
@@ -1221,7 +1222,7 @@ window.addEventListener('keydown', (e) => {
   if (k === 'KeyM') { toast(sfx.toggleMute() ? 'Sound off' : 'Sound on'); return; }
   if (k === 'Minus' || k === 'NumpadSubtract') { zoomCam(1); return; }
   if (k === 'Equal' || k === 'NumpadAdd') { zoomCam(-1); return; }
-  if (k === 'KeyC') { SET.cam = { behind: 'carrier', carrier: 'player', player: 'broadcast' }[SET.cam] || 'behind'; R.camMode = SET.cam; saveSet(); toast('Camera: ' + ({ behind: 'Follow the ball', carrier: 'Follow the ball carrier', player: 'Follow your player', broadcast: 'Sideline' })[SET.cam] + '. Scroll or press - and + to zoom'); return; }
+  if (k === 'KeyC') { SET.cam = { behind: 'carrier', carrier: 'broadcast' }[SET.cam] || 'behind'; R.camMode = SET.cam; saveSet(); toast('Camera: ' + ({ behind: 'Follow the ball', carrier: 'Follow the ball carrier', player: 'Follow your player', broadcast: 'Sideline' })[SET.cam] + '. Scroll or press - and + to zoom'); return; }
   if (st.paused) return;
   if (celPickOpen()) {
     const btns = $$('#cel-opts [data-cp]'), d = k.startsWith('Digit') ? +k.slice(5) : 0;
@@ -1724,8 +1725,8 @@ $('#inj-back').addEventListener('click', () => { const S = st.snap; const r = S 
 $('#inj-keep').addEventListener('click', () => { const S = st.snap; const r = S && S.injAsk && S.injAsk[st.local]; if (r) pushEv({ t: 'injback', role: r, back: false }); $('#inj-ask').classList.add('hidden'); });
 $('#p-settings').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('settings'); });
 $('#p-replay').addEventListener('click', () => { togglePause(false); startReplay(); });
-const CAM_NAME = { behind: 'Follow ball', player: 'Follow you', broadcast: 'Sideline' };
-$('#p-cam').addEventListener('click', () => { SET.cam = SET.cam === 'behind' ? 'player' : SET.cam === 'player' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); $('#p-cam-l').textContent = CAM_NAME[SET.cam]; });
+const CAM_NAME = { behind: 'Follow ball', carrier: 'Follow ball carrier', broadcast: 'Sideline' };
+$('#p-cam').addEventListener('click', () => { SET.cam = { behind: 'carrier', carrier: 'broadcast' }[SET.cam] || 'behind'; R.camMode = SET.cam; saveSet(); $('#p-cam-l').textContent = CAM_NAME[SET.cam]; });
 // quitting a game that counts (Online, Ultimate Team, Season, Franchise) is a loss; Quick Play, practice and drills don't count
 function quitKind() {
   const S = st.snap; if (!st.playing || st.overShown || !S || S.mode !== 'game' || st.replay) return null;
@@ -1866,6 +1867,12 @@ function showGameOver(S) {
     } catch (e) { console.warn(e); $('#go-rewards').innerHTML = ''; }
   }
   $('#gameover').classList.remove('hidden');
+  // game history on your profile: every finished game, any mode (practice and drills don't count)
+  if (!st.logged && S.mode === 'game' && st.mode !== 'spec' && st.mode !== 'clip' && Auth.user && Auth.user.kind === 'account' && Auth.mode === 'supabase' && Auth.client) {
+    st.logged = true;
+    const vs = String((st.teamNames && st.teamNames[other]) || (st.names && st.names[other]) || (TEAMS[S.teams[other]] || {}).city || 'CPU').slice(0, 30);
+    Auth.client.from('ek_game_log').insert({ player: Auth.user.id, mode: gameKind(), res, sc_me: S.sc[me] | 0, sc_opp: S.sc[other] | 0, vs }).then(() => {}, () => {});
+  }
   if (!st.resultSaved && Auth.user) {
     st.resultSaved = true;
     const counted = S.mode === 'game' && (st.mode === 'host' || st.mode === 'guest');   // the record is Online H2H only: games against real people
@@ -2314,7 +2321,7 @@ function specPush(events) {
 // Nothing is sent until someone is actually watching.
 let ucast = null, ucastAcc = 0;
 const ucastEv = [];
-function gameKind() { return st.ut ? 'Ultimate Team' : st.franchiseGame ? 'Franchise' : st.seasonGame ? 'Season' : st.mode === 'cpu' ? 'Quick Play' : 'Online 1v1'; }
+function gameKind() { const online = st.mode === 'host' || st.mode === 'guest'; return st.league ? 'Online Franchise' : online ? (st.myUT || st.ut ? 'UT Online H2H' : 'Online H2H') : st.battle != null && st.ut ? 'UT Solo Battle' : st.theme && st.ut ? 'UT Theme Challenge' : st.solo && st.ut ? 'UT Solo Challenge' : st.ut ? 'Ultimate Team' : st.franchiseGame ? 'Franchise' : st.seasonGame ? 'Season' : 'Quick Play'; }
 function startUserCast() {
   stopUserCast();
   const u = Auth.user; if (!st.playing && st.screen !== 'game') return;

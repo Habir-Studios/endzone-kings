@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792521306';
-import { TEAMS } from './teams.js?v=1792521306';
-import { rankInfo } from './profile.js?v=1792521306';
+import { askYes } from './ui.js?v=1792521693';
+import { TEAMS } from './teams.js?v=1792521693';
+import { rankInfo } from './profile.js?v=1792521693';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -196,9 +196,11 @@ async function openProfile(id) {
       <div class="pf-grp"><h4>Defense</h4><div class="pf-row">${stat('Tackles', fmt(p.tackles))}${stat('Sacks', fmt(p.sacks))}${stat('INTs', fmt(p.ints))}</div></div>
       <div class="pf-grp"><h4>Special teams</h4><div class="pf-row">${stat('FG made', `${fmt(p.fgm)}/${fmt(p.fga)}`)}${stat('FG %', fgPct)}${stat('Long FG', p.fg_long || '-')}${stat('XP', fmt(p.xpm))}${stat('Punt avg', p.punts ? (p.punt_yds / p.punts).toFixed(1) : '-')}</div></div>
     </div>
+    <h3 class="store-h">Game history</h3><div id="pf-games" class="pf-games"><p class="note">Loading…</p></div>
     <h3 class="store-h">Clips ${clips && clips.length ? `<span class="note">${clips.length}</span>` : ''}</h3>
     <div class="clip-grid">${clipCards(clips || [], mine || isAdmin(), p.name)}</div>`;
   if (mine) C.$('#pf-edit').onclick = () => editProfile(p);
+  loadGameHistory(id);
   const fb = C.$('#pf-follow');
   if (fb) fb.onclick = async () => {
     fb.disabled = true;
@@ -906,17 +908,18 @@ function showInvite(code, from) {
 }
 
 // ---------------- owner tools: global announcements (only the owner can send them; the database enforces it) ----------------
-let msgMode = 'all', msgTo = [];
+let msgMode = 'all', msgTo = [], msgFrom = 'HussainZ2', msgBadge = true;
 async function ownerPane(pane) {
   if (!isAdmin()) { pane.innerHTML = '<p class="note">Admins only.</p>'; return; }
   const owner = isOwner(); if (!owner) msgMode = 'some';
   pane.innerHTML = `<div class="own-box"><h3>Send a message</h3>
     ${owner ? '<div class="seg" id="msg-mode"></div>' : ''}
     <div id="msg-to-box" class="${msgMode === 'some' ? '' : 'hidden'}"><div class="msg-chips" id="msg-chips"></div><div class="msg-find"><input id="msg-find" placeholder="Add a player by username" autocomplete="off" spellcheck="false"><div class="so-results hidden" id="msg-sug"></div></div></div>
+    ${owner ? `<div class="own-row msg-from"><label>Sent by<input id="msg-from" maxlength="24" value="${esc(msgFrom)}" autocomplete="off" spellcheck="false"></label><label class="check"><input type="checkbox" id="msg-badge" ${msgBadge ? 'checked' : ''}> Show OWNER badge</label></div>` : ''}
     <p class="note" id="msg-note"></p>
     <textarea id="own-msg" maxlength="400" rows="3" placeholder="Type your message…"></textarea>
     <div class="own-row"><small class="note" id="own-n">0/400</small><button class="btn primary" id="own-send" type="button">Send</button></div></div>`;
-  const note = () => { C.$('#msg-note').innerHTML = msgMode === 'all' ? 'Pops up at the top for <b>everyone</b> with the game open right now, on every screen (in games too), for 5 seconds. They can close it. People who aren’t on don’t get it later.' : `Pops up for <b>only the players you pick</b> (up to 50), anywhere in the game, for 5 seconds. They can close it. Sent as <b>${esc(me().name)}</b>.`; C.$('#own-send').textContent = msgMode === 'all' ? 'Send to everyone' : `Send to ${msgTo.length || 'no'} player${msgTo.length === 1 ? '' : 's'}`; };
+  const note = () => { C.$('#msg-note').innerHTML = msgMode === 'all' ? 'Pops up at the top for <b>everyone</b> with the game open right now, on every screen (in games too), for 5 seconds. They can close it. People who aren’t on don’t get it later.' : `Pops up for <b>only the players you pick</b> (up to 50), anywhere in the game, for 5 seconds. They can close it. Sent as <b>${esc(owner ? msgFrom || 'HussainZ2' : me().name)}</b>.`; C.$('#own-send').textContent = msgMode === 'all' ? 'Send to everyone' : `Send to ${msgTo.length || 'no'} player${msgTo.length === 1 ? '' : 's'}`; };
   const chips = () => { C.$('#msg-chips').innerHTML = msgTo.map((p, i) => `<span class="link-pill on">${esc(p.name)}<button class="link" type="button" data-rm="${i}" aria-label="Remove">✕</button></span>`).join(''); C.$$('[data-rm]', pane).forEach(b => b.onclick = () => { msgTo.splice(+b.dataset.rm, 1); chips(); note(); }); };
   if (owner) C.seg(C.$('#msg-mode'), [['all', 'Everyone'], ['some', 'Specific players']], msgMode, v => { msgMode = v; C.$('#msg-to-box').classList.toggle('hidden', v !== 'some'); note(); });
   chips(); note();
@@ -934,7 +937,8 @@ async function ownerPane(pane) {
     if (msgMode === 'some' && !msgTo.length) return C.toast('Add at least one player');
     const who = msgMode === 'all' ? 'everyone' : msgTo.map(p => p.name).join(', ');
     if (!(await askYes(`Send this to ${who}?\n\n“${msg}”`, 'Send'))) return;
-    const { error } = await db().from('ek_announcements').insert({ author: me().id, name: String(me().name).slice(0, 24), message: msg, targets: msgMode === 'all' ? null : msgTo.map(p => p.id) });
+    if (owner) { msgFrom = (C.$('#msg-from').value || '').replace(/[<>]/g, '').trim().slice(0, 24) || 'HussainZ2'; msgBadge = C.$('#msg-badge').checked; }
+    const { error } = await db().from('ek_announcements').insert({ author: me().id, name: owner ? msgFrom : String(me().name).slice(0, 24), show_badge: owner ? msgBadge : true, message: msg, targets: msgMode === 'all' ? null : msgTo.map(p => p.id) });
     if (error) return C.toast(error.message);
     C.toast(msgMode === 'all' ? 'Sent to everyone' : `Sent to ${msgTo.length} player${msgTo.length === 1 ? '' : 's'}`); ta.value = ''; C.$('#own-n').textContent = '0/400';
   };
@@ -951,7 +955,7 @@ export function listenAnnouncements() {
     const old = document.getElementById('ann-bar'); if (old) old.remove();
     const el = document.createElement('div'); el.id = 'ann-bar'; el.className = 'ann-bar'; el.setAttribute('role', 'status');
     const own = !a.author || a.author === ADMIN_ID;
-    el.innerHTML = `<i class="ann-ic" aria-hidden="true"></i><div><b>${esc(a.name || 'HussainZ2')}${own ? '<span class="admin-badge owner-badge">OWNER</span>' : '<span class="admin-badge">ADMIN</span>'}${a.targets ? '<em class="ann-to">to you</em>' : ''}</b><p>${esc(a.message)}</p></div><button type="button" aria-label="Close">✕</button>`;
+    el.innerHTML = `<i class="ann-ic" aria-hidden="true"></i><div><b>${esc(a.name || 'HussainZ2')}${a.show_badge === false ? '' : own ? '<span class="admin-badge owner-badge">OWNER</span>' : '<span class="admin-badge">ADMIN</span>'}${a.targets ? '<em class="ann-to">to you</em>' : ''}</b><p>${esc(a.message)}</p></div><button type="button" aria-label="Close">✕</button>`;
     document.body.appendChild(el);
     el.querySelector('button').onclick = e => { e.stopPropagation(); el.remove(); };
     C.sfx && C.sfx.play && C.sfx.play('ui');
@@ -979,4 +983,27 @@ function lookupPane(pane) {
   };
   C.$('#lk-go').onclick = go; q.onkeydown = e => { if (e.key === 'Enter') go(); };
   if (lookupQ) go(); else q.focus();
+}
+
+// a player's games: a record for every mode they've played, then their most recent games
+const MODE_ORDER = ['Online H2H', 'UT Online H2H', 'Online Franchise', 'Ultimate Team', 'UT Solo Battle', 'UT Theme Challenge', 'UT Solo Challenge', 'Franchise', 'Season', 'Quick Play'];
+async function loadGameHistory(id) {
+  const box = C.$('#pf-games'); if (!box || !db()) return;
+  const { data, error } = await db().from('ek_game_log').select('mode,res,sc_me,sc_opp,vs,created_at').eq('player', id).order('created_at', { ascending: false }).limit(300);
+  if (!C.$('#pf-games') || view.id !== id) return;
+  if (error) { box.innerHTML = '<p class="note">Couldn’t load game history.</p>'; return; }
+  if (!data || !data.length) { box.innerHTML = '<p class="note">No games yet. Games show up here after they finish.</p>'; return; }
+  const by = {};
+  for (const g of data) { const r = by[g.mode] = by[g.mode] || [0, 0, 0]; r[g.res === 'W' ? 0 : g.res === 'L' ? 1 : 2]++; }
+  const modes = Object.keys(by).sort((a, b) => (MODE_ORDER.indexOf(a) + 99) % 99 - (MODE_ORDER.indexOf(b) + 99) % 99);
+  const rec = r => `${r[0]}W - ${r[1]}L${r[2] ? ` - ${r[2]}T` : ''}`;
+  const when = t => { const d = (Date.now() - new Date(t)) / 1000; return d < 3600 ? `${Math.max(1, Math.round(d / 60))}m ago` : d < 86400 ? `${Math.round(d / 3600)}h ago` : d < 86400 * 7 ? `${Math.round(d / 86400)}d ago` : new Date(t).toLocaleDateString(); };
+  let n = 15;
+  const draw = () => {
+    box.innerHTML = `<div class="pg-modes">${modes.map(m => `<div class="pg-mode"><small>${esc(m)}</small><b>${rec(by[m])}</b><span>${by[m][0] + by[m][1] + by[m][2]} games</span></div>`).join('')}</div>
+      <div class="pg-list">${data.slice(0, n).map(g => `<div class="pg-row ${g.res === 'W' ? 'w' : g.res === 'L' ? 'l' : 't'}"><i>${g.res}</i><div><b>${g.sc_me}-${g.sc_opp} vs ${esc(g.vs || 'CPU')}</b><small>${esc(g.mode)}</small></div><span>${when(g.created_at)}</span></div>`).join('')}</div>
+      ${data.length > n ? '<button class="btn sm" type="button" id="pg-more">Show more games</button>' : ''}`;
+    const mb = C.$('#pg-more'); if (mb) mb.onclick = () => { n += 25; draw(); };
+  };
+  draw();
 }

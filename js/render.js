@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792521306';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792521306';
-import { drawLogo } from './logos.js?v=1792521306';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792521306';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792521693';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792521693';
+import { drawLogo } from './logos.js?v=1792521693';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792521693';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1525,6 +1525,7 @@ export class Renderer {
       else { fx = me[4]; fz = me[5]; }
     }
     // ball carrier cam: tight on whoever has the ball (or the ball itself while it's in the air). Spectators on "Follow you" get this too.
+    if (this.camMode === 'player') this.camMode = 'carrier';   // the old "Follow you" cam is gone
     const carrierCam = this.camMode === 'carrier' || (this.camMode === 'player' && local < 0);
     if (carrierCam && (S.ph === 'live' || S.ph === 'presnap')) { fx = bx; fz = bz; }
     // locked on the guy you control; only when control jumps to someone else (throw, switch) does it take a quick glide over

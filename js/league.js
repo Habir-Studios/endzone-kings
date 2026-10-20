@@ -1,11 +1,11 @@
 // ENDZONE KINGS — Online Franchise. Up to 16 people each run a team. Before the season everyone drafts from one
 // shared player pool (bots fill the empty spots and pick for themselves), trades stay open all season, and a
 // 16-team knockout bracket runs until the last two meet in the Kings Bowl. Server side: supabase/leagues.sql.
-import { TEAMS } from './teams.js?v=1792455660';
-import { getRoster } from './teams.js?v=1792455660';
-import { askYes } from './ui.js?v=1792455660';
-import { rosterStyle } from './playbook.js?v=1792455660';
-import { card, makeId, GROUPS, SLOTS, SLOT_GROUP, SLOT_LABEL } from './ut.js?v=1792455660';
+import { TEAMS } from './teams.js?v=1792455820';
+import { getRoster } from './teams.js?v=1792455820';
+import { askYes } from './ui.js?v=1792455820';
+import { rosterStyle } from './playbook.js?v=1792455820';
+import { card, makeId, GROUPS, SLOTS, SLOT_GROUP, SLOT_LABEL } from './ut.js?v=1792455820';
 
 let C = null, view = { code: null, tab: 'home', filter: 'All', trade: null }, poll = null, busy = false, lastRow = null;
 const GKEYS = Object.keys(GROUPS);
@@ -70,6 +70,8 @@ export async function renderLeague() {
   const root = $('lg-pane'); if (!root) return;
   stopPoll();
   if (!db() || !me()) { root.innerHTML = '<p class="note center">Online Franchise needs a free account.</p>'; return; }
+  { const P = C.profile && C.profile(), lv = P ? P.p.lvl : 1;
+    if (lv < 5) { root.innerHTML = `<div class="lg-lock"><b>Online Franchise unlocks at level 5</b><p class="note">You're level ${lv}. Play Ultimate Team, online games and challenges to level up.</p></div>`; return; } }
   if (view.code) return openLeague(view.code);
   root.innerHTML = '<p class="note center"><span class="spinner"></span>Loading your leagues</p>';
   let mine = [];
@@ -78,22 +80,47 @@ export async function renderLeague() {
   root.innerHTML = `
     <p class="note center">Up to 16 people each run a team. Everybody drafts players from one pool before the season, bots fill any empty spots, trades stay open all season, and a knockout bracket ends with the last two teams in the Kings Bowl.</p>
     <div class="lg-start">
-      <div class="lg-box"><h3>Start a league</h3><input id="lg-name" maxlength="24" placeholder="League name"><button class="btn primary" id="lg-create" type="button">Create league</button><small>You're the commissioner. You pick when the draft starts.</small></div>
+      <div class="lg-box"><h3>Start a league</h3><input id="lg-name" maxlength="24" placeholder="League name"><label class="check lg-pub"><input type="checkbox" id="lg-public" checked> Public: anyone can find and join it from the list (no code needed)</label><button class="btn primary" id="lg-create" type="button">Create league</button><small>You're the commissioner. You pick when the draft starts.</small></div>
       <div class="lg-box"><h3>Join a league</h3><input id="lg-code" maxlength="6" placeholder="6-letter code"><button class="btn" id="lg-join" type="button">Join league</button><small>Get the code from whoever made it.</small></div>
     </div>
+    <h3 class="lg-h">Public leagues <span class="note" id="lg-pub-n"></span></h3><div class="lg-list" id="lg-public-list"><p class="note"><span class="spinner"></span>Looking for open leagues</p></div>
     <h3 class="lg-h">Your leagues</h3>
     ${mine.length ? `<div class="lg-list">${mine.map(l => `<button class="lg-row" type="button" data-open="${esc(l.id)}"><b>${esc(l.name)}</b><span>${ST[l.status] || l.status}</span><small>${esc(l.id)}${l.owner === me().id ? ' · commissioner' : ''}</small></button>`).join('')}</div>` : '<p class="note">You are not in any leagues yet. Make one and send the code to your friends.</p>'}`;
   root.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openLeague(b.dataset.open));
   $('lg-create').onclick = () => {
     const name = ($('lg-name').value || '').trim(); if (name.length < 2) return C.toast('Give the league a name (2 letters or more)');
     C.openPicker('Pick your team', C.SET.team, -1, async t => {
-      try { const code = await rpc('ek_league_create', { lname: C.cleanText ? C.cleanText(name) : name, lteam: t }); C.toast(`League made. Code: ${code}`, 4000); openLeague(code); } catch (e) { C.toast(errText(e)); }
+      try { const code = await rpc('ek_league_create', { lname: C.cleanText ? C.cleanText(name) : name, lteam: t, lpublic: !!($('lg-public') && $('lg-public').checked) }); C.toast(`League made. Code: ${code}`, 4000); openLeague(code); } catch (e) { C.toast(errText(e)); }
     });
   };
+  loadPublic(mine.map(l => l.id));
   $('lg-join').onclick = () => {
     const code = ($('lg-code').value || '').trim().toUpperCase(); if (code.length !== 6) return C.toast('League codes are 6 letters or numbers');
     C.openPicker('Pick your team', C.SET.team, -1, async t => { try { await rpc('ek_league_join', { code, lteam: t }); openLeague(code); } catch (e) { C.toast(errText(e)); } });
   };
+}
+
+// open public leagues: join straight from the list, no code
+async function loadPublic(mineIds) {
+  const box = $('lg-public-list'); if (!box) return;
+  const { data, error } = await db().from('ek_leagues').select('id,name,owner,created_at').eq('public', true).eq('status', 'open').order('created_at', { ascending: false }).limit(30);
+  if (!$('lg-public-list')) return;
+  if (error) { box.innerHTML = `<p class="note">Couldn't load public leagues: ${esc(errText(error))}</p>`; return; }
+  const rows = (data || []).filter(l => !mineIds.includes(l.id));
+  const ids = rows.map(l => l.id);
+  const { data: M } = ids.length ? await db().from('ek_league_members').select('league,team').in('league', ids) : { data: [] };
+  const n = {}, taken = {}; for (const m of M || []) { n[m.league] = (n[m.league] || 0) + 1; (taken[m.league] = taken[m.league] || []).push(m.team); }
+  const open = rows.filter(l => (n[l.id] || 0) < 16);
+  $('lg-pub-n').textContent = open.length ? `${open.length} open` : '';
+  box.innerHTML = open.length ? open.map(l => `<div class="lg-row lg-pubrow"><b>${esc(l.name)}</b><span>${n[l.id] || 0}/16 players</span><div class="lg-bar"><i style="width:${(n[l.id] || 0) / 16 * 100}%"></i></div><button class="btn primary sm" type="button" data-pjoin="${esc(l.id)}">Join</button></div>`).join('')
+    : '<p class="note">No public leagues open right now. Start one and tick Public so people can find it.</p>';
+  box.querySelectorAll('[data-pjoin]').forEach(b => b.onclick = () => {
+    const code = b.dataset.pjoin, used = taken[code] || [];
+    C.openPicker('Pick your team', used.includes(C.SET.team) ? TEAMS.findIndex((_, i) => !used.includes(i)) : C.SET.team, -1, async t => {
+      if (used.includes(t)) return C.toast('Someone in that league already has that team');
+      try { await rpc('ek_league_join', { code, lteam: t }); C.toast('You’re in!'); openLeague(code); } catch (e) { C.toast(errText(e)); }
+    });
+  });
 }
 
 async function openLeague(code) {

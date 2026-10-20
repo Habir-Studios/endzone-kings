@@ -725,3 +725,12 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .profile-chip .rec-mini .rec-nums i { align-items: center; gap: 3px; }
 .profile-chip .rec-mini .rec-nums i em { font-family: var(--display); font-size: 19px !important; font-weight: 900; opacity: .9; letter-spacing: 0; line-height: 1; }
 .profile-chip .rec-mini .rec-nums i.dash b { font-size: 19px; }
+
+/* Online Franchise: public leagues + level lock */
+.lg-pub { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; margin: 6px 0; }
+.lg-pubrow { display: grid; grid-template-columns: 1fr auto 120px auto; align-items: center; gap: 12px; cursor: default; }
+.lg-bar { height: 6px; background: rgba(255,255,255,.12); overflow: hidden; }
+.lg-bar i { display: block; height: 100%; background: var(--red-2, #ff3347); }
+.lg-lock { text-align: center; padding: 30px 16px; }
+.lg-lock b { display: block; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 26px; text-transform: uppercase; margin-bottom: 6px; }
+@media (max-width: 560px) { .lg-pubrow { grid-template-columns: 1fr auto; } .lg-pubrow .lg-bar { grid-column: 1 / -1; } }

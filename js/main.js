@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792525802';
-import { NOTES, SEASON } from './patchnotes.js?v=1792525802';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792525802';
-import * as Form from './form.js?v=1792525802';
-import { watchSim } from './simview.js?v=1792525802';
-import { bracketHTML } from './bracket.js?v=1792525802';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792525802';
-import { rosterStyle } from './playbook.js?v=1792525802';
-import { Renderer } from './render.js?v=1792525802';
-import { Sfx } from './audio.js?v=1792525802';
-import { Auth } from './auth.js?v=1792525802';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792525802';
-import { getRoster, teamOvr } from './teams.js?v=1792525802';
-import * as Season from './season.js?v=1792525802';
-import * as Fr from './franchise.js?v=1792525802';
-import * as League from './league.js?v=1792525802';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792525802';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792525802';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792525802';
-import * as UTm from './ut.js?v=1792525802';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792525802';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792525802';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792525802';
-import { portraitURL } from './faces.js?v=1792525802';
-import { logoURL, clearLogoCache } from './logos.js?v=1792525802';
+import { CONFIG } from './config.js?v=1792525971';
+import { NOTES, SEASON } from './patchnotes.js?v=1792525971';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792525971';
+import * as Form from './form.js?v=1792525971';
+import { watchSim } from './simview.js?v=1792525971';
+import { bracketHTML } from './bracket.js?v=1792525971';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792525971';
+import { rosterStyle } from './playbook.js?v=1792525971';
+import { Renderer } from './render.js?v=1792525971';
+import { Sfx } from './audio.js?v=1792525971';
+import { Auth } from './auth.js?v=1792525971';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792525971';
+import { getRoster, teamOvr } from './teams.js?v=1792525971';
+import * as Season from './season.js?v=1792525971';
+import * as Fr from './franchise.js?v=1792525971';
+import * as League from './league.js?v=1792525971';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792525971';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792525971';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792525971';
+import * as UTm from './ut.js?v=1792525971';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792525971';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792525971';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792525971';
+import { portraitURL } from './faces.js?v=1792525971';
+import { logoURL, clearLogoCache } from './logos.js?v=1792525971';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -303,6 +303,33 @@ function updateDailyTile() {
   el.textContent = L.claimable ? `Day ${L.streak} ready: ${L.R.coins} coins${L.R.pack ? ' + 1 pack' : ''}` : `Next reward in ${hms(L.next)}`;
 }
 setInterval(() => { if (st.screen === 'menu') updateDailyTile(); }, 1000);
+// the claim moment: the day's card pops and gets stamped, coins burst out and fly into your coin counter,
+// "+N coins" floats up, and a pack drops in if you got one
+function claimAnim(card, got, done) {
+  if (!got || !card || matchMedia('(prefers-reduced-motion: reduce)').matches) { sfx.play('ui'); done(); return; }
+  sfx.play('firstdown'); setTimeout(() => sfx.play('td'), 380);
+  card.classList.add('claiming');
+  const r = card.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const tgt = (document.querySelector('#pc-coins') || document.querySelector('.coins-pill'))?.getBoundingClientRect();
+  const tx = tgt && tgt.width ? tgt.left + tgt.width / 2 : innerWidth - 80, ty = tgt && tgt.width ? tgt.top + tgt.height / 2 : 40;
+  const layer = document.createElement('div'); layer.className = 'claim-fx'; document.body.appendChild(layer);
+  const n = Math.min(22, 8 + Math.round((got.coins || 0) / 60));
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement('i'); c.className = 'claim-coin'; layer.appendChild(c);
+    const a = Math.random() * Math.PI * 2, d = 50 + Math.random() * 90, bx = cx + Math.cos(a) * d, by = cy + Math.sin(a) * d - 40;
+    c.animate([
+      { transform: `translate(${cx}px, ${cy}px) scale(.4)`, opacity: 0 },
+      { transform: `translate(${bx}px, ${by}px) scale(1.15)`, opacity: 1, offset: .35 },
+      { transform: `translate(${bx}px, ${by}px) scale(1)`, opacity: 1, offset: .5 },
+      { transform: `translate(${tx}px, ${ty}px) scale(.5)`, opacity: .2 }
+    ], { duration: 1150 + Math.random() * 250, delay: i * 28, easing: 'cubic-bezier(.3,.7,.4,1)', fill: 'forwards' });
+  }
+  const t = document.createElement('div'); t.className = 'claim-pop'; t.textContent = `+${(got.coins || 0).toLocaleString()} coins`; t.style.left = cx + 'px'; t.style.top = cy + 'px'; layer.appendChild(t);
+  if (got.pack) { const p = document.createElement('div'); p.className = 'claim-pack'; p.innerHTML = `<b>+1</b><span>${escapeHtml(String(got.pack))} pack</span>`; p.style.left = cx + 'px'; p.style.top = (cy + 64) + 'px'; layer.appendChild(p); }
+  setTimeout(() => { const pill = document.querySelector('.profile-chip .coins-pill'); if (pill) { pill.classList.remove('coin-hit'); void pill.offsetWidth; pill.classList.add('coin-hit'); } }, 1100);
+  setTimeout(done, 1500);
+  setTimeout(() => layer.remove(), 2600);
+}
 function openDaily() {
   const P = !isGuest() && Auth.user ? profile() : null; if (!P) return;
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
@@ -318,7 +345,7 @@ function openDaily() {
       : `<p class="daily-done">${justGot ? `Claimed! +${justGot.coins} coins${justGot.pack ? ` + 1 ${justGot.pack} pack` : ''}` : 'Already claimed today'}</p><p class="note">Next reward in <b class="daily-left">${hms(L.next)}</b>. Miss a day and the streak starts over.</p><button class="btn" type="button" data-x>Close</button>`;
     m.innerHTML = `<div class="panel info-card daily-card"><h3 style="margin:0">Daily reward · Day ${L.streak}</h3><div class="login-row">${days}</div>${foot}</div>`;
     const c = m.querySelector('[data-claim]');
-    if (c) c.onclick = () => { const got = P.claimLogin(); sfx.play('ui'); refreshChip(); updateDailyTile(); draw(got || null); };
+    if (c) c.onclick = () => { c.disabled = true; const card = m.querySelector('.lg-day.now'); const got = P.claimLogin(); claimAnim(card, got, () => { refreshChip(); updateDailyTile(); draw(got || null); }); };
     const x = m.querySelector('[data-x]'); if (x) x.onclick = close;
   };
   draw(null);
@@ -492,7 +519,7 @@ async function renderAccountRows() {
   const acc = Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account';
   $('#acct-row').classList.toggle('hidden', !acc); $('#link-row').classList.add('hidden');
   if (!acc) return;
-  $('#acct-email').textContent = `${Auth.user.email || 'No email'} · only you can see this`;
+  $('#acct-email').textContent = `${Auth.user.email || 'No email'} · your login email, where password resets and verification emails go. Only you can see this`;
   const prov = await Auth.providers(); if (!prov.google) return;   // nothing to link until Google is switched on
   let ids = []; try { ids = await Auth.identities(); } catch (_) {}
   const has = p => ids.find(i => i.provider === p);
@@ -513,7 +540,7 @@ async function renderAccountRows() {
 $('#acct-email-btn').addEventListener('click', () => {
   sfx.play('ui');
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
-  m.innerHTML = `<div class="panel info-card"><h3 style="margin:0">Change email</h3><p class="note">We’ll send a confirmation link to the new email. Your email only changes after you click it. Nobody else can see your email.</p>
+  m.innerHTML = `<div class="panel info-card"><h3 style="margin:0">Change email</h3><p class="note">This changes the email on your whole account: it becomes the email you <b>log in with</b>, and it’s where <b>password resets</b> and <b>verification emails</b> go from now on. We’ll send a confirmation link to the new email first, and nothing changes until you click it. Nobody else can see your email.</p>
     <label>New email<input id="ce-email" type="email" autocomplete="email" placeholder="you@example.com"></label>
     <div class="actions"><button class="btn primary" type="button" id="ce-go">Send confirmation</button><button class="btn" type="button" data-x>Cancel</button></div></div>`;
   document.body.appendChild(m);

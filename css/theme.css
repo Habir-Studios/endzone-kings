@@ -795,3 +795,17 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .pg-row b { display: block; font-size: 14px; } .pg-row small { font-size: 12px; opacity: .65; } .pg-row > span { font-size: 12px; opacity: .55; }
 .msg-from { gap: 12px; flex-wrap: wrap; align-items: flex-end; }
 .msg-from label:first-child { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+
+/* daily reward claim animation */
+.lg-day.claiming { animation: dayPop .7s cubic-bezier(.3,1.6,.5,1) both; position: relative; z-index: 2; box-shadow: 0 0 0 2px #ffd54a, 0 0 28px rgba(255, 213, 74, .7); }
+.lg-day.claiming::after { content: '✓'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 46px; font-weight: 900; color: #2fe07a; text-shadow: 0 2px 10px rgba(0,0,0,.6); animation: stampIn .45s .35s cubic-bezier(.2,1.8,.4,1) both; }
+@keyframes dayPop { 0% { transform: scale(1); } 40% { transform: scale(1.22) rotate(-3deg); } 100% { transform: scale(1.06); } }
+@keyframes stampIn { from { opacity: 0; transform: scale(2.4) rotate(-20deg); } to { opacity: 1; transform: scale(1) rotate(-8deg); } }
+.claim-fx { position: fixed; inset: 0; z-index: 95; pointer-events: none; }
+.claim-coin { position: absolute; left: 0; top: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff6c2, #f6c445 45%, #b8860b); box-shadow: inset 0 0 0 2px #d9a52a, 0 4px 10px rgba(0,0,0,.4); }
+.claim-pop { position: absolute; transform: translate(-50%, -50%); font-family: var(--display); font-style: italic; font-weight: 900; font-size: 38px; color: #ffd54a; text-shadow: 0 3px 0 #7a4b00, 0 8px 24px rgba(0,0,0,.6); white-space: nowrap; animation: popUp 1.5s cubic-bezier(.2,.9,.3,1) forwards; }
+@keyframes popUp { 0% { opacity: 0; transform: translate(-50%, -20%) scale(.6); } 20% { opacity: 1; transform: translate(-50%, -90%) scale(1.15); } 70% { opacity: 1; transform: translate(-50%, -150%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -190%) scale(1); } }
+.claim-pack { position: absolute; transform: translate(-50%, 0); display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-weight: 900; color: #fff; background: linear-gradient(135deg, #e0102a, #ff3347); clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); animation: packDrop 1.6s cubic-bezier(.3,1.5,.5,1) .25s both; text-transform: capitalize; }
+@keyframes packDrop { 0% { opacity: 0; transform: translate(-50%, -80px) rotate(-12deg); } 35% { opacity: 1; transform: translate(-50%, 0) rotate(4deg); } 80% { opacity: 1; transform: translate(-50%, 0) rotate(0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
+.coins-pill.coin-hit { animation: coinHit .5s cubic-bezier(.3,1.8,.5,1); }
+@keyframes coinHit { 40% { transform: scale(1.25); filter: brightness(1.5); } }

@@ -695,3 +695,4 @@ textarea { padding: 10px 12px; line-height: 1.45; }
   .pb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pb-card b { font-size: 14px; }
 }
+.t-tut { --tc1: #12301f; --tc2: #1c1c1e; --accent: #2fe07a; } .t-playbooks { --accent: #ff8a3d; }

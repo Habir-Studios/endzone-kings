@@ -3,31 +3,6 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
-    "v": "1.0.2",
-    "date": "2026-10-19",
-    "added": [
-      "Coin toss before every game: call heads or tails, and the winner picks to receive or kick. Online, whoever calls it first gets the call. If the CPU wins, it picks on its own",
-      "Ultimate Team Play tab: choose Single Player (against AI squads) or Online H2H (against real people with your squad)",
-      "Solo Battles: 10 ranked games a week against AI squads. Harder difficulties and bigger wins earn more points, and your weekly tier (Bronze to Champion) pays coins, Training Points, packs and a Kings player item at the top",
-      "Theme challenges: a new program every month (this month: Haunted Gridiron) with six games against souped-up AI squads. Beat them for coins, Training Points and program XP",
-      "Program XP from theme challenges and Solo Battles unlocks rewards, including Elite and Kings program players",
-      "Online H2H record: your record now only counts online head-to-head games against real players (Online H2H and Ultimate Team online). Leaderboards and profiles show it",
-      "A redesigned Online H2H screen: you vs your opponent, your H2H record, a squad switch, a big code box for joining and a cleaner host setup",
-      "Tutorial: a coach walks you through the controls in a real game, on offense and defense. New players get offered it, and it's always in Practice and How to Play",
-      "9 new celebrations in the store: Take a knee, Salute, Heart hands, Wave to the crowd, Jumping jacks, Robot, Sprinkler, Archer and Kings throne",
-      "Playbooks on the main menu: browse every team’s offense by formation (filter by Quick, Deep, Run, Play Action and Screen) and its defense by coverage, see the signature play, your custom plays and your Ultimate Team squad’s playbook, and tap any play to see it big with who runs what",
-      "Practice has a Play clock option: keep it running or freeze it (practice only)",
-      "Online now: the menu shows how many people have the game open, live, next to the total player count"
-    ],
-    "fixed": [
-      "The play clock runs in practice now instead of being stuck",
-      "Out of bounds calls match the sideline: you're out when you touch the white, not a step before it, and toe-tap catches right on the sideline count",
-      "Hurdling works: you clear diving tackles almost every time, and hurdling a guy standing up is hard but possible for agile players",
-      "The Coin Flip set in Ultimate Team can be done as many times as you want instead of once a day",
-      "The player count on the menu updates live"
-    ]
-  },
-  {
     "v": "1.0.1",
     "date": "2026-10-19",
     "added": [
@@ -39,6 +14,7 @@ export const NOTES = [
       "Big mobile upgrade: snap, hot routes, motion, flip and timeouts on touch, a thumb-friendly playbook and bigger buttons",
       "Your receiver runs to the ball on his own after you throw it (move the stick to take over)",
       "Patch notes, right here",
+      "Tutorial tile on the main menu next to Daily Reward",
       "Directional tackles: players fall the way they get hit. Hit from the side and they go the other way, from behind and they fall on their face, head-on and they go straight back. Same for trucks, stiff arms and missed tackles",
       "Online Franchise: if your opponent is offline, play their bot instead. It uses their exact roster and a game plan built from their players",
       "A tougher CPU at every difficulty",
@@ -56,7 +32,19 @@ export const NOTES = [
       "A full two-step login guide in How to Play: setting it up, logging in, the 10-day remember option, new phones and lost phones",
       "Clearer step-by-step instructions when you turn two-step login on or off, and on the login code screen, with a link to the guide",
       "The Habir Studios admin now has an ADMIN badge next to their name on profiles, leaderboards, friends lists, crews and messages",
-      "Search the patch notes: type a version (like 1.0.1) to jump to it, or a keyword (like passing) to see every change that mentions it"
+      "Search the patch notes: type a version (like 1.0.1) to jump to it, or a keyword (like passing) to see every change that mentions it",
+      "Coin toss before every game: call heads or tails, and the winner picks to receive or kick. Online, whoever calls it first gets the call. If the CPU wins, it picks on its own",
+      "Ultimate Team Play tab: choose Single Player (against AI squads) or Online H2H (against real people with your squad)",
+      "Solo Battles: 10 ranked games a week against AI squads. Harder difficulties and bigger wins earn more points, and your weekly tier (Bronze to Champion) pays coins, Training Points, packs and a Kings player item at the top",
+      "Theme challenges: a new program every month (this month: Haunted Gridiron) with six games against souped-up AI squads. Beat them for coins, Training Points and program XP",
+      "Program XP from theme challenges and Solo Battles unlocks rewards, including Elite and Kings program players",
+      "Online H2H record: your record now only counts online head-to-head games against real players (Online H2H and Ultimate Team online). Leaderboards and profiles show it",
+      "A redesigned Online H2H screen: you vs your opponent, your H2H record, a squad switch, a big code box for joining and a cleaner host setup",
+      "Tutorial: a coach walks you through the controls in a real game, on offense and defense. New players get offered it, and it's always in Practice and How to Play",
+      "9 new celebrations in the store: Take a knee, Salute, Heart hands, Wave to the crowd, Jumping jacks, Robot, Sprinkler, Archer and Kings throne",
+      "Playbooks on the main menu: browse every team’s offense by formation (filter by Quick, Deep, Run, Play Action and Screen) and its defense by coverage, see the signature play, your custom plays and your Ultimate Team squad’s playbook, and tap any play to see it big with who runs what",
+      "Practice has a Play clock option: keep it running or freeze it (practice only)",
+      "Online now: the menu shows how many people have the game open, live, next to the total player count"
     ],
     "fixed": [
       "Cleaner phone layout, held upright or sideways: menu buttons sit in a row at the top instead of covering the modes, smaller logo on short screens, less cramped mode tiles, and a slimmer play call menu that the big banners stay out of",
@@ -80,7 +68,12 @@ export const NOTES = [
       "Forfeit button in online games: give up and your opponent gets the win",
       "A “T chat” reminder is always on screen in online games",
       "Touchdowns follow the real rule: it counts the moment the ball crosses the goal line in your hands, so diving or stretching the ball over now scores even if your body is short",
-      "CPU receivers catch way more reliably and play the ball better on harder difficulties, still based on each player’s hands rating, so sure-handed guys rarely drop it and weak hands still do"
+      "CPU receivers catch way more reliably and play the ball better on harder difficulties, still based on each player’s hands rating, so sure-handed guys rarely drop it and weak hands still do",
+      "The play clock runs in practice now instead of being stuck",
+      "Out of bounds calls match the sideline: you're out when you touch the white, not a step before it, and toe-tap catches right on the sideline count",
+      "Hurdling works: you clear diving tackles almost every time, and hurdling a guy standing up is hard but possible for agile players",
+      "The Coin Flip set in Ultimate Team can be done as many times as you want instead of once a day",
+      "The player count on the menu updates live"
     ]
   }
 ];

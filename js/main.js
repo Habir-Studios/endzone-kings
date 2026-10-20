@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792448272';
-import { NOTES } from './patchnotes.js?v=1792448272';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792448272';
-import * as Form from './form.js?v=1792448272';
-import { watchSim } from './simview.js?v=1792448272';
-import { bracketHTML } from './bracket.js?v=1792448272';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792448272';
-import { rosterStyle } from './playbook.js?v=1792448272';
-import { Renderer } from './render.js?v=1792448272';
-import { Sfx } from './audio.js?v=1792448272';
-import { Auth } from './auth.js?v=1792448272';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792448272';
-import { getRoster, teamOvr } from './teams.js?v=1792448272';
-import * as Season from './season.js?v=1792448272';
-import * as Fr from './franchise.js?v=1792448272';
-import * as League from './league.js?v=1792448272';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792448272';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792448272';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792448272';
-import * as UTm from './ut.js?v=1792448272';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792448272';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792448272';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792448272';
-import { portraitURL } from './faces.js?v=1792448272';
-import { logoURL, clearLogoCache } from './logos.js?v=1792448272';
+import { CONFIG } from './config.js?v=1792454823';
+import { NOTES } from './patchnotes.js?v=1792454823';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792454823';
+import * as Form from './form.js?v=1792454823';
+import { watchSim } from './simview.js?v=1792454823';
+import { bracketHTML } from './bracket.js?v=1792454823';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792454823';
+import { rosterStyle } from './playbook.js?v=1792454823';
+import { Renderer } from './render.js?v=1792454823';
+import { Sfx } from './audio.js?v=1792454823';
+import { Auth } from './auth.js?v=1792454823';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792454823';
+import { getRoster, teamOvr } from './teams.js?v=1792454823';
+import * as Season from './season.js?v=1792454823';
+import * as Fr from './franchise.js?v=1792454823';
+import * as League from './league.js?v=1792454823';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792454823';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792454823';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792454823';
+import * as UTm from './ut.js?v=1792454823';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792454823';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792454823';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792454823';
+import { portraitURL } from './faces.js?v=1792454823';
+import { logoURL, clearLogoCache } from './logos.js?v=1792454823';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -385,6 +385,7 @@ async function drawQR(cv, text) {
 const PN_KEY = 'ek_pn_seen';
 function fmtDate(d) { try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }); } catch (_) { return d; } }
 function refreshPn() {
+  { const f = document.getElementById('foot-v'); if (f) f.textContent = 'v' + NOTES[0].v; }
   $('#pn-v').textContent = 'v' + NOTES[0].v;
   let seen = null; try { seen = localStorage.getItem(PN_KEY); } catch (_) {}
   $('#pn-dot').classList.toggle('hidden', seen === NOTES[0].v);
@@ -796,6 +797,7 @@ function renderModes() {
 wireTeamPick($('#tp-modes'), () => SET.team, v => { SET.team = v; saveSet(); renderModes(); });
 const randOpp = () => { let o; do { o = (Math.random() * TEAMS.length) | 0; } while (o === SET.team); return o; };
 $('#use-ut').addEventListener('change', () => { const P = !isGuest() && profile(), useUT = $('#use-ut').checked && P && P.p.ut && P.p.ut.started; $('#wait-logo').src = logoURL(useUT ? P.p.ut.club : onlineTeam, 64); });
+$('#tut-tile').addEventListener('click', () => { sfx.play('ui'); startTutorial(); });
 $('#go-tutorial').addEventListener('click', () => { sfx.play('ui'); startTutorial(); });
 $('#howto-tutorial').addEventListener('click', () => { sfx.play('ui'); startTutorial(); });
 $('#go-practice').addEventListener('click', () => startCPU({ teams: [SET.team, randOpp()], practice: SET.pside, pspot: SET.pspot, freeze: !!SET.pfreeze, weather: 'clear', tod: 'day' }));

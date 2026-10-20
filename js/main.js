@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792517083';
-import { NOTES } from './patchnotes.js?v=1792517083';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792517083';
-import * as Form from './form.js?v=1792517083';
-import { watchSim } from './simview.js?v=1792517083';
-import { bracketHTML } from './bracket.js?v=1792517083';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792517083';
-import { rosterStyle } from './playbook.js?v=1792517083';
-import { Renderer } from './render.js?v=1792517083';
-import { Sfx } from './audio.js?v=1792517083';
-import { Auth } from './auth.js?v=1792517083';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792517083';
-import { getRoster, teamOvr } from './teams.js?v=1792517083';
-import * as Season from './season.js?v=1792517083';
-import * as Fr from './franchise.js?v=1792517083';
-import * as League from './league.js?v=1792517083';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792517083';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792517083';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792517083';
-import * as UTm from './ut.js?v=1792517083';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792517083';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792517083';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792517083';
-import { portraitURL } from './faces.js?v=1792517083';
-import { logoURL, clearLogoCache } from './logos.js?v=1792517083';
+import { CONFIG } from './config.js?v=1792517188';
+import { NOTES, SEASON } from './patchnotes.js?v=1792517188';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792517188';
+import * as Form from './form.js?v=1792517188';
+import { watchSim } from './simview.js?v=1792517188';
+import { bracketHTML } from './bracket.js?v=1792517188';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792517188';
+import { rosterStyle } from './playbook.js?v=1792517188';
+import { Renderer } from './render.js?v=1792517188';
+import { Sfx } from './audio.js?v=1792517188';
+import { Auth } from './auth.js?v=1792517188';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792517188';
+import { getRoster, teamOvr } from './teams.js?v=1792517188';
+import * as Season from './season.js?v=1792517188';
+import * as Fr from './franchise.js?v=1792517188';
+import * as League from './league.js?v=1792517188';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792517188';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792517188';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792517188';
+import * as UTm from './ut.js?v=1792517188';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792517188';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792517188';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792517188';
+import { portraitURL } from './faces.js?v=1792517188';
+import { logoURL, clearLogoCache } from './logos.js?v=1792517188';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -386,8 +386,8 @@ async function drawQR(cv, text) {
 const PN_KEY = 'ek_pn_seen';
 function fmtDate(d) { try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }); } catch (_) { return d; } }
 function refreshPn() {
-  { const f = document.getElementById('foot-v'); if (f) f.textContent = 'v' + NOTES[0].v; }
-  $('#pn-v').textContent = 'v' + NOTES[0].v;
+  { const f = document.getElementById('foot-v'); if (f) f.textContent = `Season ${SEASON} · v${NOTES[0].v}`; }
+  $('#pn-v').textContent = `S${SEASON} · v${NOTES[0].v}`;
   let seen = null; try { seen = localStorage.getItem(PN_KEY); } catch (_) {}
   $('#pn-dot').classList.toggle('hidden', seen === NOTES[0].v);
 }
@@ -407,12 +407,12 @@ function openPatchNotes() {
       const pick = arr => !arr ? [] : (verHit && (isVer || !q)) ? arr : arr.filter(x => x.toLowerCase().includes(lq));
       const ad = pick(n.added), fx = pick(n.fixed), mq = isVer ? '' : q;
       if (!ad.length && !fx.length && !(verHit && isVer)) return '';
-      return `<section class="pn-entry"><div class="pn-head"><b>Version ${esc(n.v)}</b>${i === 0 ? '<span class="pn-new">Latest</span>' : ''}<small>${fmtDate(n.date)}</small></div>${ad.length ? `<h4>New</h4><ul>${li(ad, mq)}</ul>` : ''}${fx.length ? `<h4>Fixed</h4><ul>${li(fx, mq)}</ul>` : ''}</section>`;
+      return `<section class="pn-entry"><div class="pn-head"><b>Season ${SEASON} · Version ${esc(n.v)}</b>${i === 0 ? '<span class="pn-new">Latest</span>' : ''}<small>${fmtDate(n.date)}</small></div>${ad.length ? `<h4>New</h4><ul>${li(ad, mq)}</ul>` : ''}${fx.length ? `<h4>Fixed</h4><ul>${li(fx, mq)}</ul>` : ''}</section>`;
     }).join('');
     return out || `<p class="pn-none">Nothing matches “${esc(q)}”. Try a version like 1.0.2 or a word like passing.</p>`;
   };
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
-  m.innerHTML = `<div class="panel info-card pn-card"><h3 style="margin:0">Patch notes</h3><input class="pn-search" type="search" placeholder="Search a version or keyword" aria-label="Search patch notes" autocomplete="off"><div class="pn-list">${render('')}</div><button class="btn primary" type="button" data-x>Close</button></div>`;
+  m.innerHTML = `<div class="panel info-card pn-card"><h3 style="margin:0">Patch notes <span class="season-tag sm">Season ${SEASON}</span></h3><input class="pn-search" type="search" placeholder="Search a version or keyword" aria-label="Search patch notes" autocomplete="off"><div class="pn-list">${render('')}</div><button class="btn primary" type="button" data-x>Close</button></div>`;
   const sIn = m.querySelector('.pn-search'), list = m.querySelector('.pn-list');
   sIn.addEventListener('input', () => { list.innerHTML = render(sIn.value); list.scrollTop = 0; });
   sIn.addEventListener('keydown', e => { if (e.key !== 'Escape') e.stopPropagation(); });

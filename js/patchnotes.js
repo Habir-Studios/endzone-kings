@@ -1,6 +1,8 @@
 // ENDZONE KINGS — patch notes, newest first. Add a new entry at the top with every update:
 // bump the version by one every update, big or small (1.0.2, 1.0.3, 1.0.4...), set the date,
 // list what's new and what got fixed. Newest bullets go at the TOP of each list, oldest at the bottom. The menu button shows NOTES[0].v.
+// Season 1 started with the 1.0.1 progress reset. Bump SEASON when progress resets again.
+export const SEASON = 1;
 export const NOTES = [
   {
     "v": "1.0.1",

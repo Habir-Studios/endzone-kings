@@ -696,3 +696,26 @@ textarea { padding: 10px 12px; line-height: 1.45; }
   .pb-card b { font-size: 14px; }
 }
 .t-tut { --tc1: #12301f; --tc2: #1c1c1e; --accent: #2fe07a; } .t-playbooks { --accent: #ff8a3d; }
+
+/* records read in one line: 1W - 0L */
+.rec-nums { align-items: baseline; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
+.rec-nums i { flex-direction: row; align-items: baseline; gap: 2px; }
+.rec-nums i em { margin-top: 0; font-size: .62em; letter-spacing: .5px; opacity: .75; }
+.rec-nums i.dash em { display: none; }
+.rec-nums i.dash { padding-top: 0; }
+/* the VS on Online H2H: room for the italic slant so it doesn't get clipped */
+.h2h-vs > span, .h2h-wait-vs > span { padding: 0 .18em 0 .06em; overflow: visible; }
+.h2h-vs { min-width: 170px; }
+.rec-mini .rec-nums i em, .pf-recs .rec-nums i em { font-size: .62em; }
+.pf-recs .rec-card .rec-nums { display: inline-flex; flex-direction: row; padding: 0; background: none; border: 0; border-radius: 0; }
+
+/* profile: level and rank side by side */
+.pf-lr { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pf-lvl { padding: 3px 10px; font-weight: 800; font-size: 13px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); }
+.pf-lvl.bump { animation: pfBump .6s ease-out; }
+@keyframes pfBump { 40% { transform: scale(1.15); background: rgba(47,224,122,.35); } }
+.pf-rank { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; font-weight: 800; font-size: 13px; color: var(--rk); background: color-mix(in srgb, var(--rk) 14%, transparent); border: 1px solid color-mix(in srgb, var(--rk) 55%, transparent); }
+.pf-rank i { width: 9px; height: 9px; transform: rotate(45deg); background: var(--rk); }
+.pf-rank small { font-weight: 600; color: #fff; opacity: .65; }
+.pf-lr > small { opacity: .7; }
+@media (prefers-reduced-motion: reduce) { .pf-lvl.bump { animation: none; } }

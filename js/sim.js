@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792454882';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792455261';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792454882';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792455261';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -944,7 +944,7 @@ function throwBall(g, qb, r, err, pw) {
   g.stats[P.off].att++;
   for (const d of g.players) if (d.team !== P.off && !g.opts.humans[d.team] && d.dmode === 'rush' && dist(d, qb) < 1.5 && g.rng() < 0.1 * FOUL_RATE) { throwFlag(g, 'rough', d, qb.z); break; }
   g.events.push('throw');
-  if (g.opts.humans[P.off]) g.ctrl[P.off] = r.id;
+  if (g.opts.humans[P.off]) { g.ctrl[P.off] = r.id; P.autoRecv = true; P.stickFree = false; }
 }
 
 // ---------------- kicks ----------------
@@ -1574,7 +1574,12 @@ function updateLive(g, dt, inputs) {
       }
     }
     if (human && idle && p.id === 0 && pocket && tl < (pd.pa ? pd.pa + 0.1 : 0.5)) want = qbPocketMove(g, p);
-    if (human && idle && airPass && p.id === P.target && p.team === P.off) want = aiMove(g, p, carrier, pocket, airPass, tl);   // ball's in the air to your guy: he runs to it on his own; touch the stick and you take over   // the QB's scripted drop-back at the snap; touch the stick and it's all you
+    // ball's in the air to your guy: he runs to it on his own. The stick you were already holding for the QB doesn't
+    // count: let go and push it again (a fresh push) to take him over yourself
+    if (human && airPass && p.id === P.target && p.team === P.off && P.autoRecv !== false) {
+      if (idle) P.stickFree = true; else if (P.stickFree) P.autoRecv = false;
+      if (P.autoRecv !== false) want = aiMove(g, p, carrier, pocket, airPass, tl);
+    }   // ball's in the air to your guy: he runs to it on his own; touch the stick and you take over   // the QB's scripted drop-back at the snap; touch the stick and it's all you
     applyMove(g, p, want, dt);
     if (!(carrier && carrier.id === p.id) && !p.dive && !p.fallen) { const lim = HALF_W + 0.4; if (p.x > lim) p.x = lim; else if (p.x < -lim) p.x = -lim; if (p.z > 109.5) p.z = 109.5; else if (p.z < -9.5) p.z = -9.5; }
   }
@@ -2332,7 +2337,7 @@ function resolveBall(g) {
   const human = q => q && g.opts.humans[q.team] && g.ctrl[q.team] === q.id;
   const timing = q => {
     if (!q) return 0;
-    if (human(q)) { if (q.playBall <= 0) return 0; const el = 0.75 - q.playBall; return clamp(1 - Math.abs(el - 0.32) / 0.38, 0, 1); }
+    if (human(q) && !(q.team === offTeam && P.autoRecv && q.playBall <= 0)) { if (q.playBall <= 0) return 0; const el = 0.75 - q.playBall; return clamp(1 - Math.abs(el - 0.32) / 0.38, 0, 1); }
     if (q.team === offTeam) return clamp((q.rt.hands - 48) / 48 + cpuSk * 0.6, 0.2, 0.92);   // CPU receivers high-point it by hands rating, sharper on harder levels
     return clamp((q.rt.cov - 55) / 60, 0.1, 0.75) * (q.playBall > 0 ? 1 : 0.6);   // CPU defenders time it by rating
   };

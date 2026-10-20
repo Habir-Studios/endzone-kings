@@ -15,6 +15,7 @@ export const NOTES = [
       "Your receiver runs to the ball on his own after you throw it (move the stick to take over)",
       "Patch notes, right here",
       "Tutorial tile on the main menu next to Daily Reward",
+      "Player profiles show their rank (with RP) next to their level, and both update live: profiles check every 5 seconds, and your own level and rank go up to your profile within 5 seconds of changing",
       "Ranks take more RP to climb, and each division asks for more than the last: Bronze steps are 110 RP, Silver 130, Gold 150, Platinum 175, Diamond 200, and Kings starts at 2,295 RP",
       "Directional tackles: players fall the way they get hit. Hit from the side and they go the other way, from behind and they fall on their face, head-on and they go straight back. Same for trucks, stiff arms and missed tackles",
       "Online Franchise: if your opponent is offline, play their bot instead. It uses their exact roster and a game plan built from their players",
@@ -48,6 +49,9 @@ export const NOTES = [
       "Online now: the menu shows how many people have the game open, live, next to the total player count"
     ],
     "fixed": [
+      "After you throw, your receiver goes and gets the ball on his own even if you’re still holding the stick from the drop-back. Let go and push the stick again to take him over yourself",
+      "The VS on the Online H2H screen no longer gets cut off",
+      "Records read in one line (like 12W - 3L) instead of stacked numbers",
       "Cleaner phone layout, held upright or sideways: menu buttons sit in a row at the top instead of covering the modes, smaller logo on short screens, less cramped mode tiles, and a slimmer play call menu that the big banners stay out of",
       "Coins showing different amounts on different devices",
       "The ball floating away from the ball carrier instead of sitting in his arms",

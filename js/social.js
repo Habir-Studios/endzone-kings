@@ -1,7 +1,10 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792454882';
-import { TEAMS } from './teams.js?v=1792454882';
+import { askYes } from './ui.js?v=1792455261';
+import { TEAMS } from './teams.js?v=1792455261';
+import { rankInfo } from './profile.js?v=1792455261';
+const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
+const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -42,6 +45,7 @@ function seenTag(ts) {
   const t = ago < 3600 ? `${Math.max(1, Math.round(ago / 60))}m` : ago < 86400 ? `${Math.round(ago / 3600)}h` : `${Math.round(ago / 86400)}d`;
   return `<span class="pf-status off"><i></i>Offline · last on ${t} ago</span>`;
 }
+let lrT = 0, lrSent = '', lrTick = 0;
 let boardCat = 'on_w', menuCat = 0, menuSpin = 0, boardRows = [], ticking = false;
 async function tick() {
   if (ticking || !db()) return;
@@ -51,11 +55,19 @@ async function tick() {
     if (scr === 'menu') { await renderMenuBoard(); if (playerCountT++ % 10 === 0) refreshPlayerCount(); }
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
     if (me() && pingT++ % 60 === 0 && !document.hidden) db().rpc('ek_ping').then(() => {}, () => {});   // online status: one ping a minute while the game is open
+    if (me() && ++lrTick % 5 === 0) pushLevelRank();
     if (me()) { ensureProfile(); listenInvites(); if (++kickPollT % 5 === 0 && C.st.playing) pollKicks(); }
     if (me() && (++unreadT % 10 === 0)) { refreshUnread(); refreshRequests(); loadNotifs(); }
   } catch (_) {} finally { ticking = false; }
 }
 
+// your level and rank points go up to your public profile (checked every 5 seconds, sent only when they changed)
+async function pushLevelRank() {
+  const P = C.profile && C.profile(); if (!P || !me()) return;
+  const k = `${P.p.lvl}|${P.p.rp}`; if (k === lrSent) return;
+  const { error } = await db().from('ek_players').update({ lvl: P.p.lvl, rp: P.p.rp }).eq('id', me().id);
+  if (!error) lrSent = k;
+}
 // ---------------- player count (every account counts, active or not) ----------------
 let playerCountT = 0;
 async function refreshPlayerCount() {
@@ -171,7 +183,7 @@ async function openProfile(id) {
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
-      <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<small>Level ${p.lvl}, ${t.city} fan</small>
+      <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<div class="pf-lr"><span class="pf-lvl" id="pf-lvl">Level ${p.lvl || 1}</span><span id="pf-rk">${rankPill(p.rp)}</span><small>${t.city} fan</small></div>
         <div class="pf-recs">${[['Online H2H record', p.on_w, p.on_l, p.on_t]].map(([n, w, l, tt]) => `<span class="rec-card"><small>${n}</small><span class="rec-nums"><i><b>${fmt(w || 0)}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(l || 0)}</b><em>L</em></i>${tt ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(tt)}</b><em>T</em></i>` : ''}</span></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}${(() => { const P = !mine && C.profile && C.profile(); const h = P && P.p.h2h && P.p.h2h[String(p.name).toLowerCase().slice(0, 24)]; return h ? `<span class="h2h">You vs ${esc(p.name)}: <b>${h[0]}W-${h[1]}L${h[2] ? '-' + h[2] + 'T' : ''}</b></span>` : ''; })()}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
@@ -192,6 +204,14 @@ async function openProfile(id) {
     if (r.error) C.toast(r.error.message); else { C.sfx.play('ui'); if (!fol) C.toast(theyFollow ? `You and ${p.name} are friends now` : `Friend request sent to ${p.name}`); }
     openProfile(id);
   };
+  // level and rank stay current while the profile is open: checked every 5 seconds
+  clearInterval(lrT); lrT = setInterval(async () => {
+    if (view.id !== id || !C.$('#pf-lvl') || document.hidden) { if (view.id !== id) clearInterval(lrT); return; }
+    const { data: f } = await D.from('ek_players').select('lvl,rp').eq('id', id).maybeSingle(); if (!f || view.id !== id) return;
+    const lv = C.$('#pf-lvl'), rk = C.$('#pf-rk'); if (!lv || !rk) return;
+    const nl = `Level ${f.lvl || 1}`; if (lv.textContent !== nl) { lv.textContent = nl; lv.classList.remove('bump'); void lv.offsetWidth; lv.classList.add('bump'); }
+    const nr = rankPill(f.rp); if (rk.innerHTML !== nr) rk.innerHTML = nr;
+  }, 5000);
   const cb = C.$('#pf-challenge'); if (cb) cb.onclick = () => challenge(id, p.name);
   const mb = C.$('#pf-msg'); if (mb) mb.onclick = () => openThread(id, p.name);
   const tb = C.$('#pf-trade'); if (tb) tb.onclick = () => C.openTrade && C.openTrade(id, p.name);

@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792520412';
-import { TEAMS } from './teams.js?v=1792520412';
-import { rankInfo } from './profile.js?v=1792520412';
+import { askYes } from './ui.js?v=1792520428';
+import { TEAMS } from './teams.js?v=1792520428';
+import { rankInfo } from './profile.js?v=1792520428';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -907,19 +907,16 @@ function showInvite(code, from) {
 // ---------------- owner tools: global announcements (only the owner can send them; the database enforces it) ----------------
 async function ownerPane(pane) {
   if (!isOwner()) { pane.innerHTML = '<p class="note">Owner only.</p>'; return; }
-  const { data } = await db().from('ek_announcements').select('id,name,message,created_at').order('created_at', { ascending: false }).limit(20);
   pane.innerHTML = `<div class="own-box"><h3>Global message</h3><p class="note">Pops up at the top for everyone with the game open right now, on every screen (in games too), for 5 seconds. They can close it early. People who aren't on don't get it later. Sent as <b>HussainZ2</b> with your OWNER badge.</p>
     <textarea id="own-msg" maxlength="400" rows="3" placeholder="Season 1 is live! New update tonight…"></textarea>
-    <div class="own-row"><small class="note" id="own-n">0/400</small><button class="btn primary" id="own-send" type="button">Send to everyone</button></div></div>
-    <h3 class="store-h">Sent</h3><div class="ad-list">${(data || []).map(a => `<div class="ad-row"><div><b>${esc(a.message)}</b><small>${new Date(a.created_at).toLocaleString()}</small></div><button class="btn sm danger" data-own-del="${a.id}" type="button">Delete</button></div>`).join('') || '<p class="note">Nothing sent yet.</p>'}</div>`;
+    <div class="own-row"><small class="note" id="own-n">0/400</small><button class="btn primary" id="own-send" type="button">Send to everyone</button></div></div>`;
   const ta = C.$('#own-msg'); ta.oninput = () => { C.$('#own-n').textContent = `${ta.value.length}/400`; };
   C.$('#own-send').onclick = async () => {
     const msg = ta.value.trim(); if (!msg) return C.toast('Type a message first');
     if (!(await askYes(`Send this to everyone?\n\n“${msg}”`, 'Send'))) return;
     const { error } = await db().from('ek_announcements').insert({ author: me().id, name: 'HussainZ2', message: msg });
-    if (error) return C.toast(error.message); C.toast('Sent to everyone'); ownerPane(pane);
+    if (error) return C.toast(error.message); C.toast('Sent to everyone'); ta.value = ''; C.$('#own-n').textContent = '0/400';
   };
-  C.$$('[data-own-del]', pane).forEach(b => b.onclick = async () => { await db().from('ek_announcements').delete().eq('id', +b.dataset.ownDel); ownerPane(pane); });
 }
 // everyone: show announcements live, and the latest one (under an hour old) on load if you haven't seen it
 let annSub = null;

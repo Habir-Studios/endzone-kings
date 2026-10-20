@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792519313';
-import { NOTES, SEASON } from './patchnotes.js?v=1792519313';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792519313';
-import * as Form from './form.js?v=1792519313';
-import { watchSim } from './simview.js?v=1792519313';
-import { bracketHTML } from './bracket.js?v=1792519313';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792519313';
-import { rosterStyle } from './playbook.js?v=1792519313';
-import { Renderer } from './render.js?v=1792519313';
-import { Sfx } from './audio.js?v=1792519313';
-import { Auth } from './auth.js?v=1792519313';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792519313';
-import { getRoster, teamOvr } from './teams.js?v=1792519313';
-import * as Season from './season.js?v=1792519313';
-import * as Fr from './franchise.js?v=1792519313';
-import * as League from './league.js?v=1792519313';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792519313';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792519313';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792519313';
-import * as UTm from './ut.js?v=1792519313';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792519313';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792519313';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792519313';
-import { portraitURL } from './faces.js?v=1792519313';
-import { logoURL, clearLogoCache } from './logos.js?v=1792519313';
+import { CONFIG } from './config.js?v=1792519504';
+import { NOTES, SEASON } from './patchnotes.js?v=1792519504';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792519504';
+import * as Form from './form.js?v=1792519504';
+import { watchSim } from './simview.js?v=1792519504';
+import { bracketHTML } from './bracket.js?v=1792519504';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792519504';
+import { rosterStyle } from './playbook.js?v=1792519504';
+import { Renderer } from './render.js?v=1792519504';
+import { Sfx } from './audio.js?v=1792519504';
+import { Auth } from './auth.js?v=1792519504';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792519504';
+import { getRoster, teamOvr } from './teams.js?v=1792519504';
+import * as Season from './season.js?v=1792519504';
+import * as Fr from './franchise.js?v=1792519504';
+import * as League from './league.js?v=1792519504';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792519504';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792519504';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792519504';
+import * as UTm from './ut.js?v=1792519504';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792519504';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792519504';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792519504';
+import { portraitURL } from './faces.js?v=1792519504';
+import { logoURL, clearLogoCache } from './logos.js?v=1792519504';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -2075,6 +2075,11 @@ function renderKickMeter(S) {
 }
 
 function updateHud(S) {
+  // cheer squad: "go offense / go defense" when your team takes the field after a change of possession (not every time)
+  if (S.mode === 'game' && st.local >= 0 && (S.ph === 'presnap' || S.ph === 'kickset')) {
+    const side = S.ph === 'kickset' ? (S.poss === st.local ? 'def' : 'off') : (S.poss === st.local ? 'off' : 'def');   // kicking off = your D is next
+    if (hudCache.sqSide !== side) { const first = hudCache.sqSide == null; hudCache.sqSide = side; if (!first && Math.random() < 0.6) sfx.squad(side, 0.6); }
+  }
   if (TUT.on) tutTick(S);
   if (S.tz) { if (!st.introOn && st.intro <= 0 && !st.tossS) maybeToss(); } else if (st.tossS && st.mode === 'guest') closeToss();
   if (S.bench) st.bench = S.bench;

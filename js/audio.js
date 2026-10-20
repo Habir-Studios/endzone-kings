@@ -1,4 +1,4 @@
-import { VO, slug } from './vo.js?v=1792519313';
+import { VO, slug } from './vo.js?v=1792519504';
 // ENDZONE KINGS — all audio is generated live (no sound files): stadium crowd, chants, air horn,
 // pad hits, whistle, menu music, and a play-by-play announcer (the one thing that IS recorded: assets/vo).
 
@@ -185,7 +185,7 @@ export class Sfx {
       case 'flag': this.whistle(); break;
       case 'half': this.cheer(0.5, 3); break;
       case 'firstdown': this.cheer(0.22, 1.8); this.tone(660, 0.1, 'triangle', 0.08); setTimeout(() => this.tone(880, 0.16, 'triangle', 0.08), 110); break;
-      case 'int': this.groan(); this.cheer(0.4, 2.6); break;
+      case 'int': this.groan(); this.cheer(0.4, 2.6); this.squad('int', 1.4); break;
       case 'breakup': this.pads(0.4); this.groan(); break;
       case 'incomplete': this.thud(); break;
       case 'td': this.touchdown(); break;
@@ -310,6 +310,23 @@ export class Sfx {
     }
   }
 
+  // ---------------- cheer squad: recorded girl cheerleaders (assets/cheer), only on the big moments ----------------
+  // kind: 'td' touchdown, 'int' interception, 'def' go defense, 'off' go offense. A few lines each, picked at random.
+  async squad(kind, delay = 0) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    if ((this._sqBusy || 0) > now) return;
+    if (!this._sqIdx) { try { this._sqIdx = await (await fetch(new URL('../assets/cheer/index.json', import.meta.url))).json(); } catch (_) { this._sqIdx = []; } }
+    const opts = this._sqIdx.filter(k => k.startsWith(kind + '_')); if (!opts.length) return;
+    let key = opts[(Math.random() * opts.length) | 0]; if (key === this._sqLast && opts.length > 1) key = opts[(opts.indexOf(key) + 1) % opts.length]; this._sqLast = key;
+    this._sqBusy = now + delay + 2.5;
+    this._sqClips = this._sqClips || new Map();
+    if (!this._sqClips.has(key)) this._sqClips.set(key, fetch(new URL(`../assets/cheer/${key}.ogg`, import.meta.url)).then(r => r.arrayBuffer()).then(b => this.ctx.decodeAudioData(b)).catch(() => null));
+    const buf = await this._sqClips.get(key); if (!buf) return;
+    if (!this.sqBus) { this.sqBus = this.ctx.createGain(); this.sqBus.gain.value = 0.62; this.sqBus.connect(this.master); }
+    const src = this.ctx.createBufferSource(); src.buffer = buf; src.connect(this.sqBus); src.start(this.ctx.currentTime + delay);
+  }
+
   // ---------------- announcer: one pre-recorded deep male voice (assets/vo), same on every device ----------------
   // lines live in vo.js; player names, cities and yard counts get stitched in like a real broadcast
   async loadVo() {
@@ -363,7 +380,7 @@ export class Sfx {
     const sub = (msg.sub || '').split(' · ');
     const name = sub[0].replace(/[+-]?\d+ yds?/, '').trim(), t = msg.text;
     const c = { name, city: cx.team };
-    if (t === 'TOUCHDOWN!') this.say('td', c, true);
+    if (t === 'TOUCHDOWN!') { this.say('td', c, true); this.squad('td', 2.1); }
     else if (t.startsWith('IT')) this.say('fg', c, true);
     else if (t === 'NO GOOD') this.say('fgMiss', c, true);
     else if (t === 'SACKED!') this.say('sack', c, true);

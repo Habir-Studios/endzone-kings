@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792457407';
-import { NOTES } from './patchnotes.js?v=1792457407';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792457407';
-import * as Form from './form.js?v=1792457407';
-import { watchSim } from './simview.js?v=1792457407';
-import { bracketHTML } from './bracket.js?v=1792457407';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792457407';
-import { rosterStyle } from './playbook.js?v=1792457407';
-import { Renderer } from './render.js?v=1792457407';
-import { Sfx } from './audio.js?v=1792457407';
-import { Auth } from './auth.js?v=1792457407';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792457407';
-import { getRoster, teamOvr } from './teams.js?v=1792457407';
-import * as Season from './season.js?v=1792457407';
-import * as Fr from './franchise.js?v=1792457407';
-import * as League from './league.js?v=1792457407';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792457407';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792457407';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792457407';
-import * as UTm from './ut.js?v=1792457407';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792457407';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792457407';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792457407';
-import { portraitURL } from './faces.js?v=1792457407';
-import { logoURL, clearLogoCache } from './logos.js?v=1792457407';
+import { CONFIG } from './config.js?v=1792457988';
+import { NOTES } from './patchnotes.js?v=1792457988';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792457988';
+import * as Form from './form.js?v=1792457988';
+import { watchSim } from './simview.js?v=1792457988';
+import { bracketHTML } from './bracket.js?v=1792457988';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792457988';
+import { rosterStyle } from './playbook.js?v=1792457988';
+import { Renderer } from './render.js?v=1792457988';
+import { Sfx } from './audio.js?v=1792457988';
+import { Auth } from './auth.js?v=1792457988';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792457988';
+import { getRoster, teamOvr } from './teams.js?v=1792457988';
+import * as Season from './season.js?v=1792457988';
+import * as Fr from './franchise.js?v=1792457988';
+import * as League from './league.js?v=1792457988';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792457988';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792457988';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792457988';
+import * as UTm from './ut.js?v=1792457988';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792457988';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792457988';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792457988';
+import { portraitURL } from './faces.js?v=1792457988';
+import { logoURL, clearLogoCache } from './logos.js?v=1792457988';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -798,6 +798,14 @@ function renderModes() {
 wireTeamPick($('#tp-modes'), () => SET.team, v => { SET.team = v; saveSet(); renderModes(); });
 const randOpp = () => { let o; do { o = (Math.random() * TEAMS.length) | 0; } while (o === SET.team); return o; };
 $('#use-ut').addEventListener('change', () => { const P = !isGuest() && profile(), useUT = $('#use-ut').checked && P && P.p.ut && P.p.ut.started; $('#wait-logo').src = logoURL(useUT ? P.p.ut.club : onlineTeam, 64); });
+// the Online now / Players box sits under the notifications panel while it's open, then goes back to its spot
+{ const pnl = $('#notif-panel'), pc = $('#player-count');
+  const place = () => {
+    if (!pnl || !pc) return;
+    if (pnl.classList.contains('hidden') || window.innerWidth <= 700) { pc.style.top = ''; return; }
+    pc.style.top = (pnl.offsetTop + pnl.offsetHeight + 10) + 'px';
+  };
+  if (pnl && pc) { new MutationObserver(place).observe(pnl, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true }); window.addEventListener('resize', place); } }
 $('#tut-tile').addEventListener('click', () => { sfx.play('ui'); startTutorial(); });
 $('#go-tutorial').addEventListener('click', () => { sfx.play('ui'); startTutorial(); });
 $('#howto-tutorial').addEventListener('click', () => { sfx.play('ui'); startTutorial(); });

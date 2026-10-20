@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792525971';
+import { CONFIG } from './config.js?v=1792526258';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -235,7 +235,7 @@ export const Auth = {
   },
   // send any waiting save right away (tab hidden or closing)
   flushNow() { if (this._pendP && this._cloudT) { clearTimeout(this._cloudT); this._cloudT = null; this.flushCloud(); } },
-  cloudExtra(k) { return this._row && this._row[k] !== undefined && this._row.p && this._row.p.wipe === 's1-20261020b' ? this._row[k] : undefined; },   // nothing from before the Season 1 reset
+  cloudExtra(k) { return this._row && this._row[k] !== undefined && this._row.p && this._row.p.wipe === 's1-20261020c' ? this._row[k] : undefined; },   // nothing from before the Season 1 reset
   saveCloud(p, extra) {
     if (this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return;
     this._pendP = p || this._pendP || (this._row && this._row.p) || null; if (extra) this._pendX = { ...(this._pendX || {}), ...extra };
@@ -246,7 +246,7 @@ export const Auth = {
   async flushCloud() {
     const p = this._pendP; if (!p || this.mode !== 'supabase' || !this.user || this.user.kind !== 'account') return;
     const cur = this._row && this._row.p;
-    if (cur && cur.wipe === 's1-20261020b' && !cur.tampered && progOf(p) < progOf(cur) && !p.tampered) { this._pendP = null; return; }   // (a pre-reset cloud copy never blocks a new save)   // stale copy from before the cloud save loaded
+    if (cur && cur.wipe === 's1-20261020c' && !cur.tampered && progOf(p) < progOf(cur) && !p.tampered) { this._pendP = null; return; }   // (a pre-reset cloud copy never blocks a new save)   // stale copy from before the cloud save loaded
     const row = { ...(this._row || {}), ...(this._pendX || {}), p, at: Date.now() };
     try {
       const { error } = await this.client.from('ek_saves').upsert({ id: this.user.id, data: row, prog: progOf(p), updated_at: new Date().toISOString() });

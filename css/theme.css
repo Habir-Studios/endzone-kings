@@ -809,3 +809,6 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 @keyframes packDrop { 0% { opacity: 0; transform: translate(-50%, -80px) rotate(-12deg); } 35% { opacity: 1; transform: translate(-50%, 0) rotate(4deg); } 80% { opacity: 1; transform: translate(-50%, 0) rotate(0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
 .coins-pill.coin-hit { animation: coinHit .5s cubic-bezier(.3,1.8,.5,1); }
 @keyframes coinHit { 40% { transform: scale(1.25); filter: brightness(1.5); } }
+.daily-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.daily-bal { font-size: 18px; }
+.del-row .tf-k { color: #ff8a95; }

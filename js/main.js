@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792525105';
-import { NOTES, SEASON } from './patchnotes.js?v=1792525105';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792525105';
-import * as Form from './form.js?v=1792525105';
-import { watchSim } from './simview.js?v=1792525105';
-import { bracketHTML } from './bracket.js?v=1792525105';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792525105';
-import { rosterStyle } from './playbook.js?v=1792525105';
-import { Renderer } from './render.js?v=1792525105';
-import { Sfx } from './audio.js?v=1792525105';
-import { Auth } from './auth.js?v=1792525105';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792525105';
-import { getRoster, teamOvr } from './teams.js?v=1792525105';
-import * as Season from './season.js?v=1792525105';
-import * as Fr from './franchise.js?v=1792525105';
-import * as League from './league.js?v=1792525105';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792525105';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792525105';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792525105';
-import * as UTm from './ut.js?v=1792525105';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792525105';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792525105';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792525105';
-import { portraitURL } from './faces.js?v=1792525105';
-import { logoURL, clearLogoCache } from './logos.js?v=1792525105';
+import { CONFIG } from './config.js?v=1792525206';
+import { NOTES, SEASON } from './patchnotes.js?v=1792525206';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792525206';
+import * as Form from './form.js?v=1792525206';
+import { watchSim } from './simview.js?v=1792525206';
+import { bracketHTML } from './bracket.js?v=1792525206';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792525206';
+import { rosterStyle } from './playbook.js?v=1792525206';
+import { Renderer } from './render.js?v=1792525206';
+import { Sfx } from './audio.js?v=1792525206';
+import { Auth } from './auth.js?v=1792525206';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792525206';
+import { getRoster, teamOvr } from './teams.js?v=1792525206';
+import * as Season from './season.js?v=1792525206';
+import * as Fr from './franchise.js?v=1792525206';
+import * as League from './league.js?v=1792525206';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792525206';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792525206';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792525206';
+import * as UTm from './ut.js?v=1792525206';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792525206';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792525206';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792525206';
+import { portraitURL } from './faces.js?v=1792525206';
+import { logoURL, clearLogoCache } from './logos.js?v=1792525206';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -355,19 +355,21 @@ async function renderTwofa() {
 }
 // "remember this device" ran out while the game was open: log out right away (after the final whistle if you're in a
 // game), like other games do. Logging back in asks for the authenticator code. Checked every 30 seconds.
-let mfaLapse = false;
+let mfaLapse = false, mfaDue = false;
 async function checkMfaLapse() {
   if (mfaLapse || Auth.mode !== 'supabase' || !Auth.user || Auth.user.kind !== 'account' || !Auth.client) return;
   try {
-    const { data, error } = await Auth.client.rpc('ek_mfa_ok');
-    if (error || data !== false || st.playing) return;
-    mfaLapse = true;
+    if (!mfaDue) { const { data, error } = await Auth.client.rpc('ek_mfa_ok'); if (error || data !== false) return; mfaDue = true; }
+    if (st.playing && !st.overShown) return;   // mid-game: wait for the final whistle (checked every 2 seconds from here)
+    mfaLapse = true; mfaDue = false;
+    if (st.playing) leaveGame();
     await Auth.signOut(); show('auth');
     toast('Your 10 days on this device are up, so you were logged out. Log in again with your authenticator code.', 6000);
     mfaLapse = false;
   } catch (_) { mfaLapse = false; }
 }
 setInterval(checkMfaLapse, 30000);
+setInterval(() => { if (mfaDue) checkMfaLapse(); }, 2000);   // once it's due, log out the moment the game ends
 function codeModal(title, bodyHTML, onCode) {
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 64;
   m.innerHTML = `<form class="panel info-card form tf-card"><h3 style="margin:0">${title}</h3>${bodyHTML}<label>6-digit code<input inputmode="numeric" autocomplete="one-time-code" maxlength="8" required placeholder="123456"></label><p class="msg" role="status"></p><button class="btn primary" type="submit">Confirm</button><button class="btn" type="button" data-x>Cancel</button></form>`;

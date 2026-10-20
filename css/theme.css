@@ -720,3 +720,8 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .pf-lr > small { opacity: .7; }
 @media (prefers-reduced-motion: reduce) { .pf-lvl.bump { animation: none; } }
 .profile-chip .rec-mini .rec-nums i em { font-size: .8em; opacity: .85; font-weight: 900; }
+/* menu record card: W and L as big as the numbers, sitting right next to them */
+.profile-chip .rec-mini .rec-nums { align-items: center; }
+.profile-chip .rec-mini .rec-nums i { align-items: center; gap: 3px; }
+.profile-chip .rec-mini .rec-nums i em { font-family: var(--display); font-size: 19px !important; font-weight: 900; opacity: .9; letter-spacing: 0; line-height: 1; }
+.profile-chip .rec-mini .rec-nums i.dash b { font-size: 19px; }

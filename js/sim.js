@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792455388';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792455660';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792455388';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792455660';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -144,6 +144,7 @@ export function createGame(opts = {}) {
   if (o.drill) { g.poss = 0; g.firstReceiver = 0; g.quarter = 4; }
   g.losZ = zOf(g.poss, o.practice && o.practice !== 'st' ? o.pspot : o.practice || o.drill ? 25 : 35);   // opening kickoff: touchback to the 35
   setFirstDown(g);
+  if (!o.practice && !o.drill && !o.toss) kickoffTo(g, g.firstReceiver);   // the game opens with a kickoff
   if (o.practice === 'st') nextPlay(g); else setupPlay(g);
   g.msg = o.practice ? { text: 'PRACTICE', sub: o.practice === 'off' ? 'Run any play you want · no game clock' : o.practice === 'st' ? 'Field goals and punts from all over the field' : 'Defend any play · no game clock', until: 2.4 }
     : o.drill ? { text: 'TWO-MINUTE DRILL', sub: 'Score as much as you can · every drive starts at the 25', until: 2.6 }
@@ -335,6 +336,7 @@ function setupPlay(g) {
   if (!g.opts.humans[off]) cpuCallOffense(g);
   if (!g.opts.humans[def]) { g.defPlay = cpuCallDefense(g); g.defChosen = true; }
   alignOffense(g, true); alignDefense(g, true);
+  if (g.koPending != null && !g.opts.practice && !g.opts.drill) koStart(g);
 }
 
 // formations: set each player's home spot for the chosen play (they jog there pre-snap)
@@ -962,12 +964,12 @@ function beginKickSet(g, type) {
   if (!g.opts.humans[off]) {
     // CPU kicker: decide the swing up front, then let the meter play out so it looks (and takes as long as) a real kick
     const k = g.ks, sk = (legOf(g, off) - 50) / 49;
-    const need = type === 'punt' ? 0.82 + g.rng() * 0.16 : clamp(fd / (k.maxR * 1.08) + 0.06 + (g.rng() - 0.5) * 0.08, 0.3, 1);
-    const sd = type === 'punt' ? 0.05 : 0.04 + fd * 0.0034 - sk * 0.025;
+    const need = type === 'kickoff' ? 0.84 + g.rng() * 0.16 : type === 'punt' ? 0.82 + g.rng() * 0.16 : clamp(fd / (k.maxR * 1.08) + 0.06 + (g.rng() - 0.5) * 0.08, 0.3, 1);
+    const sd = type === 'punt' || type === 'kickoff' ? 0.05 : 0.04 + fd * 0.0034 - sk * 0.025;
     const gauss = () => (g.rng() + g.rng() + g.rng() - 1.5) / 1.5;
-    k.cpu = { aim: type === 'punt' ? clamp(g.ballX * 0.4 + (g.rng() - 0.5) * 12, -18, 18) : (g.rng() - 0.5) * 0.8, power: need, acc: gauss() * sd * 1.6 };
+    k.cpu = { aim: type === 'kickoff' ? (g.rng() - 0.5) * 14 : type === 'punt' ? clamp(g.ballX * 0.4 + (g.rng() - 0.5) * 12, -18, 18) : (g.rng() - 0.5) * 0.8, power: need, acc: gauss() * sd * 1.6 };
   }
-  const holder = g.players[0]; holder.x = g.ballX; holder.z = g.losZ - (type === 'punt' ? 12 : 7) * d;
+  const holder = g.players[0]; holder.x = g.ballX; holder.z = g.losZ - (type === 'punt' ? 12 : type === 'kickoff' ? 6 : 7) * d;
   const b = g.ball; b.state = 'held'; b.carrier = 0; b.x = holder.x; b.z = holder.z; b.y = 0.35;
   g.events.push('snap');
 }
@@ -982,14 +984,14 @@ function updateKickSet(g, dt, inputs) {
   const k = g.ks; if (!k) return;
   k.t += dt;
   const inp = inputs[g.poss] || {};
-  const lim = k.type === 'punt' ? 24 : 14;
+  const lim = k.type === 'punt' || k.type === 'kickoff' ? 24 : 14;
   if (k.cpu) {
     if (k.stage === 'aim') { k.aim += (k.cpu.aim - k.aim) * Math.min(1, dt * 2.5); if (g.phaseT > 1.6) advanceKick(g); }
     else if (k.stage === 'power') { k.m += dt / 1.05; if (k.m >= k.cpu.power) { k.m = k.cpu.power; advanceKick(g); } }
     else if (k.stage === 'acc') { k.m -= dt / 0.9; if (k.m <= KICK_SWEET + k.cpu.acc) finishKick(g, k.m - KICK_SWEET); }
     return;
   }
-  if (k.stage !== 'acc') k.aim = clamp(k.aim + (inp.mx || 0) * dt * (k.type === 'punt' ? 14 : 7), -lim, lim);
+  if (k.stage !== 'acc') k.aim = clamp(k.aim + (inp.mx || 0) * dt * (k.type === 'punt' || k.type === 'kickoff' ? 14 : 7), -lim, lim);
   if (k.stage === 'power') { k.m += dt / 1.05 * k.dir; if (k.m >= 1) { k.m = 1; k.dir = -1; } if (k.m <= 0 && k.dir < 0) { k.m = 0; k.dir = 1; } }
   else if (k.stage === 'acc') { k.m -= dt / 0.9; if (k.m < -0.18) return finishKick(g, -0.3); }
   if (g.phaseT > 14 && !k.cpu) { if (k.stage === 'aim') advanceKick(g); else if (k.stage === 'power') { k.m = 0.7; advanceKick(g); } else finishKick(g, 0.2); }
@@ -1001,6 +1003,24 @@ function startKick(g, type, sk) {
   g.phase = 'kick'; g.phaseT = 0;
   const k = { type, t: 0, human: !!sk };
   k.fx = g.ballX; k.fz = g.losZ - 7 * d;
+  if (type === 'kickoff') {
+    if (!sk) { const gs = () => (g.rng() + g.rng() + g.rng() - 1.5) / 1.5; sk = { power: 0.84 + g.rng() * 0.16, acc: gs() * 0.08, aim: (g.rng() - 0.5) * 14 }; }
+    const skill = (legOf(g, off) - 50) / 49, squib = Math.abs(sk.acc) > 0.25;
+    const W = g.opts.wind || { mph: 0, dir: 0 }, tail = Math.cos(W.dir) * d * W.mph, cross = Math.sin(W.dir) * W.mph;
+    const dist0 = (18 + sk.power * (50 + skill * 8) * (squib ? 0.6 : 1) + (g.rng() - 0.5) * 4) * (1 + tail * 0.01);
+    let land = p + dist0;
+    let tx = sk.aim + sk.acc * 20 + (g.rng() - 0.5) * (3 - skill * 1.5) + cross * 0.3;
+    const oob = Math.abs(tx) > HALF_W; tx = clamp(tx, -HALF_W - 1, HALF_W + 1);
+    k.fx = g.ballX; k.fz = g.losZ; k.tx = tx; k.T = 2.3 + sk.power * 1.3; k.h = squib ? 4 : 10 + sk.power * 12;
+    if (oob) { k.result = 'oob'; k.newP = 40; }
+    else if (land >= 103) { k.result = 'touchback'; k.newP = 35; land = Math.min(land, 108); }
+    else { k.result = 'ret'; land = Math.min(land, 102); k.newP = 35; }
+    k.tz = zOf(off, land); k.yds = Math.round(Math.min(land, 100) - p); k.squib = squib;
+    g.kick = k;
+    const b = g.ball; b.state = 'kick'; b.carrier = -1; b.x = k.fx; b.z = k.fz; b.y = 0.3;
+    g.events.push('kick');
+    return;
+  }
   if (sk) {
     const skill = (legOf(g, off) - 50) / 49;
     if (type === 'punt') {
@@ -1086,17 +1106,17 @@ function updateKick(g, dt) {
   k.t += dt;
   const s = Math.min(1, k.t / k.T);
   const b = g.ball;
-  if (k.type !== 'punt' && k.t > k.T) {
+  if (k.type !== 'punt' && k.type !== 'kickoff' && k.t > k.T) {
     // past the posts the ball keeps going and comes down behind the end zone instead of hanging in the air
     if (!g.ballFly) { const pv = k.pv || [b.x, b.y, b.z], st = Math.max(dt, 1 / 120); g.ballFly = { vx: (b.x - pv[0]) / st, vz: (b.z - pv[2]) / st, vy: (b.y - pv[1]) / st }; }   // keep the speed it had going through the posts
     flyBall(g, dt);
   } else {
     k.pv = [b.x, b.y, b.z];
     b.x = k.fx + (k.tx - k.fx) * s; b.z = k.fz + (k.tz - k.fz) * s;
-    b.y = 0.5 + 4 * k.h * s * (1 - s) + (k.type !== 'punt' ? s * 3 : 0);
+    b.y = 0.5 + 4 * k.h * s * (1 - s) + (k.type !== 'punt' && k.type !== 'kickoff' ? s * 3 : 0);
   }
   if (k.type !== 'xp') g.clock = Math.max(0, g.clock - dt);   // tries are untimed
-  if (k.type === 'punt' && k.result === 'punt') {
+  if ((k.type === 'punt' && k.result === 'punt') || (k.type === 'kickoff' && k.result === 'ret')) {
     // hang time: the coverage team sprints downfield, the returner settles under it, his teammates set up a wall
     puntFlight(g, k, dt);
     if (k.t >= k.T) return startReturn(g, k);
@@ -1108,8 +1128,12 @@ function updateKick(g, dt) {
     const ks = g.stats[off];
     if (k.type === 'xp') { ks.xpa++; if (k.good) ks.xpm++; }
     else if (k.type === 'punt') { ks.punts++; ks.puntYds += k.yds || 0; }
+    else if (k.type === 'kickoff') { /* no kicking stats for kickoffs */ }
     else { ks.fga++; if (k.good) { ks.fgm++; ks.fgl = Math.max(ks.fgl, k.dist || 0); } }
-    if (k.type === 'xp') {
+    if (k.type === 'kickoff') {
+      g.poss = 1 - off; g.losZ = zOf(g.poss, k.newP); g.ballX = 0; setFirstDown(g);
+      g.msg = k.result === 'oob' ? { text: 'KICKOFF OUT OF BOUNDS', sub: `Ball at the ${k.newP}`, until: 2 } : { text: 'TOUCHBACK', sub: `${k.yds} yd kickoff`, until: 2 };
+    } else if (k.type === 'xp') {
       if (k.good) { score(g, off, 1); g.events.push('score'); }
       g.msg = k.good ? { text: 'EXTRA POINT GOOD', sub: '', until: 2 } : { text: 'EXTRA POINT NO GOOD', sub: k.miss || '', until: 2 };
       g.pat = -1; kickoffTo(g, 1 - off);
@@ -1151,11 +1175,12 @@ function puntFlight(g, k, dt) {
 }
 function startReturn(g, k) {
   const off = g.poss, rec = 1 - off, ret = returnerOf(g, rec);
-  g.stats[off].punts++; g.stats[off].puntYds += k.yds || 0;
+  const isKO = k.type === 'kickoff';
+  if (!isKO) { g.stats[off].punts++; g.stats[off].puntYds += k.yds || 0; }
   let nearest = 1e9; for (const p of g.players) if (p.team === off) nearest = Math.min(nearest, hyp(p.x - k.tx, p.z - k.tz));
   const humanRet = g.opts.humans[rec];
   // a CPU returner with coverage right on top of him calls a fair catch
-  if (!ret || (!humanRet && nearest < 4.5)) {
+  if (!ret || (!isKO && !humanRet && nearest < 4.5)) {
     g.kick = null; g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.2; g.runoff = 0; g.events.push('whistle');
     g.poss = rec; g.losZ = zOf(rec, k.newP); g.ballX = 0; setFirstDown(g);
     g.msg = { text: 'FAIR CATCH', sub: `${k.yds} yard punt`, until: 2 };
@@ -1164,7 +1189,7 @@ function startReturn(g, k) {
   ret.x = k.tx; ret.z = k.tz; ret.warpT = g.t;
   g.kick = null; g.poss = rec;
   g.play = { off: rec, def: off, los: k.tz, bx: k.tx, type: 'run', snapT: g.t, thrown: false, handed: true, crossed: true, turnover: false, recognized: true,
-    target: -1, throwT: 0, readT: 0, qbDecided: true, isPat: false, isReturn: true, playDef: {}, holdT: 99, holdRoll: 0, flag: null, puntYds: k.yds };
+    target: -1, throwT: 0, readT: 0, qbDecided: true, isPat: false, isReturn: true, isKO, playDef: {}, holdT: 99, holdRoll: 0, flag: null, puntYds: k.yds };
   for (const p of g.players) { p.blockOn = -1; p.engagedBy = -1; p.route = null; p.dmode = null; p.assign = -1; p.stun = 0; p.dive = 0; p.fallen = 0; p.fallAng = null; p.contacted = false; }
   // blockers pick up the nearest cover man
   for (const p of g.players) if (p.team === rec && p !== ret) { let best = null, bd = 1e9; for (const q of g.players) if (q.team === off && !g.players.some(o => o.blockOn === q.id) && dist(p, q) < bd) { bd = dist(p, q); best = q; } if (best && bd < 12) p.blockOn = best.id; }
@@ -1172,7 +1197,7 @@ function startReturn(g, k) {
   g.phase = 'live'; g.phaseT = 0;
   if (humanRet) g.ctrl[rec] = ret.id;
   if (g.opts.humans[off]) { let best = null, bd = 1e9; for (const q of g.players) if (q.team === off && dist(q, ret) < bd) { bd = dist(q, ret); best = q; } if (best) g.ctrl[off] = best.id; }
-  g.msg = { text: 'PUNT', sub: `${k.yds} yards · return it!`, until: 1.2 };
+  g.msg = { text: isKO ? 'KICKOFF' : 'PUNT', sub: `${k.yds} yards · return it!`, until: 1.2 };
   g.events.push('catch');
 }
 
@@ -1214,7 +1239,31 @@ function kickoffTo(g, team) {
     else { g.poss = team; g.losZ = zOf(team, 55); g.flash = { text: 'ONSIDE KICK... THEY COVER IT', until: 2 }; }
     g.ballX = 0; setFirstDown(g); return;
   }
-  g.poss = team; g.losZ = zOf(team, 35); g.ballX = 0; setFirstDown(g);   // touchback to the 35
+  if (g.opts.practice || g.opts.drill) { g.poss = team; g.losZ = zOf(team, 35); g.ballX = 0; setFirstDown(g); return; }
+  // a real kickoff: the kicking team tees it up at its own 35 and the next play is the kick
+  g.poss = kicker; g.losZ = zOf(kicker, 35); g.ballX = 0; setFirstDown(g); g.koPending = team;
+}
+// line both teams up for a kickoff and start the kick (the kick meter for a human kicker, straight to the kick for the CPU)
+function koStart(g) {
+  const kicker = g.poss, rec = g.koPending; g.koPending = null;
+  const dK = dirOf(kicker), base = prog(kicker, g.losZ);
+  const kick = g.players.filter(p => p.team === kicker), ret = g.players.filter(p => p.team === rec), returner = returnerOf(g, rec);
+  let i = 0;
+  for (const p of kick) {
+    if (p.id === 0) { p.x = 0; p.z = zOf(kicker, base - 6); }
+    else { const x = -22 + (i++ % 10) * (44 / 9); p.x = x; p.z = zOf(kicker, base - 1); }
+    p.hx = p.x; p.hz = p.z; p.vx = 0; p.vz = 0; p.face = dK > 0 ? 0 : Math.PI;
+  }
+  const spots = [[-18, 45], [-9, 45], [0, 45], [9, 45], [18, 45], [-12, 30], [0, 32], [12, 30], [-6, 17], [6, 17]];
+  let j = 0;
+  for (const p of ret) {
+    if (p === returner) { p.x = 0; p.z = zOf(rec, 2); }
+    else { const s2 = spots[j++ % spots.length]; p.x = s2[0]; p.z = zOf(rec, s2[1]); }
+    p.hx = p.x; p.hz = p.z; p.vx = 0; p.vz = 0; p.face = dK > 0 ? Math.PI : 0;
+  }
+  g.offPlay = 'kickoff'; g.defChosen = true;
+  if (g.opts.humans[0] || g.opts.humans[1]) beginKickSet(g, 'kickoff'); else startKick(g, 'kickoff');
+  g.msg = { text: 'KICKOFF', sub: `${cityOf(g, kicker)} kicking to ${cityOf(g, rec)}`, until: 1.8 };
 }
 
 // ---------------- main step ----------------
@@ -1268,7 +1317,7 @@ function stepInner(g, dt, inputs) {
   if (g.phase === 'half') {
     if (g.phaseT >= g.opts.halftime || (g.halfReady[0] && g.halfReady[1] && g.phaseT > 1.5)) {
       g.phase = 'presnap'; g.phaseT = 0; setupPlay(g);
-      g.msg = { text: 'SECOND HALF', sub: TEAMS[g.opts.teams[g.poss]].name + ' ball', until: 2.2 };
+      g.msg = { text: 'SECOND HALF', sub: `${cityOf(g, g.offPlay === 'kickoff' ? 1 - g.poss : g.poss)} receives`, until: 2.2 };
     }
     return;
   }
@@ -1453,7 +1502,7 @@ function nextPlay(g) {
         g.quarter = q + 1; g.clock = g.opts.quarterLen; g.to = [2, 2];
         if (q === 4) {
           kickoffTo(g, g.rng() < 0.5 ? 0 : 1);
-          g.ot = { recv: g.poss, stage: 0 }; g.otEnd = false;
+          g.ot = { recv: g.koPending ?? g.poss, stage: 0 }; g.otEnd = false;
           g.msg = { text: 'OVERTIME', sub: 'A touchdown wins it · a field goal gives them a chance to answer', until: 2.8 };
         } else g.msg = { text: `END OF OT${q > 5 ? ' ' + (q - 4) : ''}`, sub: 'Still tied · another overtime period', until: 2.5 };
       } else return endGame(g);
@@ -2501,8 +2550,8 @@ function endPlay(g, kind, c, tackler, note) {
   if (P.isReturn && c) {
     const t = c.team, p = prog(t, c.z), yds = Math.round(p - prog(t, P.los));
     if (p <= 0 && prog(t, P.los) >= 1) { safetyOn(g, t); return; }   // caught it in the field of play and got taken down in his own end zone
-    if (p <= 0) { g.poss = t; g.losZ = zOf(t, 20); g.msg = { text: 'TOUCHBACK', sub: '', until: 2 }; }
-    else { g.poss = t; g.losZ = zOf(t, clamp(p, 1, 99)); g.msg = { text: kind === 'oob' ? 'RETURN, OUT OF BOUNDS' : 'PUNT RETURN', sub: `${yds} yard return · ${c.rt.name}`, until: 2.2 }; if (yds >= 20) highlight(g, `${yds}-YARD RETURN`, c.rt.name, t); }
+    if (p <= 0) { g.poss = t; g.losZ = zOf(t, P.isKO ? 35 : 20); g.msg = { text: 'TOUCHBACK', sub: '', until: 2 }; }
+    else { g.poss = t; g.losZ = zOf(t, clamp(p, 1, 99)); g.msg = { text: kind === 'oob' ? 'RETURN, OUT OF BOUNDS' : P.isKO ? 'KICK RETURN' : 'PUNT RETURN', sub: `${yds} yard return · ${c.rt.name}`, until: 2.2 }; if (yds >= 20) highlight(g, `${yds}-YARD RETURN`, c.rt.name, t); }
     g.ballX = clamp(c.x, -HASH, HASH); setFirstDown(g);
     return;
   }
@@ -2658,8 +2707,6 @@ export const __test = { alignOffense: (g) => alignOffense(g, true), setup: (g) =
 export function tossResult(g, receiver) {
   if (!g.toss) return;
   receiver = receiver ? 1 : 0;
-  g.toss = 0; g.poss = receiver; g.firstReceiver = receiver; g.ballX = 0;
-  g.losZ = zOf(receiver, 35);
-  setFirstDown(g); setupPlay(g);
-  g.msg = { text: `${cityOf(g, receiver)} BALL`, sub: 'They get the ball first', until: 2.2 };
+  g.toss = 0; g.firstReceiver = receiver;
+  kickoffTo(g, receiver); g.phase = 'presnap'; g.phaseT = 0; setupPlay(g);
 }

@@ -3,14 +3,6 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
-    "v": "1.0.2",
-    "date": "2026-10-19",
-    "added": [],
-    "fixed": [
-      "Bigger W and L on the record card on the main menu"
-    ]
-  },
-  {
     "v": "1.0.1",
     "date": "2026-10-19",
     "added": [
@@ -54,7 +46,8 @@ export const NOTES = [
       "9 new celebrations in the store: Take a knee, Salute, Heart hands, Wave to the crowd, Jumping jacks, Robot, Sprinkler, Archer and Kings throne",
       "Playbooks on the main menu: browse every team’s offense by formation (filter by Quick, Deep, Run, Play Action and Screen) and its defense by coverage, see the signature play, your custom plays and your Ultimate Team squad’s playbook, and tap any play to see it big with who runs what",
       "Practice has a Play clock option: keep it running or freeze it (practice only)",
-      "Online now: the menu shows how many people have the game open, live, next to the total player count"
+      "Online now: the menu shows how many people have the game open, live, next to the total player count",
+      "Real kickoffs: after the coin toss, every score and at halftime the kicking team kicks it off with the kick meter (the CPU kicks on its own). Boom it deep for a touchback, or the returner brings it out with blockers in front of him. Kicks out of bounds give the ball at the 40"
     ],
     "fixed": [
       "After you throw, your receiver goes and gets the ball on his own even if you’re still holding the stick from the drop-back. Let go and push the stick again to take him over yourself",
@@ -86,7 +79,8 @@ export const NOTES = [
       "Out of bounds calls match the sideline: you're out when you touch the white, not a step before it, and toe-tap catches right on the sideline count",
       "Hurdling works: you clear diving tackles almost every time, and hurdling a guy standing up is hard but possible for agile players",
       "The Coin Flip set in Ultimate Team can be done as many times as you want instead of once a day",
-      "The player count on the menu updates live"
+      "The player count on the menu updates live",
+      "Bigger W and L on the main menu record card, the same size as the numbers"
     ]
   }
 ];

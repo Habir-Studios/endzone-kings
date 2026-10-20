@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792455388';
-import { NOTES } from './patchnotes.js?v=1792455388';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792455388';
-import * as Form from './form.js?v=1792455388';
-import { watchSim } from './simview.js?v=1792455388';
-import { bracketHTML } from './bracket.js?v=1792455388';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792455388';
-import { rosterStyle } from './playbook.js?v=1792455388';
-import { Renderer } from './render.js?v=1792455388';
-import { Sfx } from './audio.js?v=1792455388';
-import { Auth } from './auth.js?v=1792455388';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792455388';
-import { getRoster, teamOvr } from './teams.js?v=1792455388';
-import * as Season from './season.js?v=1792455388';
-import * as Fr from './franchise.js?v=1792455388';
-import * as League from './league.js?v=1792455388';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792455388';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792455388';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792455388';
-import * as UTm from './ut.js?v=1792455388';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792455388';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792455388';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792455388';
-import { portraitURL } from './faces.js?v=1792455388';
-import { logoURL, clearLogoCache } from './logos.js?v=1792455388';
+import { CONFIG } from './config.js?v=1792455660';
+import { NOTES } from './patchnotes.js?v=1792455660';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792455660';
+import * as Form from './form.js?v=1792455660';
+import { watchSim } from './simview.js?v=1792455660';
+import { bracketHTML } from './bracket.js?v=1792455660';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792455660';
+import { rosterStyle } from './playbook.js?v=1792455660';
+import { Renderer } from './render.js?v=1792455660';
+import { Sfx } from './audio.js?v=1792455660';
+import { Auth } from './auth.js?v=1792455660';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792455660';
+import { getRoster, teamOvr } from './teams.js?v=1792455660';
+import * as Season from './season.js?v=1792455660';
+import * as Fr from './franchise.js?v=1792455660';
+import * as League from './league.js?v=1792455660';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792455660';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792455660';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792455660';
+import * as UTm from './ut.js?v=1792455660';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792455660';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792455660';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792455660';
+import { portraitURL } from './faces.js?v=1792455660';
+import { logoURL, clearLogoCache } from './logos.js?v=1792455660';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -2042,19 +2042,19 @@ function renderKickMeter(S) {
   if (!k) { hudCache.km = null; return; }
   el.classList.toggle('theirs', !mine);
   if (!mine) {   // the other team never sees your aim or power
-    if (hudCache.km !== 'theirs') { hudCache.km = 'theirs'; $('#km-title').textContent = k.type === 'punt' ? 'Punt' : k.type === 'xp' ? 'Extra point' : 'Field goal'; $('#km-dist').textContent = k.type === 'punt' ? '' : `${k.fd} yards`; $('#km-step').textContent = 'The other team is lining up the kick…'; $('#km-btn').classList.add('hidden'); }
+    if (hudCache.km !== 'theirs') { hudCache.km = 'theirs'; $('#km-title').textContent = k.type === 'kickoff' ? 'Kickoff' : k.type === 'punt' ? 'Punt' : k.type === 'xp' ? 'Extra point' : 'Field goal'; $('#km-dist').textContent = k.type === 'punt' || k.type === 'kickoff' ? '' : `${k.fd} yards`; $('#km-step').textContent = 'The other team is lining up the kick…'; $('#km-btn').classList.add('hidden'); }
     return;
   }
   if (hudCache.km !== k.type + k.stage + mine) {
     hudCache.km = k.type + k.stage + mine;
-    $('#km-title').textContent = k.type === 'punt' ? 'Punt' : k.type === 'xp' ? 'Extra point' : 'Field goal';
-    $('#km-dist').textContent = k.type === 'punt' ? `Leg range about ${Math.round(k.maxR)} yds` : `${k.fd} yards, range ${Math.round(k.maxR)}`;
+    $('#km-title').textContent = k.type === 'kickoff' ? 'Kickoff' : k.type === 'punt' ? 'Punt' : k.type === 'xp' ? 'Extra point' : 'Field goal';
+    $('#km-dist').textContent = k.type === 'kickoff' ? 'Full power reaches the end zone' : k.type === 'punt' ? `Leg range about ${Math.round(k.maxR)} yds` : `${k.fd} yards, range ${Math.round(k.maxR)}`;
     const kk = pad.on ? glyphs().A : 'Space', aimK = pad.on ? `<kbd>${glyphs().LS}</kbd>` : '<kbd>A</kbd> <kbd>D</kbd>';
     const steps = { aim: `Aim with ${aimK}, then press <kbd>${kk}</kbd> to start the kick`, power: `Press <kbd>${kk}</kbd> to lock your power`, acc: `Press <kbd>${kk}</kbd> as the needle hits the white zone` };
     $('#km-step').innerHTML = mine ? steps[k.stage] : 'The other team is kicking';
     $('#km-btn').textContent = k.stage === 'aim' ? 'Start kick' : k.stage === 'power' ? 'Lock power' : 'Kick';
     $('#km-btn').classList.toggle('hidden', !mine);
-    const need = k.type === 'punt' ? null : Math.min(1, k.fd / (k.maxR * 1.08) + 0.06);
+    const need = k.type === 'punt' || k.type === 'kickoff' ? null : Math.min(1, k.fd / (k.maxR * 1.08) + 0.06);
     $('#km-need').style.display = need ? '' : 'none'; if (need) $('#km-need').style.left = need * 100 + '%';
     const sw = $('#km-sweet'); sw.style.left = Math.max(0, k.sweet - 0.03) * 100 + '%'; sw.style.width = '6%';
   }

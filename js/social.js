@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792519504';
-import { TEAMS } from './teams.js?v=1792519504';
-import { rankInfo } from './profile.js?v=1792519504';
+import { askYes } from './ui.js?v=1792519826';
+import { TEAMS } from './teams.js?v=1792519826';
+import { rankInfo } from './profile.js?v=1792519826';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -52,6 +52,7 @@ async function tick() {
   const scr = C.screen();
   ticking = true;
   try {
+    listenAnnouncements();
     if (scr === 'menu') { await renderMenuBoard(); if (playerCountT++ % 10 === 0) refreshPlayerCount(); }
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
     if (me() && pingT++ % 60 === 0 && !document.hidden) db().rpc('ek_ping').then(() => {}, () => {});   // online status: one ping a minute while the game is open
@@ -613,7 +614,8 @@ export async function postGameStats(r) {
 const ADMIN_EMAIL = 'hussainzidan16@gmail.com';
 // the Habir Studios admin account gets a badge next to its name everywhere (profile, leaderboards, friends, chat)
 export const ADMIN_ID = 'e752f854-2dce-4a38-ab93-54bcb963dc14';
-export const adminBadge = id => id === ADMIN_ID ? '<span class="admin-badge" title="Habir Studios admin">ADMIN</span>' : '';
+export const adminBadge = id => id === ADMIN_ID ? '<span class="admin-badge owner-badge" title="Owner of Habir Studios">OWNER</span>' : '';
+export const isOwner = () => !!(me() && me().id === ADMIN_ID);
 export const isAdmin = () => !!(me() && (me().email || '').toLowerCase() === ADMIN_EMAIL);
 let banInfo = null, banChecked = '';
 // live countdown on a timeout; at zero the timeout lifts right away (no refresh)
@@ -688,11 +690,14 @@ export async function refreshAdminBadge() {
 export async function renderAdmin() {
   const pane = C.$('#ad-pane');
   C.$$('.ad-tab').forEach(b => b.classList.toggle('on', b.dataset.ad === adTab));
+  C.$$('.owner-only').forEach(b => b.classList.toggle('hidden', !isOwner()));
+  if (adTab === 'owner' && !isOwner()) adTab = 'open';
   if (!isAdmin() || !db()) { pane.innerHTML = '<p class="note">Admins only.</p>'; return; }
   pane.innerHTML = '<p class="note">Loading…</p>';
   refreshAdminBadge();
   if (adTab === 'find') return adminFind();
   if (adTab === 'feedback') return adminFeedback(pane);
+  if (adTab === 'owner') return ownerPane(pane);
   if (adTab === 'bans') {
     await db().rpc('ek_admin_clean_bans');
     const { data } = await db().from('ek_bans').select('id,reason,by_admin,created_at,until').order('created_at', { ascending: false }).limit(200);
@@ -895,4 +900,42 @@ function showInvite(code, from) {
   C.$('#inv-yes').onclick = () => { el.classList.add('hidden'); C.joinGame(code); };
   C.$('#inv-no').onclick = () => el.classList.add('hidden');
   clearTimeout(showInvite.t); showInvite.t = setTimeout(() => el.classList.add('hidden'), 30000);
+}
+
+// ---------------- owner tools: global announcements (only the owner can send them; the database enforces it) ----------------
+async function ownerPane(pane) {
+  if (!isOwner()) { pane.innerHTML = '<p class="note">Owner only.</p>'; return; }
+  const { data } = await db().from('ek_announcements').select('id,name,message,created_at').order('created_at', { ascending: false }).limit(20);
+  pane.innerHTML = `<div class="own-box"><h3>Global message</h3><p class="note">Goes to everyone with the game open right now, on every screen (in games too), and shows up for anyone who opens the game in the next hour. Sent as <b>HussainZ2</b> with your OWNER badge.</p>
+    <textarea id="own-msg" maxlength="400" rows="3" placeholder="Season 1 is live! New update tonight…"></textarea>
+    <div class="own-row"><small class="note" id="own-n">0/400</small><button class="btn primary" id="own-send" type="button">Send to everyone</button></div></div>
+    <h3 class="store-h">Sent</h3><div class="ad-list">${(data || []).map(a => `<div class="ad-row"><div><b>${esc(a.message)}</b><small>${new Date(a.created_at).toLocaleString()}</small></div><button class="btn sm danger" data-own-del="${a.id}" type="button">Delete</button></div>`).join('') || '<p class="note">Nothing sent yet.</p>'}</div>`;
+  const ta = C.$('#own-msg'); ta.oninput = () => { C.$('#own-n').textContent = `${ta.value.length}/400`; };
+  C.$('#own-send').onclick = async () => {
+    const msg = ta.value.trim(); if (!msg) return C.toast('Type a message first');
+    if (!(await askYes(`Send this to everyone?\n\n“${msg}”`, 'Send'))) return;
+    const { error } = await db().from('ek_announcements').insert({ author: me().id, name: 'HussainZ2', message: msg });
+    if (error) return C.toast(error.message); C.toast('Sent to everyone'); ownerPane(pane);
+  };
+  C.$$('[data-own-del]', pane).forEach(b => b.onclick = async () => { await db().from('ek_announcements').delete().eq('id', +b.dataset.ownDel); ownerPane(pane); });
+}
+// everyone: show announcements live, and the latest one (under an hour old) on load if you haven't seen it
+let annSub = null;
+export function listenAnnouncements() {
+  if (annSub || !db()) return;
+  const seen = () => { try { return +localStorage.getItem('ek_ann_seen') || 0; } catch (_) { return 0; } };
+  const show = a => {
+    if (!a || a.id <= seen()) return;
+    try { localStorage.setItem('ek_ann_seen', String(a.id)); } catch (_) {}
+    const old = document.getElementById('ann-bar'); if (old) old.remove();
+    const el = document.createElement('div'); el.id = 'ann-bar'; el.className = 'ann-bar'; el.setAttribute('role', 'status');
+    el.innerHTML = `<i class="ann-ic" aria-hidden="true"></i><div><b>${esc(a.name || 'HussainZ2')}<span class="admin-badge owner-badge">OWNER</span></b><p>${esc(a.message)}</p></div><button type="button" aria-label="Close">✕</button>`;
+    document.body.appendChild(el);
+    el.querySelector('button').onclick = () => el.remove();
+    C.sfx && C.sfx.play && C.sfx.play('ui');
+    setTimeout(() => { if (el.isConnected) el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 15000);
+  };
+  db().from('ek_announcements').select('id,name,message,created_at').order('created_at', { ascending: false }).limit(1)
+    .then(({ data }) => { const a = data && data[0]; if (a && Date.now() - new Date(a.created_at).getTime() < 3600e3) show(a); }, () => {});
+  annSub = db().channel('ek-ann').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ek_announcements' }, p => show(p.new)).subscribe();
 }

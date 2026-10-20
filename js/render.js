@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792520629';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792520629';
-import { drawLogo } from './logos.js?v=1792520629';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792520629';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792521149';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792521149';
+import { drawLogo } from './logos.js?v=1792521149';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792521149';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1524,11 +1524,14 @@ export class Renderer {
       if (bstate === 1 && tgt && S.poss === local) { fx = (me[4] * 0.4 + tgt[0] * 0.6); fz = me[5] * 0.4 + tgt[1] * 0.6 - 3 * s; }   // ball in the air: swing toward the catch
       else { fx = me[4]; fz = me[5]; }
     }
+    // ball carrier cam: tight on whoever has the ball (or the ball itself while it's in the air). Spectators on "Follow you" get this too.
+    const carrierCam = this.camMode === 'carrier' || (this.camMode === 'player' && local < 0);
+    if (carrierCam && (S.ph === 'live' || S.ph === 'presnap')) { fx = bx; fz = bz; }
     // locked on the guy you control; only when control jumps to someone else (throw, switch) does it take a quick glide over
     const cid = local >= 0 && S.ctrl ? S.ctrl[local] : -1;
     if (cid !== this._lastCtrl) { if (this._lastCtrl !== undefined) this._switchT = 0.45; this._lastCtrl = cid; }
     this._switchT = Math.max(0, (this._switchT || 0) - dt);
-    const rate = bstate === 2 ? 2.2 : this.camMode === 'player' ? (this._switchT > 0 ? 5 : 12) : (this._switchT > 0 ? 3 : 4.5);
+    const rate = bstate === 2 ? 2.2 : (this.camMode === 'player' || this.camMode === 'carrier') ? (this._switchT > 0 ? 5 : 12) : (this._switchT > 0 ? 3 : 4.5);
     const k = 1 - Math.exp(-dt * rate);
     { const cb = S.ph === 'dead' && S.celBy >= 0 ? S.pl[S.celBy] : null; if (cb) { fx = cb[4]; fz = cb[5]; } }   // somebody's dancing: go watch
     this.focus.x += (fx - this.focus.x) * k; this.focus.z += (fz - this.focus.z) * k;
@@ -1542,7 +1545,7 @@ export class Renderer {
       const celebrate = S.ph === 'dead' && (S.celBy >= 0 || (S.msg && S.msg.big));
       const zoom = (celebrate ? 0.72 : 1) * this.userZoom * (local >= 0 && S.poss !== local && !kickingNow(S) ? 1.15 : 1);
       const kicking = S.ph === 'kickset' || S.ph === 'kick';
-      const close = this.camMode === 'player' && !kicking && !celebrate;
+      const close = (this.camMode === 'player' || this.camMode === 'carrier') && !kicking && !celebrate;
       if (close) {
         // third-person, right over your player's shoulders, looking down the field
         px = this.focus.x * 0.96; py = (portrait ? 7 : 4.8) * zoom; pz = this.focus.z - (portrait ? 11 : 8.5) * s * zoom;
@@ -1552,7 +1555,7 @@ export class Renderer {
         lx = this.focus.x; ly = celebrate ? 1.5 : 1.1; lz = this.focus.z + (kicking ? 30 : 10 + (this.userZoom - 1) * 6) * s;
       }
     }
-    const kp = 1 - Math.exp(-dt * (this.camMode === 'player' ? 10 : 5));
+    const kp = 1 - Math.exp(-dt * (this.camMode === 'player' || this.camMode === 'carrier' ? 10 : 5));
     this.camPos.x += (px - this.camPos.x) * kp; this.camPos.y += (py - this.camPos.y) * kp; this.camPos.z += (pz - this.camPos.z) * kp;
     if (!this._camInit) { this.camPos.set(px, py, pz); this._camInit = true; }
     this.cam.position.copy(this.camPos);

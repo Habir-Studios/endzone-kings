@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792520629';
-import { NOTES, SEASON } from './patchnotes.js?v=1792520629';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792520629';
-import * as Form from './form.js?v=1792520629';
-import { watchSim } from './simview.js?v=1792520629';
-import { bracketHTML } from './bracket.js?v=1792520629';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792520629';
-import { rosterStyle } from './playbook.js?v=1792520629';
-import { Renderer } from './render.js?v=1792520629';
-import { Sfx } from './audio.js?v=1792520629';
-import { Auth } from './auth.js?v=1792520629';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792520629';
-import { getRoster, teamOvr } from './teams.js?v=1792520629';
-import * as Season from './season.js?v=1792520629';
-import * as Fr from './franchise.js?v=1792520629';
-import * as League from './league.js?v=1792520629';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792520629';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792520629';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792520629';
-import * as UTm from './ut.js?v=1792520629';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792520629';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792520629';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792520629';
-import { portraitURL } from './faces.js?v=1792520629';
-import { logoURL, clearLogoCache } from './logos.js?v=1792520629';
+import { CONFIG } from './config.js?v=1792521149';
+import { NOTES, SEASON } from './patchnotes.js?v=1792521149';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792521149';
+import * as Form from './form.js?v=1792521149';
+import { watchSim } from './simview.js?v=1792521149';
+import { bracketHTML } from './bracket.js?v=1792521149';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792521149';
+import { rosterStyle } from './playbook.js?v=1792521149';
+import { Renderer } from './render.js?v=1792521149';
+import { Sfx } from './audio.js?v=1792521149';
+import { Auth } from './auth.js?v=1792521149';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792521149';
+import { getRoster, teamOvr } from './teams.js?v=1792521149';
+import * as Season from './season.js?v=1792521149';
+import * as Fr from './franchise.js?v=1792521149';
+import * as League from './league.js?v=1792521149';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792521149';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792521149';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792521149';
+import * as UTm from './ut.js?v=1792521149';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792521149';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792521149';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792521149';
+import { portraitURL } from './faces.js?v=1792521149';
+import { logoURL, clearLogoCache } from './logos.js?v=1792521149';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -858,7 +858,7 @@ function renderSettings() {
 
   seg($('#seg-notif'), [['on', 'On'], ['off', 'Mute']], SET.notifs === 'off' ? 'off' : 'on', v => { SET.notifs = v; saveSet(); toast(v === 'off' ? 'Notifications muted: no pop-ups or badges, they still show in the bell' : 'Notifications on'); });
   seg($('#seg-ann'), [[true, 'On'], [false, 'Off']], SET.ann, v => { SET.ann = v; sfx.announcer = v; saveSet(); if (v) { sfx.init(); sfx.say('annOn', {}, true); } else sfx.stopVoice(); });
-  seg($('#seg-cam'), [['behind', 'Follow ball'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
+  seg($('#seg-cam'), [['behind', 'Follow ball'], ['carrier', 'Follow ball carrier'], ['player', 'Follow you'], ['broadcast', 'Sideline']], SET.cam, v => { SET.cam = v; R.camMode = v; saveSet(); });
   seg($('#seg-gfx'), [['auto', 'Auto'], ['high', 'High'], ['low', 'Fast'], ['potato', 'Chromebook']], SET.gfxAuto ? 'auto' : SET.gfx, v => { if (v === 'auto') { SET.gfxAuto = true; SET.gfx = weakMachine() ? 'potato' : 'high'; } else { SET.gfxAuto = false; SET.gfx = v; } saveSet(); applyGfx(); });
   seg($('#seg-touch'), [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], SET.touch, v => { SET.touch = v; saveSet(); syncTouchClass(); });
 
@@ -1221,7 +1221,7 @@ window.addEventListener('keydown', (e) => {
   if (k === 'KeyM') { toast(sfx.toggleMute() ? 'Sound off' : 'Sound on'); return; }
   if (k === 'Minus' || k === 'NumpadSubtract') { zoomCam(1); return; }
   if (k === 'Equal' || k === 'NumpadAdd') { zoomCam(-1); return; }
-  if (k === 'KeyC') { SET.cam = SET.cam === 'behind' ? 'player' : SET.cam === 'player' ? 'broadcast' : 'behind'; R.camMode = SET.cam; saveSet(); toast('Camera: ' + ({ behind: 'Follow the ball', player: 'Follow your player', broadcast: 'Sideline' })[SET.cam] + '. Scroll or press - and + to zoom'); return; }
+  if (k === 'KeyC') { SET.cam = { behind: 'carrier', carrier: 'player', player: 'broadcast' }[SET.cam] || 'behind'; R.camMode = SET.cam; saveSet(); toast('Camera: ' + ({ behind: 'Follow the ball', carrier: 'Follow the ball carrier', player: 'Follow your player', broadcast: 'Sideline' })[SET.cam] + '. Scroll or press - and + to zoom'); return; }
   if (st.paused) return;
   if (celPickOpen()) {
     const btns = $$('#cel-opts [data-cp]'), d = k.startsWith('Digit') ? +k.slice(5) : 0;
@@ -2116,11 +2116,6 @@ function renderKickMeter(S) {
 }
 
 function updateHud(S) {
-  // cheer squad: "go offense / go defense" when your team takes the field after a change of possession (not every time)
-  if (S.mode === 'game' && st.local >= 0 && (S.ph === 'presnap' || S.ph === 'kickset')) {
-    const side = S.ph === 'kickset' ? (S.poss === st.local ? 'def' : 'off') : (S.poss === st.local ? 'off' : 'def');   // kicking off = your D is next
-    if (hudCache.sqSide !== side) { const first = hudCache.sqSide == null; hudCache.sqSide = side; if (!first && Math.random() < 0.6) sfx.squad(side, 0.6); }
-  }
   if (TUT.on) tutTick(S);
   if (S.tz) { if (!st.introOn && st.intro <= 0 && !st.tossS) maybeToss(); } else if (st.tossS && st.mode === 'guest') closeToss();
   if (S.bench) st.bench = S.bench;

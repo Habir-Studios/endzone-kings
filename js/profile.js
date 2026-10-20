@@ -1,13 +1,19 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792454823';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792454882';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
-// 0-1499 RP: Bronze III … Diamond I in steps of 100. 1500+ is Kings.
+// Each division has 3 steps (III, II, I), and every division's steps cost more RP than the one before:
+// Bronze 110 a step, Silver 130, Gold 150, Platinum 175, Diamond 200. Kings starts at 2,295 RP.
+export const RANK_STEP = [110, 130, 150, 175, 200];
+const DIV_FLOOR = RANK_STEP.reduce((a, s, i) => (a.push(a[i] + s * 3), a), [0]);   // [0, 330, 720, 1170, 1695, 2295]
+export const KINGS_RP = DIV_FLOOR[5];
 export function rankInfo(rp) {
-  if (rp >= 1500) return { name: 'Kings', div: 'Kings', idx: 5, sub: 0, into: rp - 1500, span: 0, floor: 1500 };
-  const step = Math.floor(rp / 100), idx = Math.floor(step / 3), sub = 3 - (step % 3);
-  return { name: `${DIVS[idx]} ${'I'.repeat(sub)}`, div: DIVS[idx], idx, sub, into: rp % 100, span: 100, floor: idx * 300 };
+  rp = Math.max(0, rp || 0);
+  if (rp >= KINGS_RP) return { name: 'Kings', div: 'Kings', idx: 5, sub: 0, into: rp - KINGS_RP, span: 0, floor: KINGS_RP };
+  let idx = 0; while (rp >= DIV_FLOOR[idx + 1]) idx++;
+  const span = RANK_STEP[idx], inDiv = rp - DIV_FLOOR[idx], step = Math.floor(inDiv / span), sub = 3 - step;
+  return { name: `${DIVS[idx]} ${'I'.repeat(sub)}`, div: DIVS[idx], idx, sub, into: inDiv % span, span, floor: DIV_FLOOR[idx] };
 }
 // ---------- ranked seasons: one per calendar month. Your best rank pays out when it ends, then RP soft-resets ----------
 export const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;

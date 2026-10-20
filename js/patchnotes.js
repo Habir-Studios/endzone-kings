@@ -15,6 +15,7 @@ export const NOTES = [
       "Your receiver runs to the ball on his own after you throw it (move the stick to take over)",
       "Patch notes, right here",
       "Tutorial tile on the main menu next to Daily Reward",
+      "Ranks take more RP to climb, and each division asks for more than the last: Bronze steps are 110 RP, Silver 130, Gold 150, Platinum 175, Diamond 200, and Kings starts at 2,295 RP",
       "Directional tackles: players fall the way they get hit. Hit from the side and they go the other way, from behind and they fall on their face, head-on and they go straight back. Same for trucks, stiff arms and missed tackles",
       "Online Franchise: if your opponent is offline, play their bot instead. It uses their exact roster and a game plan built from their players",
       "A tougher CPU at every difficulty",

@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792520487';
-import { TEAMS } from './teams.js?v=1792520487';
-import { rankInfo } from './profile.js?v=1792520487';
+import { askYes } from './ui.js?v=1792520598';
+import { TEAMS } from './teams.js?v=1792520598';
+import { rankInfo } from './profile.js?v=1792520598';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -942,7 +942,7 @@ export function listenAnnouncements() {
 let lookupQ = '';
 function lookupPane(pane) {
   if (!isOwner()) { pane.innerHTML = '<p class="note">Owner only.</p>'; return; }
-  pane.innerHTML = `<div class="own-box"><h3>Account lookup</h3><p class="note">Type an email or a username (part of it works). Only you can see this.</p>
+  pane.innerHTML = `<div class="own-box"><h3>Account lookup</h3><p class="note">Type an email or username. You don’t need the whole thing: “huss” finds HussainZ2. Only you can see this.</p>
     <div class="own-row"><input id="lk-q" placeholder="name@email.com or username" autocomplete="off" spellcheck="false" value="${esc(lookupQ)}"><button class="btn primary" id="lk-go" type="button">Search</button></div></div><div class="ad-list" id="lk-res"></div>`;
   const q = C.$('#lk-q'), out = C.$('#lk-res');
   const go = async () => {

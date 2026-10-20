@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792519026';
-import { NOTES, SEASON } from './patchnotes.js?v=1792519026';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792519026';
-import * as Form from './form.js?v=1792519026';
-import { watchSim } from './simview.js?v=1792519026';
-import { bracketHTML } from './bracket.js?v=1792519026';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792519026';
-import { rosterStyle } from './playbook.js?v=1792519026';
-import { Renderer } from './render.js?v=1792519026';
-import { Sfx } from './audio.js?v=1792519026';
-import { Auth } from './auth.js?v=1792519026';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792519026';
-import { getRoster, teamOvr } from './teams.js?v=1792519026';
-import * as Season from './season.js?v=1792519026';
-import * as Fr from './franchise.js?v=1792519026';
-import * as League from './league.js?v=1792519026';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792519026';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792519026';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792519026';
-import * as UTm from './ut.js?v=1792519026';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792519026';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792519026';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792519026';
-import { portraitURL } from './faces.js?v=1792519026';
-import { logoURL, clearLogoCache } from './logos.js?v=1792519026';
+import { CONFIG } from './config.js?v=1792519313';
+import { NOTES, SEASON } from './patchnotes.js?v=1792519313';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792519313';
+import * as Form from './form.js?v=1792519313';
+import { watchSim } from './simview.js?v=1792519313';
+import { bracketHTML } from './bracket.js?v=1792519313';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792519313';
+import { rosterStyle } from './playbook.js?v=1792519313';
+import { Renderer } from './render.js?v=1792519313';
+import { Sfx } from './audio.js?v=1792519313';
+import { Auth } from './auth.js?v=1792519313';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792519313';
+import { getRoster, teamOvr } from './teams.js?v=1792519313';
+import * as Season from './season.js?v=1792519313';
+import * as Fr from './franchise.js?v=1792519313';
+import * as League from './league.js?v=1792519313';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792519313';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792519313';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792519313';
+import * as UTm from './ut.js?v=1792519313';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792519313';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792519313';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792519313';
+import { portraitURL } from './faces.js?v=1792519313';
+import { logoURL, clearLogoCache } from './logos.js?v=1792519313';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -296,7 +296,7 @@ $('#form-newpw').addEventListener('submit', (e) => {
 const hms = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
 function updateDailyTile() {
   const P = !isGuest() && Auth.user ? profile() : null, el = $('#daily-sub'), tile = $('#daily-tile'); if (!el || !tile) return;
-  if (!P) { tile.classList.remove('ready'); el.textContent = 'Log in to an account to claim'; return; }
+  if (!P) { tile.classList.remove('ready'); el.textContent = 'Claim free coins and packs every day'; return; }
   const L = P.loginState(); tile.classList.toggle('ready', L.claimable);
   el.textContent = L.claimable ? `Day ${L.streak} ready: ${L.R.coins} coins${L.R.pack ? ' + 1 pack' : ''}` : `Next reward in ${hms(L.next)}`;
 }
@@ -324,7 +324,7 @@ function openDaily() {
   m.onclick = e => { if (e.target === m) close(); };
   document.addEventListener('keydown', key, true);
 }
-$('#daily-tile').addEventListener('click', () => { sfx.play('ui'); if (isGuest() || !Auth.user) return toast('Daily rewards need an account. Guests can’t claim them.'); openDaily(); });
+$('#daily-tile').addEventListener('click', () => { sfx.play('ui'); if ((isGuest() || !Auth.user) && !LOCALNET) return lockPrompt('Daily Reward'); openDaily(); });
 // ---------------- two-step login (authenticator app) ----------------
 $('#form-code').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -569,7 +569,7 @@ function refreshProfile() {
   $('#logout').textContent = u.kind === 'guest' ? 'Sign in' : 'Log out';
   const guest = isGuest() && !LOCALNET;
   $('.pc-meta').classList.toggle('hidden', guest);
-  $$('.tiles .tile').forEach(t => t.classList.toggle('locked', guest && LOCKED.includes(t.dataset.go)));
+  $$('.tiles .tile').forEach(t => t.classList.toggle('locked', guest && (LOCKED.includes(t.dataset.go) || t.id === 'daily-tile')));
   if (guest) return;
   profile(); refreshChip();
 }

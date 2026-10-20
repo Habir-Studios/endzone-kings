@@ -1,9 +1,9 @@
 // ENDZONE KINGS — stadium dressing: sidelines (benches, players, coaches, coolers), chain gang, camera crews,
 // skycam, railings, roof trusses, speakers, flags and facade boards.
 import * as THREE from 'three';
-import { TEAMS, HALF_W } from './sim.js?v=1792525351';
-import { drawLogo } from './logos.js?v=1792525351';
-import { drawFaceTextureLite, faceParams } from './faces.js?v=1792525351';
+import { TEAMS, HALF_W } from './sim.js?v=1792525604';
+import { drawLogo } from './logos.js?v=1792525604';
+import { drawFaceTextureLite, faceParams } from './faces.js?v=1792525604';
 
 const vis = (t, k) => (t[k] === '#121a14' ? '#18c964' : t[k]);
 function tex(w, h, draw) {

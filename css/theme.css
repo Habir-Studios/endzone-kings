@@ -719,3 +719,4 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .pf-rank small { font-weight: 600; color: #fff; opacity: .65; }
 .pf-lr > small { opacity: .7; }
 @media (prefers-reduced-motion: reduce) { .pf-lvl.bump { animation: none; } }
+.profile-chip .rec-mini .rec-nums i em { font-size: .8em; opacity: .85; font-weight: 900; }

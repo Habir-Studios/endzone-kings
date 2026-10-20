@@ -3,6 +3,14 @@
 // list what's new and what got fixed. The menu button shows NOTES[0].v.
 export const NOTES = [
   {
+    "v": "1.0.2",
+    "date": "2026-10-19",
+    "added": [],
+    "fixed": [
+      "Bigger W and L on the record card on the main menu"
+    ]
+  },
+  {
     "v": "1.0.1",
     "date": "2026-10-19",
     "added": [

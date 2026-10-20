@@ -8,6 +8,7 @@ export const NOTES = [
     "v": "1.0.1",
     "date": "2026-10-19",
     "added": [
+      "Season 1 fresh start: everyone's progress was reset so we all start equal. Your account, username and password stay, everything else (levels, coins, Ultimate Team, records, stats, leagues) starts over",
       "Overtime follows real football rules: a coin toss first, both teams are guaranteed a possession (a safety or defensive score on the first one ends it), then next score wins, and playoff games keep going until someone wins. Our overtime periods are 3 minutes 30 seconds to keep games moving (that part is our own, real overtime is longer)",
       "Player profiles show their game history: a record for every mode they play and their recent games (only games played to the final whistle count)",
       "Public Online Franchise leagues: tick Public when you make a league and anyone can find it in the list and join, no code needed. Online Franchise unlocks at level 5",

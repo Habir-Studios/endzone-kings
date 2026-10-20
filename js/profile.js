@@ -1,12 +1,12 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792455261';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792455310';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // Each division has 3 steps (III, II, I), and every division's steps cost more RP than the one before:
-// Bronze 110 a step, Silver 130, Gold 150, Platinum 175, Diamond 200. Kings starts at 2,295 RP.
-export const RANK_STEP = [110, 130, 150, 175, 200];
-const DIV_FLOOR = RANK_STEP.reduce((a, s, i) => (a.push(a[i] + s * 3), a), [0]);   // [0, 330, 720, 1170, 1695, 2295]
+// Bronze 130 a step, Silver 155, Gold 185, Platinum 215, Diamond 250. Kings starts at 2,805 RP.
+export const RANK_STEP = [130, 155, 185, 215, 250];
+const DIV_FLOOR = RANK_STEP.reduce((a, s, i) => (a.push(a[i] + s * 3), a), [0]);   // [0, 390, 855, 1410, 2055, 2805]
 export const KINGS_RP = DIV_FLOOR[5];
 export function rankInfo(rp) {
   rp = Math.max(0, rp || 0);

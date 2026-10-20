@@ -16,7 +16,7 @@ export const NOTES = [
       "Patch notes, right here",
       "Tutorial tile on the main menu next to Daily Reward",
       "Player profiles show their rank (with RP) next to their level, and both update live: profiles check every 5 seconds, and your own level and rank go up to your profile within 5 seconds of changing",
-      "Ranks take more RP to climb, and each division asks for more than the last: Bronze steps are 110 RP, Silver 130, Gold 150, Platinum 175, Diamond 200, and Kings starts at 2,295 RP",
+      "Ranks take more RP to climb, and each division asks for more than the last: Bronze steps are 130 RP, Silver 155, Gold 185, Platinum 215, Diamond 250, and Kings starts at 2,805 RP. RP you earn per game stays the same",
       "Directional tackles: players fall the way they get hit. Hit from the side and they go the other way, from behind and they fall on their face, head-on and they go straight back. Same for trucks, stiff arms and missed tackles",
       "Online Franchise: if your opponent is offline, play their bot instead. It uses their exact roster and a game plan built from their players",
       "A tougher CPU at every difficulty",

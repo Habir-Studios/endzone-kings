@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792521693';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792521903';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // Each division has 3 steps (III, II, I), and every division's steps cost more RP than the one before:
@@ -347,7 +347,7 @@ export class Profile {
     const streakMul = r.res === 'W' && P.streak >= 1 ? 1 + Math.min(5, P.streak) * 0.06 : 1;
     if (streakMul > 1) { const base = lines.reduce((s, l) => s + l.c, 0), bx = lines.reduce((s, l) => s + l.x, 0); lines.push({ label: `Win streak x${P.streak + 1} (+${Math.round((streakMul - 1) * 100)}%)`, c: Math.round(base * (streakMul - 1)), x: Math.round(bx * (streakMul - 1)) }); }
     let coins = lines.reduce((s, l) => s + l.c, 0), xp = lines.reduce((s, l) => s + l.x, 0);
-    P.coins += coins; P.games++; P.tds += r.me.tds || 0;
+    P.coins += coins; if (!r.forfeit) P.games++; P.tds += r.me.tds || 0;   // games played = games finished to the final whistle
     // Training Points: every rewarded game earns some, Ultimate Team games earn the most
     // Training Points: Ultimate Team pays the most, Franchise pays some
     const tpB = [], win = r.res === 'W', tds = r.me.tds || 0, ints = (r.opp && r.opp.ints) || 0, sacks = r.me.sacks || 0;

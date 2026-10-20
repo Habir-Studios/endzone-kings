@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792525604';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792525777';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // Each division has 3 steps (III, II, I), and every division's steps cost more RP than the one before:
@@ -146,11 +146,19 @@ function seal(p, key, legacy) {
   for (let i = 0; i < body.length; i++) { const c = body.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 ^ c, 2246822519) ^ (h2 >>> 13); }
   return ((h1 >>> 0).toString(36) + (h2 >>> 0).toString(36));
 }
+// Season 1 full reset (Oct 20, 2026): every save from before this is wiped and never comes back (local or cloud)
+export const WIPE_ID = 's1-20261020';
 export class Profile {
   constructor(userId) {
     this.key = 'ek_prof_' + userId;
     this.p = blank();
     try { const raw = localStorage.getItem(this.key); if (raw) this.p = { ...blank(), ...JSON.parse(raw) }; } catch (_) {}
+    if (this.p.wipe !== WIPE_ID) {
+      this.p = blank(); this.p.wipe = WIPE_ID;
+      const uid = String(userId);
+      try { for (const k of ['ek_franchise_' + uid, 'ek_season_' + uid, 'ek_quit_' + uid, 'ek_drill_board']) localStorage.removeItem(k); } catch (_) {}
+      try { localStorage.setItem(this.key, JSON.stringify(this.p)); } catch (_) {}
+    }
     this.p.ut = { ...blank().ut, ...this.p.ut }; this.p.ach = this.p.ach || {}; this.p.drill = this.p.drill || { best: 0, runs: [] }; this.p.fp = this.p.fp || blank().fp;
     this.verify();
     this.refreshChallenges();
@@ -175,7 +183,7 @@ export class Profile {
   // Never takes a cloud copy that fails its seal (that's what used to reset coins to 1500).
   // A local save that got wrongly flagged gives way to a clean cloud copy that's about as far along.
   adopt(remote) {
-    if (!remote || !sealOk(remote, this.key)) return false;
+    if (!remote || remote.wipe !== WIPE_ID || !sealOk(remote, this.key)) return false;   // saves from before the Season 1 reset are ignored
     const pg = q => (q.lvl || 1) * 1e7 + (q.xp || 0) * 10 + Math.min(9, q.games || 0), a = pg(remote), b = pg(this.p);
     if (remote.tampered && !this.p.tampered && a <= b + 2e7) return false;   // a flagged copy from another device never beats a clean one
     // both flagged (the old sync bug flagged good saves) and about as far along: keep the richer one, since the flag knocked coins down

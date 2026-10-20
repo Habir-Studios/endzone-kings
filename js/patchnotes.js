@@ -8,6 +8,8 @@ export const NOTES = [
     "v": "1.0.1",
     "date": "2026-10-19",
     "added": [
+      "Overtime follows the real rules: a coin toss first, both teams are guaranteed a possession (a safety or defensive score on the first one ends it), then next score wins. Overtime periods are 3:30, and playoff games keep going until someone wins",
+      "Player profiles show their game history: a record for every mode they play and their recent games (only games played to the final whistle count)",
       "Public Online Franchise leagues: tick Public when you make a league and anyone can find it in the list and join, no code needed. Online Franchise unlocks at level 5",
       "Real kickoffs: after the coin toss (even when you choose to kick), after every score and at halftime the ball gets kicked off with the kick meter, and the other team actually returns it with blockers in front. Only a kick out the back of the end zone is a touchback. Kicks out of bounds give the ball at the 40",
       "Online now: the menu shows how many people have the game open, live, next to the total player count",

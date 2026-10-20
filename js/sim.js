@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792521903';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792522330';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792521903';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792522330';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1206,20 +1206,29 @@ function startReturn(g, k) {
 function score(g, team, pts) {
   g.score[team] += pts; g.acPts = (g.acPts || 0) + pts;
   if (g.quarter >= 5) {
-    // overtime: a field goal on the first possession gives the other team a shot; a touchdown, a safety or a
-    // defensive score ends it, and once both teams have had the ball the next score wins
+    // overtime, real rules: both teams get a possession. The first team can score a touchdown or a field goal and the
+    // other team still gets its turn; a safety or defensive score on the first possession ends it. Once both teams
+    // have had the ball, the next score wins.
     const O = g.ot || (g.ot = { recv: g.firstReceiver, stage: 0 });
-    if (O.stage === 0 && pts === 3 && team === O.recv) O.stage = 1;
-    else if (g.score[0] !== g.score[1]) g.otEnd = true;
-    else O.stage = 2;   // they tied it back up: sudden death
+    const other = 1 - O.recv;
+    if (O.stage === 0) { if (team === O.recv) O.scored = true; else g.otEnd = true; }
+    else if (O.stage === 1) { if (team === O.recv) g.otEnd = true; else if (g.score[other] > g.score[O.recv]) g.otEnd = true; }   // second team goes ahead: they win
+    else if (g.score[0] !== g.score[1]) g.otEnd = true;   // sudden death
     g.otScored = g.otEnd;
   }
 }
 // overtime possession bookkeeping, between plays
 function otCheck(g) {
-  const O = g.ot; if (!O || g.quarter < 5 || g.pat >= 0 || g.otEnd) return;
-  if (O.stage === 0 && g.poss !== O.recv) O.stage = 2;   // first possession came up empty: next score wins
-  else if (O.stage === 1 && g.poss === O.recv && g.score[0] !== g.score[1]) g.otEnd = true;   // answered with nothing: the field goal holds up
+  const O = g.ot; if (!O || O.recv < 0 || g.quarter < 5 || g.pat >= 0 || g.otEnd) return;
+  const A = O.recv, B = 1 - A;
+  if (O.stage === 1) {
+    if (g.score[B] > g.score[A]) { g.otEnd = true; return; }
+    const bDone = g.koPending === A || (g.koPending == null && g.poss === A);   // B scored and is kicking off, or lost the ball
+    if (bDone) { if (g.score[0] !== g.score[1]) g.otEnd = true; else O.stage = 2; }   // still tied after both had it: sudden death
+    return;
+  }
+  if (g.koPending != null) return;   // kickoff hasn't happened yet
+  if (O.stage === 0 && g.poss !== A) O.stage = O.scored ? 1 : 2;   // first possession over: the other team gets its turn
 }
 function sudden(g) { /* placeholder for possession change hooks */ }
 
@@ -1280,6 +1289,7 @@ function rosterSig(g) {
 }
 function acFlag(g, why) { if (!g.ac) g.ac = { n: 0, why: '' }; g.ac.n++; if (!g.ac.why) g.ac.why = why; }
 const cleanInput = i => { if (!i) return i; const mx = +i.mx || 0, mz = +i.mz || 0, l = Math.hypot(mx, mz); if (!Number.isFinite(l)) return { ...i, mx: 0, mz: 0 }; if (l > 1.001) return { ...i, mx: mx / l, mz: mz / l }; return i; };
+const OT_LEN = 210;   // overtime periods are 3:30
 export function step(g, dt, inputs = [{}, {}]) {
   if (g.phase === 'gameover') return;
   if (g.toss) return;   // waiting on the opening coin toss
@@ -1501,11 +1511,12 @@ function nextPlay(g) {
       g.msg = { text: 'HALFTIME', sub: `${TEAMS[g.opts.teams[0]].abbr} ${g.score[0]} - ${g.score[1]} ${TEAMS[g.opts.teams[1]].abbr}`, until: 2.5 };
     } else if (q === 4 || q >= 5) {
       if (g.score[0] === g.score[1] && (q === 4 || (g.opts.playoff && q < 12))) {
-        g.quarter = q + 1; g.clock = g.opts.quarterLen; g.to = [2, 2];
+        g.quarter = q + 1; g.clock = OT_LEN; g.to = [2, 2];
         if (q === 4) {
-          kickoffTo(g, g.rng() < 0.5 ? 0 : 1);
-          g.ot = { recv: g.koPending ?? g.poss, stage: 0 }; g.otEnd = false;
-          g.msg = { text: 'OVERTIME', sub: 'A touchdown wins it · a field goal gives them a chance to answer', until: 2.8 };
+          g.otEnd = false;
+          if (g.opts.humans[0] || g.opts.humans[1]) { g.toss = 1; g.ot = { recv: -1, stage: 0 }; }   // coin toss first, like the start of the game
+          else { kickoffTo(g, g.rng() < 0.5 ? 0 : 1); g.ot = { recv: g.koPending ?? g.poss, stage: 0 }; }
+          g.msg = { text: 'OVERTIME', sub: 'Both teams get the ball · then next score wins', until: 2.8 };
         } else g.msg = { text: `END OF OT${q > 5 ? ' ' + (q - 4) : ''}`, sub: 'Still tied · another overtime period', until: 2.5 };
       } else return endGame(g);
     } else {
@@ -2709,6 +2720,7 @@ export const __test = { alignOffense: (g) => alignOffense(g, true), setup: (g) =
 export function tossResult(g, receiver) {
   if (!g.toss) return;
   receiver = receiver ? 1 : 0;
-  g.toss = 0; g.firstReceiver = receiver;
+  g.toss = 0;
+  if (g.quarter >= 5) { g.ot = { recv: receiver, stage: 0 }; } else g.firstReceiver = receiver;   // overtime toss doesn't change who got the ball to start the game
   kickoffTo(g, receiver); g.phase = 'presnap'; g.phaseT = 0; setupPlay(g);
 }

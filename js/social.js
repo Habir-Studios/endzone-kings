@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792520257';
-import { TEAMS } from './teams.js?v=1792520257';
-import { rankInfo } from './profile.js?v=1792520257';
+import { askYes } from './ui.js?v=1792520412';
+import { TEAMS } from './teams.js?v=1792520412';
+import { rankInfo } from './profile.js?v=1792520412';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -53,7 +53,7 @@ async function tick() {
   ticking = true;
   try {
     listenAnnouncements();
-    if (scr === 'menu') { await renderMenuBoard(); if (playerCountT++ % 10 === 0) refreshPlayerCount(); }
+    if (scr === 'menu') { await renderMenuBoard(); if (playerCountT++ % 5 === 0) refreshPlayerCount(); }
     else if (scr === 'social' && view.tab === 'boards') await loadBoard(boardCat, true);
     if (me() && pingT++ % 60 === 0 && !document.hidden) db().rpc('ek_ping').then(() => {}, () => {});   // online status: one ping a minute while the game is open
     if (me() && ++lrTick % 5 === 0) pushLevelRank();
@@ -73,8 +73,9 @@ async function pushLevelRank() {
 let playerCountT = 0;
 async function refreshPlayerCount() {
   const el = C.$('#player-count'); if (!el || !db()) return;
-  const { count, error } = await db().from('ek_players').select('id', { count: 'exact', head: true });
-  if (error || count == null) return;
+  let count = null;
+  { const r = await db().rpc('ek_player_total'); if (!r.error && r.data != null) count = +r.data; }   // every real account
+  if (count == null) { const r = await db().from('ek_players').select('id', { count: 'exact', head: true }); if (r.error || r.count == null) return; count = r.count; }
   C.$('#pc-total').textContent = count.toLocaleString(); el.classList.remove('hidden');
   joinLobby();
 }
@@ -691,13 +692,14 @@ export async function renderAdmin() {
   const pane = C.$('#ad-pane');
   C.$$('.ad-tab').forEach(b => b.classList.toggle('on', b.dataset.ad === adTab));
   C.$$('.owner-only').forEach(b => b.classList.toggle('hidden', !isOwner()));
-  if (adTab === 'owner' && !isOwner()) adTab = 'open';
+  if ((adTab === 'owner' || adTab === 'lookup') && !isOwner()) adTab = 'open';
   if (!isAdmin() || !db()) { pane.innerHTML = '<p class="note">Admins only.</p>'; return; }
   pane.innerHTML = '<p class="note">Loading…</p>';
   refreshAdminBadge();
   if (adTab === 'find') return adminFind();
   if (adTab === 'feedback') return adminFeedback(pane);
   if (adTab === 'owner') return ownerPane(pane);
+  if (adTab === 'lookup') return lookupPane(pane);
   if (adTab === 'bans') {
     await db().rpc('ek_admin_clean_bans');
     const { data } = await db().from('ek_bans').select('id,reason,by_admin,created_at,until').order('created_at', { ascending: false }).limit(200);
@@ -937,4 +939,24 @@ export function listenAnnouncements() {
   };
   // live only: if you weren't in the game when it was sent, you don't get it later
   annSub = db().channel('ek-ann').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ek_announcements' }, p => show(p.new)).subscribe();
+}
+
+// owner only: find which account an email belongs to, or which email an account uses (the database only answers the owner)
+let lookupQ = '';
+function lookupPane(pane) {
+  if (!isOwner()) { pane.innerHTML = '<p class="note">Owner only.</p>'; return; }
+  pane.innerHTML = `<div class="own-box"><h3>Account lookup</h3><p class="note">Type an email or a username (part of it works). Only you can see this.</p>
+    <div class="own-row"><input id="lk-q" placeholder="name@email.com or username" autocomplete="off" spellcheck="false" value="${esc(lookupQ)}"><button class="btn primary" id="lk-go" type="button">Search</button></div></div><div class="ad-list" id="lk-res"></div>`;
+  const q = C.$('#lk-q'), out = C.$('#lk-res');
+  const go = async () => {
+    lookupQ = q.value.trim(); if (lookupQ.length < 2) { out.innerHTML = '<p class="note">Type at least 2 letters.</p>'; return; }
+    out.innerHTML = '<p class="note">Searching…</p>';
+    const { data, error } = await db().rpc('ek_owner_lookup', { q: lookupQ });
+    if (error) { out.innerHTML = `<p class="note">${esc(error.message)}</p>`; return; }
+    const d = t => t ? new Date(t).toLocaleString() : 'never';
+    out.innerHTML = (data || []).map(r => `<div class="ad-row lk-row"><div><b>${esc(r.username || '(no username)')}${adminBadge(r.id)}</b><small>${esc(r.email || 'no email')}${r.confirmed ? ' · verified' : ' · not verified'}</small><small>Joined ${d(r.created_at)} · last login ${d(r.last_sign_in)}</small></div><button class="btn sm" type="button" data-lk="${esc(r.id)}">Profile</button></div>`).join('') || '<p class="note">No accounts match that.</p>';
+    C.$$('[data-lk]', out).forEach(b => b.onclick = () => { C.show('social'); openProfile(b.dataset.lk); });
+  };
+  C.$('#lk-go').onclick = go; q.onkeydown = e => { if (e.key === 'Enter') go(); };
+  if (lookupQ) go(); else q.focus();
 }

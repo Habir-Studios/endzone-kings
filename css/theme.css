@@ -764,3 +764,4 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .so-results { z-index: 41; max-height: 320px; overflow-y: auto; background: #18181b; box-shadow: 0 14px 34px rgba(0,0,0,.6); }
 .so-results button { width: 100%; color: #fff; min-width: 0; }
 .so-results button > :not(img):not(small) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-row small { display: block; } .own-row input { flex: 1; margin-right: 8px; }

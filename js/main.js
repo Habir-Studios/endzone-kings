@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792520598';
-import { NOTES, SEASON } from './patchnotes.js?v=1792520598';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792520598';
-import * as Form from './form.js?v=1792520598';
-import { watchSim } from './simview.js?v=1792520598';
-import { bracketHTML } from './bracket.js?v=1792520598';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792520598';
-import { rosterStyle } from './playbook.js?v=1792520598';
-import { Renderer } from './render.js?v=1792520598';
-import { Sfx } from './audio.js?v=1792520598';
-import { Auth } from './auth.js?v=1792520598';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792520598';
-import { getRoster, teamOvr } from './teams.js?v=1792520598';
-import * as Season from './season.js?v=1792520598';
-import * as Fr from './franchise.js?v=1792520598';
-import * as League from './league.js?v=1792520598';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792520598';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792520598';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792520598';
-import * as UTm from './ut.js?v=1792520598';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792520598';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792520598';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792520598';
-import { portraitURL } from './faces.js?v=1792520598';
-import { logoURL, clearLogoCache } from './logos.js?v=1792520598';
+import { CONFIG } from './config.js?v=1792520629';
+import { NOTES, SEASON } from './patchnotes.js?v=1792520629';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792520629';
+import * as Form from './form.js?v=1792520629';
+import { watchSim } from './simview.js?v=1792520629';
+import { bracketHTML } from './bracket.js?v=1792520629';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792520629';
+import { rosterStyle } from './playbook.js?v=1792520629';
+import { Renderer } from './render.js?v=1792520629';
+import { Sfx } from './audio.js?v=1792520629';
+import { Auth } from './auth.js?v=1792520629';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792520629';
+import { getRoster, teamOvr } from './teams.js?v=1792520629';
+import * as Season from './season.js?v=1792520629';
+import * as Fr from './franchise.js?v=1792520629';
+import * as League from './league.js?v=1792520629';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792520629';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792520629';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792520629';
+import * as UTm from './ut.js?v=1792520629';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792520629';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792520629';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792520629';
+import { portraitURL } from './faces.js?v=1792520629';
+import { logoURL, clearLogoCache } from './logos.js?v=1792520629';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -475,10 +475,10 @@ async function renderAccountRows() {
   $('#acct-row').classList.toggle('hidden', !acc); $('#link-row').classList.add('hidden');
   if (!acc) return;
   $('#acct-email').textContent = `${Auth.user.email || 'No email'} · only you can see this`;
-  const prov = await Auth.providers(); if (!prov.google && !prov.discord) return;   // nothing to link until Google or Discord is switched on
+  const prov = await Auth.providers(); if (!prov.google) return;   // nothing to link until Google is switched on
   let ids = []; try { ids = await Auth.identities(); } catch (_) {}
   const has = p => ids.find(i => i.provider === p);
-  $('#link-list').innerHTML = ['email', 'google', 'discord'].filter(p => p === 'email' || prov[p]).map(p => {
+  $('#link-list').innerHTML = ['email', 'google'].filter(p => p === 'email' || prov[p]).map(p => {
     const i = has(p);
     if (p === 'email') return `<span class="link-pill on">Email ✓</span>`;
     return i ? `<span class="link-pill on">${PROV_NAME[p]} ✓<button class="link" type="button" data-unlink="${p}">Unlink</button></span>` : `<button class="btn sm" type="button" data-link="${p}">Link ${PROV_NAME[p]}</button>`;
@@ -507,7 +507,7 @@ $('#acct-email-btn').addEventListener('click', () => {
   setTimeout(() => m.querySelector('#ce-email').focus(), 50);
 });
 // "Continue with Google / Discord" on the login screen, only for the ones that are switched on
-async function oauthButtons() { try { if (Auth.mode !== 'supabase') return; const p = await Auth.providers(); let any = false; for (const k of ['google', 'discord']) { const b = document.querySelector(`[data-oauth="${k}"]`); if (b && p[k]) { b.classList.remove('hidden'); any = true; b.onclick = async () => { sfx.play('ui'); try { await Auth.oauthLogin(k); } catch (e) { toast(e.message || 'Couldn’t start that login'); } }; } } $('#oauth-btns').classList.toggle('hidden', !any); } catch (_) {} }
+async function oauthButtons() { try { if (Auth.mode !== 'supabase') return; const p = await Auth.providers(); let any = false; for (const k of ['google']) { const b = document.querySelector(`[data-oauth="${k}"]`); if (b && p[k]) { b.classList.remove('hidden'); any = true; b.onclick = async () => { sfx.play('ui'); try { await Auth.oauthLogin(k); } catch (e) { toast(e.message || 'Couldn’t start that login'); } }; } } $('#oauth-btns').classList.toggle('hidden', !any); } catch (_) {} }
 function renderDevicesRow() { const r = $('#dev-row'); if (r) r.classList.toggle('hidden', !(Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account')); }
 async function openDevices() {
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 64;

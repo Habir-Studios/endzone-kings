@@ -1,4 +1,4 @@
-import { VO, slug } from './vo.js?v=1792520598';
+import { VO, slug } from './vo.js?v=1792520629';
 // ENDZONE KINGS — all audio is generated live (no sound files): stadium crowd, chants, air horn,
 // pad hits, whistle, menu music, and a play-by-play announcer (the one thing that IS recorded: assets/vo).
 

@@ -1,7 +1,7 @@
 // Season mode, NFL style: real divisions, 17 games over 18 weeks (one bye), the NFL scheduling formula with
 // the real 2026 division rotation, 7 playoff teams per conference (top seed gets a bye), Wild Card, Divisional,
 // Conference Championships and the Kings Bowl. Seasons saved before this (v1) keep playing the old way.
-import { TEAMS, teamOvr } from './teams.js?v=1792456382';
+import { TEAMS, teamOvr } from './teams.js?v=1792457407';
 
 export const WEEKS = 18;
 const N = TEAMS.length;

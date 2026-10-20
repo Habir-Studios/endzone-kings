@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792456382';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792457407';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792456382';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792457407';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1007,14 +1007,16 @@ function startKick(g, type, sk) {
     if (!sk) { const gs = () => (g.rng() + g.rng() + g.rng() - 1.5) / 1.5; sk = { power: 0.84 + g.rng() * 0.16, acc: gs() * 0.08, aim: (g.rng() - 0.5) * 14 }; }
     const skill = (legOf(g, off) - 50) / 49, squib = Math.abs(sk.acc) > 0.25;
     const W = g.opts.wind || { mph: 0, dir: 0 }, tail = Math.cos(W.dir) * d * W.mph, cross = Math.sin(W.dir) * W.mph;
-    const dist0 = (18 + sk.power * (50 + skill * 8) * (squib ? 0.6 : 1) + (g.rng() - 0.5) * 4) * (1 + tail * 0.01);
+    const dist0 = (14 + sk.power * (50 + skill * 8) * (squib ? 0.6 : 1) + (g.rng() - 0.5) * 4) * (1 + tail * 0.01);
     let land = p + dist0;
     let tx = sk.aim + sk.acc * 20 + (g.rng() - 0.5) * (3 - skill * 1.5) + cross * 0.3;
     const oob = Math.abs(tx) > HALF_W; tx = clamp(tx, -HALF_W - 1, HALF_W + 1);
     k.fx = g.ballX; k.fz = g.losZ; k.tx = tx; k.T = 2.3 + sk.power * 1.3; k.h = squib ? 4 : 10 + sk.power * 12;
     if (oob) { k.result = 'oob'; k.newP = 40; }
-    else if (land >= 103) { k.result = 'touchback'; k.newP = 35; land = Math.min(land, 108); }
-    else { k.result = 'ret'; land = Math.min(land, 102); k.newP = 35; }
+    // anything in the field of play or the end zone gets returned. Only a kick out the back is a touchback,
+    // and a CPU returner deep in his end zone takes a knee (yours always gets the choice to bring it out)
+    else if (land >= 108 || (land >= 104 && !g.opts.humans[1 - off])) { k.result = 'touchback'; k.newP = 35; land = Math.min(land, 110); }
+    else { k.result = 'ret'; land = Math.min(land, 107); k.newP = 35; }
     k.tz = zOf(off, land); k.yds = Math.round(Math.min(land, 100) - p); k.squib = squib;
     g.kick = k;
     const b = g.ball; b.state = 'kick'; b.carrier = -1; b.x = k.fx; b.z = k.fz; b.y = 0.3;

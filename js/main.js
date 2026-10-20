@@ -1,29 +1,29 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792520428';
-import { NOTES, SEASON } from './patchnotes.js?v=1792520428';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792520428';
-import * as Form from './form.js?v=1792520428';
-import { watchSim } from './simview.js?v=1792520428';
-import { bracketHTML } from './bracket.js?v=1792520428';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792520428';
-import { rosterStyle } from './playbook.js?v=1792520428';
-import { Renderer } from './render.js?v=1792520428';
-import { Sfx } from './audio.js?v=1792520428';
-import { Auth } from './auth.js?v=1792520428';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792520428';
-import { getRoster, teamOvr } from './teams.js?v=1792520428';
-import * as Season from './season.js?v=1792520428';
-import * as Fr from './franchise.js?v=1792520428';
-import * as League from './league.js?v=1792520428';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792520428';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792520428';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792520428';
-import * as UTm from './ut.js?v=1792520428';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792520428';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792520428';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792520428';
-import { portraitURL } from './faces.js?v=1792520428';
-import { logoURL, clearLogoCache } from './logos.js?v=1792520428';
+import { CONFIG } from './config.js?v=1792520487';
+import { NOTES, SEASON } from './patchnotes.js?v=1792520487';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792520487';
+import * as Form from './form.js?v=1792520487';
+import { watchSim } from './simview.js?v=1792520487';
+import { bracketHTML } from './bracket.js?v=1792520487';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792520487';
+import { rosterStyle } from './playbook.js?v=1792520487';
+import { Renderer } from './render.js?v=1792520487';
+import { Sfx } from './audio.js?v=1792520487';
+import { Auth } from './auth.js?v=1792520487';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792520487';
+import { getRoster, teamOvr } from './teams.js?v=1792520487';
+import * as Season from './season.js?v=1792520487';
+import * as Fr from './franchise.js?v=1792520487';
+import * as League from './league.js?v=1792520487';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_ } from './profile.js?v=1792520487';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792520487';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792520487';
+import * as UTm from './ut.js?v=1792520487';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792520487';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792520487';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792520487';
+import { portraitURL } from './faces.js?v=1792520487';
+import { logoURL, clearLogoCache } from './logos.js?v=1792520487';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -188,7 +188,8 @@ function show(id) {
   if (id === 'menu') { refreshProfile(); setTimeout(maybeAskTutorial, 900); }
   if (id === 'setup') renderSetup();
   if (id === 'online') renderOnline();
-  if (id === 'settings') { renderSettings(); renderTwofa(); renderDevicesRow(); }
+  if (id === 'auth') oauthButtons();
+  if (id === 'settings') { renderSettings(); renderTwofa(); renderDevicesRow(); renderAccountRows(); }
   if (id === 'locker') renderLocker();
   if (id === 'season') renderSeason();
   if (id === 'rosters') renderRosters();
@@ -467,6 +468,46 @@ function deviceInfo(ua) {
   return { type, browser: browser.trim(), sys: sys.trim() };
 }
 const agoTxt = t => { const s = (Date.now() - new Date(t).getTime()) / 1000; return s < 90 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} hr ago` : `${Math.round(s / 86400)} days ago`; };
+// ---------- account: email (private) and linked logins ----------
+const PROV_NAME = { google: 'Google', discord: 'Discord', email: 'Email' };
+async function renderAccountRows() {
+  const acc = Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account';
+  $('#acct-row').classList.toggle('hidden', !acc); $('#link-row').classList.add('hidden');
+  if (!acc) return;
+  $('#acct-email').textContent = `${Auth.user.email || 'No email'} · only you can see this`;
+  const prov = await Auth.providers(); if (!prov.google && !prov.discord) return;   // nothing to link until Google or Discord is switched on
+  let ids = []; try { ids = await Auth.identities(); } catch (_) {}
+  const has = p => ids.find(i => i.provider === p);
+  $('#link-list').innerHTML = ['email', 'google', 'discord'].filter(p => p === 'email' || prov[p]).map(p => {
+    const i = has(p);
+    if (p === 'email') return `<span class="link-pill on">Email ✓</span>`;
+    return i ? `<span class="link-pill on">${PROV_NAME[p]} ✓<button class="link" type="button" data-unlink="${p}">Unlink</button></span>` : `<button class="btn sm" type="button" data-link="${p}">Link ${PROV_NAME[p]}</button>`;
+  }).join('');
+  $('#link-row').classList.remove('hidden');
+  $$('#link-list [data-link]').forEach(b => b.onclick = async () => { sfx.play('ui'); try { await Auth.linkLogin(b.dataset.link); } catch (e) { toast(e.message || 'Couldn’t link that'); } });
+  $$('#link-list [data-unlink]').forEach(b => b.onclick = async () => {
+    const i = has(b.dataset.unlink); if (!i) return;
+    if (ids.length < 2) return toast('You need at least one way to log in');
+    if (!(await askYes(`Unlink ${PROV_NAME[b.dataset.unlink]}? You can still log in with your email and password.`, 'Unlink'))) return;
+    try { await Auth.unlinkLogin(i); toast(`${PROV_NAME[b.dataset.unlink]} unlinked`); renderAccountRows(); } catch (e) { toast(e.message || 'Couldn’t unlink that'); }
+  });
+}
+$('#acct-email-btn').addEventListener('click', () => {
+  sfx.play('ui');
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
+  m.innerHTML = `<div class="panel info-card"><h3 style="margin:0">Change email</h3><p class="note">We’ll send a confirmation link to the new email. Your email only changes after you click it. Nobody else can see your email.</p>
+    <label>New email<input id="ce-email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+    <div class="actions"><button class="btn primary" type="button" id="ce-go">Send confirmation</button><button class="btn" type="button" data-x>Cancel</button></div></div>`;
+  document.body.appendChild(m);
+  m.querySelector('[data-x]').onclick = () => m.remove();
+  m.querySelector('#ce-go').onclick = async () => {
+    const v = m.querySelector('#ce-email').value.trim(); if (!/^\S+@\S+\.\S+$/.test(v)) return toast('Type a real email');
+    try { await Auth.changeEmail(v); toast('Check your new email for the confirmation link', 4500); m.remove(); } catch (e) { toast(e.message || 'Couldn’t change it'); }
+  };
+  setTimeout(() => m.querySelector('#ce-email').focus(), 50);
+});
+// "Continue with Google / Discord" on the login screen, only for the ones that are switched on
+async function oauthButtons() { try { if (Auth.mode !== 'supabase') return; const p = await Auth.providers(); let any = false; for (const k of ['google', 'discord']) { const b = document.querySelector(`[data-oauth="${k}"]`); if (b && p[k]) { b.classList.remove('hidden'); any = true; b.onclick = async () => { sfx.play('ui'); try { await Auth.oauthLogin(k); } catch (e) { toast(e.message || 'Couldn’t start that login'); } }; } } $('#oauth-btns').classList.toggle('hidden', !any); } catch (_) {} }
 function renderDevicesRow() { const r = $('#dev-row'); if (r) r.classList.toggle('hidden', !(Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account')); }
 async function openDevices() {
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 64;

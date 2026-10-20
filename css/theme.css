@@ -765,3 +765,13 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .so-results button { width: 100%; color: #fff; min-width: 0; }
 .so-results button > :not(img):not(small) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lk-row small { display: block; } .own-row input { flex: 1; margin-right: 8px; }
+
+/* linked logins + outside login buttons */
+.link-list { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.link-pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; font-size: 13px; font-weight: 700; background: rgba(47,224,122,.12); border: 1px solid rgba(47,224,122,.4); }
+.link-pill .link { font-size: 12px; }
+.oauth-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.oauth-btns .or-line { text-align: center; font-size: 13px; opacity: .6; }
+.btn.oauth { width: 100%; }
+.btn.oauth.google { background: #fff; color: #1f1f1f; }
+.btn.oauth.discord { background: #5865f2; color: #fff; }

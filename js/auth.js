@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792520428';
+import { CONFIG } from './config.js?v=1792520487';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -122,6 +122,19 @@ export const Auth = {
     return this.user;
   },
 
+  // ---------- linked logins (Google / Discord) and email change ----------
+  // which outside logins are switched on in Supabase (Authentication → Providers). Buttons only show for these.
+  async providers() {
+    if (this._prov) return this._prov;
+    try { const r = await fetch(CONFIG.SUPABASE_URL.trim() + '/auth/v1/settings', { headers: { apikey: CONFIG.SUPABASE_ANON_KEY.trim() } }); const j = await r.json(); const e = j.external || {}; this._prov = { google: !!e.google, discord: !!e.discord }; }
+    catch (_) { this._prov = { google: false, discord: false }; }
+    return this._prov;
+  },
+  async oauthLogin(provider) { const { error } = await this.client.auth.signInWithOAuth({ provider, options: { redirectTo: authHome() } }); if (error) throw error; },
+  async identities() { const { data, error } = await this.client.auth.getUserIdentities(); if (error) throw error; return (data && data.identities) || []; },
+  async linkLogin(provider) { const { error } = await this.client.auth.linkIdentity({ provider, options: { redirectTo: authHome() } }); if (error) throw error; },
+  async unlinkLogin(identity) { const { error } = await this.client.auth.unlinkIdentity(identity); if (error) throw error; },
+  async changeEmail(email) { const { error } = await this.client.auth.updateUser({ email }, { emailRedirectTo: authHome() }); if (error) throw error; },
   async resetPassword(email) {
     if (this.mode !== 'supabase') throw new Error('Password reset needs online accounts set up');
     const v = (email || '').trim();

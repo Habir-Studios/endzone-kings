@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792519826';
-import { TEAMS } from './teams.js?v=1792519826';
-import { rankInfo } from './profile.js?v=1792519826';
+import { askYes } from './ui.js?v=1792520135';
+import { TEAMS } from './teams.js?v=1792520135';
+import { rankInfo } from './profile.js?v=1792520135';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -906,7 +906,7 @@ function showInvite(code, from) {
 async function ownerPane(pane) {
   if (!isOwner()) { pane.innerHTML = '<p class="note">Owner only.</p>'; return; }
   const { data } = await db().from('ek_announcements').select('id,name,message,created_at').order('created_at', { ascending: false }).limit(20);
-  pane.innerHTML = `<div class="own-box"><h3>Global message</h3><p class="note">Goes to everyone with the game open right now, on every screen (in games too), and shows up for anyone who opens the game in the next hour. Sent as <b>HussainZ2</b> with your OWNER badge.</p>
+  pane.innerHTML = `<div class="own-box"><h3>Global message</h3><p class="note">Pops up at the top for everyone with the game open right now, on every screen (in games too), for 5 seconds. They can close it early. People who aren't on don't get it later. Sent as <b>HussainZ2</b> with your OWNER badge.</p>
     <textarea id="own-msg" maxlength="400" rows="3" placeholder="Season 1 is live! New update tonight…"></textarea>
     <div class="own-row"><small class="note" id="own-n">0/400</small><button class="btn primary" id="own-send" type="button">Send to everyone</button></div></div>
     <h3 class="store-h">Sent</h3><div class="ad-list">${(data || []).map(a => `<div class="ad-row"><div><b>${esc(a.message)}</b><small>${new Date(a.created_at).toLocaleString()}</small></div><button class="btn sm danger" data-own-del="${a.id}" type="button">Delete</button></div>`).join('') || '<p class="note">Nothing sent yet.</p>'}</div>`;
@@ -931,11 +931,10 @@ export function listenAnnouncements() {
     const el = document.createElement('div'); el.id = 'ann-bar'; el.className = 'ann-bar'; el.setAttribute('role', 'status');
     el.innerHTML = `<i class="ann-ic" aria-hidden="true"></i><div><b>${esc(a.name || 'HussainZ2')}<span class="admin-badge owner-badge">OWNER</span></b><p>${esc(a.message)}</p></div><button type="button" aria-label="Close">✕</button>`;
     document.body.appendChild(el);
-    el.querySelector('button').onclick = () => el.remove();
+    el.querySelector('button').onclick = e => { e.stopPropagation(); el.remove(); };
     C.sfx && C.sfx.play && C.sfx.play('ui');
-    setTimeout(() => { if (el.isConnected) el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 15000);
+    setTimeout(() => { if (el.isConnected) el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 5000);   // 5 seconds, or close it right away with the X
   };
-  db().from('ek_announcements').select('id,name,message,created_at').order('created_at', { ascending: false }).limit(1)
-    .then(({ data }) => { const a = data && data[0]; if (a && Date.now() - new Date(a.created_at).getTime() < 3600e3) show(a); }, () => {});
+  // live only: if you weren't in the game when it was sent, you don't get it later
   annSub = db().channel('ek-ann').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ek_announcements' }, p => show(p.new)).subscribe();
 }

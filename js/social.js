@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792521149';
-import { TEAMS } from './teams.js?v=1792521149';
-import { rankInfo } from './profile.js?v=1792521149';
+import { askYes } from './ui.js?v=1792521306';
+import { TEAMS } from './teams.js?v=1792521306';
+import { rankInfo } from './profile.js?v=1792521306';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -692,7 +692,8 @@ export async function renderAdmin() {
   const pane = C.$('#ad-pane');
   C.$$('.ad-tab').forEach(b => b.classList.toggle('on', b.dataset.ad === adTab));
   C.$$('.owner-only').forEach(b => b.classList.toggle('hidden', !isOwner()));
-  if ((adTab === 'owner' || adTab === 'lookup') && !isOwner()) adTab = 'open';
+  if (adTab === 'lookup' && !isOwner()) adTab = 'open';
+  C.$$('.admin-msg').forEach(b => b.classList.toggle('hidden', !isAdmin()));
   if (!isAdmin() || !db()) { pane.innerHTML = '<p class="note">Admins only.</p>'; return; }
   pane.innerHTML = '<p class="note">Loading…</p>';
   refreshAdminBadge();
@@ -905,17 +906,37 @@ function showInvite(code, from) {
 }
 
 // ---------------- owner tools: global announcements (only the owner can send them; the database enforces it) ----------------
+let msgMode = 'all', msgTo = [];
 async function ownerPane(pane) {
-  if (!isOwner()) { pane.innerHTML = '<p class="note">Owner only.</p>'; return; }
-  pane.innerHTML = `<div class="own-box"><h3>Global message</h3><p class="note">Pops up at the top for everyone with the game open right now, on every screen (in games too), for 5 seconds. They can close it early. People who aren't on don't get it later. Sent as <b>HussainZ2</b> with your OWNER badge.</p>
-    <textarea id="own-msg" maxlength="400" rows="3" placeholder="Season 1 is live! New update tonight…"></textarea>
-    <div class="own-row"><small class="note" id="own-n">0/400</small><button class="btn primary" id="own-send" type="button">Send to everyone</button></div></div>`;
+  if (!isAdmin()) { pane.innerHTML = '<p class="note">Admins only.</p>'; return; }
+  const owner = isOwner(); if (!owner) msgMode = 'some';
+  pane.innerHTML = `<div class="own-box"><h3>Send a message</h3>
+    ${owner ? '<div class="seg" id="msg-mode"></div>' : ''}
+    <div id="msg-to-box" class="${msgMode === 'some' ? '' : 'hidden'}"><div class="msg-chips" id="msg-chips"></div><div class="msg-find"><input id="msg-find" placeholder="Add a player by username" autocomplete="off" spellcheck="false"><div class="so-results hidden" id="msg-sug"></div></div></div>
+    <p class="note" id="msg-note"></p>
+    <textarea id="own-msg" maxlength="400" rows="3" placeholder="Type your message…"></textarea>
+    <div class="own-row"><small class="note" id="own-n">0/400</small><button class="btn primary" id="own-send" type="button">Send</button></div></div>`;
+  const note = () => { C.$('#msg-note').innerHTML = msgMode === 'all' ? 'Pops up at the top for <b>everyone</b> with the game open right now, on every screen (in games too), for 5 seconds. They can close it. People who aren’t on don’t get it later.' : `Pops up for <b>only the players you pick</b> (up to 50), anywhere in the game, for 5 seconds. They can close it. Sent as <b>${esc(me().name)}</b>.`; C.$('#own-send').textContent = msgMode === 'all' ? 'Send to everyone' : `Send to ${msgTo.length || 'no'} player${msgTo.length === 1 ? '' : 's'}`; };
+  const chips = () => { C.$('#msg-chips').innerHTML = msgTo.map((p, i) => `<span class="link-pill on">${esc(p.name)}<button class="link" type="button" data-rm="${i}" aria-label="Remove">✕</button></span>`).join(''); C.$$('[data-rm]', pane).forEach(b => b.onclick = () => { msgTo.splice(+b.dataset.rm, 1); chips(); note(); }); };
+  if (owner) C.seg(C.$('#msg-mode'), [['all', 'Everyone'], ['some', 'Specific players']], msgMode, v => { msgMode = v; C.$('#msg-to-box').classList.toggle('hidden', v !== 'some'); note(); });
+  chips(); note();
+  const fi = C.$('#msg-find'), sug = C.$('#msg-sug'); let ft = 0;
+  fi.oninput = () => { clearTimeout(ft); ft = setTimeout(async () => {
+    const q = fi.value.trim(); if (q.length < 2) { sug.classList.add('hidden'); return; }
+    const { data } = await db().from('ek_players').select('id,name,team,lvl').ilike('name', `%${q}%`).limit(6);
+    sug.innerHTML = (data || []).map(r => `<button type="button" data-pick="${esc(r.id)}" data-nm="${esc(r.name)}"><img alt="" src="${C.logoURL(r.team ?? 0, 32)}">${esc(r.name)}${adminBadge(r.id)}<small>Lv ${r.lvl}</small></button>`).join('') || '<p class="note" style="padding:8px">No players found</p>';
+    sug.classList.remove('hidden');
+    C.$$('[data-pick]', sug).forEach(b => b.onclick = () => { if (!msgTo.some(p => p.id === b.dataset.pick) && msgTo.length < 50) msgTo.push({ id: b.dataset.pick, name: b.dataset.nm }); fi.value = ''; sug.classList.add('hidden'); chips(); note(); fi.focus(); });
+  }, 250); };
   const ta = C.$('#own-msg'); ta.oninput = () => { C.$('#own-n').textContent = `${ta.value.length}/400`; };
   C.$('#own-send').onclick = async () => {
     const msg = ta.value.trim(); if (!msg) return C.toast('Type a message first');
-    if (!(await askYes(`Send this to everyone?\n\n“${msg}”`, 'Send'))) return;
-    const { error } = await db().from('ek_announcements').insert({ author: me().id, name: 'HussainZ2', message: msg });
-    if (error) return C.toast(error.message); C.toast('Sent to everyone'); ta.value = ''; C.$('#own-n').textContent = '0/400';
+    if (msgMode === 'some' && !msgTo.length) return C.toast('Add at least one player');
+    const who = msgMode === 'all' ? 'everyone' : msgTo.map(p => p.name).join(', ');
+    if (!(await askYes(`Send this to ${who}?\n\n“${msg}”`, 'Send'))) return;
+    const { error } = await db().from('ek_announcements').insert({ author: me().id, name: String(me().name).slice(0, 24), message: msg, targets: msgMode === 'all' ? null : msgTo.map(p => p.id) });
+    if (error) return C.toast(error.message);
+    C.toast(msgMode === 'all' ? 'Sent to everyone' : `Sent to ${msgTo.length} player${msgTo.length === 1 ? '' : 's'}`); ta.value = ''; C.$('#own-n').textContent = '0/400';
   };
 }
 // everyone: show announcements live, and the latest one (under an hour old) on load if you haven't seen it
@@ -925,10 +946,12 @@ export function listenAnnouncements() {
   const seen = () => { try { return +localStorage.getItem('ek_ann_seen') || 0; } catch (_) { return 0; } };
   const show = a => {
     if (!a || a.id <= seen()) return;
+    if (a.targets && !(me() && a.targets.includes(me().id))) return;   // a message for specific players only pops up for them (admins can read them all, but don't get the pop-up)
     try { localStorage.setItem('ek_ann_seen', String(a.id)); } catch (_) {}
     const old = document.getElementById('ann-bar'); if (old) old.remove();
     const el = document.createElement('div'); el.id = 'ann-bar'; el.className = 'ann-bar'; el.setAttribute('role', 'status');
-    el.innerHTML = `<i class="ann-ic" aria-hidden="true"></i><div><b>${esc(a.name || 'HussainZ2')}<span class="admin-badge owner-badge">OWNER</span></b><p>${esc(a.message)}</p></div><button type="button" aria-label="Close">✕</button>`;
+    const own = !a.author || a.author === ADMIN_ID;
+    el.innerHTML = `<i class="ann-ic" aria-hidden="true"></i><div><b>${esc(a.name || 'HussainZ2')}${own ? '<span class="admin-badge owner-badge">OWNER</span>' : '<span class="admin-badge">ADMIN</span>'}${a.targets ? '<em class="ann-to">to you</em>' : ''}</b><p>${esc(a.message)}</p></div><button type="button" aria-label="Close">✕</button>`;
     document.body.appendChild(el);
     el.querySelector('button').onclick = e => { e.stopPropagation(); el.remove(); };
     C.sfx && C.sfx.play && C.sfx.play('ui');

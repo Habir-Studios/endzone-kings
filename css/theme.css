@@ -812,3 +812,45 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .daily-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .daily-bal { font-size: 18px; }
 .del-row .tf-k { color: #ff8a95; }
+
+/* in-game zoom buttons */
+.zoom-btns { position: absolute; right: 14px; top: 132px; display: flex; flex-direction: column; gap: 6px; z-index: 5; }
+.zoom-btns button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(12,12,15,.78); color: #fff; font: 800 22px/1 var(--display, system-ui); cursor: pointer; display: grid; place-items: center; }
+.zoom-btns button:hover { background: rgba(40,40,48,.9); }
+.zoom-btns button:focus-visible { outline: 2px solid var(--gold, #fa2844); outline-offset: 2px; }
+@media (max-width: 700px), (max-height: 500px) { .zoom-btns { top: 96px; right: 10px; } .zoom-btns button { width: 36px; height: 36px; font-size: 20px; } }
+
+/* spectating: who is playing who */
+.spec-vs { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: rgba(10,10,13,.82); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; font-size: 14px; white-space: nowrap; pointer-events: none; }
+.spec-vs span { display: flex; align-items: center; gap: 6px; }
+.spec-vs i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(255,255,255,.5); }
+.spec-vs small { opacity: .7; font-weight: 700; }
+.spec-vs em { font-style: normal; opacity: .6; font-weight: 800; }
+@media (max-width: 700px) { .spec-vs { top: 70px; font-size: 12px; } }
+
+/* who's online list */
+.player-count { cursor: pointer; }
+.player-count:hover { filter: brightness(1.15); }
+.ol-card { max-width: 380px; width: calc(100vw - 32px); }
+.ol-card h3 .ol-n { font-size: .8em; opacity: .7; margin-left: 4px; }
+.ol-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow: auto; margin: 10px 0; }
+.ol-row { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ol-row:hover { background: rgba(255,255,255,.09); }
+.ol-row small { margin-left: auto; opacity: .6; }
+
+/* profile: total games played */
+.pf-gp { font-size: 13px; opacity: .85; }
+.pf-gp b { font-weight: 800; }
+
+/* pause menu game stats */
+.gs-card { max-width: 440px; width: calc(100vw - 32px); max-height: 86vh; overflow: auto; }
+.gs-card h3 small { font-size: 13px; margin-left: 6px; }
+.gs-card h4 { margin: 14px 0 4px; }
+.gs-lead { width: 100%; border-collapse: collapse; font-size: 14px; }
+.gs-lead td { padding: 6px 4px; border-bottom: 1px solid var(--line, rgba(255,255,255,.1)); }
+.gs-lead td:last-child { text-align: right; opacity: .9; }
+.gs-lead small { opacity: .6; margin-left: 4px; }
+
+/* buy several packs at once */
+.pk-multi { display: flex; gap: 6px; margin-top: 6px; }
+.pk-multi .btn { flex: 1; width: auto; font-size: 12px; padding: 6px 4px; white-space: nowrap; }

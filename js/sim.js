@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792526258';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792612483';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792526258';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792612483';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -122,7 +122,7 @@ export function createGame(opts = {}) {
     freeze: !!opts.freeze,   // practice only: play clock frozen
     toss: !!opts.toss,   // opening coin toss before the first snap
     playoff: !!opts.playoff,   // playoff game: overtime keeps going until somebody wins
-    cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 17 ? v : -1; }),
+    cel: [0, 1].map(k => { const v = opts.cel ? +opts.cel[k] : -1; return Number.isFinite(v) && v >= -1 && v <= 24 ? v : -1; }),
   };
   const rng = mulberry(o.seed);
   const first = rng() < 0.5 ? 0 : 1;
@@ -468,7 +468,7 @@ function handleEvent(g, team, ev) {
     return;
   }
   // pick a touchdown celebration while you're celebrating
-  if (ev.t === 'cel') { const v = +ev.id; if (Number.isFinite(v) && v >= -1 && v <= 17) { g.opts.cel[team] = v; if (g.phase === 'dead' && g.celebrate !== team && g.phaseT < g.deadDur - 0.8) startCel(g, team); else if (g.phase === 'dead' && g.celebrate === team) { for (const p of g.players) if (p.team === team) p.celReset = 1; g.events.push('cel' + (v < 0 ? 0 : v)); } } return; }
+  if (ev.t === 'cel') { const v = +ev.id; if (Number.isFinite(v) && v >= -1 && v <= 24) { g.opts.cel[team] = v; if (g.phase === 'dead' && g.celebrate !== team && g.phaseT < g.deadDur - 0.8) startCel(g, team); else if (g.phase === 'dead' && g.celebrate === team) { for (const p of g.players) if (p.team === team) p.celReset = 1; g.events.push('cel' + (v < 0 ? 0 : v)); } } return; }
   // done watching: both humans hit snap and the next play comes up
   if (ev.t === 'skip') { if (g.phase === 'dead' && g.phaseT > 1.5) { g.deadSkip[team] = true; if ([0, 1].every(t => !g.opts.humans[t] || g.deadSkip[t])) g.deadDur = Math.min(g.deadDur, g.phaseT + 0.2); } return; }
   // onside kick: call it any time you have the ball; it happens on your next kickoff
@@ -992,7 +992,7 @@ function updateKickSet(g, dt, inputs) {
     return;
   }
   if (k.stage !== 'acc') k.aim = clamp(k.aim + (inp.mx || 0) * dt * (k.type === 'punt' || k.type === 'kickoff' ? 14 : 7), -lim, lim);
-  if (k.stage === 'power') { k.m += dt / 1.05 * k.dir; if (k.m >= 1) { k.m = 1; k.dir = -1; } if (k.m <= 0 && k.dir < 0) { k.m = 0; k.dir = 1; } }
+  if (k.stage === 'power') { k.m += dt / 1.05 * k.dir * (0.75 + k.m * 0.8); if (k.m >= 1) { k.m = 1; k.dir = -1; } if (k.m <= 0 && k.dir < 0) { k.m = 0; k.dir = 1; } }
   else if (k.stage === 'acc') { k.m -= dt / 0.9; if (k.m < -0.18) return finishKick(g, -0.3); }
   if (g.phaseT > 14 && !k.cpu) { if (k.stage === 'aim') advanceKick(g); else if (k.stage === 'power') { k.m = 0.7; advanceKick(g); } else finishKick(g, 0.2); }
 }
@@ -1000,14 +1000,17 @@ function updateKickSet(g, dt, inputs) {
 function startKick(g, type, sk) {
   const off = g.poss, d = dirOf(off);
   const p = prog(off, g.losZ);
+  // on a punt the return man is lined up deep, about where a punt comes down, not up with the defense
+  if (type === 'punt') { const r = returnerOf(g, 1 - off); if (r) { r.x = clamp(g.ballX * 0.5, -10, 10); r.z = zOf(off, Math.min(p + 42, 106)); r.warpT = g.t; r.vx = r.vz = 0; } }
   g.phase = 'kick'; g.phaseT = 0;
   const k = { type, t: 0, human: !!sk };
   k.fx = g.ballX; k.fz = g.losZ - 7 * d;
   if (type === 'kickoff') {
-    if (!sk) { const gs = () => (g.rng() + g.rng() + g.rng() - 1.5) / 1.5; sk = { power: 0.84 + g.rng() * 0.16, acc: gs() * 0.08, aim: (g.rng() - 0.5) * 14 }; }
+    if (!sk) { const gs = () => (g.rng() + g.rng() + g.rng() - 1.5) / 1.5; sk = { power: 0.78 + g.rng() * 0.22, acc: gs() * 0.1, aim: (g.rng() - 0.5) * 14 }; }
     const skill = (legOf(g, off) - 50) / 49, squib = Math.abs(sk.acc) > 0.25;
     const W = g.opts.wind || { mph: 0, dir: 0 }, tail = Math.cos(W.dir) * d * W.mph, cross = Math.sin(W.dir) * W.mph;
-    const dist0 = (14 + sk.power * (50 + skill * 8) * (squib ? 0.6 : 1) + (g.rng() - 0.5) * 4) * (1 + tail * 0.01);
+    if (sk.onside) return onsideKick(g, k, p);
+    const dist0 = (14 + sk.power * (46 + skill * 8) * (squib ? 0.6 : 1) + (g.rng() - 0.5) * 6) * (1 + tail * 0.01);
     let land = p + dist0;
     let tx = sk.aim + sk.acc * 20 + (g.rng() - 0.5) * (3 - skill * 1.5) + cross * 0.3;
     const oob = Math.abs(tx) > HALF_W; tx = clamp(tx, -HALF_W - 1, HALF_W + 1);
@@ -1015,7 +1018,7 @@ function startKick(g, type, sk) {
     if (oob) { k.result = 'oob'; k.newP = 40; }
     // anything in the field of play or the end zone gets returned. Only a kick out the back is a touchback,
     // and a CPU returner deep in his end zone takes a knee (yours always gets the choice to bring it out)
-    else if (land >= 108 || (land >= 104 && !g.opts.humans[1 - off])) { k.result = 'touchback'; k.newP = 35; land = Math.min(land, 110); }
+    else if (land >= 110 || (land >= 105 && !g.opts.humans[1 - off] && g.rng() < 0.6)) { k.result = 'touchback'; k.newP = 35; land = Math.min(land, 110); }
     else { k.result = 'ret'; land = Math.min(land, 107); k.newP = 35; }
     k.tz = zOf(off, land); k.yds = Math.round(Math.min(land, 100) - p); k.squib = squib;
     g.kick = k;
@@ -1054,6 +1057,7 @@ function startKick(g, type, sk) {
         // and drops into the net, crossing the goal line plane exactly at xPost
         throughPosts(k, off, xPost, k.good ? 6 + Math.min(fd, 55) * 0.04 : 5.5);
       }
+      maybeBlock(g, k, type, fd);
     }
     g.kick = k;
     const b = g.ball; b.state = 'kick'; b.carrier = -1; b.x = k.fx; b.z = k.fz; b.y = 0.5;
@@ -1081,12 +1085,79 @@ function startKick(g, type, sk) {
     k.tx = k.good ? (g.rng() - 0.5) * 4 : (g.rng() < 0.5 ? -1 : 1) * (4.5 + g.rng() * 3);
     k.tz = zOf(off, 110); k.T = 1.7; k.h = 6 + fd * 0.12;
   }
-  if (type !== 'punt') throughPosts(k, off, k.tx, k.good ? 6 + Math.min(k.dist || 20, 55) * 0.04 : 5.5);
+  if (type !== 'punt') { throughPosts(k, off, k.tx, k.good ? 6 + Math.min(k.dist || 20, 55) * 0.04 : 5.5); maybeBlock(g, k, type, k.dist || XP_DIST); }
   g.kick = k;
   const b = g.ball; b.state = 'kick'; b.carrier = -1; b.x = k.fx; b.z = k.fz; b.y = 0.5;
   g.events.push('kick');
 }
 
+// a field goal or extra point can get blocked: a lineman gets a hand up, the ball pops off it and dies near the line.
+// Longer kicks fly lower and get blocked more; a better defensive line blocks more.
+function maybeBlock(g, k, type, fd) {
+  if (type !== 'fg' && type !== 'xp') return;
+  const off = g.poss, dl = rosterFor(g, 1 - off).players, rush = ((dl.DL && dl.DL.str) || 75) + ((dl.LB && dl.LB.spd) || 75);
+  const chance = (type === 'xp' ? 0.012 : 0.025 + Math.max(0, fd - 40) * 0.0015) * clamp(rush / 150, 0.8, 1.25);
+  if (g.rng() >= chance) return;
+  const d = dirOf(off), spot = prog(off, g.losZ) + 0.5 + g.rng() * 4;
+  k.blocked = true; k.good = false; k.miss = 'blocked';
+  k.tx = clamp(k.fx + (g.rng() - 0.5) * 14, -HALF_W + 2, HALF_W - 2); k.tz = zOf(off, spot - 3 + g.rng() * 6); k.T = 0.9; k.h = 2.5 + g.rng() * 2;
+  // the defender who got a hand on it leaps at the kick
+  let best = null, bd = 1e9; for (const p of g.players) if (p.team !== off && dist(p, { x: k.fx, z: k.fz }) < bd) { bd = dist(p, { x: k.fx, z: k.fz }); best = p; }
+  if (best) { best.x = k.fx + (g.rng() - 0.5) * 2; best.z = k.fz + d * 2.2; best.warpT = g.t; best.dive = 0.6; }
+  g.events.push('tackle');
+}
+// onside kick: a short, bouncing kick the kicking team chases. It travels at least 10 yards, then whoever gets to it
+// first and hangs on gets it (the kicking team gets it about a quarter of the time, like real life).
+function onsideKick(g, k, p) {
+  const off = g.poss, land = p + 10.5 + g.rng() * 3; k.fx = g.ballX; k.fz = g.losZ;
+  k.result = 'onside'; k.onside = true; k.tx = clamp((g.rng() - 0.5) * 22, -HALF_W + 3, HALF_W - 3); k.tz = zOf(off, land); k.T = 1.5; k.h = 1.1; k.yds = Math.round(land - p);
+  g.kick = k; const b = g.ball; b.state = 'kick'; b.carrier = -1; b.x = k.fx; b.z = k.fz; b.y = 0.3;
+  g.events.push('kick'); g.flash = { text: 'ONSIDE KICK!', until: 1.4 };
+}
+function onsideFlight(g, k, dt) {
+  const off = g.poss;
+  for (const p of g.players) {
+    if (p.id === 0 && p.team === off) continue;
+    const tx = k.tx + ((p.id % 5) - 2) * 1.2, tz = k.tz, sp = p.max * (p.team === off ? 0.95 : 0.85);
+    const dx = tx - p.x, dz = tz - p.z, l = hyp(dx, dz);
+    if (l > 0.6) { const st = Math.min(l, sp * dt); p.x += dx / l * st; p.z += dz / l * st; p.vx = dx / l * sp; p.vz = dz / l * sp; p.face = Math.atan2(dx, dz); } else { p.vx = p.vz = 0; }
+  }
+  separate(g, 1);
+  if (k.t < k.T + 0.6 || k.done) return;
+  // the scrum: whoever comes out with it
+  const kickers = g.players.filter(p => p.team === off), near = q => hyp(q.x - k.tx, q.z - k.tz);
+  const kd = Math.min(...kickers.map(near)), rd = Math.min(...g.players.filter(p => p.team !== off).map(near));
+  const got = g.rng() < clamp(0.25 + (rd - kd) * 0.02, 0.14, 0.4);
+  const team = got ? off : 1 - off, who = g.players.filter(p => p.team === team).sort((a, b2) => near(a) - near(b2))[0];
+  if (who) { who.x = k.tx; who.z = k.tz; who.warpT = g.t; who.fallen = 0.8; }
+  const b = g.ball; b.state = 'dead'; b.x = k.tx; b.z = k.tz; b.y = 0.3;
+  g.poss = team; g.losZ = k.tz; g.ballX = 0; setFirstDown(g);
+  g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.6; g.runoff = 0; k.done = true; g.kick = null;
+  g.events.push('whistle');
+  if (got) { g.msg = { text: 'ONSIDE KICK RECOVERED!', sub: `${cityOf(g, off)} keeps the ball`, until: 2.6, big: true }; g.events.push('crowd'); highlight(g, 'ONSIDE RECOVERY', '', off); }
+  else g.msg = { text: 'ONSIDE KICK', sub: `${cityOf(g, 1 - off)} covers it`, until: 2.2 };
+}
+// a kick the returner can't get under: it hits the ground and bounces. A kickoff is still live (the returner picks it up),
+// a punt that nobody catches is downed where it stops. Returns true when the returner has it.
+function kickLoose(g, k, ret, dt) {
+  const off = g.poss, d = dirOf(off), b = g.ball;
+  if (!k.loose) { k.loose = true; g.ballFly = { vx: (k.tx - k.fx) / k.T * 0.25 + (g.rng() - 0.5) * 3, vz: d * (3 + g.rng() * 4), vy: 3.5 }; g.events.push('bounce'); }
+  if (g.ballFly) flyBall(g, dt);
+  k.tx = b.x; k.tz = b.z;
+  const at = prog(off, b.z);
+  if (hyp(ret.x - b.x, ret.z - b.z) < 1.3 && at < 110 && Math.abs(b.x) < HALF_W) return true;
+  const stopped = !g.ballFly, cover = g.players.some(p => p.team === off && hyp(p.x - b.x, p.z - b.z) < 1.2);
+  const end = (r, newP) => { k.result = r; k.newP = newP; k.yds = Math.round(Math.min(at, 100) - (k.p0 || 0)); k.done = true; };
+  if (k.type === 'kickoff') {
+    if (at >= 110 || (stopped && at >= 100)) end('touchback', 35);
+    else if (Math.abs(b.x) > HALF_W) end('oob', 40);
+    else if (k.t > k.T + 7) return true;
+  } else {
+    if (at >= 100 && (stopped || at >= 110)) end('touchback', 20);
+    else if (stopped || cover || Math.abs(b.x) > HALF_W || k.t > k.T + 6) end('downed', clamp(Math.round(100 - at), 1, 99));
+  }
+  return false;
+}
 // kicks keep flying past the goal line plane: they cross it exactly at xPost, at a height clearly over the 3.3 crossbar,
 // then drop into the net behind the posts
 function throughPosts(k, off, xPost, cross) {
@@ -1112,18 +1183,30 @@ function updateKick(g, dt) {
     // past the posts the ball keeps going and comes down behind the end zone instead of hanging in the air
     if (!g.ballFly) { const pv = k.pv || [b.x, b.y, b.z], st = Math.max(dt, 1 / 120); g.ballFly = { vx: (b.x - pv[0]) / st, vz: (b.z - pv[2]) / st, vy: (b.y - pv[1]) / st }; }   // keep the speed it had going through the posts
     flyBall(g, dt);
-  } else {
+  } else if (k.onside) {
+    k.pv = [b.x, b.y, b.z]; const s2 = Math.min(1, k.t / k.T);
+    b.x = k.fx + (k.tx - k.fx) * s2; b.z = k.fz + (k.tz - k.fz) * s2;
+    b.y = 0.25 + Math.abs(Math.sin(s2 * Math.PI * 3.2)) * k.h * (1.2 - s2);   // skips off the turf
+  } else if (!k.loose) {
     k.pv = [b.x, b.y, b.z];
     b.x = k.fx + (k.tx - k.fx) * s; b.z = k.fz + (k.tz - k.fz) * s;
     b.y = 0.5 + 4 * k.h * s * (1 - s) + (k.type !== 'punt' && k.type !== 'kickoff' ? s * 3 : 0);
   }
-  if (k.type !== 'xp') g.clock = Math.max(0, g.clock - dt);   // tries are untimed
-  if ((k.type === 'punt' && k.result === 'punt') || (k.type === 'kickoff' && k.result === 'ret')) {
+  if (k.p0 == null) k.p0 = prog(g.poss, k.type === 'punt' ? g.losZ : k.fz);
+  // field goals run the clock from the snap; on kickoffs and punts it only starts once the return man touches it
+  if (k.type === 'fg') g.clock = Math.max(0, g.clock - dt);
+  if (k.onside) return onsideFlight(g, k, dt);
+  if (!k.done && ((k.type === 'punt' && k.result === 'punt') || (k.type === 'kickoff' && k.result === 'ret'))) {
     // hang time: the coverage team sprints downfield, the returner settles under it, his teammates set up a wall
     puntFlight(g, k, dt);
-    if (k.t >= k.T) return startReturn(g, k);
+    if (k.t >= k.T) {
+      const ret = returnerOf(g, 1 - g.poss);
+      // he has to actually get there: if he's not under it, it bounces
+      if (ret && (k.loose || hyp(ret.x - k.tx, ret.z - k.tz) > 2.4)) { if (!kickLoose(g, k, ret, dt)) { if (!k.done) return; } else return startReturn(g, k); }
+      else return startReturn(g, k);
+    }
   }
-  if (k.t >= k.T + 0.4) {
+  if (k.t >= k.T + 0.4 || k.done) {
     const off = g.poss;
     g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.2; g.runoff = 0;
     g.events.push('whistle');
@@ -1134,14 +1217,14 @@ function updateKick(g, dt) {
     else { ks.fga++; if (k.good) { ks.fgm++; ks.fgl = Math.max(ks.fgl, k.dist || 0); } }
     if (k.type === 'kickoff') {
       g.poss = 1 - off; g.losZ = zOf(g.poss, k.newP); g.ballX = 0; setFirstDown(g);
-      g.msg = k.result === 'oob' ? { text: 'KICKOFF OUT OF BOUNDS', sub: `Ball at the ${k.newP}`, until: 2 } : { text: 'TOUCHBACK', sub: `${k.yds} yd kickoff`, until: 2 };
+      g.msg = k.result === 'oob' ? { text: 'KICKOFF OUT OF BOUNDS', sub: `Ball at the ${k.newP}`, until: 2 } : { text: 'TOUCHBACK', sub: `${Math.max(0, k.yds)} yd kickoff`, until: 2 };
     } else if (k.type === 'xp') {
       if (k.good) { score(g, off, 1); g.events.push('score'); }
-      g.msg = k.good ? { text: 'EXTRA POINT GOOD', sub: '', until: 2 } : { text: 'EXTRA POINT NO GOOD', sub: k.miss || '', until: 2 };
+      g.msg = k.good ? { text: 'EXTRA POINT GOOD', sub: '', until: 2 } : { text: k.blocked ? 'EXTRA POINT BLOCKED!' : 'EXTRA POINT NO GOOD', sub: k.blocked ? '' : k.miss || '', until: 2 };
       g.pat = -1; kickoffTo(g, 1 - off);
     } else if (k.type === 'punt') {
       g.poss = 1 - off; g.losZ = zOf(g.poss, k.newP); g.ballX = 0; setFirstDown(g);
-      g.msg = k.result === 'touchback' ? { text: 'TOUCHBACK', sub: `${k.yds} yd punt`, until: 2 } : { text: k.shank ? 'SHANKED PUNT' : k.result === 'oob' ? 'PUNT OUT OF BOUNDS' : 'PUNT', sub: `${k.yds} yards`, until: 2 };
+      g.msg = k.result === 'touchback' ? { text: 'TOUCHBACK', sub: `${k.yds} yd punt`, until: 2 } : { text: k.shank ? 'SHANKED PUNT' : k.result === 'oob' ? 'PUNT OUT OF BOUNDS' : k.result === 'downed' ? 'PUNT DOWNED' : 'PUNT', sub: `${k.yds} yards`, until: 2 };
       sudden(g);
     } else if (k.good) {
       score(g, off, 3); mom(g, off, 7); highlight(g, 'FIELD GOAL', `${k.dist} yards`, off);
@@ -1150,7 +1233,8 @@ function updateKick(g, dt) {
       kickoffTo(g, 1 - off);
       g.deadDur = 2.8;
     } else {
-      g.msg = { text: 'NO GOOD', sub: `${k.dist} yd attempt${k.miss ? ' · ' + k.miss : ''}`, until: 2.2 }; if (off === 0) g.events.push('boo');
+      g.msg = k.blocked ? { text: 'BLOCKED!', sub: `${k.dist} yd attempt`, until: 2.4, big: true } : { text: 'NO GOOD', sub: `${k.dist} yd attempt${k.miss ? ' · ' + k.miss : ''}`, until: 2.2 };
+      if (k.blocked) { g.events.push('crowd'); highlight(g, 'BLOCKED FIELD GOAL', `${k.dist} yards`, 1 - off); } if (off === 0) g.events.push('boo');
       // missed: the defense takes over at the spot of the kick or its own 20, whichever is better for it
       const spotP = prog(off, g.losZ) - 7;
       g.poss = 1 - off; g.ballX = 0; g.losZ = zOf(g.poss, clamp(Math.max(20, 100 - spotP), 1, 99)); setFirstDown(g);
@@ -1182,7 +1266,7 @@ function startReturn(g, k) {
   let nearest = 1e9; for (const p of g.players) if (p.team === off) nearest = Math.min(nearest, hyp(p.x - k.tx, p.z - k.tz));
   const humanRet = g.opts.humans[rec];
   // a CPU returner with coverage right on top of him calls a fair catch
-  if (!ret || (!isKO && !humanRet && nearest < 4.5)) {
+  if (!ret || (!isKO && !humanRet && !k.loose && nearest < 4.5)) {
     g.kick = null; g.phase = 'dead'; g.phaseT = 0; g.deadDur = 2.2; g.runoff = 0; g.events.push('whistle');
     g.poss = rec; g.losZ = zOf(rec, k.newP); g.ballX = 0; setFirstDown(g);
     g.msg = { text: 'FAIR CATCH', sub: `${k.yds} yard punt`, until: 2 };
@@ -1243,13 +1327,7 @@ function weatherShift(g) {
 function kickoffTo(g, team) {
   const kicker = 1 - team;
   { const down = g.score[team] - g.score[kicker]; if (!g.opts.humans[kicker] && !g.opts.practice && g.quarter >= 4 && g.clock < 200 && down > 0 && down <= 16) g.onside[kicker] = true; }   // CPU goes for it when it's desperate
-  if (g.onside && g.onside[kicker]) {
-    g.onside[kicker] = false;
-    const got = g.rng() < 0.22;   // roughly the real-life success rate
-    if (got) { g.poss = kicker; g.losZ = zOf(kicker, 47); g.flash = { text: 'ONSIDE KICK... RECOVERED BY THE KICKING TEAM!', until: 2.4 }; g.events.push('crowd'); highlight(g, 'ONSIDE RECOVERY', '', kicker); }
-    else { g.poss = team; g.losZ = zOf(team, 55); g.flash = { text: 'ONSIDE KICK... THEY COVER IT', until: 2 }; }
-    g.ballX = 0; setFirstDown(g); return;
-  }
+  if (g.onside && g.onside[kicker] && !g.opts.practice && !g.opts.drill) { g.onside[kicker] = false; g.koOnside = true; }
   if (g.opts.practice || g.opts.drill) { g.poss = team; g.losZ = zOf(team, 35); g.ballX = 0; setFirstDown(g); return; }
   // a real kickoff: the kicking team tees it up at its own 35 and the next play is the kick
   g.poss = kicker; g.losZ = zOf(kicker, 35); g.ballX = 0; setFirstDown(g); g.koPending = team;
@@ -1265,14 +1343,18 @@ function koStart(g) {
     else { const x = -22 + (i++ % 10) * (44 / 9); p.x = x; p.z = zOf(kicker, base - 1); }
     p.hx = p.x; p.hz = p.z; p.vx = 0; p.vz = 0; p.face = dK > 0 ? 0 : Math.PI;
   }
-  const spots = [[-18, 45], [-9, 45], [0, 45], [9, 45], [18, 45], [-12, 30], [0, 32], [12, 30], [-6, 17], [6, 17]];
+  const onside = !!g.koOnside; g.koOnside = false;
+  // against an onside kick the receiving team brings its hands team up close
+  const spots = onside ? [[-20, 54], [-12, 54], [-4, 54], [4, 54], [12, 54], [20, 54], [-10, 60], [0, 60], [10, 60], [0, 68]]
+    : [[-18, 45], [-9, 45], [0, 45], [9, 45], [18, 45], [-12, 30], [0, 32], [12, 30], [-6, 17], [6, 17]];
   let j = 0;
   for (const p of ret) {
-    if (p === returner) { p.x = 0; p.z = zOf(rec, 2); }
+    if (p === returner && !onside) { p.x = 0; p.z = zOf(rec, 2); }
     else { const s2 = spots[j++ % spots.length]; p.x = s2[0]; p.z = zOf(rec, s2[1]); }
     p.hx = p.x; p.hz = p.z; p.vx = 0; p.vz = 0; p.face = dK > 0 ? Math.PI : 0;
   }
   g.offPlay = 'kickoff'; g.defChosen = true;
+  if (onside) { startKick(g, 'kickoff', { onside: true, power: 0.3, acc: 0, aim: 0 }); g.msg = { text: 'ONSIDE KICK', sub: `${cityOf(g, kicker)} is going for it`, until: 1.6 }; return; }
   if (g.opts.humans[0] || g.opts.humans[1]) beginKickSet(g, 'kickoff'); else startKick(g, 'kickoff');
   g.msg = { text: 'KICKOFF', sub: `${cityOf(g, kicker)} kicking to ${cityOf(g, rec)}`, until: 1.8 };
 }

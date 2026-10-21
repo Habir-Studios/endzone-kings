@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792526258';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792526258';
-import * as UT from './ut.js?v=1792526258';
-import { portraitURL } from './faces.js?v=1792526258';
-import { TEAMS } from './teams.js?v=1792526258';
+import { askYes } from './ui.js?v=1792612483';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792612483';
+import * as UT from './ut.js?v=1792612483';
+import { portraitURL } from './faces.js?v=1792612483';
+import { TEAMS } from './teams.js?v=1792612483';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -232,8 +232,16 @@ function renderPacks(P) {
   const art = k => `<div class="pack-art"><i class="pa-tear"></i><span class="pa-brand">Endzone Kings</span><strong>${(k.art || [k.name])[0]}</strong><strong class="pa-2">${(k.art || [])[1] || ''}</strong><span class="pa-stars">${'★'.repeat(k.stars || 1)}</span><span class="pa-n">${k.n} players</span></div>`;
   pane.innerHTML = `${mine.length ? `<h3 class="store-h">My packs</h3><div class="store">${mine.map(k => `<div class="pack ${k.key}"><span class="own">x${P.p.packs[k.key]}</span>${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn primary" data-open="${k.key}">Open</button></div>`).join('')}</div>` : ''}
     <h3 class="store-h">Store</h3><p class="note">Paid for with coins you earn by playing. No real money, ever.</p>
-    <div class="store">${UT.PACKS.map(k => `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small>${k.tpCost ? `<button class="btn" data-buy="${k.key}" ${(P.p.tp || 0) < k.tpCost ? 'disabled' : ''}><i class="tp-ic">TP</i> ${fmt(k.tpCost)}</button>` : `<button class="btn" data-buy="${k.key}" ${P.p.coins < k.cost ? 'disabled' : ''}><i class="coin"></i> ${fmt(k.cost)}</button>`}</div>`).join('')}</div>`;
-  C.$$('[data-buy]', pane).forEach(b => b.onclick = () => { const err = P.buyPack(b.dataset.buy); if (err) return C.toast(err); C.sfx.play('ui'); C.toast(`${UT.packByKey(b.dataset.buy).name} added to My packs. Open it whenever, or trade it`, 2600); renderUT(); });
+    <div class="store">${UT.PACKS.map(k => { const tp = !!k.tpCost, cost = tp ? k.tpCost : k.cost, have = tp ? (P.p.tp || 0) : P.p.coins, ic = tp ? '<i class="tp-ic">TP</i>' : '<i class="coin"></i>';
+      return `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn" data-buy="${k.key}" data-n="1" ${have < cost ? 'disabled' : ''}>${ic} ${fmt(cost)}</button><div class="pk-multi">${[5, 10].map(n => `<button class="btn sm" data-buy="${k.key}" data-n="${n}" ${have < cost * n ? 'disabled' : ''} title="Buy ${n} for ${fmt(cost * n)}">x${n} · ${fmt(cost * n)}</button>`).join('')}</div></div>`; }).join('')}</div>`;
+  // buy 1, 5 or 10 at once: they all go to My packs
+  C.$$('[data-buy]', pane).forEach(b => b.onclick = async () => {
+    const k = UT.packByKey(b.dataset.buy), n = +b.dataset.n || 1;
+    if (n > 1 && !(await askYes(`Buy ${n} ${k.name}s for ${fmt((k.tpCost || k.cost) * n)} ${k.tpCost ? 'Training Points' : 'coins'}?`, `Buy ${n}`))) return;
+    let got = 0, err = null; for (let i = 0; i < n; i++) { err = P.buyPack(k.key); if (err) break; got++; }
+    if (!got) return C.toast(err);
+    C.sfx.play('ui'); C.toast(got === 1 ? `${k.name} added to My packs. Open it whenever, or trade it` : `${got} ${k.name}s added to My packs${err ? ` (${err})` : ''}`, 3000); renderUT();
+  });
   C.$$('[data-open]', pane).forEach(b => b.onclick = () => openPack(b.dataset.open));
 }
 
@@ -527,7 +535,7 @@ export function renderProgress() {
 
 // ---------------- celebrations, achievements, drill ----------------
 // celebrations: [id, name, coin price (0 = free)]
-export const CELS = [[-1, 'Random', 0], [0, 'Jump', 0], [1, 'Dance', 0], [2, 'Flex', 0], [3, 'Point up', 1800], [4, 'Spin', 2500], [5, 'Take a bow', 4000], [7, 'Dab', 5000], [6, 'Moonwalk', 7000], [8, 'Shuffle', 9000], [14, 'Take a knee', 2000], [9, 'Salute', 2500], [10, 'Heart hands', 3500], [16, 'Wave to the crowd', 4500], [15, 'Jumping jacks', 5500], [11, 'Robot', 6000], [12, 'Sprinkler', 6500], [13, 'Archer', 8000], [17, 'Kings throne', 12000]];
+export const CELS = [[-1, 'Random', 0], [0, 'Jump', 0], [1, 'Dance', 0], [2, 'Flex', 0], [3, 'Point up', 1800], [4, 'Spin', 2500], [5, 'Take a bow', 4000], [7, 'Dab', 5000], [6, 'Moonwalk', 7000], [8, 'Shuffle', 9000], [14, 'Take a knee', 2000], [9, 'Salute', 2500], [10, 'Heart hands', 3500], [16, 'Wave to the crowd', 4500], [15, 'Jumping jacks', 5500], [11, 'Robot', 6000], [12, 'Sprinkler', 6500], [13, 'Archer', 8000], [17, 'Kings throne', 12000], [24, 'Touchdown signal', 3000], [20, 'Phone call', 4000], [22, 'Shrug', 4500], [19, 'Rock the baby', 6000], [23, 'Lasso', 7500], [18, 'Griddy', 10000], [21, 'Superman', 15000]];
 export const celOwned = P => { const own = new Set([-1, 0, 1, 2, ...((P && P.p.cels) || [])]); if (P && P.p.lvl >= 5) own.add(5); if (P && P.p.lvl >= 15) own.add(6); return own; };   // old level unlocks still count
 export const celUnlocked = (lvlOrP) => [...celOwned(typeof lvlOrP === 'object' ? lvlOrP : null)];
 export function buyCel(P, id) {
@@ -687,22 +695,22 @@ function renderTrade(P) {
   C.$$('[data-apack]', pane).forEach(el => el.oninput = () => { d.ask.packs[el.dataset.apack] = Math.max(0, Math.min(+el.value || 0, (theirClub && theirClub.packs && theirClub.packs[el.dataset.apack]) || 0)); });
   C.$$('[data-aunpick]', pane).forEach(b => b.onclick = () => { d.ask.cards = d.ask.cards.filter(c => c.u !== +b.dataset.aunpick); renderUT(); });
   const ab = C.$('#tr-askcard', pane); if (ab) ab.onclick = () => {
-    const lu = new Set(theirClub.lineup || []), list = theirClub.cards.filter(c => !lu.has(c.u) && !d.ask.cards.some(x => x.u === c.u)).map(c => ({ c, o: UT.owned(c) })).sort((a, b) => b.o.ovr - a.o.ovr);
+    const lu = new Set(theirClub.lineup || []), list = theirClub.cards.filter(c => !d.ask.cards.some(x => x.u === c.u)).map(c => ({ c, o: UT.owned(c), st: lu.has(c.u) })).sort((a, b) => a.st - b.st || b.o.ovr - a.o.ovr);
     const el = openDlg(`<div style="grid-column:1/-1"><div class="pk-head"><h2 class="title sm">${tesc(d.toName)}'s club</h2><button class="btn ghost sm" id="dlg-x">Close</button></div>
-      <p class="note">Players in their starting lineup can’t be traded, so they’re hidden. ${theirClub.ovr ? `Their squad is ${theirClub.ovr} OVR.` : ''}</p>
-      <div class="pick-list">${list.map(({ c, o }) => cardHTML({ ...o, u: c.u }, { mini: true, tag: 'button' })).join('') || '<p class="note">Nothing they can trade right now.</p>'}</div></div>`);
+      <p class="note">Starters (marked IN SQUAD) can’t be traded. If you want one, message ${tesc(d.toName)} and ask them to take him out of their starting lineup first. ${theirClub.ovr ? `Their squad is ${theirClub.ovr} OVR.` : ''}</p>
+      <div class="pick-list">${list.map(({ c, o, st }) => cardHTML({ ...o, u: c.u }, { mini: true, tag: 'button', inLu: st })).join('') || '<p class="note">Nothing they can trade right now.</p>'}</div></div>`);
     C.$('#dlg-x', el).onclick = closeDlg;
-    C.$$('.pick-list [data-u]', el).forEach(b => b.onclick = () => { if (d.ask.cards.length >= 8) return C.toast('8 players max'); const c = theirClub.cards.find(x => x.u === +b.dataset.u); if (c) d.ask.cards.push(c); closeDlg(); renderUT(); });
+    C.$$('.pick-list [data-u]', el).forEach(b => b.onclick = () => { if (lu.has(+b.dataset.u)) return C.toast(`Starters can’t be traded. Ask ${d.toName} to take him out of their starting lineup first.`, 4500); if (d.ask.cards.length >= 8) return C.toast('8 players max'); const c = theirClub.cards.find(x => x.u === +b.dataset.u); if (c) d.ask.cards.push(c); closeDlg(); renderUT(); });
   };
   C.$('#tr-note', pane).oninput = e => { d.note = e.target.value; };
   C.$$('[data-unpick]', pane).forEach(b => b.onclick = () => { d.us = d.us.filter(u => u !== +b.dataset.unpick); renderUT(); });
   C.$('#tr-addcard', pane).onclick = () => {
-    const list = U.cards.filter(c => !P.inLineup(c.u) && !d.us.includes(c.u)).map(c => UT.owned(c)).sort((a, b) => b.ovr - a.ovr);
+    const list = U.cards.filter(c => !d.us.includes(c.u)).map(c => UT.owned(c)).sort((a, b) => P.inLineup(a.u) - P.inLineup(b.u) || b.ovr - a.ovr);
     const el = openDlg(`<div style="grid-column:1/-1"><div class="pk-head"><h2 class="title sm">Add a player to the trade</h2><button class="btn ghost sm" id="dlg-x">Close</button></div>
-      <p class="note">Players in your lineup can’t be traded. Swap them out first.</p>
-      <div class="pick-list">${list.map(c => cardHTML(c, { mini: true, tag: 'button' })).join('') || '<p class="note">No players outside your lineup.</p>'}</div></div>`);
+      <p class="note">Starters (marked IN SQUAD) can’t be traded. Swap him out of your squad first, then you can trade him.</p>
+      <div class="pick-list">${list.map(c => cardHTML(c, { mini: true, tag: 'button', inLu: P.inLineup(c.u) })).join('') || '<p class="note">No players yet.</p>'}</div></div>`);
     C.$('#dlg-x', el).onclick = closeDlg;
-    C.$$('.pick-list [data-u]', el).forEach(b => b.onclick = () => { if (d.us.length >= 8) return C.toast('8 players max per trade'); d.us.push(+b.dataset.u); closeDlg(); renderUT(); });
+    C.$$('.pick-list [data-u]', el).forEach(b => b.onclick = () => { if (P.inLineup(+b.dataset.u)) return C.toast('He’s in your starting lineup, so he can’t be traded. Swap him out of your squad first.', 4500); if (d.us.length >= 8) return C.toast('8 players max per trade'); d.us.push(+b.dataset.u); closeDlg(); renderUT(); });
   };
   let qt = null;
   C.$('#tr-q', pane).oninput = e => { clearTimeout(qt); const q = C.cleanText(e.target.value).trim(); d.to = null; d.toName = ''; qt = setTimeout(async () => {

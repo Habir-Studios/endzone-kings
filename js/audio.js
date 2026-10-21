@@ -1,4 +1,4 @@
-import { VO, slug } from './vo.js?v=1792526258';
+import { VO, slug } from './vo.js?v=1792612483';
 // ENDZONE KINGS — all audio is generated live (no sound files): stadium crowd, chants, air horn,
 // pad hits, whistle, menu music, and a play-by-play announcer (the one thing that IS recorded: assets/vo).
 
@@ -167,7 +167,7 @@ export class Sfx {
       case 'snap': this.thud(); this.cheer(0.12, 1.2); break;
       case 'throw': case 'pitch': this.whoosh(0.55); break;
       case 'catch': this.thud(); this.cheer(0.2, 1.6); break;
-      case 'handoff': this.thud(); break;
+      case 'handoff': case 'bounce': this.thud(); break;
       case 'tackle': this.pads(1); break;
       case 'bighit': this.pads(1.35); this.cheer(0.35, 1.8); break;
       case 'spin': case 'hurdle': this.whoosh(0.4); this.cheer(0.18, 1); break;
@@ -202,6 +202,13 @@ export class Sfx {
       case 'cel6': [98, 98, 131, 98, 147, 131].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, 'sawtooth', 0.06), i * 180)); break;   // moonwalk bassline
       case 'cel7': this.whoosh(0.3); setTimeout(() => this.airHorn(), 180); break;   // dab
       case 'cel8': [0, 1, 2, 3, 4, 5, 6, 7].forEach(i => setTimeout(() => { this.tone(i % 2 ? 1400 : 160, 0.06, i % 2 ? 'square' : 'sine', i % 2 ? 0.03 : 0.1); }, i * 110)); this.cheer(0.35, 2); break;   // shuffle beat
+      case 'cel18': [0, 1, 2, 3, 4, 5].forEach(i => setTimeout(() => { this.tone(i % 2 ? 220 : 110, 0.1, 'square', 0.06); }, i * 160)); this.cheer(0.4, 2); break;   // griddy beat
+      case 'cel19': [392, 330, 392, 330].forEach((f, i) => setTimeout(() => this.tone(f, 0.3, 'sine', 0.05), i * 300)); break;   // rock the baby: lullaby
+      case 'cel20': [0, 1, 2].forEach(i => setTimeout(() => { this.tone(440, 0.18, 'sine', 0.05); this.tone(480, 0.18, 'sine', 0.05); }, i * 420)); break;   // phone call: ring ring
+      case 'cel21': this.whoosh(0.6); setTimeout(() => this.whoosh(0.5), 250); this.cheer(0.5, 2.4); break;   // superman
+      case 'cel22': [330, 262].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, 'triangle', 0.06), i * 220)); break;   // shrug
+      case 'cel23': this.whoosh(0.35); setTimeout(() => this.whoosh(0.35), 220); setTimeout(() => this.whoosh(0.35), 440); this.cheer(0.3, 1.8); break;   // lasso
+      case 'cel24': this.airHorn(); this.cheer(0.5, 2.2); break;   // touchdown signal
       case 'cel9': [523, 659, 784].forEach((f, i) => setTimeout(() => this.tone(f, 0.22, 'triangle', 0.06), i * 140)); break;   // salute: bugle
       case 'cel10': this.cheer(0.4, 2); [659, 523].forEach((f, i) => setTimeout(() => this.tone(f, 0.3, 'sine', 0.06), i * 220)); break;   // heart hands: aww
       case 'cel11': [0, 1, 2, 3, 4, 5].forEach(i => setTimeout(() => this.tone(220 + (i % 3) * 110, 0.08, 'square', 0.05), i * 330)); break;   // robot: beeps

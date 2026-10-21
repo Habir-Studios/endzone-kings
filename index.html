@@ -30,8 +30,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792526258">
-  <link rel="stylesheet" href="css/theme.css?v=1792526258">
+  <link rel="stylesheet" href="css/style.css?v=1792612483">
+  <link rel="stylesheet" href="css/theme.css?v=1792612483">
 </head>
 <body>
   <noscript><div style="padding:24px;color:#fff;font-family:sans-serif"><h1>Endzone Kings</h1><p>Free 3D arcade football by Habir Studios, played in your browser. Ultimate Team (Solo Battles, theme challenges, Online H2H), Online Franchise leagues, Season, Franchise, practice and a guided tutorial. Turn on JavaScript to play.</p><p>Also on itch.io: <a href="https://habir-studios.itch.io/endzone-kings" style="color:#ff3347">habir-studios.itch.io/endzone-kings</a></p></div></noscript>
@@ -719,6 +719,8 @@
       <div class="sb-spot" id="sb-spot">Own 25</div>
       <div class="sb-pc" id="sb-pc">20</div>
     </div>
+    <div class="spec-vs hidden" id="spec-vs" aria-live="polite"></div>
+    <div class="zoom-btns" id="zoom-btns"><button type="button" data-z="-1" aria-label="Zoom in">+</button><button type="button" data-z="1" aria-label="Zoom out">−</button></div>
     <div class="to-timer hidden" id="to-timer" aria-live="polite"><small id="to-who">TIMEOUT</small><b id="to-left">0:08</b><span>Pick your play. Back in a few seconds.</span></div>
     <div class="mom" id="mom" aria-label="Momentum"><span>Momentum</span><div class="mom-bar"><i id="mom-fill"></i><b></b></div></div>
     <div class="hot hidden" id="hot"></div>
@@ -773,6 +775,7 @@
     <div class="panel pause-panel">
       <h2 class="title sm">Paused</h2>
       <button class="btn primary" id="resume">Resume</button>
+      <button class="btn" id="p-stats">Game stats</button>
       <button class="btn" id="p-howto">Controls</button>
       <button class="btn" id="p-subs">Subs &amp; injuries</button>
       <button class="btn" id="p-settings">Settings</button>
@@ -823,6 +826,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792526258"></script>
+  <script type="module" src="js/main.js?v=1792612483"></script>
 </body>
 </html>

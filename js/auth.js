@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792526258';
+import { CONFIG } from './config.js?v=1792612483';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -24,7 +24,8 @@ function unpack(e) {
 }
 // how far along a save is: level and XP only ever go up, so the save with more of them is the real one
 // email links (confirm, reset password) always open the real site
-const authHome = () => /^https?:$/.test(location.protocol) ? location.origin + location.pathname : 'https://habir-studios.github.io/endzone-kings/';
+const SITE = 'https://habir-studios.github.io/endzone-kings/';
+const authHome = () => /^https?:$/.test(location.protocol) ? location.origin + location.pathname : SITE;
 export const progOf = p => p ? (p.lvl || 1) * 1e7 + (p.xp || 0) * 10 + Math.min(9, p.games || 0) : 0;
 
 export const Auth = {
@@ -130,9 +131,21 @@ export const Auth = {
     catch (_) { this._prov = { google: false, discord: false }; }
     return this._prov;
   },
-  async oauthLogin(provider) { const { error } = await this.client.auth.signInWithOAuth({ provider, options: { redirectTo: authHome() } }); if (error) throw error; },
+  // Google won't open inside a frame (itch.io runs the game in one), so there the login opens the real site in a new tab
+  framed() { try { return window.top !== window.self; } catch (_) { return true; } },
+  async oauthLogin(provider) {
+    if (this.framed()) { window.open(SITE + '?login=' + provider, '_blank', 'noopener'); return 'tab'; }
+    const { error } = await this.client.auth.signInWithOAuth({ provider, options: { redirectTo: authHome(), queryParams: { prompt: 'select_account' } } }); if (error) throw error;
+  },
+  // an outside login that came back with an error puts it in the address; read it once and clean the address
+  oauthError() {
+    const q = new URLSearchParams(location.search + '&' + location.hash.replace(/^#/, ''));
+    const d = q.get('error_description') || q.get('error'); if (!d) return null;
+    try { history.replaceState(null, '', location.pathname); } catch (_) {}
+    return d.replace(/\+/g, ' ');
+  },
   async identities() { const { data, error } = await this.client.auth.getUserIdentities(); if (error) throw error; return (data && data.identities) || []; },
-  async linkLogin(provider) { const { error } = await this.client.auth.linkIdentity({ provider, options: { redirectTo: authHome() } }); if (error) throw error; },
+  async linkLogin(provider) { if (this.framed()) { window.open(SITE + '?link=' + provider, '_blank', 'noopener'); return 'tab'; } const { error } = await this.client.auth.linkIdentity({ provider, options: { redirectTo: authHome() } }); if (error) throw error; },
   async unlinkLogin(identity) { const { error } = await this.client.auth.unlinkIdentity(identity); if (error) throw error; },
   async changeEmail(email) { const { error } = await this.client.auth.updateUser({ email }, { emailRedirectTo: authHome() }); if (error) throw error; },
   async resetPassword(email) {
@@ -193,6 +206,8 @@ export const Auth = {
     try { await this.client.rpc('ek_forget_devices'); localStorage.removeItem(this.trustKey()); } catch (_) {}   // forget every remembered device
   },
 
+  // the server only lets one device claim each day's reward: true = yours, false = already claimed, null = can't check
+  async dailyLock(day) { if (this.mode !== 'supabase' || !this.client || !this.user || this.user.kind !== 'account') return null; try { const { data, error } = await this.client.rpc('ek_claim_daily', { p_day: day }); return error ? null : !!data; } catch (_) { return null; } },
   // devices logged into this account
   async sessions() { const { data, error } = await this.client.rpc('ek_my_sessions'); if (error) throw new Error(error.message); return data || []; },
   async kickSession(id) { const { error } = await this.client.rpc('ek_kick_session', { p_id: id }); if (error) throw new Error(error.message); },

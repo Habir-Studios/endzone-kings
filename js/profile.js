@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792526258';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792612483';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // Each division has 3 steps (III, II, I), and every division's steps cost more RP than the one before:
@@ -91,7 +91,7 @@ const WEEKLY = [
 const ALL_CH = Object.fromEntries([...DAILY, ...WEEKLY].map(c => [c.k, c]));
 export const challengeDef = k => ALL_CH[k];
 
-function dayKey(d = new Date()) { return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+export function dayKey(d = new Date()) { return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
 export function weekKey(d = new Date()) { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return dayKey(t); }
 function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function pickN(pool, n, seed) { const a = pool.slice(); let s = seed; const out = []; while (out.length < n && a.length) { s = (Math.imul(s, 1103515245) + 12345) >>> 0; out.push(a.splice(s % a.length, 1)[0]); } return out; }
@@ -202,6 +202,8 @@ export class Profile {
     return { claimable: true, streak, R: LOGIN_REWARDS[streak - 1], next: mid - Date.now() };
   }
   // pays today's login reward (only when the player hits Claim): returns the reward, or null if it's already claimed
+  // claimed on another device already today: mark it here too, no second payout
+  markLoginClaimed() { const L = this.loginState(); if (!L.claimable) return; this.p.login = { d: dayKey(), streak: L.streak }; this.save(); }
   claimLogin() {
     const P = this.p, today = dayKey(), y = new Date(); y.setDate(y.getDate() - 1);
     if (P.login && P.login.d === today) return null;

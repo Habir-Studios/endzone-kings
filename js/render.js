@@ -7,10 +7,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792526258';
-import { drawFaceTexture, faceParams } from './faces.js?v=1792526258';
-import { drawLogo } from './logos.js?v=1792526258';
-import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792526258';
+import { TEAMS, OFF_PLAYS, HALF_W, FIELD_FEEL } from './sim.js?v=1792612483';
+import { drawFaceTexture, faceParams } from './faces.js?v=1792612483';
+import { drawLogo } from './logos.js?v=1792612483';
+import { buildSidelines, colorSidelines, updateSidelines, seatTexture, buildBowlExtras, colorFlags, waveFlags, buildStadiumDetail, colorCheer, updateCheer } from './stadium.js?v=1792612483';
 
 const W = HALF_W * 2;
 const SKIN = ['#6b4226', '#8d5524', '#a8693f', '#c68642', '#e0ac69', '#f1c27d', '#4a2c18'];
@@ -1076,6 +1076,31 @@ export class Renderer {
   }
 
   // receiver icons show 1 2 3 on keyboard, or the controller's buttons
+  specTagsUpdate(S) {
+    const on = this.spectating && this.specNames && this.teams && S.ctrl;
+    if (!on) { if (this.specTags) this.specTags.forEach(sp => sp.visible = false); return; }
+    const key = this.specNames.join('|') + this.teams.join();
+    if (this._specKey !== key) {
+      this._specKey = key;
+      if (this.specTags) this.specTags.forEach(sp => { this.scene.remove(sp); sp.material.map.dispose(); sp.material.dispose(); });
+      this.specTags = [0, 1].map(t => {
+        const T = TEAMS[this.teams[t]], name = String(this.specNames[t] || (t ? 'Away' : 'Home')).slice(0, 16);
+        const tex = canvasTex(512, 128, (c) => {
+          c.fillStyle = vis(T, 'jersey'); c.strokeStyle = vis(T, 'trim'); c.lineWidth = 10;
+          c.beginPath(); c.roundRect ? c.roundRect(8, 14, 496, 84, 22) : c.rect(8, 14, 496, 84); c.fill(); c.stroke();
+          c.beginPath(); c.moveTo(232, 98); c.lineTo(256, 124); c.lineTo(280, 98); c.closePath(); c.fill();
+          c.font = '900 50px Arial'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 8; c.strokeStyle = 'rgba(0,0,0,.85)';
+          const txt = `${name} · ${T.abbr}`; c.strokeText(txt, 256, 58); c.fillStyle = '#fff'; c.fillText(txt, 256, 58);
+        });
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, toneMapped: false, sizeAttenuation: false }));
+        sp.scale.set(0.2, 0.05, 1); sp.center.set(0.5, 0); sp.renderOrder = 11; this.scene.add(sp); return sp;
+      });
+    }
+    this.specTags.forEach((sp, t) => {
+      const p = S.ctrl[t] >= 0 ? S.pl[S.ctrl[t]] : null, show = !!p && S.ph !== 'half' && S.ph !== 'gameover';
+      sp.visible = show; if (show) sp.position.set(p[4], 3.1, p[5]);
+    });
+  }
   setBadgeLabels(labels) {
     const key = labels.join(); if (this._badgeKey === key) return; this._badgeKey = key;
     this.badges.forEach((sp, i) => { const old = sp.material.map; sp.material.map = this.badgeTex(i + 1, labels[i]); sp.material.needsUpdate = true; if (old) old.dispose(); });
@@ -1167,6 +1192,9 @@ export class Renderer {
       sp.visible = !!p;
       if (p) sp.position.set(p[4], 3.25 + Math.sin(this.time * 4 + k) * 0.08, p[5]);
     });
+
+    // spectators: a name tag floats over the player each side is controlling, in that team's colors, so you can tell who's who
+    this.specTagsUpdate(S);
 
     const showRoutes = local >= 0 && !this.spectating && S.ph === 'presnap' && S.poss === local && !!S.opDef;   // spectators never see the play call
     const rk = showRoutes ? `${S.id}-${S.op}-${S.pl.filter(q => q[1] === 1 && q[0] === S.poss && q[2] !== 'C').map(q => Math.round(q[4] * 2) + ',' + Math.round(q[5] * 2)).join('|')}` : '';   // redraw as receivers settle into the formation, so each line starts at its man
@@ -1352,6 +1380,24 @@ export class Renderer {
         const s1 = Math.sin(c * 8); as[1] = -2.8; az[1] = -0.3 + s1 * 0.35; ae[1] = 0.4; as[0] = -0.2; ae[0] = 0.6; twist = Math.sin(c * 1.2) * 0.5; lean = -0.05; headX = 0.25;
       } else if (kind === 17) { // kings throne: sit back like it's yours, arms out on the armrests
         drop = 0.48; lh[0] = lh[1] = -1.45; lk[0] = lk[1] = 1.45; lean = -0.32; as[0] = as[1] = -0.75; az[0] = -0.5; az[1] = 0.5; ae[0] = ae[1] = 0.9; headX = 0.15 + Math.sin(c * 1.5) * 0.08;
+      } else if (kind === 18) { // griddy: heel taps out front, arms pumping the other way
+        const s1 = Math.sin(c * 9), up = Math.max(0, s1), dn = Math.max(0, -s1);
+        lh[0] = -0.55 * up; lk[0] = 0.15 + 0.2 * dn; lh[1] = -0.55 * dn; lk[1] = 0.15 + 0.2 * up;
+        as[0] = -0.4 - 1.0 * dn; as[1] = -0.4 - 1.0 * up; ae[0] = ae[1] = 1.7; lean = 0.18; twist = s1 * 0.25; jump = Math.abs(s1) * 0.06; headX = 0.15;
+      } else if (kind === 19) { // rock the baby: arms cradled, rocking side to side
+        const s1 = Math.sin(c * 4); as[0] = as[1] = -0.9; ae[0] = ae[1] = 1.9; az[0] = -0.55; az[1] = 0.55; twist = s1 * 0.5; roll = s1 * 0.1; lean = 0.1; headX = 0.35; lk[0] = lk[1] = 0.2;
+      } else if (kind === 20) { // phone call: hand to the ear, other hand on the hip
+        as[1] = -2.0; az[1] = -0.2; ae[1] = 2.6; as[0] = -0.3; az[0] = 0.9; ae[0] = 1.6; headX = 0.1; twist = Math.sin(c * 1.4) * 0.35; roll = -0.08; lk[0] = 0.1; lk[1] = 0.3;
+      } else if (kind === 21) { // superman: crouch, then launch with both fists out front
+        const t = c % 2.0, up = t > 0.5 && t < 1.5, k2 = up ? Math.sin((t - 0.5) * Math.PI) : 0;
+        jump = k2 * 0.7; drop = up ? 0 : 0.25; lean = up ? 0.55 : 0.2; as[0] = as[1] = up ? -2.6 : -0.9; ae[0] = ae[1] = up ? 0.05 : 1.2; az[0] = az[1] = 0;
+        lh[0] = up ? 0.4 : -0.6; lh[1] = up ? 0.6 : -0.6; lk[0] = up ? 0.2 : 1.0; lk[1] = up ? 0.4 : 1.0; headX = up ? 0.6 : 0.2;
+      } else if (kind === 22) { // shrug: palms up, shoulders up
+        const b = Math.abs(Math.sin(c * 2.2)); as[0] = as[1] = -0.5; ae[0] = ae[1] = 1.5; az[0] = 0.9 + b * 0.2; az[1] = -0.9 - b * 0.2; drop = -0.03 * b; headX = -0.15; roll = Math.sin(c * 1.1) * 0.12; lk[0] = lk[1] = 0.1;
+      } else if (kind === 23) { // lasso: one arm circling over the head
+        const a2 = c * 9; as[1] = -2.7 + Math.cos(a2) * 0.25; az[1] = -0.3 + Math.sin(a2) * 0.35; ae[1] = 0.5; as[0] = -0.6; ae[0] = 1.4; az[0] = 0.4; twist = Math.sin(c * 2) * 0.3; lk[0] = 0.4; lk[1] = 0.2; jump = Math.abs(Math.sin(c * 4.5)) * 0.08;
+      } else if (kind === 24) { // touchdown signal: both arms straight up, like the ref
+        const b = Math.min(1, c / 0.25); as[0] = as[1] = -3.1 * b; ae[0] = ae[1] = 0.02; az[0] = -0.08; az[1] = 0.08; lean = -0.05; headX = 0.35; lk[0] = lk[1] = 0.05; jump = Math.abs(Math.sin(c * 3)) * 0.04;
       } else { // moonwalk-style heel slide
         const s1 = Math.sin(c * 6); lk[0] = 0.25 + Math.max(0, s1) * 0.9; lk[1] = 0.25 + Math.max(0, -s1) * 0.9; lh[0] = 0.15 - Math.max(0, s1) * 0.2; lh[1] = 0.15 - Math.max(0, -s1) * 0.2;
         lean = -0.12; as[0] = -0.3 + s1 * 0.3; as[1] = -0.3 - s1 * 0.3; ae[0] = ae[1] = 1.3; roll = s1 * 0.05; twist = s1 * 0.12;
@@ -1525,7 +1571,6 @@ export class Renderer {
       else { fx = me[4]; fz = me[5]; }
     }
     // ball carrier cam: tight on whoever has the ball (or the ball itself while it's in the air). Spectators on "Follow you" get this too.
-    if (this.camMode === 'player') this.camMode = 'carrier';   // the old "Follow you" cam is gone
     const carrierCam = this.camMode === 'carrier' || (this.camMode === 'player' && local < 0);
     if (carrierCam && (S.ph === 'live' || S.ph === 'presnap')) { fx = bx; fz = bz; }
     // locked on the guy you control; only when control jumps to someone else (throw, switch) does it take a quick glide over

@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792526258';
-import { TEAMS } from './teams.js?v=1792526258';
-import { rankInfo } from './profile.js?v=1792526258';
+import { askYes } from './ui.js?v=1792612483';
+import { TEAMS } from './teams.js?v=1792612483';
+import { rankInfo } from './profile.js?v=1792612483';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -79,15 +79,43 @@ async function refreshPlayerCount() {
   C.$('#pc-total').textContent = count.toLocaleString(); el.classList.remove('hidden');
   joinLobby();
 }
-// online now: everyone with the game open (guests too) joins one realtime presence channel, so the number moves live
-let lobby = null;
+// online now: everyone with the game open (guests too) joins one realtime presence channel, so the number moves live.
+// Each one shares their name, so you can tap "Online now" and see exactly who's on.
+let lobby = null, lobbyKey = '', lobbyId = null;
 function joinLobby() {
-  if (lobby || !db()) return;
-  const key = (me() && me().id) || ('g' + Math.random().toString(36).slice(2, 10));
-  lobby = db().channel('ek-lobby', { config: { presence: { key } } });
-  const show = () => { const n = Math.max(1, Object.keys(lobby.presenceState()).length); const b = C.$('#pc-online'); if (b) b.textContent = n.toLocaleString(); };
+  if (!db()) return;
+  const id = me() && me().id && !String(me().id).startsWith('guest') ? me().id : '';
+  if (lobby && lobbyId === id) return;
+  if (lobby) { try { db().removeChannel(lobby); } catch (_) {} lobby = null; }   // logged in or out: rejoin under the new name
+  lobbyId = id; lobbyKey = id || ('g' + Math.random().toString(36).slice(2, 10));
+  lobby = db().channel('ek-lobby', { config: { presence: { key: lobbyKey } } });
+  const show = () => { const n = Math.max(1, Object.keys(lobby.presenceState()).length); const b = C.$('#pc-online'); if (b) b.textContent = n.toLocaleString(); if (onlineOpen) renderOnlineList(); };
+  const ch = lobby;
   lobby.on('presence', { event: 'sync' }, show).on('presence', { event: 'join' }, show).on('presence', { event: 'leave' }, show)
-    .subscribe(s => { if (s === 'SUBSCRIBED') lobby.track({ at: Date.now() }).then(show, () => {}); });
+    .subscribe(s => { if (s === 'SUBSCRIBED' && ch === lobby) lobby.track({ at: Date.now(), id, name: id ? me().name : '' }).then(show, () => {}); });
+}
+let onlineOpen = null;
+function onlineNow() {
+  const st = lobby ? lobby.presenceState() : {}, ppl = new Map(); let guests = 0;
+  for (const [k, arr] of Object.entries(st)) { const m = (arr && arr[0]) || {}; if (m.id && m.name) ppl.set(m.id, m.name); else guests++; }
+  return { ppl: [...ppl.entries()].sort((a, b) => a[1].localeCompare(b[1])), guests };
+}
+function renderOnlineList() {
+  const m = onlineOpen; if (!m || !m.isConnected) { onlineOpen = null; return; }
+  const { ppl, guests } = onlineNow(), mine = me() && me().id;
+  m.querySelector('.ol-list').innerHTML = ppl.map(([id, n]) => `<button class="ol-row" type="button" data-pid="${esc(id)}"><i class="live-dot"></i><b>${esc(n)}${adminBadge(id)}</b>${id === mine ? '<small>you</small>' : ''}</button>`).join('')
+    + (guests ? `<p class="note">${guests} guest${guests === 1 ? '' : 's'} playing</p>` : '') || '<p class="note">Just you right now.</p>';
+  m.querySelector('.ol-n').textContent = ppl.length + guests;
+  m.querySelectorAll('[data-pid]').forEach(b => b.onclick = () => { C.sfx.play('ui'); m.remove(); onlineOpen = null; C.show('social'); openProfile(b.dataset.pid); });
+}
+export function showOnline() {
+  if (onlineOpen) return;
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 61;
+  m.innerHTML = `<div class="panel info-card ol-card"><h3 style="margin:0">Online now <span class="ol-n"></span></h3><p class="note">Everyone with the game open right now. Tap a name to see their profile.</p><div class="ol-list"></div><div class="actions"><button class="btn" type="button" data-x>Close</button></div></div>`;
+  document.body.appendChild(m); onlineOpen = m;
+  m.querySelector('[data-x]').onclick = () => { m.remove(); onlineOpen = null; };
+  m.onclick = e => { if (e.target === m) { m.remove(); onlineOpen = null; } };
+  renderOnlineList();
 }
 
 // ---------------- main menu mini board ----------------
@@ -133,7 +161,7 @@ function renderBoards() {
   loadSeq++;
   const pane = C.$('#so-pane');
   pane.innerHTML = `<div class="lb-cats">${Object.entries(BOARDS).map(([g, cols]) => `<div class="lb-group"><small>${g}</small><div class="seg">${cols.map(([k, n]) => `<button type="button" data-col="${k}" class="${k === boardCat ? 'on' : ''}">${n}</button>`).join('')}</div></div>`).join('')}</div>
-    <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second. Stats come from online, Ultimate Team and Franchise games.</span></div>
+    <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second. Stats count from every full game you finish (not practice or drills).</span></div>
     <ol class="lb-list" id="lb-list"><li class="mb-empty">Loading…</li></ol>`;
   C.$$('[data-col]', pane).forEach(b => b.onclick = () => { boardCat = b.dataset.col; C.sfx.play('ui'); renderBoards(); });
   loadBoard(boardCat, false);
@@ -147,7 +175,7 @@ async function loadBoard(col, quiet) {
   if (quiet && key === boardRows.key) return;
   boardRows = data || []; boardRows.key = key;
   const mine = me() ? me().id : '';
-  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}${adminBadge(r.id)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish an online 1v1, Ultimate Team or Franchise game to get on it.</li>';
+  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}${adminBadge(r.id)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish a full game to get on it.</li>';
   C.$$('[data-pid]', el).forEach(li => li.onclick = () => openProfile(li.dataset.pid));
 }
 
@@ -185,7 +213,7 @@ async function openProfile(id) {
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
-      <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<div class="pf-lr"><span class="pf-lvl" id="pf-lvl">Level ${p.lvl || 1}</span><span id="pf-rk">${rankPill(p.rp)}</span><small>${t.city} fan</small></div>
+      <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<div class="pf-lr"><span class="pf-lvl" id="pf-lvl">Level ${p.lvl || 1}</span><span id="pf-rk">${rankPill(p.rp)}</span><small>${t.city} fan</small><span class="pf-gp" id="pf-gp"></span></div>
         <div class="pf-recs">${[['Online H2H record', p.on_w, p.on_l, p.on_t]].map(([n, w, l, tt]) => `<span class="rec-card"><small>${n}</small><span class="rec-nums"><i><b>${fmt(w || 0)}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(l || 0)}</b><em>L</em></i>${tt ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(tt)}</b><em>T</em></i>` : ''}</span></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}${(() => { const P = !mine && C.profile && C.profile(); const h = P && P.p.h2h && P.p.h2h[String(p.name).toLowerCase().slice(0, 24)]; return h ? `<span class="h2h">You vs ${esc(p.name)}: <b>${h[0]}W-${h[1]}L${h[2] ? '-' + h[2] + 'T' : ''}</b></span>` : ''; })()}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
@@ -201,6 +229,8 @@ async function openProfile(id) {
     <div class="clip-grid">${clipCards(clips || [], mine || isAdmin(), p.name)}</div>`;
   if (mine) C.$('#pf-edit').onclick = () => editProfile(p);
   loadGameHistory(id);
+  // total games played: every finished game plus games they quit (those count as losses)
+  D.from('ek_game_log').select('*', { count: 'exact', head: true }).eq('player', id).then(({ count }) => { const el = C.$('#pf-gp'); if (el && count != null) el.innerHTML = `<b>${fmt(count)}</b> games played`; }, () => {});
   const fb = C.$('#pf-follow');
   if (fb) fb.onclick = async () => {
     fb.disabled = true;

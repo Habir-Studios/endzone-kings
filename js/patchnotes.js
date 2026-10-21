@@ -5,6 +5,34 @@
 export const SEASON = 1;
 export const NOTES = [
   {
+    "v": "1.0.2",
+    "date": "2026-10-21",
+    "added": [
+      "Field goals and extra points can get blocked. Long kicks fly lower and get blocked more, and a strong defensive line blocks more",
+      "Onside kicks are real now: the ball skips along the turf, both teams chase it and whoever comes up with it gets the ball",
+      "Game stats in the pause menu: both teams' numbers so far and your team's leaders",
+      "Zoom buttons on screen during games (scrolling and - / + still work too)",
+      "See who's online: tap Online now on the menu to see everyone playing and open their profile",
+      "Profiles show total games played: every game played to the end, plus games you quit (those count as losses)",
+      "Spectating shows who's playing who: names and team colors up top, and a name tag over the player each side controls",
+      "Buy 5 or 10 packs at once in the store",
+      "7 new celebrations in the store: Touchdown signal, Phone call, Shrug, Rock the baby, Lasso, Griddy and Superman",
+      "Idle kick: sit in a game too long without touching anything and you get removed (75 seconds online, 3 minutes against the CPU). If the game counts, it's a loss",
+      "Anti-cheat can tell a speed hack apart from lag: lag only ever slows a game down, so it never gets you flagged"
+    ],
+    "fixed": [
+      "Continue with Google works on the login and sign up screens, and if Google turns you away the game now tells you why. On the itch.io page it opens the full site in a new tab, since Google won't log in inside a frame",
+      "Settings says Link Google Account",
+      "The game clock on kickoffs and punts starts when the returner gets the ball, not when it's kicked",
+      "Kicks aren't automatic anymore: the kick meter speeds up near the top, so a max kick takes timing, and most kickoffs land near the goal line where they get returned instead of sailing out the back",
+      "Kick and punt returners can't catch a ball from 20 yards away anymore. If they can't get under it, it bounces: a kickoff is still live, a punt gets downed where it stops. Punt returners line up deep",
+      "Leaderboard stats show up: yards, touchdowns, tackles and the rest count from every full game you finish, CPU games included (your record still only counts online games against real people)",
+      "The daily reward can't be claimed twice by claiming it on two devices",
+      "Trading: starters show up in the trade list marked IN SQUAD, and tapping one tells you to ask them (or yourself) to take him out of the starting lineup first",
+      "Camera: Follow you is back for your own games, and Follow ball carrier is for when you're watching someone else's game"
+    ]
+  },
+  {
     "v": "1.0.1",
     "date": "2026-10-19",
     "added": [

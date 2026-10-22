@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792637725';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792637872';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // Each division has 3 steps (III, II, I), and every division's steps cost more RP than the one before:
@@ -439,6 +439,16 @@ export class Profile {
 
   // ---------------- Ultimate Team ----------------
   get ut() { return this.p.ut; }
+  // start Ultimate Team over: the club, lineup, unopened packs and market go; coins, Training Points, weekly
+  // Solo Battles, sets, solos and program progress stay (so weekly rewards can't be farmed by restarting). Once a week.
+  utRestartLeft() { const t = this.p.ut.restartAt || 0; return Math.max(0, t + 7 * 86400000 - Date.now()); }
+  restartUT() {
+    if (this.utRestartLeft() > 0) return false;
+    const U = this.p.ut, keep = { next: U.next, sb: U.sb, prog: U.prog, th: U.th, sets: U.sets, solos: U.solos, setDay: U.setDay };
+    this.p.ut = { ...blank().ut, ...Object.fromEntries(Object.entries(keep).filter(([, v]) => v !== undefined)), restartAt: Date.now() };
+    this.p.packs = {};
+    this.save(); return true;
+  }
   startUT(club) {
     const U = this.p.ut; if (U.started) return;
     U.started = true; U.club = club;

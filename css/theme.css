@@ -956,3 +956,6 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 .pf-rank { display: inline-flex; align-items: center; gap: 6px; }
 
 .lb-modes { margin: 2px 0 14px; padding: 8px 12px; font-size: 15px; color: #e6e6ee; background: rgba(255,184,0,.08); border-left: 3px solid var(--gold, #ffb800); }
+
+.ut-restart { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 26px; padding: 16px; border: 1px solid rgba(232,35,28,.35); background: rgba(232,35,28,.06); }
+.ut-restart small { display: block; opacity: .75; max-width: 60ch; margin-top: 4px; }

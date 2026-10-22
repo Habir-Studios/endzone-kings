@@ -8,6 +8,8 @@ export const NOTES = [
     "v": "1.0.2",
     "date": "2026-10-21",
     "added": [
+      "Quicksell pays about 30% more for every player"
+      ,
       "Field goals and extra points can get blocked. Long kicks fly lower and get blocked more, and a strong defensive line blocks more",
       "Onside kicks are real now: the ball skips along the turf, both teams chase it and whoever comes up with it gets the ball",
       "Game stats in the pause menu: both teams' numbers so far and your team's leaders",

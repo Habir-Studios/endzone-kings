@@ -1,15 +1,15 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792629726';
-import { grade, nextForm, decay, formed } from './form.js?v=1792629726';
+import { TEAMS } from './teams.js?v=1792629774';
+import { grade, nextForm, decay, formed } from './form.js?v=1792629774';
 
 export const TIERS = [
   // mv = what the market pays. Kept well under what packs cost, so buying packs to resell always loses coins
-  { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 10, train: 220, mv: 55 },
-  { key: 'silver', name: 'Silver', lo: 66, hi: 75, qs: 35, train: 480, mv: 220 },
-  { key: 'gold', name: 'Gold', lo: 75, hi: 83, qs: 110, train: 1000, mv: 700 },
-  { key: 'elite', name: 'Elite', lo: 83, hi: 89, qs: 420, train: 2200, mv: 3400 },
-  { key: 'kings', name: 'Kings', lo: 89, hi: 96, qs: 1400, train: 4800, mv: 15000 },
+  { key: 'bronze', name: 'Bronze', lo: 56, hi: 66, qs: 13, train: 220, mv: 55 },
+  { key: 'silver', name: 'Silver', lo: 66, hi: 75, qs: 45, train: 480, mv: 220 },
+  { key: 'gold', name: 'Gold', lo: 75, hi: 83, qs: 145, train: 1000, mv: 700 },
+  { key: 'elite', name: 'Elite', lo: 83, hi: 89, qs: 550, train: 2200, mv: 3400 },
+  { key: 'kings', name: 'Kings', lo: 89, hi: 96, qs: 1800, train: 4800, mv: 15000 },
 ];
 export const MAX_BOOST = [5, 5, 5, 4, 3];
 export const CLUB_CAP = 200;

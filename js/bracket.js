@@ -1,5 +1,5 @@
 // ENDZONE KINGS — playoff bracket view (Season and Franchise): wild card → divisional → conference → Kings Bowl
-import { TEAMS } from './teams.js?v=1792629726';
+import { TEAMS } from './teams.js?v=1792629774';
 const RN = [['wildcard', 'Wild Card'], ['divisional', 'Divisional'], ['conference', 'Conference'], ['final', 'Kings Bowl']];
 const win = g => g.hs == null ? -1 : g.hs >= g.as ? g.home : g.away;
 export function bracketHTML(S, me, logo) {

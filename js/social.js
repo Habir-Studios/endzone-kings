@@ -1,10 +1,10 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792637977';
-import { TEAMS } from './teams.js?v=1792637977';
-import { rankIcon } from './meta.js?v=1792637977';
-import { portraitURL } from './faces.js?v=1792637977';
-import { rankInfo } from './profile.js?v=1792637977';
+import { askYes } from './ui.js?v=1792638031';
+import { TEAMS } from './teams.js?v=1792638031';
+import { rankIcon } from './meta.js?v=1792638031';
+import { portraitURL } from './faces.js?v=1792638031';
+import { rankInfo } from './profile.js?v=1792638031';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}">${rankIcon(r.div, r.sub, 20)}${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 

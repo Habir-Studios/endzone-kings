@@ -1,30 +1,30 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792637977';
-import { NOTES, SEASON } from './patchnotes.js?v=1792637977';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792637977';
-import * as Form from './form.js?v=1792637977';
-import { watchSim } from './simview.js?v=1792637977';
-import { bracketHTML } from './bracket.js?v=1792637977';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792637977';
-import { rosterStyle } from './playbook.js?v=1792637977';
-import { Renderer } from './render.js?v=1792637977';
-import { Sfx } from './audio.js?v=1792637977';
-import { Auth } from './auth.js?v=1792637977';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792637977';
-import { getRoster, teamOvr } from './teams.js?v=1792637977';
-import * as Season from './season.js?v=1792637977';
-import * as Fr from './franchise.js?v=1792637977';
-import * as League from './league.js?v=1792637977';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792637977';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792637977';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792637977';
-import * as UTm from './ut.js?v=1792637977';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792637977';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792637977';
-import { showOnline, myAvatarURL, loadMyAvatar, openMyProfile } from './social.js?v=1792637977';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792637977';
-import { portraitURL } from './faces.js?v=1792637977';
-import { logoURL, clearLogoCache } from './logos.js?v=1792637977';
+import { CONFIG } from './config.js?v=1792638031';
+import { NOTES, SEASON } from './patchnotes.js?v=1792638031';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792638031';
+import * as Form from './form.js?v=1792638031';
+import { watchSim } from './simview.js?v=1792638031';
+import { bracketHTML } from './bracket.js?v=1792638031';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792638031';
+import { rosterStyle } from './playbook.js?v=1792638031';
+import { Renderer } from './render.js?v=1792638031';
+import { Sfx } from './audio.js?v=1792638031';
+import { Auth } from './auth.js?v=1792638031';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792638031';
+import { getRoster, teamOvr } from './teams.js?v=1792638031';
+import * as Season from './season.js?v=1792638031';
+import * as Fr from './franchise.js?v=1792638031';
+import * as League from './league.js?v=1792638031';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792638031';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792638031';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792638031';
+import * as UTm from './ut.js?v=1792638031';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792638031';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792638031';
+import { showOnline, myAvatarURL, loadMyAvatar, openMyProfile } from './social.js?v=1792638031';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792638031';
+import { portraitURL } from './faces.js?v=1792638031';
+import { logoURL, clearLogoCache } from './logos.js?v=1792638031';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -506,8 +506,11 @@ function refreshPn() {
   $('#pn-v').textContent = `S${SEASON} · v${NOTES[0].v}`;
   // the badge counts what's new since you last opened the notes: a new version, or new lines added to the current one
   const n = pnTotal(); let seen = null; try { seen = JSON.parse(localStorage.getItem(PN_KEY) || 'null'); } catch (_) { seen = null; }
-  const fresh = !seen || typeof seen !== 'object' || seen.v !== NOTES[0].v ? n : Math.max(0, n - (seen.n || 0));
-  const dot = $('#pn-dot'); dot.classList.toggle('hidden', !fresh); dot.textContent = fresh ? (fresh > 9 ? '9+' : String(fresh)) : '';
+  // missed updates stack up: every line in each version newer than the one you last read, plus new lines in that one
+  let fresh = 0;
+  if (!seen || typeof seen !== 'object') fresh = n;
+  else for (const e of NOTES) { const t = (e.added || []).length + (e.fixed || []).length; if (e.v === seen.v) { fresh += Math.max(0, t - (seen.n || 0)); break; } fresh += t; }
+  const dot = $('#pn-dot'); dot.classList.toggle('hidden', !fresh); dot.textContent = fresh ? (fresh > 99 ? '99+' : String(fresh)) : '';
   dot.setAttribute('aria-label', fresh ? `${fresh} new` : ''); $('#pn-btn').classList.toggle('has-new', !!fresh);
 }
 const pnTotal = () => (NOTES[0].added || []).length + (NOTES[0].fixed || []).length;

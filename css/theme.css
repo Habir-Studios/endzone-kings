@@ -852,5 +852,6 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .gs-lead small { opacity: .6; margin-left: 4px; }
 
 /* buy several packs at once */
-.pk-multi { display: flex; gap: 6px; margin-top: 6px; }
-.pk-multi .btn { flex: 1; width: auto; font-size: 12px; padding: 6px 4px; white-space: nowrap; }
+.pk-multi { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.pk-multi .btn { width: 100%; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 13px; padding: 7px 8px; white-space: nowrap; overflow: hidden; }
+.pk-multi .btn span:first-child { margin-right: 4px; }

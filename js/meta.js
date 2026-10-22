@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792612483';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792612483';
-import * as UT from './ut.js?v=1792612483';
-import { portraitURL } from './faces.js?v=1792612483';
-import { TEAMS } from './teams.js?v=1792612483';
+import { askYes } from './ui.js?v=1792629726';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792629726';
+import * as UT from './ut.js?v=1792629726';
+import { portraitURL } from './faces.js?v=1792629726';
+import { TEAMS } from './teams.js?v=1792629726';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -233,7 +233,7 @@ function renderPacks(P) {
   pane.innerHTML = `${mine.length ? `<h3 class="store-h">My packs</h3><div class="store">${mine.map(k => `<div class="pack ${k.key}"><span class="own">x${P.p.packs[k.key]}</span>${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn primary" data-open="${k.key}">Open</button></div>`).join('')}</div>` : ''}
     <h3 class="store-h">Store</h3><p class="note">Paid for with coins you earn by playing. No real money, ever.</p>
     <div class="store">${UT.PACKS.map(k => { const tp = !!k.tpCost, cost = tp ? k.tpCost : k.cost, have = tp ? (P.p.tp || 0) : P.p.coins, ic = tp ? '<i class="tp-ic">TP</i>' : '<i class="coin"></i>';
-      return `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn" data-buy="${k.key}" data-n="1" ${have < cost ? 'disabled' : ''}>${ic} ${fmt(cost)}</button><div class="pk-multi">${[5, 10].map(n => `<button class="btn sm" data-buy="${k.key}" data-n="${n}" ${have < cost * n ? 'disabled' : ''} title="Buy ${n} for ${fmt(cost * n)}">x${n} · ${fmt(cost * n)}</button>`).join('')}</div></div>`; }).join('')}</div>`;
+      return `<div class="pack ${k.key}">${art(k)}<b>${k.name}</b><small>${k.blurb}</small><button class="btn" data-buy="${k.key}" data-n="1" ${have < cost ? 'disabled' : ''}>${ic} ${fmt(cost)}</button><div class="pk-multi">${[5, 10].map(n => `<button class="btn sm" data-buy="${k.key}" data-n="${n}" ${have < cost * n ? 'disabled' : ''} title="Buy ${n} for ${fmt(cost * n)}"><span>Buy ${n}</span>${ic}<span>${fmt(cost * n)}</span></button>`).join('')}</div></div>`; }).join('')}</div>`;
   // buy 1, 5 or 10 at once: they all go to My packs
   C.$$('[data-buy]', pane).forEach(b => b.onclick = async () => {
     const k = UT.packByKey(b.dataset.buy), n = +b.dataset.n || 1;

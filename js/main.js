@@ -1,30 +1,30 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792634578';
-import { NOTES, SEASON } from './patchnotes.js?v=1792634578';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792634578';
-import * as Form from './form.js?v=1792634578';
-import { watchSim } from './simview.js?v=1792634578';
-import { bracketHTML } from './bracket.js?v=1792634578';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792634578';
-import { rosterStyle } from './playbook.js?v=1792634578';
-import { Renderer } from './render.js?v=1792634578';
-import { Sfx } from './audio.js?v=1792634578';
-import { Auth } from './auth.js?v=1792634578';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792634578';
-import { getRoster, teamOvr } from './teams.js?v=1792634578';
-import * as Season from './season.js?v=1792634578';
-import * as Fr from './franchise.js?v=1792634578';
-import * as League from './league.js?v=1792634578';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792634578';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792634578';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792634578';
-import * as UTm from './ut.js?v=1792634578';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792634578';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792634578';
-import { showOnline } from './social.js?v=1792634578';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792634578';
-import { portraitURL } from './faces.js?v=1792634578';
-import { logoURL, clearLogoCache } from './logos.js?v=1792634578';
+import { CONFIG } from './config.js?v=1792635161';
+import { NOTES, SEASON } from './patchnotes.js?v=1792635161';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792635161';
+import * as Form from './form.js?v=1792635161';
+import { watchSim } from './simview.js?v=1792635161';
+import { bracketHTML } from './bracket.js?v=1792635161';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792635161';
+import { rosterStyle } from './playbook.js?v=1792635161';
+import { Renderer } from './render.js?v=1792635161';
+import { Sfx } from './audio.js?v=1792635161';
+import { Auth } from './auth.js?v=1792635161';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792635161';
+import { getRoster, teamOvr } from './teams.js?v=1792635161';
+import * as Season from './season.js?v=1792635161';
+import * as Fr from './franchise.js?v=1792635161';
+import * as League from './league.js?v=1792635161';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792635161';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792635161';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792635161';
+import * as UTm from './ut.js?v=1792635161';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792635161';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792635161';
+import { showOnline } from './social.js?v=1792635161';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792635161';
+import { portraitURL } from './faces.js?v=1792635161';
+import { logoURL, clearLogoCache } from './logos.js?v=1792635161';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -448,12 +448,20 @@ let mfaLapse = false, mfaDue = false;
 async function checkMfaLapse() {
   if (mfaLapse || Auth.mode !== 'supabase' || !Auth.user || Auth.user.kind !== 'account' || !Auth.client) return;
   try {
-    if (!mfaDue) { const { data, error } = await Auth.client.rpc('ek_mfa_ok'); if (error || data !== false) return; mfaDue = true; }
+    if (!mfaDue) {
+      const { data, error } = await Auth.client.rpc('ek_mfa_ok'); if (error || data !== false) return;
+      // this login lost its two-step pass (a new login from Google, linking an account, a refreshed session...). If this
+      // device is still remembered (inside its 10 days), that's enough: re-attach it and keep playing. Only log out when
+      // the 10 days are really up or the device was never remembered.
+      let had = false; try { had = !!localStorage.getItem(Auth.trustKey()); } catch (_) {}
+      if (had && await Auth.tryTrust()) return;
+      mfaDue = had ? 'expired' : 'code';
+    }
     if (st.playing && !st.overShown) return;   // mid-game: wait for the final whistle (checked every 2 seconds from here)
-    mfaLapse = true; mfaDue = false;
+    const why = mfaDue; mfaLapse = true; mfaDue = false;
     if (st.playing) leaveGame();
     await Auth.signOut(); show('auth');
-    toast('Your 10 days on this device are up, so you were logged out. Log in again with your authenticator code.', 6000);
+    toast(why === 'expired' ? 'Your 10 days on this device are up, so you were logged out. Log in again with your authenticator code.' : 'For your security, log in again with your authenticator code. Tick "Remember this device for 10 days" so you don\'t need it here again for 10 days.', 6500);
     mfaLapse = false;
   } catch (_) { mfaLapse = false; }
 }

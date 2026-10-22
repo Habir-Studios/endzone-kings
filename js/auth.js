@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792634578';
+import { CONFIG } from './config.js?v=1792635161';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -184,8 +184,10 @@ export const Auth = {
   trustKey() { return 'ek_trust_' + (this.user && this.user.id); },
   async tryTrust() {
     let tok = null; try { tok = localStorage.getItem(this.trustKey()); } catch (_) {} if (!tok) return false;
-    try { const { data, error } = await this.client.rpc('ek_use_trust', { p_token: tok }); if (!error && data === true) { this.needMfa = false; return true; } } catch (_) {}
-    try { localStorage.removeItem(this.trustKey()); } catch (_) {} return false;   // expired or revoked
+    let gone = false;
+    try { const { data, error } = await this.client.rpc('ek_use_trust', { p_token: tok }); if (!error && data === true) { this.needMfa = false; return true; } gone = !error && data === false; } catch (_) {}
+    if (gone) { try { localStorage.removeItem(this.trustKey()); } catch (_) {} }   // only forget it when the server says it expired or was revoked, not on a network hiccup
+    return false;
   },
   async rememberDevice() {
     try { const { data, error } = await this.client.rpc('ek_trust_device'); if (!error && data) localStorage.setItem(this.trustKey(), data); } catch (_) {}

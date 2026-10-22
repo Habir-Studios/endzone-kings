@@ -8,7 +8,7 @@ export const NOTES = [
     "v": "1.0.2",
     "date": "2026-10-21",
     "added": [
-      "Change your username in Settings: it changes the name everyone sees and the username you log in with (once every 7 days)",
+      "Change your username in Settings: it changes the name everyone sees and the username you log in with (once every 14 days, and it can't be a name someone already has)",
       "Quicksell pays about 30% more for every player"
       ,
       "Field goals and extra points can get blocked. Long kicks fly lower and get blocked more, and a strong defensive line blocks more",

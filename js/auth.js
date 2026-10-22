@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792633970';
+import { CONFIG } from './config.js?v=1792634143';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -70,11 +70,13 @@ export const Auth = {
     if (!this.validName(username)) throw new Error('Username: 3-16 letters, numbers or _');
     if ((password || '').length < 6) throw new Error('Password needs at least 6 characters');
     if (this.mode === 'supabase') {
+      { const { data: taken, error: te } = await this.client.rpc('ek_name_taken', { p_name: username }); if (!te && taken) throw new Error('That username is taken. Pick another one'); }
       const { data, error } = await this.client.auth.signUp({
         email: (email || '').trim(), password,
         options: { data: { username, wins: 0, losses: 0, ties: 0 }, emailRedirectTo: authHome() },
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(/already (registered|exists)|already been registered/i.test(error.message) ? 'That email already has an account. Log in instead, or use a different email' : error.message);
+      if (data.user && Array.isArray(data.user.identities) && !data.user.identities.length) throw new Error('That email already has an account. Log in instead, or use a different email');
       if (!data.session) return { needsConfirm: true };
       this.user = this.fromSb(data.user);
       return { user: this.user };
@@ -155,7 +157,11 @@ export const Auth = {
     if (this.user) this.user.name = data || name;
     return this.user.name;
   },
-  async changeEmail(email) { const { error } = await this.client.auth.updateUser({ email }, { emailRedirectTo: authHome() }); if (error) throw error; },
+  async changeEmail(email) {
+    if (this.user && (this.user.email || '').toLowerCase() === String(email).trim().toLowerCase()) throw new Error('That’s already your email');
+    const { error } = await this.client.auth.updateUser({ email }, { emailRedirectTo: authHome() });
+    if (error) throw new Error(/already (registered|exists|been registered)|email_exists/i.test(error.message + (error.code || '')) ? 'Another account already uses that email' : error.message);
+  },
   async resetPassword(email) {
     if (this.mode !== 'supabase') throw new Error('Password reset needs online accounts set up');
     const v = (email || '').trim();

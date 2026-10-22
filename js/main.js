@@ -1,30 +1,30 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792633970';
-import { NOTES, SEASON } from './patchnotes.js?v=1792633970';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792633970';
-import * as Form from './form.js?v=1792633970';
-import { watchSim } from './simview.js?v=1792633970';
-import { bracketHTML } from './bracket.js?v=1792633970';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792633970';
-import { rosterStyle } from './playbook.js?v=1792633970';
-import { Renderer } from './render.js?v=1792633970';
-import { Sfx } from './audio.js?v=1792633970';
-import { Auth } from './auth.js?v=1792633970';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792633970';
-import { getRoster, teamOvr } from './teams.js?v=1792633970';
-import * as Season from './season.js?v=1792633970';
-import * as Fr from './franchise.js?v=1792633970';
-import * as League from './league.js?v=1792633970';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792633970';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792633970';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792633970';
-import * as UTm from './ut.js?v=1792633970';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792633970';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792633970';
-import { showOnline } from './social.js?v=1792633970';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792633970';
-import { portraitURL } from './faces.js?v=1792633970';
-import { logoURL, clearLogoCache } from './logos.js?v=1792633970';
+import { CONFIG } from './config.js?v=1792634143';
+import { NOTES, SEASON } from './patchnotes.js?v=1792634143';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792634143';
+import * as Form from './form.js?v=1792634143';
+import { watchSim } from './simview.js?v=1792634143';
+import { bracketHTML } from './bracket.js?v=1792634143';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792634143';
+import { rosterStyle } from './playbook.js?v=1792634143';
+import { Renderer } from './render.js?v=1792634143';
+import { Sfx } from './audio.js?v=1792634143';
+import { Auth } from './auth.js?v=1792634143';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792634143';
+import { getRoster, teamOvr } from './teams.js?v=1792634143';
+import * as Season from './season.js?v=1792634143';
+import * as Fr from './franchise.js?v=1792634143';
+import * as League from './league.js?v=1792634143';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792634143';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792634143';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792634143';
+import * as UTm from './ut.js?v=1792634143';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792634143';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792634143';
+import { showOnline } from './social.js?v=1792634143';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792634143';
+import { portraitURL } from './faces.js?v=1792634143';
+import { logoURL, clearLogoCache } from './logos.js?v=1792634143';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -581,7 +581,7 @@ async function renderAccountRows() {
   const acc = Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account';
   $('#acct-row').classList.toggle('hidden', !acc); $('#name-row').classList.toggle('hidden', !acc); $('#del-row').classList.toggle('hidden', !acc); $('#link-row').classList.add('hidden');
   if (!acc) return;
-  $('#name-row').classList.remove('hidden'); $('#acct-name').textContent = `${Auth.user.name} · what everyone sees, and what you can log in with. You can change it once a week`;
+  $('#name-row').classList.remove('hidden'); $('#acct-name').textContent = `${Auth.user.name} · what everyone sees, and what you can log in with. You can change it once every 14 days`;
   $('#acct-email').textContent = `${Auth.user.email || 'No email'} · your login email, where password resets and verification emails go. Only you can see this`;
   const prov = await Auth.providers(); if (!prov.google) return;   // nothing to link until Google is switched on
   let ids = []; try { ids = await Auth.identities(); } catch (_) {}
@@ -624,7 +624,7 @@ $('#acct-name-btn').addEventListener('click', () => {
   sfx.play('ui');
   if (!(Auth.mode === 'supabase' && Auth.user && Auth.user.kind === 'account')) return;
   const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
-  m.innerHTML = `<div class="panel info-card"><h3 style="margin:0">Change username</h3><p class="note">This changes the name everyone sees (leaderboards, profiles, online games) and the username you log in with. 3-16 letters, numbers or _. You can change it once every 7 days.</p>
+  m.innerHTML = `<div class="panel info-card"><h3 style="margin:0">Change username</h3><p class="note">This changes the name everyone sees (leaderboards, profiles, online games) and the username you log in with. 3-16 letters, numbers or _. You can change it once every 14 days. Names someone else already has can’t be used.</p>
     <label>New username<input id="cn-name" type="text" maxlength="16" autocomplete="username" spellcheck="false" value="${escapeHtml(Auth.user.name || '')}"></label>
     <p class="note err hidden" id="cn-err"></p>
     <div class="actions"><button class="btn primary" type="button" id="cn-go">Change username</button><button class="btn" type="button" data-x>Cancel</button></div></div>`;

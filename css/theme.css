@@ -855,3 +855,9 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .pk-multi { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .pk-multi .btn { width: 100%; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 13px; padding: 7px 8px; white-space: nowrap; overflow: hidden; }
 .pk-multi .btn span:first-child { margin-right: 4px; }
+
+/* credits on the About page */
+.credits { margin: 6px 0 14px; display: grid; gap: 6px; }
+.credits div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line, rgba(255,255,255,.1)); }
+.credits dt { font-weight: 800; }
+.credits dd { margin: 0; opacity: .75; }

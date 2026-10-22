@@ -867,3 +867,20 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .studio-link:hover { color: #fff; text-decoration-color: var(--red, #ff3347); }
 a.foot-link.studio-link { text-decoration: none; }
 a.foot-link.studio-link:hover { text-decoration: underline; }
+
+/* top-left: back to the Habir Studios game store. The menu's top row sits just under it */
+#menu .studio-back { position: absolute; top: 12px; left: 16px; z-index: 7; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; font-size: 13px; font-weight: 700; color: var(--steel, #c7cad3); text-decoration: none; background: rgba(18,18,21,.85); border: 1px solid rgba(255,255,255,.12); }
+#menu .studio-back svg { width: 15px; height: 15px; }
+#menu .studio-back:hover, #menu .studio-back:focus-visible { color: #fff; border-color: var(--red-2, #ff3347); text-decoration: none; }
+#menu .notif-btn, #menu .fb-btn, #menu .pn-btn { top: 48px; }
+#menu .notif-panel { top: 102px; }
+#menu .player-count { top: 104px; }
+@media (max-width: 700px) {
+  #menu .studio-back { top: 10px; left: 12px; }
+  #menu .notif-btn, #menu .fb-btn, #menu .pn-btn { top: 44px; }
+  #menu .notif-panel { top: 96px; }
+  #menu .player-count { top: 8px; padding: 4px 8px; font-size: 12px; }
+  #menu .studio-back .sb-long { display: none; }
+  #menu .profile-chip { margin-top: 90px; }
+}
+@media (max-height: 500px) and (min-width: 701px) { #menu .notif-btn, #menu .fb-btn, #menu .pn-btn { top: 44px; } #menu .studio-back { top: 8px; } }

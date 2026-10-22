@@ -30,8 +30,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1792634143">
-  <link rel="stylesheet" href="css/theme.css?v=1792634143">
+  <link rel="stylesheet" href="css/style.css?v=1792634578">
+  <link rel="stylesheet" href="css/theme.css?v=1792634578">
 </head>
 <body>
   <noscript><div style="padding:24px;color:#fff;font-family:sans-serif"><h1>Endzone Kings</h1><p>Free 3D arcade football by Habir Studios, played in your browser. Ultimate Team (Solo Battles, theme challenges, Online H2H), Online Franchise leagues, Season, Franchise, practice and a guided tutorial. Turn on JavaScript to play.</p><p>Also on itch.io: <a href="https://habir-studios.itch.io/endzone-kings" style="color:#ff3347">habir-studios.itch.io/endzone-kings</a></p></div></noscript>
@@ -128,6 +128,7 @@
 
   <!-- ===================== MAIN MENU ===================== -->
   <section id="menu" class="screen">
+    <a class="studio-back studio-link" href="https://habir-studios.github.io/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>All <span class="sb-long">Habir Studios </span>games</a>
     <button class="fb-btn" id="fb-btn" type="button" aria-label="Report a bug or contact the dev team"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H8l-4 4zm3 4v2h10V8zm0 3v2h7v-2z"/></svg><span>Feedback</span></button>
     <button class="pn-btn" id="pn-btn" type="button" aria-label="Patch notes"><b id="pn-v">v1</b><span>Patch notes</span><i class="pn-dot hidden" id="pn-dot" aria-hidden="true"></i></button>
     <div class="player-count hidden" id="player-count" aria-live="off"><i class="live-dot" aria-hidden="true"></i>Online now: <b id="pc-online">1</b><span class="pc-sep">Players: <b id="pc-total">0</b></span></div>
@@ -162,7 +163,7 @@
         <button class="tile wide t-settings" data-go="settings"><i class="tl-ico"><svg viewBox="0 0 24 24"><path d="M10.2 2h3.6l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.8 3.1-2 1.7c.1.6.1 1.2 0 1.8l2 1.7-1.8 3.1-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.6l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.8-3.1 2-1.7a6 6 0 0 1 0-1.8l-2-1.7 1.8-3.1 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></i><span class="tl-k">Settings</span><small>Sound, announcer, camera, graphics and controls</small></button>
       </nav>
     </div>
-    <footer class="foot">© <span id="yr"></span> Habir Studios. Endzone Kings <span id="foot-v"></span> <button class="link foot-link" data-go="about">About &amp; credits</button> <a class="foot-link studio-link" href="https://habir-studios.github.io/">← All Habir Studios games</a></footer>
+    <footer class="foot">© <span id="yr"></span> Habir Studios. Endzone Kings <span id="foot-v"></span> <button class="link foot-link" data-go="about">About &amp; credits</button></footer>
   </section>
 
   <!-- ===================== PLAY NOW SETUP ===================== -->
@@ -829,6 +830,6 @@
   <div id="toast" class="toast"></div>
   <noscript><p style="color:#fff;text-align:center;margin-top:40vh">Endzone Kings needs JavaScript turned on.</p></noscript>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
-  <script type="module" src="js/main.js?v=1792634143"></script>
+  <script type="module" src="js/main.js?v=1792634578"></script>
 </body>
 </html>

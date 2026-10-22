@@ -924,3 +924,10 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 .av-opt img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; display: block; }
 .av-opt:hover { background: rgba(255,255,255,.1); }
 .av-opt.on { border-color: var(--gold, #ffb800); background: rgba(255,184,0,.12); }
+
+/* patch notes: a red count badge when there's something new */
+.pn-dot { position: absolute; top: -8px; right: -8px; min-width: 20px; height: 20px; width: auto; padding: 0 6px; border-radius: 999px; background: #e8231c; color: #fff; font: 800 12px/20px var(--body, system-ui); text-align: center; box-shadow: 0 0 0 2px #0b0b0e, 0 0 14px rgba(232,35,28,.6); animation: pnpulse 1.8s ease-in-out infinite; }
+.pn-btn.has-new { border-color: rgba(255,184,0,.6); }
+@keyframes pnpulse { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.15) } }
+@media (prefers-reduced-motion: reduce) { .pn-dot { animation: none; } }
+.pn-btn b { color: var(--gold, #ffb800); }

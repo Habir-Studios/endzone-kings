@@ -1,30 +1,30 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792635804';
-import { NOTES, SEASON } from './patchnotes.js?v=1792635804';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792635804';
-import * as Form from './form.js?v=1792635804';
-import { watchSim } from './simview.js?v=1792635804';
-import { bracketHTML } from './bracket.js?v=1792635804';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792635804';
-import { rosterStyle } from './playbook.js?v=1792635804';
-import { Renderer } from './render.js?v=1792635804';
-import { Sfx } from './audio.js?v=1792635804';
-import { Auth } from './auth.js?v=1792635804';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792635804';
-import { getRoster, teamOvr } from './teams.js?v=1792635804';
-import * as Season from './season.js?v=1792635804';
-import * as Fr from './franchise.js?v=1792635804';
-import * as League from './league.js?v=1792635804';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792635804';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792635804';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792635804';
-import * as UTm from './ut.js?v=1792635804';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792635804';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792635804';
-import { showOnline, myAvatarURL, loadMyAvatar } from './social.js?v=1792635804';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792635804';
-import { portraitURL } from './faces.js?v=1792635804';
-import { logoURL, clearLogoCache } from './logos.js?v=1792635804';
+import { CONFIG } from './config.js?v=1792635878';
+import { NOTES, SEASON } from './patchnotes.js?v=1792635878';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792635878';
+import * as Form from './form.js?v=1792635878';
+import { watchSim } from './simview.js?v=1792635878';
+import { bracketHTML } from './bracket.js?v=1792635878';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792635878';
+import { rosterStyle } from './playbook.js?v=1792635878';
+import { Renderer } from './render.js?v=1792635878';
+import { Sfx } from './audio.js?v=1792635878';
+import { Auth } from './auth.js?v=1792635878';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792635878';
+import { getRoster, teamOvr } from './teams.js?v=1792635878';
+import * as Season from './season.js?v=1792635878';
+import * as Fr from './franchise.js?v=1792635878';
+import * as League from './league.js?v=1792635878';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792635878';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792635878';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792635878';
+import * as UTm from './ut.js?v=1792635878';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792635878';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792635878';
+import { showOnline, myAvatarURL, loadMyAvatar } from './social.js?v=1792635878';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792635878';
+import { portraitURL } from './faces.js?v=1792635878';
+import { logoURL, clearLogoCache } from './logos.js?v=1792635878';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -504,11 +504,16 @@ function fmtDate(d) { try { return new Date(d + 'T12:00:00').toLocaleDateString(
 function refreshPn() {
   { const f = document.getElementById('foot-v'); if (f) f.textContent = `Season ${SEASON} · v${NOTES[0].v}`; }
   $('#pn-v').textContent = `S${SEASON} · v${NOTES[0].v}`;
-  let seen = null; try { seen = localStorage.getItem(PN_KEY); } catch (_) {}
-  $('#pn-dot').classList.toggle('hidden', seen === NOTES[0].v);
+  // the badge counts what's new since you last opened the notes: a new version, or new lines added to the current one
+  const n = pnTotal(); let seen = null; try { seen = JSON.parse(localStorage.getItem(PN_KEY) || 'null'); } catch (_) { seen = null; }
+  const fresh = !seen || typeof seen !== 'object' || seen.v !== NOTES[0].v ? n : Math.max(0, n - (seen.n || 0));
+  const dot = $('#pn-dot'); dot.classList.toggle('hidden', !fresh); dot.textContent = fresh ? (fresh > 9 ? '9+' : String(fresh)) : '';
+  dot.setAttribute('aria-label', fresh ? `${fresh} new` : ''); $('#pn-btn').classList.toggle('has-new', !!fresh);
 }
+const pnTotal = () => (NOTES[0].added || []).length + (NOTES[0].fixed || []).length;
+setInterval(refreshPn, 15000);
 function openPatchNotes() {
-  try { localStorage.setItem(PN_KEY, NOTES[0].v); } catch (_) {}
+  try { localStorage.setItem(PN_KEY, JSON.stringify({ v: NOTES[0].v, n: pnTotal() })); } catch (_) {}
   refreshPn();
   const esc = t => escapeHtml(t), rx = q => new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
   const mark = (t, q) => q ? esc(t).replace(rx(esc(q)), x => `<mark>${x}</mark>`) : esc(t);

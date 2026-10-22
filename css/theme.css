@@ -956,3 +956,9 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 .pf-rank { display: inline-flex; align-items: center; gap: 6px; }
 
 .lb-modes { margin: 2px 0 14px; padding: 8px 12px; font-size: 15px; color: #e6e6ee; background: rgba(255,184,0,.08); border-left: 3px solid var(--gold, #ffb800); }
+
+/* the Endzone Kings logo sits on its own everywhere now (login and main menu): no background card */
+.ek-card, #menu .ek-card { display: none !important; }
+.ek-plain { display: block; border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 12px 30px rgba(0,0,0,.65)); width: clamp(260px, 40vw, 480px); }
+@media (max-width: 700px) { .ek-plain { width: min(290px, 78vw); } }
+@media (max-height: 500px) { .ek-plain { width: auto; height: clamp(90px, 30vh, 190px); } }

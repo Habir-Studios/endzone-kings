@@ -1,11 +1,12 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792635878';
-import { TEAMS } from './teams.js?v=1792635878';
-import { portraitURL } from './faces.js?v=1792635878';
-import { rankInfo } from './profile.js?v=1792635878';
+import { askYes } from './ui.js?v=1792636200';
+import { TEAMS } from './teams.js?v=1792636200';
+import { rankIcon } from './meta.js?v=1792636200';
+import { portraitURL } from './faces.js?v=1792636200';
+import { rankInfo } from './profile.js?v=1792636200';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
-const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
+const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}">${rankIcon(r.div, r.sub, 20)}${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
 let C = null;
 const fmt = n => Math.round(+n || 0).toLocaleString();
@@ -22,6 +23,7 @@ export function avatarURL(av, team, size = 80) {
   if (m) { const T = TEAMS[+m[2]] || TEAMS[0]; return portraitURL(+m[1], T.jersey, T.trim, size); }
   const t = /^t(\d+)$/.exec(av || ''); return C.logoURL(t ? +t[1] : (team ?? 0), size);
 }
+export function openMyProfile() { const u = me(); if (u) openProfile(u.id); }
 // ---------------- leaderboard categories ----------------
 export const BOARDS = {
   Overall: [['on_w', 'Online H2H wins'], ['rp', 'Rank points'], ['lvl', 'Level'], ['games', 'Games played']],

@@ -1,30 +1,30 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792635878';
-import { NOTES, SEASON } from './patchnotes.js?v=1792635878';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792635878';
-import * as Form from './form.js?v=1792635878';
-import { watchSim } from './simview.js?v=1792635878';
-import { bracketHTML } from './bracket.js?v=1792635878';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792635878';
-import { rosterStyle } from './playbook.js?v=1792635878';
-import { Renderer } from './render.js?v=1792635878';
-import { Sfx } from './audio.js?v=1792635878';
-import { Auth } from './auth.js?v=1792635878';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792635878';
-import { getRoster, teamOvr } from './teams.js?v=1792635878';
-import * as Season from './season.js?v=1792635878';
-import * as Fr from './franchise.js?v=1792635878';
-import * as League from './league.js?v=1792635878';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792635878';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792635878';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792635878';
-import * as UTm from './ut.js?v=1792635878';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792635878';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792635878';
-import { showOnline, myAvatarURL, loadMyAvatar } from './social.js?v=1792635878';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792635878';
-import { portraitURL } from './faces.js?v=1792635878';
-import { logoURL, clearLogoCache } from './logos.js?v=1792635878';
+import { CONFIG } from './config.js?v=1792636200';
+import { NOTES, SEASON } from './patchnotes.js?v=1792636200';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792636200';
+import * as Form from './form.js?v=1792636200';
+import { watchSim } from './simview.js?v=1792636200';
+import { bracketHTML } from './bracket.js?v=1792636200';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792636200';
+import { rosterStyle } from './playbook.js?v=1792636200';
+import { Renderer } from './render.js?v=1792636200';
+import { Sfx } from './audio.js?v=1792636200';
+import { Auth } from './auth.js?v=1792636200';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792636200';
+import { getRoster, teamOvr } from './teams.js?v=1792636200';
+import * as Season from './season.js?v=1792636200';
+import * as Fr from './franchise.js?v=1792636200';
+import * as League from './league.js?v=1792636200';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792636200';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792636200';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792636200';
+import * as UTm from './ut.js?v=1792636200';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792636200';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792636200';
+import { showOnline, myAvatarURL, loadMyAvatar, openMyProfile } from './social.js?v=1792636200';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792636200';
+import { portraitURL } from './faces.js?v=1792636200';
+import { logoURL, clearLogoCache } from './logos.js?v=1792636200';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1009,6 +1009,10 @@ const randOpp = () => { let o; do { o = (Math.random() * TEAMS.length) | 0; } wh
 $('#use-ut').addEventListener('change', () => { const P = !isGuest() && profile(), useUT = $('#use-ut').checked && P && P.p.ut && P.p.ut.started; $('#wait-logo').src = logoURL(useUT ? P.p.ut.club : onlineTeam, 64); });
 // links back to the Habir Studios game store: inside the itch.io frame they open in a new tab
 { let framed = false; try { framed = window.top !== window.self; } catch (_) { framed = true; } if (framed) $$('.studio-link').forEach(l => { l.target = '_blank'; l.rel = 'noopener'; }); }
+// tap your menu card to open your own profile
+{ const pc = document.querySelector('#menu .profile-chip'); if (pc) { pc.classList.add('tap'); pc.setAttribute('role', 'button'); pc.tabIndex = 0; pc.title = 'Open your profile';
+  const go = e => { if (e.target.closest('button, a')) return; if (isGuest() || !Auth.user || Auth.user.kind !== 'account') return lockPrompt('Profile'); sfx.play('ui'); show('social'); openMyProfile(); };
+  pc.addEventListener('click', go); pc.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(e); } }); } }
 $('#player-count').addEventListener('click', () => { sfx.play('ui'); showOnline(); });
 // the Online now / Players box sits under the notifications panel while it's open, then goes back to its spot
 { const pnl = $('#notif-panel'), pc = $('#player-count');

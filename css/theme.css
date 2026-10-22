@@ -931,3 +931,26 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 @keyframes pnpulse { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.15) } }
 @media (prefers-reduced-motion: reduce) { .pn-dot { animation: none; } }
 .pn-btn b { color: var(--gold, #ffb800); }
+
+/* main menu: the logo on its own, no background card. Everywhere else: the lit card */
+.ek-plain { display: none; }
+#menu .ek-card { display: none; }
+#menu .ek-plain { display: block; border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 12px 30px rgba(0,0,0,.65)); width: clamp(260px, 40vw, 480px); }
+@media (max-width: 700px) { #menu .ek-plain { width: min(290px, 78vw); } }
+@media (max-height: 500px) { #menu .ek-plain { width: auto; height: clamp(90px, 30vh, 190px); } }
+
+/* menu card: tap to open your profile; nicer level badge; rank emblems */
+#menu .profile-chip.tap { cursor: pointer; transition: box-shadow .15s ease; }
+#menu .profile-chip.tap:hover { box-shadow: inset 0 0 0 1px rgba(255,184,0,.45), 0 10px 26px rgba(0,0,0,.45); }
+#menu .profile-chip.tap:focus-visible { outline: 2px solid var(--gold, #ffb800); outline-offset: 2px; }
+.lvl-badge { position: relative; display: grid; place-items: center; align-content: center; line-height: 1; color: #fff; background: linear-gradient(160deg, #ffd45c, #c98a00 55%, #7a4a00); }
+.lvl-badge::before { content: ''; position: absolute; inset: 3px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: radial-gradient(circle at 50% 30%, #6b2cff, #2c0a6e 75%); }
+.lvl-badge small, .lvl-badge b { position: relative; z-index: 1; }
+.lvl-badge small { font: 800 8px/1 var(--body, system-ui); letter-spacing: 1px; color: #ffd45c; margin-bottom: 1px; }
+.lvl-badge b { font: 900 17px/1 var(--display); text-shadow: 0 1px 0 rgba(0,0,0,.5); }
+.profile-chip .lvl-badge { min-width: 44px; height: 48px; }
+.profile-chip .lvl-badge b { font-size: 20px; }
+.rank-pill { display: inline-flex; align-items: center; gap: 6px; border-left: 0 !important; }
+.rank-pill .rk-ic, .pf-rank .rk-ic { flex: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.pf-rank > i { display: none; }
+.pf-rank { display: inline-flex; align-items: center; gap: 6px; }

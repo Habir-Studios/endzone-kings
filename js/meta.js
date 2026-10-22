@@ -1,13 +1,23 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792635878';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792635878';
-import * as UT from './ut.js?v=1792635878';
-import { portraitURL } from './faces.js?v=1792635878';
-import { TEAMS } from './teams.js?v=1792635878';
+import { askYes } from './ui.js?v=1792636200';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792636200';
+import * as UT from './ut.js?v=1792636200';
+import { portraitURL } from './faces.js?v=1792636200';
+import { TEAMS } from './teams.js?v=1792636200';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
 const fmt = n => Math.round(n).toLocaleString();
+// rank emblems: a shield in the division's colors with one to three chevrons (III to I), Diamond gets a gem, Kings a crown
+export function rankIcon(div, sub = 1, size = 22) {
+  const c = (RANK_COL[div] || RANK_COL.Bronze), id = 'rg' + div + size;
+  const grad = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient></defs>`;
+  if (div === 'Kings') return `<svg class="rk-ic" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true">${grad}<path d="M4 24 2 9l8 6 6-10 6 10 8-6-2 15z" fill="url(#${id})" stroke="#2a1700" stroke-width="1.6" stroke-linejoin="round"/><rect x="4" y="24" width="24" height="5" rx="1.5" fill="url(#${id})" stroke="#2a1700" stroke-width="1.6"/><circle cx="16" cy="13" r="2" fill="#fff"/></svg>`;
+  const n = Math.max(1, 4 - (sub || 1));   // III = 1 chevron, I = 3
+  const chev = Array.from({ length: n }, (_, k) => `<path d="M10 ${11 + k * 5}l6 3.5 6-3.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  const gem = div === 'Diamond' ? '<path d="M12 9h8l3 4-7 9-7-9z" fill="#fff" opacity=".9"/>' : chev;
+  return `<svg class="rk-ic" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true">${grad}<path d="M16 2 28 6v10c0 7-5.5 12-12 14C9.5 28 4 23 4 16V6z" fill="url(#${id})" stroke="rgba(0,0,0,.55)" stroke-width="1.6" stroke-linejoin="round"/>${gem}</svg>`;
+}
 export const RANK_COL = { Bronze: ['#cd7f32', '#5a3412'], Silver: ['#c9d1dd', '#5d6675'], Gold: ['#f6c445', '#9a6400'], Platinum: ['#6ee7d8', '#1f6b66'], Diamond: ['#8ab4ff', '#2d3f9a'], Kings: ['#ffe28a', '#7a4a00'] };
 export const WX_OPTS = [['clear', 'Clear'], ['rain', 'Rain'], ['snow', 'Snow'], ['fog', 'Fog'], ['random', 'Random']];
 export const WIND_OPTS = [[0, 'Calm'], [5, '5 mph'], [10, '10 mph'], [15, '15 mph'], [20, '20 mph'], [25, '25 mph']];
@@ -91,8 +101,8 @@ async function checkSave() {
 export function refreshChip() {
   const P = profile(); if (!P) return;
   const { $ } = C, r = P.rank, col = RANK_COL[r.div];
-  $('#pc-lvl').textContent = P.p.lvl; $('#pc-lvl').title = `Level ${P.p.lvl}`;
-  $('#pc-rank').textContent = r.name; $('#pc-rank').style.setProperty('--rk', col[0]);
+  $('#pc-lvl').innerHTML = `<small>LV</small><b>${P.p.lvl}</b>`; $('#pc-lvl').title = `Level ${P.p.lvl}`;
+  $('#pc-rank').innerHTML = `${rankIcon(r.div, r.sub, 22)}<span>${r.name}</span>`; $('#pc-rank').style.setProperty('--rk', col[0]);
   $('#pc-coins').textContent = fmt(P.p.coins);
   const U = P.p.ut;
   $('#tile-ut-sub').textContent = U.started ? `${U.name}, ${UT.squadOvr(U).ovr} OVR, ${U.cards.length} players` : 'Open packs, build a squad, play for coins';

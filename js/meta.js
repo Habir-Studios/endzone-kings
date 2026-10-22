@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792637872';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792637872';
-import * as UT from './ut.js?v=1792637872';
-import { portraitURL } from './faces.js?v=1792637872';
-import { TEAMS } from './teams.js?v=1792637872';
+import { askYes } from './ui.js?v=1792637725';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792637725';
+import * as UT from './ut.js?v=1792637725';
+import { portraitURL } from './faces.js?v=1792637725';
+import { TEAMS } from './teams.js?v=1792637725';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -234,13 +234,6 @@ function renderClub(P) {
     for (const d of dupes) P.sell(d.u, UT.quicksell(d), UT.quicksellTp(d));
     C.toast(`Sold ${dupes.length} players for ${fmt(tot)} coins`); renderUT();
   };
-  { const left = P.utRestartLeft(), days = Math.ceil(left / 86400000);
-    pane.insertAdjacentHTML('beforeend', `<div class="ut-restart"><div><b>Restart Ultimate Team</b><small>Start over with a new starter squad. Your players, lineup and unopened packs are deleted. Coins, Training Points and your weekly progress stay. Once a week.</small></div><button class="btn danger" type="button" id="ut-restart" ${left ? 'disabled' : ''}>${left ? `Available in ${days} day${days === 1 ? '' : 's'}` : 'Restart Ultimate Team'}</button></div>`);
-    const rb = C.$('#ut-restart', pane); if (rb && !left) rb.onclick = async () => {
-      if (!(await askYes('Restart Ultimate Team? Every player in your club, your lineup and your unopened packs will be deleted. Coins and Training Points stay.', 'Restart'))) return;
-      if (!(await askYes('Are you sure? This can’t be undone, and you can only restart once a week.', 'Yes, start over'))) return;
-      if (P.restartUT()) { C.toast('Ultimate Team restarted. Pick your starter squad.', 3500); C.sfx.play('ui'); utTab = 'play'; renderUT(); }
-    }; }
 }
 
 function renderPacks(P) {

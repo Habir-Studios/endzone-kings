@@ -11,7 +11,6 @@ export const NOTES = [
       "New logo and a new purple and gold look",
       "Profile pictures: pick a player face or a team logo in Edit profile",
       "Change your username in Settings (once every 14 days)",
-      "Restart Ultimate Team from the Club tab (once a week)",
       "Field goals and extra points can get blocked",
       "Real onside kicks: both teams chase the ball and whoever recovers it gets it",
       "Game stats in the pause menu",

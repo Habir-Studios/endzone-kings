@@ -8,6 +8,7 @@ export const NOTES = [
     "v": "1.0.2",
     "date": "2026-10-21",
     "added": [
+      "New look: new Endzone Kings and Habir Studios logos, and the whole game is now purple and gold to match",
       "Change your username in Settings: it changes the name everyone sees and the username you log in with (once every 14 days, and it can't be a name someone already has)",
       "Quicksell pays about 30% more for every player"
       ,

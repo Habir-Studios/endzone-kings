@@ -910,3 +910,17 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 /* profile: followers / following open a list */
 .pf-fl { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: rgba(255,255,255,.25); text-underline-offset: 3px; }
 .pf-fl:hover { color: #fff; text-decoration-color: var(--gold, #ffb800); }
+
+/* profile pictures */
+#pc-avatar.pic { padding: 0; overflow: hidden; background: #1b1b22; }
+#pc-avatar.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pf-logo.face { border-radius: 50%; background: #1b1b22; border: 2px solid rgba(255,255,255,.15); }
+.av-pick { display: grid; gap: 8px; margin: 6px 0 14px; }
+.av-h { font-weight: 700; }
+.av-h small { display: block; font-weight: 500; opacity: .7; font-size: 13px; }
+.av-tabs { display: flex; gap: 6px; }
+.av-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; max-height: 260px; overflow: auto; padding: 2px; }
+.av-opt { aspect-ratio: 1; padding: 4px; border-radius: 12px; border: 2px solid transparent; background: rgba(255,255,255,.05); cursor: pointer; }
+.av-opt img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; display: block; }
+.av-opt:hover { background: rgba(255,255,255,.1); }
+.av-opt.on { border-color: var(--gold, #ffb800); background: rgba(255,184,0,.12); }

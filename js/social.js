@@ -1,8 +1,9 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792635601';
-import { TEAMS } from './teams.js?v=1792635601';
-import { rankInfo } from './profile.js?v=1792635601';
+import { askYes } from './ui.js?v=1792635745';
+import { TEAMS } from './teams.js?v=1792635745';
+import { portraitURL } from './faces.js?v=1792635745';
+import { rankInfo } from './profile.js?v=1792635745';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -13,6 +14,14 @@ const db = () => (C.Auth.mode === 'supabase' && C.Auth.client ? C.Auth.client : 
 const me = () => (C.Auth.user && C.Auth.user.kind === 'account' ? C.Auth.user : null);
 const ago = t => { const s = (Date.now() - new Date(t)) / 1000; return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : `${Math.floor(s / 86400)}d ago`; };
 
+// ---------------- profile pictures ----------------
+// t<team> = that team's logo, f<seed>-<team> = a player face in that team's colors. No picture yet = favorite team's logo.
+export const AV_FACES = Array.from({ length: 24 }, (_, i) => `f${1009 + i * 7919}-${(i * 5) % 32}`);
+export function avatarURL(av, team, size = 80) {
+  const m = /^f(\d+)-(\d+)$/.exec(av || '');
+  if (m) { const T = TEAMS[+m[2]] || TEAMS[0]; return portraitURL(+m[1], T.jersey, T.trim, size); }
+  const t = /^t(\d+)$/.exec(av || ''); return C.logoURL(t ? +t[1] : (team ?? 0), size);
+}
 // ---------------- leaderboard categories ----------------
 export const BOARDS = {
   Overall: [['on_w', 'Online H2H wins'], ['rp', 'Rank points'], ['lvl', 'Level'], ['games', 'Games played']],
@@ -168,14 +177,14 @@ function renderBoards() {
 }
 async function loadBoard(col, quiet) {
   const el = C.$('#lb-list'); if (!el || !ALL_COLS.includes(col)) return;
-  const { data, error } = await db().from('ek_players').select(`id,name,team,lvl,games,${col}`).eq('banned', false).order(col, { ascending: false }).order('games', { ascending: true }).limit(50);
+  const { data, error } = await db().from('ek_players').select(`id,name,team,avatar,lvl,games,${col}`).eq('banned', false).order(col, { ascending: false }).order('games', { ascending: true }).limit(50);
   if (!el.isConnected) return;   // switched tabs while it loaded
   if (error) { if (!quiet) el.innerHTML = '<li class="mb-empty">Couldn’t load the leaderboard</li>'; return; }
   const key = JSON.stringify((data || []).map(r => [r.id, r[col]]));
   if (quiet && key === boardRows.key) return;
   boardRows = data || []; boardRows.key = key;
   const mine = me() ? me().id : '';
-  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${C.logoURL(r.team ?? 0, 40)}"><div><b>${esc(r.name)}${adminBadge(r.id)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish a full game to get on it.</li>';
+  el.innerHTML = boardRows.map((r, i) => `<li class="${r.id === mine ? 'me' : ''}" data-pid="${esc(r.id)}"><span class="lb-n">${i + 1}</span><img alt="" src="${avatarURL(r.avatar, r.team, 40)}"><div><b>${esc(r.name)}${adminBadge(r.id)}</b><small>Level ${r.lvl}, ${fmt(r.games)} games</small></div><em>${fmt(r[col])}</em></li>`).join('') || '<li class="mb-empty">Nobody on this board yet. Finish a full game to get on it.</li>';
   C.$$('[data-pid]', el).forEach(li => li.onclick = () => openProfile(li.dataset.pid));
 }
 
@@ -206,9 +215,9 @@ async function followList(id, name, kind) {
   if (error) { box.innerHTML = '<p class="note">Couldn’t load the list.</p>'; return; }
   const ids = (data || []).map(r => r[col]);
   if (!ids.length) { box.innerHTML = `<p class="note">${kind === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</p>`; return; }
-  const { data: ps } = await D.from('ek_players').select('id,name,lvl,team').in('id', ids);
+  const { data: ps } = await D.from('ek_players').select('id,name,lvl,team,avatar').in('id', ids);
   const byId = Object.fromEntries((ps || []).map(p => [p.id, p])), mine = me() && me().id;
-  box.innerHTML = ids.map(i => byId[i]).filter(Boolean).map(p => `<button class="ol-row" type="button" data-pid="${esc(p.id)}"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}" width="22" height="22"><b>${esc(p.name)}${adminBadge(p.id)}</b><small>${p.id === mine ? 'you' : 'Level ' + (p.lvl || 1)}</small></button>`).join('');
+  box.innerHTML = ids.map(i => byId[i]).filter(Boolean).map(p => `<button class="ol-row" type="button" data-pid="${esc(p.id)}"><img alt="" src="${avatarURL(p.avatar, p.team, 40)}" width="26" height="26"><b>${esc(p.name)}${adminBadge(p.id)}</b><small>${p.id === mine ? 'you' : 'Level ' + (p.lvl || 1)}</small></button>`).join('');
   box.querySelectorAll('[data-pid]').forEach(b => b.onclick = () => { C.sfx.play('ui'); close(); openProfile(b.dataset.pid); });
 }
 async function openProfile(id) {
@@ -232,7 +241,7 @@ async function openProfile(id) {
   const stat = (n, v) => `<div><b>${v}</b><small>${n}</small></div>`;
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
-      <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
+      <img class="pf-logo${/^f/.test(p.avatar || '') ? ' face' : ''}" alt="" src="${avatarURL(p.avatar, p.team, 112)}">
       <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<div class="pf-lr"><span class="pf-lvl" id="pf-lvl">Level ${p.lvl || 1}</span><span id="pf-rk">${rankPill(p.rp)}</span><span class="pf-gp" id="pf-gp"></span></div>
         <div class="pf-recs">${[['Online H2H record', p.on_w, p.on_l, p.on_t]].map(([n, w, l, tt]) => `<span class="rec-card"><small>${n}</small><span class="rec-nums"><i><b>${fmt(w || 0)}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(l || 0)}</b><em>L</em></i>${tt ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(tt)}</b><em>T</em></i>` : ''}</span></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
         <div class="pf-follow"><button type="button" class="pf-fl" data-fl="followers"><b>${fmt(followers)}</b> followers</button><button type="button" class="pf-fl" data-fl="following"><b>${fmt(following)}</b> following</button>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}${(() => { const P = !mine && C.profile && C.profile(); const h = P && P.p.h2h && P.p.h2h[String(p.name).toLowerCase().slice(0, 24)]; return h ? `<span class="h2h">You vs ${esc(p.name)}: <b>${h[0]}W-${h[1]}L${h[2] ? '-' + h[2] + 'T' : ''}</b></span>` : ''; })()}</div></div>
@@ -298,15 +307,27 @@ function editProfile(p) {
   const pane = C.$('#so-pane');
   pane.innerHTML = `<div class="form"><h3>Edit profile</h3>
     <label>Bio<input id="pf-bio" maxlength="160" value="${esc(p.bio)}" placeholder="Say something about yourself"></label>
+    <div class="av-pick"><span class="av-h">Profile picture <small>Shows on your profile, the leaderboards and your menu card</small></span>
+      <div class="av-tabs seg"><button type="button" data-avt="f" class="on">Player faces</button><button type="button" data-avt="t">Team logos</button></div>
+      <div class="av-grid" id="pf-av"></div></div>
     <label>Favorite team<div class="team-grid" id="pf-team"></div></label>
     <div class="actions"><button class="btn" id="pf-cancel">Cancel</button><button class="btn primary" id="pf-save">Save</button></div></div>`;
-  let team = p.team;
+  let team = p.team, avatar = p.avatar || null, avTab = /^t/.test(avatar || '') ? 't' : 'f';
   C.fillGrid(C.$('#pf-team'), team, -1, ti => { team = ti; });
+  const drawAv = () => {
+    const opts = avTab === 'f' ? AV_FACES : TEAMS.map((_, i) => 't' + i);
+    C.$('#pf-av').innerHTML = opts.map(o => `<button type="button" class="av-opt${o === avatar ? ' on' : ''}" data-av="${o}" aria-label="${o[0] === 't' ? TEAMS[+o.slice(1)].city : 'Player face'}"><img alt="" src="${avatarURL(o, 0, 72)}"></button>`).join('');
+    C.$$('#pf-av [data-av]').forEach(b => b.onclick = () => { avatar = b.dataset.av; C.sfx.play('ui'); drawAv(); });
+    C.$$('[data-avt]').forEach(b => b.classList.toggle('on', b.dataset.avt === avTab));
+  };
+  C.$$('[data-avt]').forEach(b => b.onclick = () => { avTab = b.dataset.avt; drawAv(); });
+  drawAv();
   C.$('#pf-cancel').onclick = () => openProfile(p.id);
   C.$('#pf-save').onclick = async () => {
     const bio = C.cleanText(C.$('#pf-bio').value || '').slice(0, 160);
-    const { error } = await db().from('ek_players').update({ bio, team, updated_at: new Date().toISOString() }).eq('id', p.id);
-    if (error) C.toast(error.message); else C.toast('Profile saved');
+    let { error } = await db().from('ek_players').update({ bio, team, updated_at: new Date().toISOString() }).eq('id', p.id);
+    if (!error && avatar !== (p.avatar || null)) { const r = await db().from('ek_players').update({ avatar }).eq('id', p.id); if (r.error) error = /avatar/.test(r.error.message) ? { message: 'Profile pictures aren’t switched on yet' } : r.error; }
+    if (error) C.toast(error.message); else { C.toast('Profile saved'); setMyAvatar(avatar, team); }
     openProfile(p.id);
   };
 }
@@ -646,6 +667,10 @@ function wireNotifs() {
 
 // ---------------- after a game: push career stats ----------------
 // r: { res, ps (player stats list), st (team stats), me (team index), lvl, rp }
+// your own picture, for the menu card: remembered on this device and refreshed from the server when you log in
+export function myAvatarURL(size = 80) { const u = me(); if (!u) return null; let v = null; try { v = JSON.parse(localStorage.getItem('ek_av_' + u.id) || 'null'); } catch (_) {} return v ? avatarURL(v.av, v.team, size) : null; }
+function setMyAvatar(av, team) { const u = me(); if (!u) return; try { localStorage.setItem('ek_av_' + u.id, JSON.stringify({ av, team })); } catch (_) {} if (C.refreshProfile) C.refreshProfile(); }
+export async function loadMyAvatar() { const u = me(); if (!u || !db()) return; const { data } = await db().from('ek_players').select('avatar,team').eq('id', u.id).maybeSingle(); if (data) setMyAvatar(data.avatar || null, data.team ?? 0); }
 export async function postGameStats(r) {
   if (!db() || !me()) return;
   const mine = (r.ps || []).filter(p => p.t === r.me), ts = (r.st || [])[r.me] || {};

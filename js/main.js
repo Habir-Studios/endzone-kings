@@ -1,30 +1,30 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792635601';
-import { NOTES, SEASON } from './patchnotes.js?v=1792635601';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792635601';
-import * as Form from './form.js?v=1792635601';
-import { watchSim } from './simview.js?v=1792635601';
-import { bracketHTML } from './bracket.js?v=1792635601';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792635601';
-import { rosterStyle } from './playbook.js?v=1792635601';
-import { Renderer } from './render.js?v=1792635601';
-import { Sfx } from './audio.js?v=1792635601';
-import { Auth } from './auth.js?v=1792635601';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792635601';
-import { getRoster, teamOvr } from './teams.js?v=1792635601';
-import * as Season from './season.js?v=1792635601';
-import * as Fr from './franchise.js?v=1792635601';
-import * as League from './league.js?v=1792635601';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792635601';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792635601';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792635601';
-import * as UTm from './ut.js?v=1792635601';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792635601';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792635601';
-import { showOnline } from './social.js?v=1792635601';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792635601';
-import { portraitURL } from './faces.js?v=1792635601';
-import { logoURL, clearLogoCache } from './logos.js?v=1792635601';
+import { CONFIG } from './config.js?v=1792635745';
+import { NOTES, SEASON } from './patchnotes.js?v=1792635745';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792635745';
+import * as Form from './form.js?v=1792635745';
+import { watchSim } from './simview.js?v=1792635745';
+import { bracketHTML } from './bracket.js?v=1792635745';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792635745';
+import { rosterStyle } from './playbook.js?v=1792635745';
+import { Renderer } from './render.js?v=1792635745';
+import { Sfx } from './audio.js?v=1792635745';
+import { Auth } from './auth.js?v=1792635745';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792635745';
+import { getRoster, teamOvr } from './teams.js?v=1792635745';
+import * as Season from './season.js?v=1792635745';
+import * as Fr from './franchise.js?v=1792635745';
+import * as League from './league.js?v=1792635745';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792635745';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792635745';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792635745';
+import * as UTm from './ut.js?v=1792635745';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792635745';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792635745';
+import { showOnline, myAvatarURL, loadMyAvatar } from './social.js?v=1792635745';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792635745';
+import { portraitURL } from './faces.js?v=1792635745';
+import { logoURL, clearLogoCache } from './logos.js?v=1792635745';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -757,14 +757,16 @@ $('#form-signup').addEventListener('submit', (e) => {
 $('#guest-btn').addEventListener('click', () => { Auth.guest(); show('menu'); });
 $('#logout').addEventListener('click', async () => { await Auth.signOut(); show('auth'); });
 
+let avLoadedFor = '';
 function refreshProfile() {
   const u = Auth.user; if (!u) return;
+  if (u.kind === 'account' && Auth.mode === 'supabase' && avLoadedFor !== u.id) { avLoadedFor = u.id; setTimeout(() => loadMyAvatar().catch(() => {}), 0); }
   $('#tile-fr-sub').textContent = Fr.franchiseSub();
   const SS = loadSeason();
   $('#tile-season-sub').textContent = SS ? (SS.phase === 'done' ? 'Season complete. Start a new one' : `${TEAMS[SS.team].city}, ${SS.standings[SS.team].w}W-${SS.standings[SS.team].l}L, ${SS.phase === 'regular' ? 'week ' + (SS.week + 1) : 'playoffs'}`) : 'Chase the Kings Bowl';
   $('#pc-name').textContent = u.name;
   if (u.id === ADMIN_ID) $('#pc-name').insertAdjacentHTML('beforeend', '<span class="admin-badge owner-badge" title="Owner of Habir Studios">OWNER</span>');
-  $('#pc-avatar').textContent = u.name[0].toUpperCase();
+  { const av = u.kind === 'account' ? myAvatarURL(96) : null, el = $('#pc-avatar'); if (av) { el.innerHTML = `<img alt="" src="${av}">`; el.classList.add('pic'); } else { el.textContent = u.name[0].toUpperCase(); el.classList.remove('pic'); } }
   { const R2 = u.recs, f = (w, l, t) => `${w || 0}W-${l || 0}L${t ? '-' + t + 'T' : ''}`;
     const box = (n, w, l, t) => `<span class="rec-mini"><small>${n}</small><span class="rec-nums"><i><b>${w || 0}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${l || 0}</b><em>L</em></i>${t ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${t}</b><em>T</em></i>` : ''}</span></span>`;
     $('#pc-rec').innerHTML = u.kind === 'guest' ? 'Guest' : R2 ? box('Online H2H', R2.on_w, R2.on_l, R2.on_t) : (() => { const P = profile(), r = (P && P.p.recs && P.p.recs.on) || [0, 0, 0]; return box('Online H2H', r[0], r[1], r[2]); })(); void f; }

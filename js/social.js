@@ -1,10 +1,10 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792637380';
-import { TEAMS } from './teams.js?v=1792637380';
-import { rankIcon } from './meta.js?v=1792637380';
-import { portraitURL } from './faces.js?v=1792637380';
-import { rankInfo } from './profile.js?v=1792637380';
+import { askYes } from './ui.js?v=1792637475';
+import { TEAMS } from './teams.js?v=1792637475';
+import { rankIcon } from './meta.js?v=1792637475';
+import { portraitURL } from './faces.js?v=1792637475';
+import { rankInfo } from './profile.js?v=1792637475';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}">${rankIcon(r.div, r.sub, 20)}${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -33,6 +33,16 @@ export const BOARDS = {
   'Ultimate Team': [['ut_wins', 'UT wins'], ['ut_games', 'UT games'], ['ut_tds', 'UT touchdowns'], ['ut_pts', 'UT points scored']],
 };
 const ALL_COLS = Object.values(BOARDS).flat().map(c => c[0]);
+// which games each board counts, shown under its title
+const ALL_GAMES = 'Counts every full game: Quick Play, Season, Franchise, Ultimate Team, Online H2H and Online Franchise. Practice and drills don’t count.';
+const boardNote = k => ({
+  on_w: 'Counts Online H2H games against real players only (Ultimate Team online included). Games against the CPU don’t count.',
+  rp: 'Rank points come from Online H2H, Ultimate Team and Franchise games (Online Franchise too).',
+  lvl: 'XP comes from Online H2H, Ultimate Team and Franchise games (Online Franchise too).',
+  games: ALL_GAMES,
+  ut_wins: 'Counts Ultimate Team games only (single player and online).', ut_games: 'Counts Ultimate Team games only (single player and online).',
+  ut_tds: 'Counts Ultimate Team games only (single player and online).', ut_pts: 'Counts Ultimate Team games only (single player and online).',
+})[k] || ALL_GAMES;
 const colName = k => (Object.values(BOARDS).flat().find(c => c[0] === k) || [k, k])[1];
 
 // ---------------- setup ----------------
@@ -172,7 +182,7 @@ function renderBoards() {
   loadSeq++;
   const pane = C.$('#so-pane');
   pane.innerHTML = `<div class="lb-cats">${Object.entries(BOARDS).map(([g, cols]) => `<div class="lb-group"><small>${g}</small><div class="seg">${cols.map(([k, n]) => `<button type="button" data-col="${k}" class="${k === boardCat ? 'on' : ''}">${n}</button>`).join('')}</div></div>`).join('')}</div>
-    <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second. Stats count from every full game you finish (not practice or drills).</span></div>
+    <div class="lb-head"><h3 id="lb-title">${colName(boardCat)}</h3><span class="note"><span class="live-dot"></span>Live, updates every second</span></div><p class="note lb-modes">${boardNote(boardCat)}</p>
     <ol class="lb-list" id="lb-list"><li class="mb-empty">Loading…</li></ol>`;
   C.$$('[data-col]', pane).forEach(b => b.onclick = () => { boardCat = b.dataset.col; C.sfx.play('ui'); renderBoards(); });
   loadBoard(boardCat, false);

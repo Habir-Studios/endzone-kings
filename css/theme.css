@@ -954,3 +954,5 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 .rank-pill .rk-ic, .pf-rank .rk-ic { flex: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
 .pf-rank > i { display: none; }
 .pf-rank { display: inline-flex; align-items: center; gap: 6px; }
+
+.lb-modes { margin: -4px 0 12px; font-size: 14px; }

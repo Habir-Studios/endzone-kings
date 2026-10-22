@@ -861,3 +861,9 @@ textarea { padding: 10px 12px; line-height: 1.45; }
 .credits div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line, rgba(255,255,255,.1)); }
 .credits dt { font-weight: 800; }
 .credits dd { margin: 0; opacity: .75; }
+
+/* links back to the Habir Studios store */
+.studio-link { color: inherit; text-decoration: underline; text-decoration-color: rgba(255,255,255,.35); text-underline-offset: 3px; pointer-events: auto; }
+.studio-link:hover { color: #fff; text-decoration-color: var(--red, #ff3347); }
+a.foot-link.studio-link { text-decoration: none; }
+a.foot-link.studio-link:hover { text-decoration: underline; }

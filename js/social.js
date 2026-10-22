@@ -1,10 +1,10 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792640454';
-import { TEAMS } from './teams.js?v=1792640454';
-import { rankIcon } from './meta.js?v=1792640454';
-import { portraitURL } from './faces.js?v=1792640454';
-import { rankInfo } from './profile.js?v=1792640454';
+import { askYes } from './ui.js?v=1792640985';
+import { TEAMS } from './teams.js?v=1792640985';
+import { rankIcon } from './meta.js?v=1792640985';
+import { portraitURL } from './faces.js?v=1792640985';
+import { rankInfo } from './profile.js?v=1792640985';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}">${rankIcon(r.div, r.sub, 20)}${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -862,6 +862,10 @@ async function adminFeedback(pane) {
   const { data, error } = await db().from('ek_feedback').select('*').order('created_at', { ascending: false }).limit(500);
   if (error) { pane.innerHTML = `<p class="note">Couldn’t load feedback: ${esc(error.message)}</p>`; return; }
   const KIND = { bug: 'Bug', idea: 'Suggestion', help: 'Help' };
+  // replies are DMs from you that start with "Reply to your feedback #<id>", so the list can show which ones you've answered
+  const replied = new Map();
+  { const { data: sent } = await db().from('ek_messages').select('body,created_at').eq('sender', me().id).like('body', 'Reply to your feedback #%').limit(1000);
+    for (const m of sent || []) { const k = /^Reply to your feedback #(\d+)/.exec(m.body); if (k && !replied.has(+k[1])) replied.set(+k[1], m.created_at); } }
   pane.innerHTML = `<div class="fb-tools"><input type="search" id="fb-q" placeholder="Search a word, like graphics or lag" value="${esc(fbQ)}">
       <div class="seg" id="fb-k">${[['all', 'All'], ['bug', 'Bugs'], ['idea', 'Suggestions'], ['help', 'Help']].map(([k, n]) => `<button type="button" data-k="${k}" class="${fbKind === k ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div class="seg" id="fb-s"><button type="button" data-s="1" class="${fbOpen ? 'on' : ''}">Open</button><button type="button" data-s="0" class="${fbOpen ? '' : 'on'}">All</button></div></div>
@@ -872,11 +876,35 @@ async function adminFeedback(pane) {
     const q = fbQ.trim().toLowerCase();
     const rows = (data || []).filter(r => (fbKind === 'all' || r.kind === fbKind) && (!fbOpen || r.status === 'open') && (!q || [r.message, r.username, r.kind, r.device, r.version].join(' ').toLowerCase().includes(q)));
     count.textContent = q ? `${rows.length} message${rows.length === 1 ? '' : 's'} mention “${fbQ.trim()}” (from ${new Set(rows.map(r => r.user_id || r.username)).size} player${new Set(rows.map(r => r.user_id || r.username)).size === 1 ? '' : 's'})` : `${rows.length} message${rows.length === 1 ? '' : 's'}`;
-    list.innerHTML = rows.map(r => `<div class="ad-row fb-item"><div><b>${esc(r.username)}</b> <span class="ad-tag">${KIND[r.kind] || r.kind}</span> <span class="ad-tag st-${r.status === 'open' ? 'open' : 'dismissed'}">${r.status === 'open' ? 'open' : 'done'}</span>
+    list.innerHTML = rows.map(r => `<div class="ad-row fb-item"><div><b>${esc(r.username)}</b> <span class="ad-tag">${KIND[r.kind] || r.kind}</span> ${replied.has(r.id) ? `<span class="ad-tag st-open" title="Replied ${ago(replied.get(r.id))}">replied</span> ` : ''}<span class="ad-tag st-${r.status === 'open' ? 'open' : 'dismissed'}">${r.status === 'open' ? 'open' : 'done'}</span>
         <small>${new Date(r.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} (${ago(r.created_at)})${r.device ? ' · ' + esc(r.device) : ''}${r.version ? ' · v' + esc(r.version) : ''}</small>
         <p>${mark(r.message, fbQ.trim())}</p></div>
-      <div class="ad-btns">${r.user_id ? `<button class="btn sm" data-view="${r.user_id}">Profile</button>` : ''}<button class="btn sm" data-fbdone="${r.id}" data-to="${r.status === 'open' ? 'done' : 'open'}">${r.status === 'open' ? 'Mark done' : 'Reopen'}</button><button class="btn sm danger" data-fbdel="${r.id}">Delete</button></div></div>`).join('') || '<p class="note">Nothing here.</p>';
+      <div class="ad-btns">${r.user_id ? `<button class="btn sm primary" data-fbreply="${r.id}">${replied.has(r.id) ? 'Reply again' : 'Reply'}</button><button class="btn sm" data-view="${r.user_id}">Profile</button>` : '<small class="note">Guest: can’t reply</small>'}<button class="btn sm" data-fbdone="${r.id}" data-to="${r.status === 'open' ? 'done' : 'open'}">${r.status === 'open' ? 'Mark done' : 'Reopen'}</button><button class="btn sm danger" data-fbdel="${r.id}">Delete</button></div></div>`).join('') || '<p class="note">Nothing here.</p>';
     C.$$('[data-view]', list).forEach(x => x.onclick = () => { C.show('social'); openProfile(x.dataset.view); });
+    C.$$('[data-fbreply]', list).forEach(x => x.onclick = () => {
+      const r = data.find(d => d.id === +x.dataset.fbreply); if (!r || !r.user_id) return;
+      const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 62;
+      m.innerHTML = `<div class="panel info-card fb-reply"><h3 style="margin:0">Reply to ${esc(r.username)}</h3><p class="note">They get it as a message from you (with your badge), with what they wrote quoted on top. It shows in their Messages and notifications.</p>
+        <blockquote>${esc(r.message.slice(0, 300))}${r.message.length > 300 ? '…' : ''}</blockquote>
+        <textarea id="fbr-text" maxlength="380" rows="5" placeholder="Write your reply"></textarea><small class="note" id="fbr-left">380 left</small>
+        <label class="check"><input type="checkbox" id="fbr-done" ${r.status === 'open' ? 'checked' : ''}> Mark as done</label>
+        <div class="actions"><button class="btn primary" type="button" id="fbr-send">Send reply</button><button class="btn" type="button" data-x>Cancel</button></div></div>`;
+      document.body.appendChild(m);
+      const ta = m.querySelector('#fbr-text'), left = m.querySelector('#fbr-left');
+      ta.addEventListener('keydown', e => e.stopPropagation()); ta.oninput = () => { left.textContent = `${380 - ta.value.length} left`; };
+      m.querySelector('[data-x]').onclick = () => m.remove();
+      m.querySelector('#fbr-send').onclick = async () => {
+        const txt = C.cleanText(ta.value).trim(); if (txt.length < 2) return C.toast('Write a reply first');
+        const quote = r.message.replace(/\s+/g, ' ').slice(0, 70) + (r.message.length > 70 ? '…' : '');
+        const body = `Reply to your feedback #${r.id} (${KIND[r.kind] || 'Feedback'}): "${quote}"\n\n${txt}`.slice(0, 500);
+        const btn = m.querySelector('#fbr-send'); btn.disabled = true;
+        const { error } = await db().from('ek_messages').insert({ sender: me().id, recipient: r.user_id, body });
+        if (error) { btn.disabled = false; return C.toast(error.message); }
+        if (m.querySelector('#fbr-done').checked && r.status === 'open') { const u = await db().from('ek_feedback').update({ status: 'done' }).eq('id', r.id); if (!u.error) r.status = 'done'; }
+        replied.set(r.id, new Date().toISOString()); m.remove(); C.sfx.play('ui'); C.toast(`Reply sent to ${r.username}`); draw();
+      };
+      setTimeout(() => ta.focus(), 50);
+    });
     C.$$('[data-fbdone]', list).forEach(x => x.onclick = async () => { const { error } = await db().from('ek_feedback').update({ status: x.dataset.to }).eq('id', +x.dataset.fbdone); if (error) C.toast(error.message); else { const r = data.find(d => d.id === +x.dataset.fbdone); if (r) r.status = x.dataset.to; draw(); } });
     C.$$('[data-fbdel]', list).forEach(x => x.onclick = async () => { if (!(await askYes('Delete this message for good?', 'Delete', 'Cancel'))) return; const { error } = await db().from('ek_feedback').delete().eq('id', +x.dataset.fbdel); if (error) C.toast(error.message); else { data.splice(data.findIndex(d => d.id === +x.dataset.fbdel), 1); draw(); } });
   };

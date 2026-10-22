@@ -964,3 +964,9 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 @media (max-height: 500px) { .ek-plain { width: auto; height: clamp(90px, 30vh, 190px); } }
 
 .ac-note { border-left: 3px solid #e8231c; padding-left: 10px; color: #ffd0cc; }
+
+/* admin: reply to feedback */
+.fb-reply { max-width: 520px; width: calc(100vw - 32px); }
+.fb-reply blockquote { margin: 10px 0; padding: 10px 12px; border-left: 3px solid var(--gold, #ffb800); background: rgba(255,255,255,.04); font-size: 14px; white-space: pre-wrap; }
+.fb-reply textarea { width: 100%; box-sizing: border-box; padding: 10px; background: #0e0e12; color: #fff; border: 1px solid rgba(255,255,255,.15); font: inherit; resize: vertical; }
+.bubble p { white-space: pre-wrap; }

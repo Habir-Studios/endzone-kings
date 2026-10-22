@@ -906,3 +906,7 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 /* danger stays a real red in the purple and gold theme */
 .btn.danger { color: #ff8a80; box-shadow: inset 0 0 0 1px rgba(232, 35, 28, .55); background: transparent; }
 .btn.danger:hover { background: #e8231c; color: #fff; }
+
+/* profile: followers / following open a list */
+.pf-fl { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: rgba(255,255,255,.25); text-underline-offset: 3px; }
+.pf-fl:hover { color: #fff; text-decoration-color: var(--gold, #ffb800); }

@@ -1,8 +1,8 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792635452';
-import { TEAMS } from './teams.js?v=1792635452';
-import { rankInfo } from './profile.js?v=1792635452';
+import { askYes } from './ui.js?v=1792635601';
+import { TEAMS } from './teams.js?v=1792635601';
+import { rankInfo } from './profile.js?v=1792635601';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}"><i></i>${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -191,6 +191,26 @@ async function doSearch() {
 }
 
 // ---------- profiles ----------
+// tap Followers or Following on a profile: the list of those players, tap one to open their profile
+async function followList(id, name, kind) {
+  const D = db(); if (!D) return;
+  const m = document.createElement('div'); m.className = 'modal'; m.style.zIndex = 61;
+  const title = kind === 'followers' ? `Following ${esc(name)}` : `${esc(name)} follows`;
+  m.innerHTML = `<div class="panel info-card ol-card"><h3 style="margin:0">${kind === 'followers' ? 'Followers' : 'Following'}</h3><p class="note">${title}</p><div class="ol-list"><p class="note">Loading…</p></div><div class="actions"><button class="btn" type="button" data-x>Close</button></div></div>`;
+  document.body.appendChild(m);
+  const close = () => m.remove();
+  m.querySelector('[data-x]').onclick = close; m.onclick = e => { if (e.target === m) close(); };
+  const col = kind === 'followers' ? 'follower' : 'followee', by = kind === 'followers' ? 'followee' : 'follower';
+  const { data, error } = await D.from('ek_follows').select(col).eq(by, id).order('created_at', { ascending: false }).limit(300);
+  const box = m.querySelector('.ol-list'); if (!box.isConnected) return;
+  if (error) { box.innerHTML = '<p class="note">Couldn’t load the list.</p>'; return; }
+  const ids = (data || []).map(r => r[col]);
+  if (!ids.length) { box.innerHTML = `<p class="note">${kind === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</p>`; return; }
+  const { data: ps } = await D.from('ek_players').select('id,name,lvl,team').in('id', ids);
+  const byId = Object.fromEntries((ps || []).map(p => [p.id, p])), mine = me() && me().id;
+  box.innerHTML = ids.map(i => byId[i]).filter(Boolean).map(p => `<button class="ol-row" type="button" data-pid="${esc(p.id)}"><img alt="" src="${C.logoURL(p.team ?? 0, 40)}" width="22" height="22"><b>${esc(p.name)}${adminBadge(p.id)}</b><small>${p.id === mine ? 'you' : 'Level ' + (p.lvl || 1)}</small></button>`).join('');
+  box.querySelectorAll('[data-pid]').forEach(b => b.onclick = () => { C.sfx.play('ui'); close(); openProfile(b.dataset.pid); });
+}
 async function openProfile(id) {
   view = { tab: id === (me() && me().id) ? 'me' : 'player', id };
   C.$$('.so-tab').forEach(b => b.classList.toggle('on', b.dataset.so === view.tab));
@@ -213,9 +233,9 @@ async function openProfile(id) {
   const fgPct = p.fga ? Math.round(p.fgm / p.fga * 100) + '%' : '-';
   pane.innerHTML = `<div class="pf-head" style="--c:${t.jersey};--c2:${t.trim}">
       <img class="pf-logo" alt="" src="${C.logoURL(p.team, 112)}">
-      <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<div class="pf-lr"><span class="pf-lvl" id="pf-lvl">Level ${p.lvl || 1}</span><span id="pf-rk">${rankPill(p.rp)}</span><small>${t.city} fan</small><span class="pf-gp" id="pf-gp"></span></div>
+      <div class="pf-id"><h3>${esc(p.name)}${adminBadge(p.id)}</h3>${mine ? '<span class="pf-status on"><i></i>Online</span>' : seenTag(p.last_seen)}<div class="pf-lr"><span class="pf-lvl" id="pf-lvl">Level ${p.lvl || 1}</span><span id="pf-rk">${rankPill(p.rp)}</span><span class="pf-gp" id="pf-gp"></span></div>
         <div class="pf-recs">${[['Online H2H record', p.on_w, p.on_l, p.on_t]].map(([n, w, l, tt]) => `<span class="rec-card"><small>${n}</small><span class="rec-nums"><i><b>${fmt(w || 0)}</b><em>W</em></i><i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(l || 0)}</b><em>L</em></i>${tt ? `<i class="dash"><b>-</b><em>-</em></i><i><b>${fmt(tt)}</b><em>T</em></i>` : ''}</span></span>`).join('')}</div>${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
-        <div class="pf-follow"><span><b>${fmt(followers)}</b> followers</span><span><b>${fmt(following)}</b> following</span>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}${(() => { const P = !mine && C.profile && C.profile(); const h = P && P.p.h2h && P.p.h2h[String(p.name).toLowerCase().slice(0, 24)]; return h ? `<span class="h2h">You vs ${esc(p.name)}: <b>${h[0]}W-${h[1]}L${h[2] ? '-' + h[2] + 'T' : ''}</b></span>` : ''; })()}</div></div>
+        <div class="pf-follow"><button type="button" class="pf-fl" data-fl="followers"><b>${fmt(followers)}</b> followers</button><button type="button" class="pf-fl" data-fl="following"><b>${fmt(following)}</b> following</button>${theyFollow && fol ? '<span class="ad-tag st-open">Friends</span>' : ''}${(() => { const P = !mine && C.profile && C.profile(); const h = P && P.p.h2h && P.p.h2h[String(p.name).toLowerCase().slice(0, 24)]; return h ? `<span class="h2h">You vs ${esc(p.name)}: <b>${h[0]}W-${h[1]}L${h[2] ? '-' + h[2] + 'T' : ''}</b></span>` : ''; })()}</div></div>
       <div class="pf-acts">${mine ? '<button class="btn" id="pf-edit">Edit profile</button>' : me() ? `<button class="btn ${fol ? '' : 'primary'}" id="pf-follow">${fol ? (theyFollow ? 'Friends ✓' : 'Request sent') : theyFollow ? 'Accept friend request' : 'Add friend'}</button><button class="btn primary" id="pf-challenge">Challenge to 1v1</button><button class="btn" id="pf-trade">Trade</button><button class="btn" id="pf-msg">Message</button><button class="btn ghost sm" id="pf-report">Report</button>` : ''}${p.banned ? '<span class="ad-tag st-banned">Banned</span>' : ''}</div>
     </div>
     <div id="pf-live" class="pf-live ${mine ? 'hidden' : 'checking'}">${mine ? '' : '<span class="live-dot idle"></span><div><b>Checking if they’re in a game…</b><small>If they are, you can watch it live</small></div>'}</div>
@@ -229,6 +249,7 @@ async function openProfile(id) {
     <div class="clip-grid">${clipCards(clips || [], mine || isAdmin(), p.name)}</div>`;
   if (mine) C.$('#pf-edit').onclick = () => editProfile(p);
   loadGameHistory(id);
+  C.$$('[data-fl]', pane).forEach(b => b.onclick = () => { C.sfx.play('ui'); followList(id, p.name, b.dataset.fl); });
   // total games played: every finished game plus games they quit (those count as losses)
   D.from('ek_game_log').select('*', { count: 'exact', head: true }).eq('player', id).then(({ count }) => { const el = C.$('#pf-gp'); if (el && count != null) el.innerHTML = `<b>${fmt(count)}</b> games played`; }, () => {});
   const fb = C.$('#pf-follow');

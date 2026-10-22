@@ -8,6 +8,12 @@ export const NOTES = [
     "v": "1.0.2",
     "date": "2026-10-21",
     "added": [
+      "Profile pictures: pick a player face or a team logo in Edit profile. It shows on your menu card, your profile, the leaderboards and follower lists",
+      "Tap your menu card to open your profile",
+      "Ranks have emblems now, and the level badge got a new look",
+      "Tap Followers or Following on any profile to see the list",
+      "The Patch notes button shows a badge with how many new notes there are since you last looked",
+      "A link in the top-left of the menu takes you back to all Habir Studios games",
       "New look: new Endzone Kings and Habir Studios logos, and the whole game is now purple and gold to match",
       "Change your username in Settings: it changes the name everyone sees and the username you log in with (once every 14 days, and it can't be a name someone already has)",
       "Quicksell pays about 30% more for every player"
@@ -27,6 +33,7 @@ export const NOTES = [
     "fixed": [
       "Continue with Google works on the login and sign up screens, and if Google turns you away the game now tells you why. On the itch.io page it opens the full site in a new tab, since Google won't log in inside a frame",
       "Settings says Link Google Account",
+      "Remembered devices don't get logged out before their 10 days are up anymore",
       "The game clock on kickoffs and punts starts when the returner gets the ball, not when it's kicked",
       "Kicks aren't automatic anymore: the kick meter speeds up near the top, so a max kick takes timing, and most kickoffs land near the goal line where they get returned instead of sailing out the back",
       "Kick and punt returners can't catch a ball from 20 yards away anymore. If they can't get under it, it bounces: a kickoff is still live, a punt gets downed where it stops. Punt returners line up deep",

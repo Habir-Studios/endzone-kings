@@ -962,3 +962,5 @@ a.foot-link.studio-link:hover { text-decoration: underline; }
 .ek-plain { display: block; border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 12px 30px rgba(0,0,0,.65)); width: clamp(260px, 40vw, 480px); }
 @media (max-width: 700px) { .ek-plain { width: min(290px, 78vw); } }
 @media (max-height: 500px) { .ek-plain { width: auto; height: clamp(90px, 30vh, 190px); } }
+
+.ac-note { border-left: 3px solid #e8231c; padding-left: 10px; color: #ffd0cc; }

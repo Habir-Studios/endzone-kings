@@ -1,7 +1,7 @@
 // ENDZONE KINGS — Ultimate Team: player cards, packs, quicksell, training, lineups.
 // Everything here is bought with coins you earn by playing. There is no real-money anything.
-import { TEAMS } from './teams.js?v=1792638326';
-import { grade, nextForm, decay, formed } from './form.js?v=1792638326';
+import { TEAMS } from './teams.js?v=1792638941';
+import { grade, nextForm, decay, formed } from './form.js?v=1792638941';
 
 export const TIERS = [
   // mv = what the market pays. Kept well under what packs cost, so buying packs to resell always loses coins
@@ -307,12 +307,12 @@ export function missingForLineup(cards) {
 }
 
 // ---------------- solo battles ----------------
-// Weekly ranked games against AI squads. Pick a difficulty: harder wins are worth more battle points.
+// Weekly ranked games against CPU squads. Pick a difficulty: harder wins are worth more battle points.
 // 10 games a week; your points decide the weekly reward, paid when the next week starts.
 export const SB_GAMES = 10;
 export const SB_WIN = [100, 200, 300, 450];     // points for a win on Rookie / Pro / All-Pro / Legend
 export const SB_LOSS = 25;                       // showing up still counts a little
-export const SB_LEVEL = [-5, 0, 3, 6];           // AI squad strength vs your rival level
+export const SB_LEVEL = [-5, 0, 3, 6];           // CPU squad strength vs your rival level
 export const SB_TIERS = [
   { n: 'Bronze', pts: 0, give: { coins: 500, tp: 20 } },
   { n: 'Silver', pts: 700, give: { coins: 1200, tp: 40, pack: 'silver' } },

@@ -1,6 +1,6 @@
 // ENDZONE KINGS — progression: coins, XP and levels, ranked divisions, daily/weekly challenges, Ultimate Team club.
 // Coins are only ever earned by playing. Nothing here can be bought with real money.
-import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792638326';
+import { starterIds, autoLineup, missingForLineup, SLOTS, SLOT_GROUP, CLUB_CAP, PACKS, squadOvr, card, owned, marketValue, marketSlot, marketListings, listingSells, MARKET_TAX, MAX_LISTINGS, SETS, SOLOS, masterId, SB_GAMES, sbTier, sbPoints, theme, PROG_STEPS, progKey, programPlayer, FP_TIERS, FP_XP, fpReward, fpSeason, TP_ABILITY, TP_XFACTOR } from './ut.js?v=1792638941';
 
 export const DIVS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 // Each division has 3 steps (III, II, I), and every division's steps cost more RP than the one before:
@@ -408,7 +408,7 @@ export class Profile {
         if (ok) { P.ut.solos.done.push(sd.k); P.coins += sd.give.coins || 0; coins += sd.give.coins || 0; P.tp = (P.tp || 0) + (sd.give.tp || 75); if (sd.give.pack) this.addPack(sd.give.pack); fp += sd.give.fp || 0; }
       }
     }
-    // solo battles: weekly ranked games against the AI
+    // solo battles: weekly ranked games against the CPU
     let sb = null;
     if (r.ut && r.battle != null && P.ut.sb && P.ut.sb.g < SB_GAMES) {
       const B = P.ut.sb, win = r.res === 'W', pts = sbPoints(Math.max(0, Math.min(3, r.battle | 0)), win, r.sc[0] - r.sc[1]);

@@ -1,30 +1,30 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792638326';
-import { NOTES, SEASON } from './patchnotes.js?v=1792638326';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792638326';
-import * as Form from './form.js?v=1792638326';
-import { watchSim } from './simview.js?v=1792638326';
-import { bracketHTML } from './bracket.js?v=1792638326';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792638326';
-import { rosterStyle } from './playbook.js?v=1792638326';
-import { Renderer } from './render.js?v=1792638326';
-import { Sfx } from './audio.js?v=1792638326';
-import { Auth } from './auth.js?v=1792638326';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792638326';
-import { getRoster, teamOvr } from './teams.js?v=1792638326';
-import * as Season from './season.js?v=1792638326';
-import * as Fr from './franchise.js?v=1792638326';
-import * as League from './league.js?v=1792638326';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792638326';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792638326';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792638326';
-import * as UTm from './ut.js?v=1792638326';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792638326';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792638326';
-import { showOnline, myAvatarURL, loadMyAvatar, openMyProfile } from './social.js?v=1792638326';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792638326';
-import { portraitURL } from './faces.js?v=1792638326';
-import { logoURL, clearLogoCache } from './logos.js?v=1792638326';
+import { CONFIG } from './config.js?v=1792638941';
+import { NOTES, SEASON } from './patchnotes.js?v=1792638941';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792638941';
+import * as Form from './form.js?v=1792638941';
+import { watchSim } from './simview.js?v=1792638941';
+import { bracketHTML } from './bracket.js?v=1792638941';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792638941';
+import { rosterStyle } from './playbook.js?v=1792638941';
+import { Renderer } from './render.js?v=1792638941';
+import { Sfx } from './audio.js?v=1792638941';
+import { Auth } from './auth.js?v=1792638941';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792638941';
+import { getRoster, teamOvr } from './teams.js?v=1792638941';
+import * as Season from './season.js?v=1792638941';
+import * as Fr from './franchise.js?v=1792638941';
+import * as League from './league.js?v=1792638941';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792638941';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792638941';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792638941';
+import * as UTm from './ut.js?v=1792638941';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792638941';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792638941';
+import { showOnline, myAvatarURL, loadMyAvatar, openMyProfile } from './social.js?v=1792638941';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792638941';
+import { portraitURL } from './faces.js?v=1792638941';
+import { logoURL, clearLogoCache } from './logos.js?v=1792638941';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -2055,8 +2055,14 @@ function showGameOver(S) {
     st.statsPosted = true;
     const P = profile();
     // the guest can't touch the host's game, so in-game anti-cheat flags never count against the guest
-    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (st.mode !== 'guest' && S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (st.mode !== 'guest' && S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : ''), ut: !!st.ut, pts: S.sc[me], online: st.mode === 'host' || st.mode === 'guest', fr: !!st.franchiseGame });
+    postGameStats({ res, ps: S.ps || [], st: S.st, me, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: (performance.now() - (st.startedAt || performance.now())) / 1000, qlen: S.ql, ac: (st.mode !== 'guest' && S.ac && S.ac.n) || (P && P.tampered ? 1 : 0), acWhy: (st.mode !== 'guest' && S.ac && S.ac.why) || (P && P.tampered ? 'save file was edited' : ''), ut: !!st.ut, pts: S.sc[me], opp: S.sc[other], online: st.mode === 'host' || st.mode === 'guest', fr: !!st.franchiseGame, mid: (st.mode === 'host' || st.mode === 'guest') ? st.matchId : null, host: st.mode === 'host' }).then(r => { if (r === 'flagged' && !$('#go-rewards .ac-note')) $('#go-rewards').insertAdjacentHTML('beforeend', '<p class="note ac-note"><b>Something unusual was detected in this game, so it doesn’t count</b> on the leaderboards or your record. If you think this is a mistake, contact us.</p>'); });
     if (P && P.tampered) { P.tampered = false; P.p.tampered = 0; P.save(); }
+  }
+  // the game's integrity checks caught something impossible (a hack or an exploit, never lag or skill): no rewards,
+  // and the player is told only now that the game is over
+  if (!st.rewarded && st.mode !== 'guest' && st.mode !== 'spec' && S.mode === 'game' && S.ac && S.ac.n) {
+    st.rewarded = true;
+    $('#go-rewards').innerHTML = '<div class="gr-head"><b>Rewards</b></div><p class="note ac-note"><b>Something unusual was detected in this game, so it doesn’t count.</b> No coins, XP or rank were given, and it won’t show on the leaderboards. If you think this is a mistake, contact us.</p>';
   }
   if (!st.rewarded) {
     st.rewarded = true;
@@ -2685,7 +2691,8 @@ function startHostGame() {
   st.netEv = [];
   R.setTeams(st.game.opts.teams);
   R.setWeather(weather, tod);
-  peer.send({ t: 'start', teams: st.game.opts.teams, ql: SET.qlen, names: st.names, teamNames: st.teamNames, ut: !!them.roster }, true);
+  st.matchId = (st.roomCode || 'm') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);   // both players report this game under the same id
+  peer.send({ t: 'start', teams: st.game.opts.teams, ql: SET.qlen, names: st.names, teamNames: st.teamNames, ut: !!them.roster, mid: st.matchId }, true);
   startSpecCast(st.roomCode, SET.vis === 'public');
   $('#net-badge').classList.remove('hidden');
   enterGame();
@@ -2706,6 +2713,7 @@ function guestRx(m) {
   if (netPauseRx(m)) return;
   if (m.t === 'start') {
     stopLobby();
+    st.matchId = String(m.mid || '').slice(0, 40) || null;
     st.mode = 'guest'; st.local = 1; st.names = m.names || st.names; st.teamNames = m.teamNames || null; st.ut = !!m.ut; st.practice = null; st.drill = false; st.rec = []; st.replay = null;
     R.setTeams(m.teams); st.guestBuf = []; st.snap = null;
     $('#net-badge').classList.remove('hidden');

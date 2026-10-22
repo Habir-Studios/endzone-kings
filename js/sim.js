@@ -5,7 +5,7 @@
 export const HALF_W = 26.65;
 export const HASH = 3.08;   // NFL hash marks (18'6" apart): a play that ends outside them, or out of bounds, is spotted on the nearest hash
 
-import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792638326';
+import { TEAMS, getRoster, POS_LABEL } from './teams.js?v=1792638941';
 export { TEAMS };
 
 // 11 on 11. Player ids follow these lists: offense 0-10, defense 11-21 (the first seven of each keep their old ids)
@@ -17,7 +17,7 @@ const isLine = r => r === 'C' || r === 'LG' || r === 'RG' || r === 'LT' || r ===
 const isSafety = r => r === 'S' || r === 'SS';
 const isLB = r => r === 'LB' || r === 'LB2' || r === 'LB3';
 
-import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792638326';
+import { FORMS, LINE, OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, OFF_STYLES, DEF_STYLES, teamPlaybook, cleanCustom } from './playbook.js?v=1792638941';
 export { OFF_PLAYS, DEF_PLAYS, KICK_PLAYS, OFF_CATS, DEF_CATS, FORMS, teamPlaybook };
 
 // top speeds in yards/second (elite WRs ~ 8.5 yd/s, linemen ~ 5.5)
@@ -1673,7 +1673,7 @@ function updateLive(g, dt, inputs) {
   const pocket = P.type === 'pass' && !P.thrown && !P.crossed && carrier && carrier.id === 0;
   const airPass = b.state === 'air' && !b.auto;
 
-  // AI QB decision
+  // CPU QB decision
   if (pocket && !g.opts.humans[P.off]) { aiQB(g, tl); if (g.phase !== 'live') return; }
 
   // desired velocities
@@ -1710,7 +1710,7 @@ function updateLive(g, dt, inputs) {
     } else {
       want = aiMove(g, p, carrier, pocket, airPass, tl);
       p.stam = Math.min(1, p.stam + dt * 0.13);
-      // nobody without the ball (AI-driven) leaves the field: hold at the sideline and the back of the end zone
+      // nobody without the ball (CPU-driven) leaves the field: hold at the sideline and the back of the end zone
       if (want && !(carrier && carrier.id === p.id)) {
         if (Math.abs(p.x) > HALF_W - 0.8 && want.x * p.x > 0) want = { ...want, x: 0 };
         const dz = p.z > 100 ? p.z - 100 : p.z < 0 ? -p.z : 0;
@@ -1836,7 +1836,7 @@ function updateLive(g, dt, inputs) {
     for (const d of g.players) {
       if (d.team === ct || d.stun > 0 || d.tackleCd > 0 || d.fallen > 0) continue;
       if (d.engagedBy >= 0 && dist(d, c2) > 0.55) continue;
-      // the defender YOU control is the playmaker: bigger tackle range and harder to shake. Your AI teammates play straight.
+      // the defender YOU control is the playmaker: bigger tackle range and harder to shake. Your CPU teammates play straight.
       const youD = g.opts.humans[d.team] && g.ctrl[d.team] === d.id;
       const hitting = d.hit > 0 && d.dive > 0 && youD;
       const tr = (hitting ? 1.55 : d.dive > 0 ? 2.1 : 1.12) * (0.5 + 0.5 * (d.size + c2.size) / 2) * (youD ? 1.45 : 1);
@@ -2055,7 +2055,7 @@ function updateBlocks(g, dt, pocket) {
   }
 }
 
-// ---------------- AI movement ----------------
+// ---------------- CPU movement ----------------
 function aiMove(g, p, carrier, pocket, airPass, tl) {
   const P = g.play, b = g.ball, cfg = g.cfg;
   // your offensive teammates run crisp routes and blocks; your defensive teammates are average, so stops come from you
@@ -2064,7 +2064,7 @@ function aiMove(g, p, carrier, pocket, airPass, tl) {
   const d = dirOf(P.off);
   const qb = g.players[0];
 
-  // ball carrier AI
+  // ball carrier CPU
   if (carrier && carrier.id === p.id) {
     if (p.id === 0 && pocket) return P.scramble && !g.opts.humans[p.team] ? carrierSteer(g, p, ai) : qbPocketMove(g, p);   // CPU QB breaks the pocket and runs
     if (P.type === 'run' && p.route && p.ri < p.route.length && !P.turnover) {

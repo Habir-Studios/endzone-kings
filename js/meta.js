@@ -1,9 +1,9 @@
 // ENDZONE KINGS — menus for progression and Ultimate Team (squad, packs, club, play), plus post-game rewards.
-import { askYes } from './ui.js?v=1792638326';
-import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792638326';
-import * as UT from './ut.js?v=1792638326';
-import { portraitURL } from './faces.js?v=1792638326';
-import { TEAMS } from './teams.js?v=1792638326';
+import { askYes } from './ui.js?v=1792638941';
+import { Profile, rankInfo, xpFor, levelReward, challengeDef, nextReset, RANK_REWARD, ACH } from './profile.js?v=1792638941';
+import * as UT from './ut.js?v=1792638941';
+import { portraitURL } from './faces.js?v=1792638941';
+import { TEAMS } from './teams.js?v=1792638941';
 
 let C = null;          // shared helpers from main.js
 let prof = null, profUser = null;
@@ -293,7 +293,7 @@ function renderPlayPick(P) {
   const U = P.p.ut, o = UT.squadOvr(U);
   C.$('#ut-pane').innerHTML = `<div class="squad-head"><div><h3>Play</h3><p class="note">${C.escapeHtml(U.name)}, ${o.ovr} OVR. Pick how you want to play.</p></div></div>
     <div class="utp-pick">
-      <button class="utp-mode" type="button" data-utm="solo"><b>Single Player</b><span>Play your squad against AI teams. Solo Battles, theme challenges and solo challenges pay coins, Training Points, player items and program XP. Field Pass and daily challenges count too.</span><em>No pressure, no record on the line</em></button>
+      <button class="utp-mode" type="button" data-utm="solo"><b>Single Player</b><span>Play your squad against CPU teams. Solo Battles, theme challenges and solo challenges pay coins, Training Points, player items and program XP. Field Pass and daily challenges count too.</span><em>No pressure, no record on the line</em></button>
       <button class="utp-mode utp-h2h" type="button" id="utp-h2h"><b>Online H2H</b><span>Play your squad against a real person: host a game, join with a code or pick one from the public lobby.</span><em>Counts toward your Online H2H record</em></button>
     </div>`;
   C.$('#utp-h2h').onclick = () => {
@@ -307,7 +307,7 @@ function renderPlaySolo(P) {
   const soloLeft = UT.SOLOS.filter(x => !P.soloDone(x.k)).length;
   C.$('#ut-pane').innerHTML = `<div class="squad-head"><div><button class="link utp-back" type="button" data-utm="pick">◀ Play</button><h3>Single Player</h3><p class="note">Every game here pays Ultimate Team coins and Training Points, and counts for the Field Pass and daily challenges.</p></div></div>
     <div class="utp-pick four">
-      <button class="utp-mode" type="button" data-utm="battles"><b>Solo Battles</b><span>Weekly ranked games against AI squads. Harder difficulty, more points. Weekly rewards by tier.</span><em>${fmt(B.pts)} pts · ${UT.sbTier(B.pts).n} · ${UT.SB_GAMES - B.g} games left</em></button>
+      <button class="utp-mode" type="button" data-utm="battles"><b>Solo Battles</b><span>Weekly ranked games against CPU squads. Harder difficulty, more points. Weekly rewards by tier.</span><em>${fmt(B.pts)} pts · ${UT.sbTier(B.pts).n} · ${UT.SB_GAMES - B.g} games left</em></button>
       <button class="utp-mode" type="button" data-utm="theme"><b>${C.escapeHtml(T.name)}</b><span>This month’s theme challenges: ${C.escapeHtml(T.blurb.toLowerCase())}. Theme challenges and Solo Battles earn program XP for special player items.</span><em>${G.done.length}/${T.ch.length} beaten · ${fmt(G.xp)} program XP</em></button>
       <button class="utp-mode" type="button" data-utm="solos"><b>Solo Challenges</b><span>One-game goals that reset every Monday.</span><em>${soloLeft} left this week</em></button>
       <button class="utp-mode" type="button" data-utm="cpu"><b>Quick CPU Game</b><span>Pick any opponent, difficulty, weather and quarter length.</span><em>Coins and Training Points every game</em></button>
@@ -320,13 +320,13 @@ function renderBattles(P) {
   const lvl = Math.max(58, Math.min(98, UT.rivalLevel(U) + UT.SB_LEVEL[sbDiff])), left = UT.SB_GAMES - B.g;
   const pct = next ? Math.round((B.pts - tier.pts) / (next.pts - tier.pts) * 100) : 100;
   const giveTxt = g => [g.coins ? `${fmt(g.coins)} coins` : '', g.tp ? `${g.tp} TP` : '', g.pack ? UT.packByKey(g.pack).name : '', g.player ? 'a Kings player item' : ''].filter(Boolean).join(', ');
-  C.$('#ut-pane').innerHTML = `<div class="squad-head"><div><button class="link utp-back" type="button" data-utm="solo">◀ Single Player</button><h3>Solo Battles</h3><p class="note">${UT.SB_GAMES} ranked games a week against AI squads. A win is worth ${UT.SB_WIN.map((v, i) => `${v} on ${C.DIFFICULTIES[i]}`).join(', ')} (plus a bonus for the margin); a loss is still ${UT.SB_LOSS}. Rewards for your tier land when the week ends on Monday.</p></div></div>
+  C.$('#ut-pane').innerHTML = `<div class="squad-head"><div><button class="link utp-back" type="button" data-utm="solo">◀ Single Player</button><h3>Solo Battles</h3><p class="note">${UT.SB_GAMES} ranked games a week against CPU squads. A win is worth ${UT.SB_WIN.map((v, i) => `${v} on ${C.DIFFICULTIES[i]}`).join(', ')} (plus a bonus for the margin); a loss is still ${UT.SB_LOSS}. Rewards for your tier land when the week ends on Monday.</p></div></div>
     <div class="sb-box">
       <div class="sb-top"><div><small>This week</small><b>${fmt(B.pts)} pts</b></div><div><small>Record</small><b>${B.wins}-${B.l}</b></div><div><small>Tier</small><b>${tier.n}</b></div><div><small>Games left</small><b>${left}</b></div></div>
       <div class="sb-bar"><i style="width:${pct}%"></i></div><p class="note">${next ? `${fmt(next.pts - B.pts)} points to ${next.n}` : 'Top tier reached. Keep stacking points.'}</p>
       <div class="sb-tiers">${UT.SB_TIERS.map(t => `<div class="${t === tier ? 'on' : ''}"><b>${t.n}</b><small>${fmt(t.pts)}+ pts</small><span>${giveTxt(t.give)}</span></div>`).join('')}</div>
     </div>
-    <div class="sb-next"><img src="${C.logoURL ? C.logoURL(opp, 64) : ''}" alt=""><div><small>Next opponent</small><b>${TEAMS[opp].city} AI squad</b><span>${lvl} OVR</span></div></div>
+    <div class="sb-next"><img src="${C.logoURL ? C.logoURL(opp, 64) : ''}" alt=""><div><small>Next opponent</small><b>${TEAMS[opp].city} CPU squad</b><span>${lvl} OVR</span></div></div>
     <label class="mini">Difficulty<div class="seg" id="sb-diff"></div></label>
     <div class="actions"><button class="btn primary big" id="sb-go" ${o.full && left > 0 ? '' : 'disabled'}>${left <= 0 ? 'All games played this week' : o.full ? 'Play battle' : 'Fill every lineup spot first'}</button></div>`;
   C.seg(C.$('#sb-diff'), C.DIFFICULTIES.map((n, i) => [i, n]), sbDiff, v => { sbDiff = v; renderBattles(P); });

@@ -1,10 +1,10 @@
 // ENDZONE KINGS — community: global leaderboards (live), public profiles, follows, direct messages and clips.
 // Needs real accounts (Supabase). Tables are set up by supabase/social.sql.
-import { askYes } from './ui.js?v=1792638326';
-import { TEAMS } from './teams.js?v=1792638326';
-import { rankIcon } from './meta.js?v=1792638326';
-import { portraitURL } from './faces.js?v=1792638326';
-import { rankInfo } from './profile.js?v=1792638326';
+import { askYes } from './ui.js?v=1792638941';
+import { TEAMS } from './teams.js?v=1792638941';
+import { rankIcon } from './meta.js?v=1792638941';
+import { portraitURL } from './faces.js?v=1792638941';
+import { rankInfo } from './profile.js?v=1792638941';
 const RK_COL = { Bronze: '#cd7f32', Silver: '#c9d1dd', Gold: '#f6c445', Platinum: '#6ee7d8', Diamond: '#8ab4ff', Kings: '#ff3347' };
 const rankPill = rp => { const r = rankInfo(rp || 0); return `<span class="pf-rank" style="--rk:${RK_COL[r.div] || '#fff'}">${rankIcon(r.div, r.sub, 20)}${r.name}<small>${fmt(rp || 0)} RP</small></span>`; };
 
@@ -684,21 +684,24 @@ export function myAvatarURL(size = 80) { const u = me(); if (!u) return null; le
 function setMyAvatar(av, team) { const u = me(); if (!u) return; try { localStorage.setItem('ek_av_' + u.id, JSON.stringify({ av, team })); } catch (_) {} if (C.refreshProfile) C.refreshProfile(); }
 export async function loadMyAvatar() { const u = me(); if (!u || !db()) return; const { data } = await db().from('ek_players').select('avatar,team').eq('id', u.id).maybeSingle(); if (data) setMyAvatar(data.avatar || null, data.team ?? 0); }
 export async function postGameStats(r) {
-  if (!db() || !me()) return;
+  if (!db() || !me()) return null;
   const mine = (r.ps || []).filter(p => p.t === r.me), ts = (r.st || [])[r.me] || {};
   const sum = k => mine.reduce((a, p) => a + (+p[k] || 0), 0);
   let rtd = 0, retd = 0;
   for (const p of mine) { if (!p.td) continue; if ((p.rec || 0) > 0 && (p.recy || 0) >= (p.ry || 0)) retd += p.td; else rtd += p.td; }
   const s = { name: me().name, res: r.res, py: sum('py'), ptd: sum('ptd'), ry: sum('ry'), rtd, rec: sum('rec'), recy: sum('recy'), retd, tk: sum('tk'), sk: sum('sk'), int: sum('int'),
     fgm: ts.fgm || 0, fga: ts.fga || 0, fgl: ts.fgl || 0, xpm: ts.xpm || 0, punts: ts.punts || 0, puntYds: ts.puntYds || 0,
-    secs: Math.round(r.secs || 0), qlen: r.qlen || 120, ac: r.ac || 0, acWhy: String(r.acWhy || '').slice(0, 120), ut: r.ut ? 1 : 0, pts: r.pts || 0, on: r.online ? 1 : 0, fr: r.fr ? 1 : 0 };
+    secs: Math.round(r.secs || 0), qlen: r.qlen || 120, ac: r.ac || 0, acWhy: String(r.acWhy || '').slice(0, 120), ut: r.ut ? 1 : 0, pts: r.pts || 0, on: r.online ? 1 : 0, fr: r.fr ? 1 : 0,
+    opp: r.opp ?? null, mid: r.mid || null, host: r.host ? 1 : 0 };
   if (isBanned()) return;
   try {
     await db().from('ek_players').upsert({ id: me().id, name: me().name, lvl: r.lvl || 1, rp: r.rp || 0 }, { onConflict: 'id' });
-    const { error } = await db().rpc('ek_add_game', { s });
+    const { data, error } = await db().rpc('ek_add_game', { s });
     if (error) console.warn('leaderboard update failed', error.message);
     await syncRecord();
+    return data || null;   // 'ok', or 'flagged' when the server's checks caught something
   } catch (e) { console.warn(e); }
+  return null;
 }
 
 // ---------------- bans ----------------

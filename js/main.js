@@ -1,30 +1,30 @@
 // ENDZONE KINGS — app shell: menus, input, game loop, online glue
-import { CONFIG } from './config.js?v=1792641428';
-import { NOTES, SEASON } from './patchnotes.js?v=1792641428';
-import { askYes, showInfo, injuryCard } from './ui.js?v=1792641428';
-import * as Form from './form.js?v=1792641428';
-import { watchSim } from './simview.js?v=1792641428';
-import { bracketHTML } from './bracket.js?v=1792641428';
-import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792641428';
-import { rosterStyle } from './playbook.js?v=1792641428';
-import { Renderer } from './render.js?v=1792641428';
-import { Sfx } from './audio.js?v=1792641428';
-import { Auth } from './auth.js?v=1792641428';
-import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792641428';
-import { getRoster, teamOvr } from './teams.js?v=1792641428';
-import * as Season from './season.js?v=1792641428';
-import * as Fr from './franchise.js?v=1792641428';
-import * as League from './league.js?v=1792641428';
-import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792641428';
-import { initGamepad, pad, glyphs } from './gamepad.js?v=1792641428';
-import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792641428';
-import * as UTm from './ut.js?v=1792641428';
-import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792641428';
-import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792641428';
-import { showOnline, myAvatarURL, loadMyAvatar, openMyProfile } from './social.js?v=1792641428';
-import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792641428';
-import { portraitURL } from './faces.js?v=1792641428';
-import { logoURL, clearLogoCache } from './logos.js?v=1792641428';
+import { CONFIG } from './config.js?v=1792641605';
+import { NOTES, SEASON } from './patchnotes.js?v=1792641605';
+import { askYes, showInfo, injuryCard } from './ui.js?v=1792641605';
+import * as Form from './form.js?v=1792641605';
+import { watchSim } from './simview.js?v=1792641605';
+import { bracketHTML } from './bracket.js?v=1792641605';
+import { createGame, step, snapshot, drainEvents, recover, TEAMS, OFF_PLAYS, DEF_PLAYS, DIFFICULTIES, OFF_CATS, DEF_CATS, FORMS, teamPlaybook, throwNeed, tossResult } from './sim.js?v=1792641605';
+import { rosterStyle } from './playbook.js?v=1792641605';
+import { Renderer } from './render.js?v=1792641605';
+import { Sfx } from './audio.js?v=1792641605';
+import { Auth } from './auth.js?v=1792641605';
+import { Peer, SupabaseSignal, LocalSignal, makeRoomCode, Lobby, SpecChannel, validCode, CODE_MIN, CODE_MAX } from './net.js?v=1792641605';
+import { getRoster, teamOvr } from './teams.js?v=1792641605';
+import * as Season from './season.js?v=1792641605';
+import * as Fr from './franchise.js?v=1792641605';
+import * as League from './league.js?v=1792641605';
+import { rankInfo as rankInfoOf, isWeekend as isWeekendNow, wlReward as wlRewardOf, WL_MAX as WL_MAX_, RANK_REWARDS as RANK_REWARDS_, seasonDaysLeft as seasonDaysLeftOf, weekKey as weekKeyOf, LOGIN_REWARDS as LOGIN_REWARDS_, dayKey as dayKeyOf } from './profile.js?v=1792641605';
+import { initGamepad, pad, glyphs } from './gamepad.js?v=1792641605';
+import { WIND_OPTS, celOwned, buyCel, setTradeTarget, initMeta, profile, refreshChip, renderUT, renderProgress, awardGame, WX_OPTS, TOD_OPTS, pickWx, pickTod, RANK_COL, unlockAch, renderDrillBoard, drillRewardsHTML, CELS, celUnlocked } from './meta.js?v=1792641605';
+import * as UTm from './ut.js?v=1792641605';
+import { initCreator, renderCreator, adoptCloudPlays, localPlays } from './creator.js?v=1792641605';
+import { filmCapture, filmSave, ADMIN_ID } from './social.js?v=1792641605';
+import { showOnline, myAvatarURL, loadMyAvatar, openMyProfile } from './social.js?v=1792641605';
+import { initSocial, renderSocial, renderMenuBoard, postGameStats, saveClip, refreshUnread, checkBan, isBanned, initAdmin, renderAdmin, refreshAdminBadge } from './social.js?v=1792641605';
+import { portraitURL } from './faces.js?v=1792641605';
+import { logoURL, clearLogoCache } from './logos.js?v=1792641605';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1903,12 +1903,12 @@ $('#inj-keep').addEventListener('click', () => { const S = st.snap; const r = S 
 $('#p-settings').addEventListener('click', () => { $('#pause').classList.add('hidden'); show('settings'); });
 $('#p-replay').addEventListener('click', () => { togglePause(false); startReplay(); });
 $('#p-cam').addEventListener('click', () => { $('#p-cam-l').textContent = cycleCam(); });
-// quitting a game that counts (Online, Ultimate Team, Season, Franchise) is a loss; Quick Play, practice and drills don't count
+// quitting a game that counts (Online, Ultimate Team, Season, Franchise, Quick Play) is a loss; practice, drills and the tutorial don't count
 function quitKind() {
   const S = st.snap; if (!st.playing || st.overShown || !S || S.mode !== 'game' || st.replay) return null;
   if (st.mode === 'host' || st.mode === 'guest') return 'online';
   if (st.mode !== 'cpu' || st.practice || st.drill) return null;
-  return st.ut ? 'ut' : st.franchiseGame ? 'fr' : st.seasonGame ? 'season' : null;
+  return st.ut ? 'ut' : st.franchiseGame ? 'fr' : st.seasonGame ? 'season' : (TUT.on || st.league) ? null : 'quick';   // Quick Play counts too (the tutorial doesn't)
 }
 function quitInfo() { const S = st.snap, me = st.local, other = 1 - me; return { k: quitKind(), my: S.sc[me], opp: Math.max(S.sc[other], S.sc[me] + 1), ql: S.ql, at: Date.now() }; }
 function applyQuitLoss(q) {
@@ -1916,8 +1916,8 @@ function applyQuitLoss(q) {
   try { localStorage.removeItem(QUIT_KEY()); } catch (_) {}
   const P = profile(), online = q.k === 'online', ut = q.k === 'ut', fr = q.k === 'fr';
   // a quit is a game played (and lost) on your profile's game history
-  try { if (Auth.mode === 'supabase' && Auth.client && Auth.user && Auth.user.kind === 'account') Auth.client.from('ek_game_log').insert({ player: Auth.user.id, mode: { online: 'Online H2H', ut: 'Ultimate Team', fr: 'Franchise', season: 'Season' }[q.k] || 'Game', res: 'L', sc_me: q.my | 0, sc_opp: q.opp | 0, vs: 'Quit (counted as a loss)' }).then(() => {}, () => {}); } catch (_) {}
-  if (online || ut || fr) postGameStats({ res: 'L', ps: [], st: [{}, {}], me: 0, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: 600, qlen: q.ql || SET.qlen, ac: 0, acWhy: '', ut, pts: q.my, online, fr, quit: true });
+  try { if (Auth.mode === 'supabase' && Auth.client && Auth.user && Auth.user.kind === 'account') Auth.client.from('ek_game_log').insert({ player: Auth.user.id, mode: { online: 'Online H2H', ut: 'Ultimate Team', fr: 'Franchise', season: 'Season', quick: 'Quick Play' }[q.k] || 'Game', res: 'L', sc_me: q.my | 0, sc_opp: q.opp | 0, vs: 'Quit (counted as a loss)' }).then(() => {}, () => {}); } catch (_) {}
+  if (online || ut || fr || q.k === 'quick') postGameStats({ res: 'L', ps: [], st: [{}, {}], me: 0, lvl: P ? P.p.lvl : 1, rp: P ? P.p.rp : 0, secs: 600, qlen: q.ql || SET.qlen, ac: 0, acWhy: '', ut, pts: q.my, online, fr, quit: true });
   if (P) { P.p.streak = 0; if (online) P.p.rp = Math.max(0, (P.p.rp || 0) - 25); if (ut && P.p.ut) P.p.ut.rw = Math.max(0, (P.p.ut.rw || 0) - 0.5); P.save(); }
   if (q.k === 'season') { const SS = loadSeason(); if (SS && Season.userGame(SS)) { Season.finishWeek(SS, q.my, q.opp); saveSeason(SS); } }
   if (fr) { const F = Fr.load(); if (F) Fr.recordResult(F, q.my, q.opp, [], 0, []); }

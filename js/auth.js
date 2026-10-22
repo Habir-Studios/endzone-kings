@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792641270';
+import { CONFIG } from './config.js?v=1792641330';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -243,7 +243,7 @@ export const Auth = {
   guest() {
     // the same guest on this device keeps their progress
     let g = null; try { g = JSON.parse(localStorage.getItem('ek_guest') || 'null'); } catch (_) {}
-    if (!g) { g = { id: 'guest-' + Math.random().toString(36).slice(2, 8), name: 'Guest' + Math.floor(100000 + Math.random() * 900000) }; try { localStorage.setItem('ek_guest', JSON.stringify(g)); } catch (_) {} }
+    if (!g) { g = { id: 'guest-' + Math.random().toString(36).slice(2, 8), name: 'Guest' + Math.floor(10000000 + Math.random() * 90000000) }; try { localStorage.setItem('ek_guest', JSON.stringify(g)); } catch (_) {} }
     this.user = { id: g.id, name: g.name, wins: 0, losses: 0, ties: 0, kind: 'guest' };
     return this.user;
   },

@@ -1,5 +1,5 @@
 // Accounts: Supabase email/password when configured, otherwise device-only local accounts.
-import { CONFIG } from './config.js?v=1792632638';
+import { CONFIG } from './config.js?v=1792633496';
 
 const LS_ACC = 'ek_accounts_v1', LS_CUR = 'ek_current_v1';
 
@@ -147,6 +147,14 @@ export const Auth = {
   async identities() { const { data, error } = await this.client.auth.getUserIdentities(); if (error) throw error; return (data && data.identities) || []; },
   async linkLogin(provider) { if (this.framed()) { window.open(SITE + '?link=' + provider, '_blank', 'noopener'); return 'tab'; } const { error } = await this.client.auth.linkIdentity({ provider, options: { redirectTo: authHome() } }); if (error) throw error; },
   async unlinkLogin(identity) { const { error } = await this.client.auth.unlinkIdentity(identity); if (error) throw error; },
+  // new username: the server checks it's free and allowed, then updates your login name and your public name together
+  async changeUsername(name) {
+    const { data, error } = await this.client.rpc('ek_change_username', { p_name: (name || '').trim() });
+    if (error) throw new Error(/function .* does not exist|schema cache/i.test(error.message) ? 'Changing usernames isn’t switched on yet' : error.message);
+    try { const r = await this.client.auth.refreshSession(); if (r.data && r.data.user) this.user = this.fromSb(r.data.user); } catch (_) {}
+    if (this.user) this.user.name = data || name;
+    return this.user.name;
+  },
   async changeEmail(email) { const { error } = await this.client.auth.updateUser({ email }, { emailRedirectTo: authHome() }); if (error) throw error; },
   async resetPassword(email) {
     if (this.mode !== 'supabase') throw new Error('Password reset needs online accounts set up');
